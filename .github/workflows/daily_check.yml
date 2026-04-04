@@ -1,0 +1,38 @@
+name: Daily Price Check
+
+on:
+  schedule:
+    # Runs at 07:00 UTC daily (12:30 IST / 3:00 AM ET — before US market open)
+    - cron: '0 7 * * *'
+  workflow_dispatch:  # allows manual trigger from GitHub UI
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance openai
+
+      - name: Run price checker
+        env:
+          GMAIL_SENDER:    ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python check_prices.py
+
+      - name: Commit updated tracker
+        run: |
+          git config user.name  "PickR Bot"
+          git config user.email "bot@pickr"
+          git add tracked_stocks.json
+          git diff --cached --quiet || git commit -m "chore: update tracker [$(date +%Y-%m-%d)]"
+          git push

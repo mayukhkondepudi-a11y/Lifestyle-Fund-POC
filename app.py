@@ -6,12 +6,18 @@ from openai import OpenAI
 import os
 import json
 import base64
+import time
+import smtplib
+import re
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import urllib.request
 import urllib.parse
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide")
 
+# ── Session State ─────────────────────────────────────────────
 if "report_count" not in st.session_state:
     st.session_state.report_count = 147
 if "recent" not in st.session_state:
@@ -26,6 +32,10 @@ if "generate_html" not in st.session_state:
     st.session_state.generate_html = False
 if "html_just_generated" not in st.session_state:
     st.session_state.html_just_generated = False
+if "model_cooldowns" not in st.session_state:
+    st.session_state.model_cooldowns = {}
+if "track_success" not in st.session_state:
+    st.session_state.track_success = None
 
 st.markdown("""
 <style>
@@ -177,6 +187,15 @@ st.markdown("""
     .tooltip:hover .tiptext { visibility:visible; }
 
     .div { border:none; border-top:1px solid rgba(255,255,255,0.04); margin:0.8rem 0; }
+
+    .track-box { background:#141414; border:1px solid rgba(139,26,26,0.3); border-radius:8px;
+        padding:1.5rem 2rem; margin-top:1.5rem; }
+    .track-box-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.16em;
+        color:#8b1a1a; margin-bottom:0.6rem; }
+    .track-success { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2);
+        border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#22c55e; margin-top:0.8rem; }
+    .track-note { font-size:0.75rem; color:rgba(255,255,255,0.2); margin-top:0.6rem; line-height:1.5; }
+
     .foot-card { background:#141414; border:1px solid rgba(255,255,255,0.05); border-radius:8px;
         padding:1.5rem 2rem; margin-top:2rem; text-align:center; }
     .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.6); }
@@ -224,19 +243,34 @@ st.markdown("""
     [data-testid="stVegaLiteChart"] { background:rgba(255,255,255,0.02) !important;
         border:1px solid rgba(255,255,255,0.04) !important; border-radius:6px !important; }
     .stWarning, .stError, .stInfo { background:#1a1a1a !important; color:#e8e8e8 !important; }
+    .stNumberInput > div > div > input { background:#1a1a1a !important;
+        border:1px solid rgba(255,255,255,0.1) !important; border-radius:6px !important; color:#fff !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── Config & Secrets ──────────────────────────────────────────
 OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", os.getenv("OPENROUTER_API_KEY", ""))
 if not OPENROUTER_API_KEY or "your" in OPENROUTER_API_KEY:
     st.error("Add your OpenRouter API key to .streamlit/secrets.toml"); st.stop()
 
+GMAIL_SENDER   = st.secrets.get("GMAIL_SENDER",   os.getenv("GMAIL_SENDER",   ""))
+GMAIL_APP_PASS = st.secrets.get("GMAIL_APP_PASS",  os.getenv("GMAIL_APP_PASS", ""))
+TRACKER_FILE   = "tracked_stocks.json"
+
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
+
+# Cleaned model list — dead 404s removed, reliable fallbacks added
 FREE_MODELS = [
-    "z-ai/glm-4.5-air:free", "nvidia/nemotron-3-super-120b-a12b:free",
-    "meta-llama/llama-3.3-70b-instruct:free", "nousresearch/hermes-3-llama-3.1-405b:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free", "openai/gpt-oss-120b:free",
-    "qwen/qwen3-coder:free", "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+    "qwen/qwen3-coder:free",
+    "z-ai/glm-4.5-air:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "deepseek/deepseek-chat-v3-5:free",
+    "microsoft/phi-4-reasoning-plus:free",
+    "google/gemma-3-12b-it:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
 ]
 
 @st.cache_data
@@ -245,7 +279,7 @@ def load_text_file(fp):
         with open(fp, "r", encoding="utf-8") as f: return f.read()
     except FileNotFoundError: return ""
 
-FUND_THESIS = load_text_file("fund_thesis.md")
+FUND_THESIS   = load_text_file("fund_thesis.md")
 REPORT_PROMPT = load_text_file("report_prompt.txt")
 
 POPULAR = {
@@ -271,30 +305,190 @@ CURRENCY_SYMBOLS = {
     "USD":"$","INR":"₹","EUR":"€","GBP":"£","JPY":"¥","CNY":"¥","KRW":"₩",
     "HKD":"HK$","SGD":"S$","AUD":"A$","CAD":"C$","BRL":"R$","TWD":"NT$","PKR":"₨",
 }
+
 def get_sym(c):
     if not c or c=="N/A": return "$"
     return CURRENCY_SYMBOLS.get(c, f"{c} ")
+
 def fmt_n(v,p="",s="",d=2):
     if v is None or v=="N/A" or v=="": return "-"
     try:
         n=float(v)
         if abs(n)>=1e12: return f"{p}{n/1e12:.{d}f}T{s}"
-        if abs(n)>=1e9: return f"{p}{n/1e9:.{d}f}B{s}"
-        if abs(n)>=1e6: return f"{p}{n/1e6:.{d}f}M{s}"
-        if abs(n)>=1e3: return f"{p}{n/1e3:.{d}f}K{s}"
+        if abs(n)>=1e9:  return f"{p}{n/1e9:.{d}f}B{s}"
+        if abs(n)>=1e6:  return f"{p}{n/1e6:.{d}f}M{s}"
+        if abs(n)>=1e3:  return f"{p}{n/1e3:.{d}f}K{s}"
         return f"{p}{n:.{d}f}{s}"
     except: return "-"
+
 def fmt_p(v,d=1):
     if v is None or v=="N/A" or v=="": return "-"
     try:
         n=float(v); return f"{n*100:.{d}f}%" if abs(n)<1 else f"{n:.{d}f}%"
     except: return "-"
+
 def fmt_r(v,d=2):
     if v is None or v=="N/A" or v=="": return "-"
     try: return f"{float(v):.{d}f}"
     except: return "-"
+
 def fmt_c(v,cur="USD",d=2): return fmt_n(v,p=get_sym(cur),d=d)
 
+
+# ══════════════════════════════════════════════════════════════
+# TRACKER — JSON PERSISTENCE
+# ══════════════════════════════════════════════════════════════
+
+def load_tracker():
+    if os.path.exists(TRACKER_FILE):
+        try:
+            with open(TRACKER_FILE,"r") as f: return json.load(f)
+        except: return []
+    return []
+
+def save_tracker(data):
+    with open(TRACKER_FILE,"w") as f:
+        json.dump(data, f, indent=2, default=str)
+
+def add_tracked_stock(ticker, company_name, recommendation, target_price,
+                      entry_price, metrics_snapshot, thesis_summary, user_email):
+    tracker = load_tracker()
+    # Remove duplicate for same ticker + email before re-adding
+    tracker = [t for t in tracker
+               if not (t["ticker"]==ticker and t["user_email"]==user_email)]
+    tracker.append({
+        "ticker":            ticker,
+        "company_name":      company_name,
+        "user_email":        user_email,
+        "recommendation":    recommendation,
+        "target_price":      float(target_price),
+        "entry_price":       float(entry_price) if entry_price else None,
+        "added_date":        datetime.now().strftime("%Y-%m-%d"),
+        "original_metrics":  metrics_snapshot,
+        "thesis_summary":    thesis_summary,
+        "alert_sent":        False,
+        "last_checked":      None,
+        "last_price":        float(entry_price) if entry_price else None,
+    })
+    save_tracker(tracker)
+
+
+# ══════════════════════════════════════════════════════════════
+# EMAIL — GMAIL SMTP
+# ══════════════════════════════════════════════════════════════
+
+def send_email(to_email, subject, html_body):
+    if not GMAIL_SENDER or not GMAIL_APP_PASS:
+        return False, "Gmail credentials not configured in secrets.toml"
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"PickR Alerts <{GMAIL_SENDER}>"
+        msg["To"]      = to_email
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_APP_PASS)
+            server.sendmail(GMAIL_SENDER, to_email, msg.as_string())
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+def email_confirmation(to_email, ticker, company_name, recommendation, target_price, entry_price):
+    color = "#22c55e" if recommendation=="BUY" else "#f5c542"
+    sym   = "↑" if recommendation=="BUY" else "◎"
+    body  = f"""
+    <div style="font-family:Inter,sans-serif;background:#0c0c0c;padding:2rem;max-width:600px;margin:0 auto;">
+      <div style="border-bottom:2px solid #8b1a1a;padding-bottom:1rem;margin-bottom:1.5rem;">
+        <span style="font-size:1.4rem;font-weight:900;color:#fff;">Pick<span style="color:#c03030;">R</span></span>
+        <span style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-left:1rem;">Stock Alert Confirmation</span>
+      </div>
+      <p style="color:rgba(255,255,255,0.7);font-size:1rem;line-height:1.7;">
+        You're now tracking <strong style="color:#fff;">{company_name} ({ticker})</strong>.
+      </p>
+      <div style="background:#141414;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:1.2rem 1.5rem;margin:1.2rem 0;">
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Recommendation</span>
+          <span style="color:{color};font-weight:700;">{sym} {recommendation}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Alert Target Price</span>
+          <span style="color:#fff;font-weight:600;">{target_price}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Entry Price (at report)</span>
+          <span style="color:#fff;font-weight:600;">{entry_price}</span>
+        </div>
+      </div>
+      <p style="color:rgba(255,255,255,0.35);font-size:0.8rem;line-height:1.6;margin-top:1.5rem;">
+        You'll receive an alert when the price reaches your target, along with a fresh AI thesis evaluation.
+        Prices are checked daily. To stop tracking, simply reply STOP to this email.
+      </p>
+      <p style="color:rgba(255,255,255,0.15);font-size:0.72rem;margin-top:1.5rem;">
+        PickR — For informational purposes only. Not financial advice.
+      </p>
+    </div>
+    """
+    return send_email(to_email, f"PickR: Now tracking {ticker} ({recommendation})", body)
+
+def email_price_alert(to_email, ticker, company_name, recommendation,
+                      target_price, current_price, thesis_eval):
+    intact      = thesis_eval.get("thesis_intact", True)
+    action      = thesis_eval.get("updated_action", recommendation)
+    rationale   = thesis_eval.get("rationale", "")
+    key_changes = thesis_eval.get("key_changes", [])
+    confidence  = thesis_eval.get("confidence", "Medium")
+    color       = "#22c55e" if action=="BUY" else ("#f5c542" if action=="WATCH" else "#ff4d4d")
+    intact_color= "#22c55e" if intact else "#ff4d4d"
+    intact_text = "INTACT" if intact else "CHANGED"
+    changes_html= "".join(
+        f"<li style='color:rgba(255,255,255,0.5);font-size:0.88rem;margin:0.3rem 0;'>{c}</li>"
+        for c in key_changes
+    )
+    body = f"""
+    <div style="font-family:Inter,sans-serif;background:#0c0c0c;padding:2rem;max-width:600px;margin:0 auto;">
+      <div style="border-bottom:2px solid #8b1a1a;padding-bottom:1rem;margin-bottom:1.5rem;">
+        <span style="font-size:1.4rem;font-weight:900;color:#fff;">Pick<span style="color:#c03030;">R</span></span>
+        <span style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-left:1rem;">Price Alert</span>
+      </div>
+      <h2 style="color:#fff;font-size:1.5rem;margin:0 0 0.3rem;">{company_name} ({ticker})</h2>
+      <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;">Target reached — {datetime.now().strftime('%B %d, %Y')}</p>
+      <div style="background:#141414;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:1.2rem 1.5rem;margin:1.2rem 0;">
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Current Price</span>
+          <span style="color:#fff;font-weight:700;">{current_price}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Your Target</span>
+          <span style="color:#fff;font-weight:600;">{target_price}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Thesis Status</span>
+          <span style="color:{intact_color};font-weight:700;">{intact_text}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Updated Action</span>
+          <span style="color:{color};font-weight:700;">{action}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;">
+          <span style="color:rgba(255,255,255,0.35);font-size:0.9rem;">Confidence</span>
+          <span style="color:#fff;font-weight:600;">{confidence}</span>
+        </div>
+      </div>
+      <div style="background:#1a1a1a;border-left:3px solid #8b1a1a;padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1rem 0;">
+        <p style="color:rgba(255,255,255,0.6);font-size:0.92rem;line-height:1.7;margin:0;font-style:italic;">{rationale}</p>
+      </div>
+      {"<p style='color:rgba(255,255,255,0.4);font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:1rem 0 0.4rem;'>Key changes since original thesis:</p><ul style='margin:0;padding-left:1.2rem;'>" + changes_html + "</ul>" if key_changes else ""}
+      <p style="color:rgba(255,255,255,0.15);font-size:0.72rem;margin-top:1.5rem;">
+        PickR — For informational purposes only. Not financial advice.
+      </p>
+    </div>
+    """
+    return send_email(to_email, f"PickR Alert: {ticker} hit your target ({current_price})", body)
+
+
+# ══════════════════════════════════════════════════════════════
+# DATA FETCHING
+# ══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def search_ticker(query):
@@ -306,7 +500,6 @@ def search_ticker(query):
             return [{"symbol":q["symbol"],"name":q.get("shortname",q["symbol"]),"exchange":q.get("exchange","")}
                     for q in data.get("quotes",[]) if q.get("quoteType") in ("EQUITY","ETF")]
     except: return []
-
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch(ticker):
@@ -342,6 +535,10 @@ def fetch_peers(ticker, sector):
     return out
 
 
+# ══════════════════════════════════════════════════════════════
+# METRICS
+# ══════════════════════════════════════════════════════════════
+
 def calc(data):
     info = data.get("info",{})
     if isinstance(info,dict) and "error" in info: return {"error":info["error"]}
@@ -371,10 +568,12 @@ def calc(data):
         "insider_pct":g("heldPercentInsiders"),"institution_pct":g("heldPercentInstitutions"),
         "shares_outstanding":g("sharesOutstanding"),
     }
-    try: m["fcf_yield"]=float(m["free_cashflow"])/float(m["market_cap"]) if m["free_cashflow"] and m["market_cap"] else None
-    except: m["fcf_yield"]=None
+    try:
+        m["fcf_yield"] = float(m["free_cashflow"])/float(m["market_cap"]) \
+            if m["free_cashflow"] and m["market_cap"] else None
+    except: m["fcf_yield"] = None
 
-    inc=data.get("inc"); m["revenue_history"]={}; m["net_income_history"]={}
+    inc = data.get("inc"); m["revenue_history"]={}; m["net_income_history"]={}
     def cagr_from(df,labels):
         if df is None: return None,{}
         for lb in labels:
@@ -394,27 +593,33 @@ def calc(data):
         try:
             c=h["Close"]
             m["price_5y_return"]=round(((c.iloc[-1]/c.iloc[0])-1)*100,2)
-            m["price_5y_high"]=round(float(c.max()),2); m["price_5y_low"]=round(float(c.min()),2)
+            m["price_5y_high"]=round(float(c.max()),2)
+            m["price_5y_low"]=round(float(c.min()),2)
         except: m["price_5y_return"]=m["price_5y_high"]=m["price_5y_low"]=None
     else: m["price_5y_return"]=m["price_5y_high"]=m["price_5y_low"]=None
     m["news"]=[{"title":n.get("title",""),"publisher":n.get("publisher","")} for n in data.get("news",[])]
     return m
 
 
+# ══════════════════════════════════════════════════════════════
+# AI — PROMPTS
+# ══════════════════════════════════════════════════════════════
+
 def ai_prompt_ui(ticker, m):
-    ms = json.dumps({k:v for k,v in m.items() if k not in ["description","news","revenue_history","net_income_history"]}, indent=2, default=str)
-    sample = FUND_THESIS[:3000] if FUND_THESIS else ""
+    ms = json.dumps(
+        {k:v for k,v in m.items() if k not in ["description","news","revenue_history","net_income_history"]},
+        indent=2, default=str
+    )
+    sample = FUND_THESIS[:1500] if FUND_THESIS else ""
     return [
-        {"role":"system","content":f"""You are the senior equity research analyst for PickR. Write institutional-grade research using the QGLP framework.
+        {"role":"system","content":f"""You are a senior equity research analyst for PickR. Write institutional-grade research using the QGLP framework.
 
-STYLE: 4-5 substantial paragraphs per QGLP section. Specific numbers. Professional prose. Strengths and weaknesses.
-
-THESIS: {sample}
-
+STYLE: 4-5 substantial paragraphs per QGLP section. Specific numbers. Professional prose.
+FUND THESIS CONTEXT: {sample}
 RULES: Use ONLY provided numbers. Never invent. Respond with ONLY valid JSON, no fences, no extra text.
 
 JSON structure:
-{{"executive_summary":"3 sentences. TL;DR of the entire investment case - what the company does, why it matters, and what to do about it.",
+{{"executive_summary":"3 sentences. TL;DR of the entire investment case.",
 "business_overview":"4-5 paragraphs",
 "quality_score":8,"quality_analysis":"4-5 paragraphs analyzing moats, margins, ROE, cash flow quality, capital allocation, balance sheet",
 "growth_score":8,"growth_analysis":"4-5 paragraphs analyzing revenue/EPS growth, organic vs acquired, forward estimates, peer comparison",
@@ -422,21 +627,22 @@ JSON structure:
 "price_score":8,"price_analysis":"4-5 paragraphs analyzing PE, PEG, EV/EBITDA, FCF yield, historical context, margin of safety",
 "recommendation":"BUY","conviction":"High",
 "recommendation_rationale":"3-4 sentences",
+"suggested_entry_price":0.0,
+"suggested_target_price":0.0,
 "risks":["Detailed risk 1 in 2-3 sentences","Risk 2","Risk 3","Risk 4","Risk 5"],
 "bull_case":"3-4 sentences with specific catalysts",
 "bear_case":"3-4 sentences with specific downside scenarios",
 "position_sizing":"2-3 sentences on allocation and entry strategy"}}
 
-Scores: integers 1-10. Recommendation: exactly BUY, WATCH, or PASS."""},
+Scores: integers 1-10. Recommendation: exactly BUY, WATCH, or PASS.
+suggested_entry_price and suggested_target_price: realistic price levels as plain numbers."""},
         {"role":"user","content":f"""Analyze {ticker} ({m.get('company_name',ticker)}).
 
 VERIFIED METRICS: {ms}
+BUSINESS: {m.get('description','N/A')[:300]}
 
-Business: {m.get('description','N/A')[:500]}
-
-Generate comprehensive QGLP analysis with executive summary. JSON only."""}
+JSON only."""}
     ]
-
 
 def ai_prompt_report(ticker, m):
     ms = json.dumps({k:v for k,v in m.items() if k not in ["news"]}, indent=2, default=str)
@@ -445,45 +651,85 @@ def ai_prompt_report(ticker, m):
 
 {REPORT_PROMPT}
 
-CRITICAL: Use ONLY the financial data provided below. Do not invent any figures. If data is missing, state so explicitly.
-All probability assignments in the scenario framework should be clearly labeled as analytical estimates.
-
+CRITICAL: Use ONLY the financial data provided. Do not invent any figures.
 Output clean HTML with inline CSS. White background (#ffffff), dark text (#1a1a2e), professional sans-serif font.
-Use proper HTML tables with borders for all data presentations.
-Include a research masthead at the top with company name, ticker, date, price, and market cap."""},
+Use proper HTML tables with borders. Include a research masthead at the top."""},
         {"role":"user","content":f"""Produce the full institutional research report for {ticker} ({m.get('company_name',ticker)}).
 
 VERIFIED FINANCIAL DATA:
 {ms}
 
-Generate the complete HTML report now. Sections 1-9 plus Annexure. Be as comprehensive as possible."""}
+Generate the complete HTML report now. Sections 1-9 plus Annexure."""}
     ]
 
-def run_ai(msgs):
-    errors = []
-    for model in FREE_MODELS:
+def ai_prompt_thesis_check(ticker, company_name, original_metrics, original_thesis, current_metrics):
+    return [
+        {"role":"system","content":"""You are a senior equity research analyst performing a thesis integrity check.
+Compare the original investment thesis against current market data.
+Respond ONLY with valid JSON, no fences, no extra text."""},
+        {"role":"user","content":f"""THESIS CHECK: {ticker} ({company_name})
+
+ORIGINAL THESIS:
+{original_thesis}
+
+ORIGINAL METRICS:
+{json.dumps(original_metrics, default=str)}
+
+CURRENT METRICS:
+{json.dumps(current_metrics, default=str)}
+
+Respond with exactly this JSON:
+{{
+  "thesis_intact": true,
+  "confidence": "High",
+  "updated_action": "BUY",
+  "key_changes": ["Change 1", "Change 2"],
+  "rationale": "2-3 sentence summary of whether the thesis holds and why."
+}}
+
+thesis_intact: true if the core investment case is still valid.
+updated_action: exactly BUY, WATCH, or PASS.
+confidence: High, Medium, or Low."""}
+    ]
+
+
+# ══════════════════════════════════════════════════════════════
+# AI — RUNNER
+# ══════════════════════════════════════════════════════════════
+
+def run_ai(msgs, max_tokens=3500):
+    errors    = []
+    now       = time.time()
+    cooldowns = st.session_state.get("model_cooldowns", {})
+
+    available = [m for m in FREE_MODELS if now >= cooldowns.get(m, 0)]
+    cooling   = [m for m in FREE_MODELS if now <  cooldowns.get(m, 0)]
+    ordered   = available + cooling
+
+    for model in ordered:
         try:
             r = client.chat.completions.create(
-                model=model, messages=msgs, max_tokens=7000, temperature=0.3,
+                model=model, messages=msgs, max_tokens=max_tokens, temperature=0.3,
                 extra_headers={"HTTP-Referer":"https://pickr.streamlit.app","X-Title":"PickR"},
             )
             raw = r.choices[0].message.content.strip()
             return raw, model, None
         except Exception as e:
-            errors.append(f"{model}: {str(e)[:120]}")
+            err_str = str(e)
+            if "429" in err_str or "rate" in err_str.lower() or "limit" in err_str.lower():
+                st.session_state.model_cooldowns[model] = time.time() + 300
+            errors.append(f"{model}: {err_str[:120]}")
+
     return None, None, errors
 
 
-def run_ai_json(ticker, m):
-    msgs = ai_prompt_ui(ticker, m)
-    raw, model, errors = run_ai(msgs)
-    if raw is None: return {"error":True,"details":errors}
+def _parse_json_response(raw, model):
+    """Best-effort JSON parsing with bracket repair."""
     try:
-        if raw.startswith("```"): raw=raw.split("\n",1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"): raw=raw[:-3]
-        if raw.startswith("json"): raw=raw[4:]
-        raw=raw.strip()
-
+        if raw.startswith("```"): raw = raw.split("\n",1)[1] if "\n" in raw else raw[3:]
+        if raw.endswith("```"):   raw = raw[:-3]
+        if raw.startswith("json"): raw = raw[4:]
+        raw = raw.strip()
         try:
             a = json.loads(raw)
         except json.JSONDecodeError:
@@ -491,65 +737,98 @@ def run_ai_json(ticker, m):
             if last_brace == -1:
                 raw = raw.rstrip().rstrip(",").rstrip('"')
                 if raw.count('"') % 2 != 0: raw += '"'
-                open_brackets = raw.count("[") - raw.count("]")
-                open_braces = raw.count("{") - raw.count("}")
-                raw += "]" * open_brackets + "}" * open_braces
+                raw += "]" * (raw.count("[") - raw.count("]"))
+                raw += "}" * (raw.count("{") - raw.count("}"))
             else:
                 raw = raw[:last_brace+1]
-                open_braces = raw.count("{") - raw.count("}")
-                open_brackets = raw.count("[") - raw.count("]")
                 if raw.count('"') % 2 != 0: raw += '"'
-                raw += "]" * open_brackets + "}" * open_braces
+                raw += "]" * (raw.count("[") - raw.count("]"))
+                raw += "}" * (raw.count("{") - raw.count("}"))
             a = json.loads(raw)
-
         a["model_used"] = model
-        defaults = {
-            "business_overview": "Analysis not available.",
-            "quality_score": 5, "quality_analysis": "Analysis not available.",
-            "growth_score": 5, "growth_analysis": "Analysis not available.",
-            "longevity_score": 5, "longevity_analysis": "Analysis not available.",
-            "price_score": 5, "price_analysis": "Analysis not available.",
-            "recommendation": "WATCH", "conviction": "Medium",
-            "recommendation_rationale": "Insufficient data for full analysis.",
-            "executive_summary": "Report generated with partial data.",
-            "risks": ["Data limitations prevent full risk assessment."],
-            "bull_case": "Not available.", "bear_case": "Not available.",
-            "position_sizing": "Not available.",
-        }
-        for k, v in defaults.items():
-            if k not in a: a[k] = v
-        return a
-
+        return a, None
     except json.JSONDecodeError as e:
-        return {"error":True,"details":[f"{model}: Bad JSON - {str(e)[:100]}","Raw output: "+raw[:300]]}
+        return None, f"{model}: Bad JSON — {str(e)[:100]} | Raw: {raw[:300]}"
 
+
+# ── Cached QGLP analysis (24-hour cache per ticker) ───────────
+@st.cache_data(ttl=86400, show_spinner=False)
+def _cached_ai_json(ticker, metrics_json_str):
+    m    = json.loads(metrics_json_str)
+    msgs = ai_prompt_ui(ticker, m)
+    raw, model, errors = run_ai(msgs, max_tokens=3500)
+    if raw is None:
+        return {"error": True, "details": errors}
+    a, err = _parse_json_response(raw, model)
+    if err:
+        return {"error": True, "details": [err]}
+    defaults = {
+        "business_overview":"Analysis not available.",
+        "quality_score":5,"quality_analysis":"Analysis not available.",
+        "growth_score":5,"growth_analysis":"Analysis not available.",
+        "longevity_score":5,"longevity_analysis":"Analysis not available.",
+        "price_score":5,"price_analysis":"Analysis not available.",
+        "recommendation":"WATCH","conviction":"Medium",
+        "recommendation_rationale":"Insufficient data for full analysis.",
+        "executive_summary":"Report generated with partial data.",
+        "suggested_entry_price":0.0,
+        "suggested_target_price":0.0,
+        "risks":["Data limitations prevent full risk assessment."],
+        "bull_case":"Not available.","bear_case":"Not available.",
+        "position_sizing":"Not available.",
+    }
+    for k,v in defaults.items():
+        if k not in a: a[k] = v
+    return a
+
+def run_ai_json(ticker, m):
+    metrics_json_str = json.dumps(
+        {k:v for k,v in m.items() if k not in ["description","news"]},
+        sort_keys=True, default=str
+    )
+    return _cached_ai_json(ticker, metrics_json_str)
 
 def run_ai_html(ticker, m):
     msgs = ai_prompt_report(ticker, m)
-    raw, model, errors = run_ai(msgs)
+    raw, model, errors = run_ai(msgs, max_tokens=5500)
     if raw is None: return None, errors
     if raw.startswith("```"): raw=raw.split("\n",1)[1] if "\n" in raw else raw[3:]
-    if raw.endswith("```"): raw=raw[:-3]
+    if raw.endswith("```"):   raw=raw[:-3]
     if raw.startswith("html"): raw=raw[4:]
     return raw.strip(), None
 
+def run_thesis_check(ticker, company_name, original_metrics, original_thesis, current_metrics):
+    """Lightweight thesis re-evaluation — ~800 tokens, not a full report."""
+    msgs = ai_prompt_thesis_check(ticker, company_name, original_metrics, original_thesis, current_metrics)
+    raw, model, errors = run_ai(msgs, max_tokens=800)
+    if raw is None: return None, errors
+    a, err = _parse_json_response(raw, model)
+    if err: return None, [err]
+    return a, None
+
+
+# ══════════════════════════════════════════════════════════════
+# RENDER — MAIN REPORT
+# ══════════════════════════════════════════════════════════════
 
 def render(ticker, m, a, data):
     company = m.get("company_name",ticker)
-    date = datetime.now().strftime("%B %d, %Y")
-    cur = m.get("currency","USD")
-    sym = get_sym(cur)
+    date    = datetime.now().strftime("%B %d, %Y")
+    cur     = m.get("currency","USD")
+    sym     = get_sym(cur)
 
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
-
     st.markdown(f'''<div class="rpt-head">
         <h2>{company}</h2>
         <div class="meta">{ticker} &nbsp;/&nbsp; {m.get("sector","")} &nbsp;/&nbsp; {m.get("industry","")} &nbsp;/&nbsp; {cur} &nbsp;/&nbsp; {date}</div>
     </div>''', unsafe_allow_html=True)
 
-    rec=a.get("recommendation","WATCH").upper(); conv=a.get("conviction","Medium")
-    rc="buy" if rec=="BUY" else ("pass" if rec=="PASS" else "watch")
-    try: comp=round((int(a.get("quality_score",0))+int(a.get("growth_score",0))+int(a.get("longevity_score",0))+int(a.get("price_score",0)))/4,1)
+    rec  = a.get("recommendation","WATCH").upper()
+    conv = a.get("conviction","Medium")
+    rc   = "buy" if rec=="BUY" else ("pass" if rec=="PASS" else "watch")
+    try:
+        comp = round((int(a.get("quality_score",0))+int(a.get("growth_score",0))+
+                      int(a.get("longevity_score",0))+int(a.get("price_score",0)))/4,1)
     except: comp=0
 
     st.markdown(f'''<div class="rec-bar">
@@ -558,18 +837,16 @@ def render(ticker, m, a, data):
         <div class="rb-item"><div class="rb-label">QGLP Composite</div><div class="rb-val {rc}">{comp}</div></div>
     </div>''', unsafe_allow_html=True)
 
-    es = a.get("executive_summary","")
-    if es:
-        st.markdown(f'<div class="exec-summary">{es}</div>', unsafe_allow_html=True)
-
+    if a.get("executive_summary"):
+        st.markdown(f'<div class="exec-summary">{a["executive_summary"]}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="rationale-text">{a.get("recommendation_rationale","")}</div>', unsafe_allow_html=True)
 
-    w52h = m.get("week_52_high"); w52l = m.get("week_52_low"); cp = m.get("current_price")
+    w52h=m.get("week_52_high"); w52l=m.get("week_52_low"); cp=m.get("current_price")
     if w52h and w52l and cp:
         try:
             w52h=float(w52h); w52l=float(w52l); cpf=float(cp)
-            if w52h > w52l:
-                pct = max(0, min(100, ((cpf - w52l) / (w52h - w52l)) * 100))
+            if w52h>w52l:
+                pct=max(0,min(100,((cpf-w52l)/(w52h-w52l))*100))
                 st.markdown(f'''<div class="sec">52-Week Range</div>
                 <div class="range-bar-container">
                     <div class="range-bar-labels">
@@ -584,71 +861,66 @@ def render(ticker, m, a, data):
                 </div>''', unsafe_allow_html=True)
         except: pass
 
-    h = data.get("hist")
+    h=data.get("hist")
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
-        cd = h[["Close"]].copy(); cd.columns = ["Price"]
+        cd=h[["Close"]].copy(); cd.columns=["Price"]
         st.line_chart(cd, use_container_width=True, height=250, color="#8b1a1a")
 
     st.markdown('<div class="sec">Valuation <span class="vtag">Verified</span></div>', unsafe_allow_html=True)
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Market Cap", fmt_c(m.get("market_cap"),cur))
-    with c2: st.metric("Price", fmt_c(m.get("current_price"),cur))
-    with c3: st.metric("Trailing P/E", fmt_r(m.get("trailing_pe")))
+    c1,c2,c3,c4,c5,c6=st.columns(6)
+    with c1: st.metric("Market Cap",  fmt_c(m.get("market_cap"),cur))
+    with c2: st.metric("Price",       fmt_c(m.get("current_price"),cur))
+    with c3: st.metric("Trailing P/E",fmt_r(m.get("trailing_pe")))
     with c4: st.metric("Forward P/E", fmt_r(m.get("forward_pe")))
-    with c5: st.metric("PEG", fmt_r(m.get("peg_ratio")))
-    with c6: st.metric("EV/EBITDA", fmt_r(m.get("ev_to_ebitda")))
+    with c5: st.metric("PEG",         fmt_r(m.get("peg_ratio")))
+    with c6: st.metric("EV/EBITDA",   fmt_r(m.get("ev_to_ebitda")))
 
     st.markdown('''<div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin:0.3rem 0 0.8rem;">
-        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">P/E: Price to Earnings<span class="tiptext">Share price divided by earnings per share. Lower may indicate undervaluation relative to earnings.</span></span>
-        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">PEG: Price/Earnings to Growth<span class="tiptext">P/E ratio divided by earnings growth rate. PEG of 1.0 suggests fair value for the growth rate.</span></span>
-        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">EV/EBITDA<span class="tiptext">Enterprise value divided by EBITDA. Useful for comparing companies with different capital structures.</span></span>
+        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">P/E: Price to Earnings<span class="tiptext">Share price divided by earnings per share.</span></span>
+        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">PEG: Price/Earnings to Growth<span class="tiptext">P/E divided by earnings growth rate. 1.0 = fair value.</span></span>
+        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">EV/EBITDA<span class="tiptext">Enterprise value divided by EBITDA. Useful across capital structures.</span></span>
     </div>''', unsafe_allow_html=True)
 
     st.markdown('<div class="sec">Profitability</div>', unsafe_allow_html=True)
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"),cur))
-    with c2: st.metric("Gross Margin", fmt_p(m.get("gross_margin")))
-    with c3: st.metric("Op. Margin", fmt_p(m.get("operating_margin")))
-    with c4: st.metric("Net Margin", fmt_p(m.get("profit_margin")))
-    with c5: st.metric("ROE", fmt_p(m.get("roe")))
-    with c6: st.metric("ROA", fmt_p(m.get("roa")))
-
-    st.markdown('''<div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin:0.3rem 0 0.8rem;">
-        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">ROE: Return on Equity<span class="tiptext">Net income divided by shareholders' equity. Measures how efficiently the company generates profit from equity.</span></span>
-        <span class="tooltip" style="font-size:0.75rem;color:rgba(255,255,255,0.25);">FCF Yield<span class="tiptext">Free cash flow divided by market cap. Higher yield suggests the company generates more cash relative to its valuation.</span></span>
-    </div>''', unsafe_allow_html=True)
+    c1,c2,c3,c4,c5,c6=st.columns(6)
+    with c1: st.metric("Revenue",     fmt_c(m.get("total_revenue"),cur))
+    with c2: st.metric("Gross Margin",fmt_p(m.get("gross_margin")))
+    with c3: st.metric("Op. Margin",  fmt_p(m.get("operating_margin")))
+    with c4: st.metric("Net Margin",  fmt_p(m.get("profit_margin")))
+    with c5: st.metric("ROE",         fmt_p(m.get("roe")))
+    with c6: st.metric("ROA",         fmt_p(m.get("roa")))
 
     st.markdown('<div class="sec">Growth</div>', unsafe_allow_html=True)
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Rev Growth", fmt_p(m.get("revenue_growth")))
-    with c2: st.metric("Rev CAGR", fmt_p(m.get("revenue_cagr")))
-    with c3: st.metric("NI CAGR", fmt_p(m.get("net_income_cagr")))
-    with c4: st.metric("EPS CAGR", fmt_p(m.get("eps_cagr")))
-    with c5: st.metric("Fwd EPS", fmt_r(m.get("forward_eps")))
+    c1,c2,c3,c4,c5,c6=st.columns(6)
+    with c1: st.metric("Rev Growth",fmt_p(m.get("revenue_growth")))
+    with c2: st.metric("Rev CAGR",  fmt_p(m.get("revenue_cagr")))
+    with c3: st.metric("NI CAGR",   fmt_p(m.get("net_income_cagr")))
+    with c4: st.metric("EPS CAGR",  fmt_p(m.get("eps_cagr")))
+    with c5: st.metric("Fwd EPS",   fmt_r(m.get("forward_eps")))
     with c6:
         r5=m.get("price_5y_return")
         st.metric("5Y Return", f"{r5}%" if r5 else "-")
 
-    rh,nh = m.get("revenue_history",{}), m.get("net_income_history",{})
+    rh,nh=m.get("revenue_history",{}),m.get("net_income_history",{})
     if rh or nh:
         st.markdown('<div class="sec">Revenue & Earnings Trend (Billions)</div>', unsafe_allow_html=True)
-        cc1,cc2 = st.columns(2)
+        cc1,cc2=st.columns(2)
         with cc1:
             if rh: st.bar_chart(pd.DataFrame({"Revenue":rh}), use_container_width=True, height=200, color="#8b1a1a")
         with cc2:
             if nh: st.bar_chart(pd.DataFrame({"Net Income":nh}), use_container_width=True, height=200, color="#d4443a")
 
     st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("FCF", fmt_c(m.get("free_cashflow"),cur))
-    with c2: st.metric("FCF Yield", fmt_p(m.get("fcf_yield")))
-    with c3: st.metric("Debt/Equity", fmt_r(m.get("debt_to_equity")))
-    with c4: st.metric("Current Ratio", fmt_r(m.get("current_ratio")))
-    with c5: st.metric("Div Yield", fmt_p(m.get("dividend_yield")))
-    with c6: st.metric("Beta", fmt_r(m.get("beta")))
+    c1,c2,c3,c4,c5,c6=st.columns(6)
+    with c1: st.metric("FCF",          fmt_c(m.get("free_cashflow"),cur))
+    with c2: st.metric("FCF Yield",    fmt_p(m.get("fcf_yield")))
+    with c3: st.metric("Debt/Equity",  fmt_r(m.get("debt_to_equity")))
+    with c4: st.metric("Current Ratio",fmt_r(m.get("current_ratio")))
+    with c5: st.metric("Div Yield",    fmt_p(m.get("dividend_yield")))
+    with c6: st.metric("Beta",         fmt_r(m.get("beta")))
 
-    q,g,l,p = a.get("quality_score",0),a.get("growth_score",0),a.get("longevity_score",0),a.get("price_score",0)
+    q,g,l,p=a.get("quality_score",0),a.get("growth_score",0),a.get("longevity_score",0),a.get("price_score",0)
     st.markdown(f'''<div class="qglp-s">
         <div class="sec" style="margin-top:0;border-color:rgba(255,255,255,0.05);">QGLP Scorecard</div>
         <div class="qg">
@@ -680,19 +952,23 @@ def render(ticker, m, a, data):
             th="".join(f"<th>{h}</th>" for h in hds)
             tr_c="<tr class='hl'>"+"".join(f"<td>{cur_row[h]}</td>" for h in hds)+"</tr>"
             tr_p="".join("<tr>"+"".join(f"<td>{pr.get(h,'-')}</td>" for h in hds)+"</tr>" for pr in peers)
-            st.markdown(f'<table class="pt"><thead><tr>{th}</tr></thead><tbody>{tr_c}{tr_p}</tbody></table>', unsafe_allow_html=True)
+            st.markdown(f'<table class="pt"><thead><tr>{th}</tr></thead><tbody>{tr_c}{tr_p}</tbody></table>',
+                        unsafe_allow_html=True)
 
     st.markdown('<div class="sec">Key Risks</div>', unsafe_allow_html=True)
     risks=a.get("risks",[])
     if isinstance(risks,list):
-        st.markdown("".join(f'<div class="risk-row"><span class="rn">{str(i).zfill(2)}</span>{r}</div>' for i,r in enumerate(risks,1)), unsafe_allow_html=True)
+        st.markdown("".join(f'<div class="risk-row"><span class="rn">{str(i).zfill(2)}</span>{r}</div>'
+                            for i,r in enumerate(risks,1)), unsafe_allow_html=True)
 
     st.markdown('<hr class="div">', unsafe_allow_html=True)
-    bc_col,br_col = st.columns(2)
+    bc_col,br_col=st.columns(2)
     with bc_col:
-        st.markdown(f'<div class="cb cb-bull"><div class="cb-title">Bull Case</div>{a.get("bull_case","N/A")}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="cb cb-bull"><div class="cb-title">Bull Case</div>{a.get("bull_case","N/A")}</div>',
+                    unsafe_allow_html=True)
     with br_col:
-        st.markdown(f'<div class="cb cb-bear"><div class="cb-title">Bear Case</div>{a.get("bear_case","N/A")}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="cb cb-bear"><div class="cb-title">Bear Case</div>{a.get("bear_case","N/A")}</div>',
+                    unsafe_allow_html=True)
 
     st.markdown('<hr class="div">', unsafe_allow_html=True)
     st.markdown('<div class="sec">Position Sizing</div>', unsafe_allow_html=True)
@@ -701,22 +977,122 @@ def render(ticker, m, a, data):
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")} &nbsp;/&nbsp; Report #{st.session_state.report_count}
     </div>''', unsafe_allow_html=True)
-
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
-# MAIN UI LAYOUT
+# RENDER — TRACK BOX
 # ══════════════════════════════════════════════════════════════
 
-# Hero
+def render_track_box(ticker, m, a):
+    rec = a.get("recommendation","WATCH").upper()
+    if rec not in ("BUY","WATCH"):
+        return
+
+    company  = m.get("company_name", ticker)
+    cur      = m.get("currency","USD")
+    sym      = get_sym(cur)
+    cp_raw   = m.get("current_price")
+    try:    cp = float(cp_raw) if cp_raw else 0.0
+    except: cp = 0.0
+
+    suggested_target = a.get("suggested_target_price", 0.0)
+    suggested_entry  = a.get("suggested_entry_price",  0.0)
+    try:
+        if not suggested_target or float(suggested_target)==0.0:
+            suggested_target = round(cp * 1.15, 2)
+        if not suggested_entry or float(suggested_entry)==0.0:
+            suggested_entry = round(cp * 0.97, 2)
+        suggested_target = float(suggested_target)
+        suggested_entry  = float(suggested_entry)
+    except:
+        suggested_target = round(cp*1.15,2)
+        suggested_entry  = round(cp*0.97,2)
+
+    rec_color = "#22c55e" if rec=="BUY" else "#f5c542"
+
+    st.markdown(f'''<div class="track-box">
+        <div class="track-box-title">📬 Track this stock</div>
+        <p style="color:rgba(255,255,255,0.45);font-size:0.9rem;line-height:1.65;margin:0 0 1rem;">
+            Get an email when <strong style="color:#fff;">{company}</strong> hits your target price —
+            with a live AI thesis check at that moment to tell you if the original case still holds.
+            Thesis target: <strong style="color:{rec_color};">{sym}{suggested_target:,.2f}</strong>
+        </p>
+    </div>''', unsafe_allow_html=True)
+
+    with st.expander("Set up price alert →", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            user_email = st.text_input(
+                "Your email",
+                placeholder="you@example.com",
+                key=f"track_email_{ticker}"
+            )
+        with col2:
+            target_price = st.number_input(
+                f"Alert me when price reaches ({sym})",
+                min_value=0.01,
+                value=suggested_target,
+                step=0.50,
+                key=f"track_target_{ticker}"
+            )
+
+        thesis_snapshot  = f"{a.get('executive_summary','')} {a.get('recommendation_rationale','')}".strip()
+        metrics_snapshot = {
+            "trailing_pe":     m.get("trailing_pe"),
+            "forward_pe":      m.get("forward_pe"),
+            "peg_ratio":       m.get("peg_ratio"),
+            "operating_margin":m.get("operating_margin"),
+            "roe":             m.get("roe"),
+            "revenue_growth":  m.get("revenue_growth"),
+            "revenue_cagr":    m.get("revenue_cagr"),
+            "fcf_yield":       m.get("fcf_yield"),
+            "debt_to_equity":  m.get("debt_to_equity"),
+            "ev_to_ebitda":    m.get("ev_to_ebitda"),
+        }
+
+        if st.button("Start Tracking", key=f"track_btn_{ticker}", type="primary"):
+            if not user_email or "@" not in user_email:
+                st.error("Please enter a valid email address.")
+            elif not GMAIL_SENDER or not GMAIL_APP_PASS:
+                st.warning("Email not configured. Add GMAIL_SENDER and GMAIL_APP_PASS to .streamlit/secrets.toml")
+            else:
+                add_tracked_stock(
+                    ticker=ticker, company_name=company, recommendation=rec,
+                    target_price=target_price, entry_price=cp,
+                    metrics_snapshot=metrics_snapshot,
+                    thesis_summary=thesis_snapshot, user_email=user_email,
+                )
+                ok, err = email_confirmation(
+                    user_email, ticker, company, rec,
+                    f"{sym}{target_price:,.2f}", f"{sym}{cp:,.2f}"
+                )
+                if ok:
+                    st.session_state.track_success = f"✓ Tracking set up! Confirmation sent to {user_email}"
+                else:
+                    st.session_state.track_success = f"✓ Saved locally (email failed: {err})"
+
+        if st.session_state.track_success:
+            st.markdown(f'<div class="track-success">{st.session_state.track_success}</div>',
+                        unsafe_allow_html=True)
+            st.session_state.track_success = None
+
+        st.markdown(
+            '<div class="track-note">Your email is only used for price alerts on stocks you choose to track. Never shared.</div>',
+            unsafe_allow_html=True
+        )
+
+
+# ══════════════════════════════════════════════════════════════
+# MAIN UI
+# ══════════════════════════════════════════════════════════════
+
 st.markdown('''<div class="hero">
     <h1>Pick<span class="accent">R</span></h1>
     <div class="tag">Intelligent Equity Research</div>
     <div class="desc">Institutional-quality research reports powered by the QGLP framework. Verified financials, scenario analysis, peer comparisons, and AI-driven insights.</div>
 </div>''', unsafe_allow_html=True)
 
-# Stats
 rc = st.session_state.report_count
 st.markdown(f'''<div class="stats-row">
     <div class="sr-item"><span class="sr-num">24</span><span class="sr-lbl">Verified Metrics</span></div>
@@ -725,25 +1101,24 @@ st.markdown(f'''<div class="stats-row">
     <div class="sr-item"><span class="sr-num">{rc}+</span><span class="sr-lbl">Reports Generated</span></div>
 </div>''', unsafe_allow_html=True)
 
-# ── SINGLE SEARCH SECTION ────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
-cl,cm,cr = st.columns([1,2.5,1])
+cl,cm,cr=st.columns([1,2.5,1])
 with cm:
     recent_list = st.session_state.recent[-6:]
-    tab_names = ["Search by Name","Popular Stocks","Enter Ticker"]
-    if recent_list:
-        tab_names.append("Recent")
+    tab_names   = ["Search by Name","Popular Stocks","Enter Ticker"]
+    if recent_list: tab_names.append("Recent")
 
-    tabs = st.tabs(tab_names)
+    tabs     = st.tabs(tab_names)
     resolved = None
 
     with tabs[0]:
-        sq = st.text_input("Search", placeholder="Type a company name... e.g. Broadcom, Apple, Reliance", label_visibility="collapsed", key="s1")
+        sq = st.text_input("Search", placeholder="Type a company name... e.g. Broadcom, Apple, Reliance",
+                           label_visibility="collapsed", key="s1")
         if sq and len(sq)>=2:
             res = search_ticker(sq)
             if res:
                 opts = {f"{r['name']} ({r['symbol']})":r['symbol'] for r in res}
-                sel = st.selectbox("Pick", opts.keys(), label_visibility="collapsed", key="s2")
+                sel  = st.selectbox("Pick", opts.keys(), label_visibility="collapsed", key="s2")
                 if sel: resolved = opts[sel]
             else: st.caption("No results found. Try the ticker tab.")
 
@@ -752,22 +1127,21 @@ with cm:
         if sp and POPULAR[sp]: resolved = POPULAR[sp]
 
     with tabs[2]:
-        td = st.text_input("Ticker", placeholder="e.g. AVGO, AAPL, RELIANCE.NS", label_visibility="collapsed", key="s4")
+        td = st.text_input("Ticker", placeholder="e.g. AVGO, AAPL, RELIANCE.NS",
+                           label_visibility="collapsed", key="s4")
         if td: resolved = td.strip().upper()
 
     if recent_list:
         with tabs[3]:
-            sr = st.selectbox("Select a recent search", [""] + list(reversed(recent_list)), label_visibility="collapsed", key="s_recent")
+            sr = st.selectbox("Select a recent search", [""]+list(reversed(recent_list)),
+                              label_visibility="collapsed", key="s_recent")
             if sr: resolved = sr
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
     go = st.button("Generate Report", use_container_width=True, type="primary")
 
 
-# ── REPORT CONTAINER: above info sections ─────────────────────
-report_area = st.container()
-
-# ── Info sections (always visible, below report) ─────────────
+# ── Static info sections ──────────────────────────────────────
 st.markdown('''<div class="hiw">
     <div class="hiw-title">How It Works</div>
     <div class="hiw-grid">
@@ -830,31 +1204,34 @@ st.markdown('''<div class="params-card">
     <div class="params-row"><span class="params-key">Metrics Calculation</span><span class="params-val">Python (verified, not AI-generated)</span></div>
     <div class="params-row"><span class="params-key">CAGR Period</span><span class="params-val">Based on available annual data (typically 3-4 years)</span></div>
     <div class="params-row"><span class="params-key">Peer Selection</span><span class="params-val">Top 4 sector peers by market relevance</span></div>
-    <div class="params-row"><span class="params-key">Download Report</span><span class="params-val">Full institutional HTML report with scenario analysis</span></div>
+    <div class="params-row"><span class="params-key">Price Tracking</span><span class="params-val">Daily email alerts when target price is reached</span></div>
+    <div class="params-row"><span class="params-key">Download Report</span><span class="params-val">Full institutional PDF report with scenario analysis</span></div>
 </div>''', unsafe_allow_html=True)
 
+# report_area placed HERE so the status widget + report render below the info cards,
+# not between the button and the cards
+report_area = st.container()
 
 # ══════════════════════════════════════════════════════════════
 # GENERATION LOGIC
 # ══════════════════════════════════════════════════════════════
 
 should_generate = False
-ticker = None
+ticker          = None
 
 if go and resolved:
-    ticker = resolved.strip().upper()
+    ticker          = resolved.strip().upper()
     should_generate = True
 elif go and not resolved:
     with report_area:
         st.warning("Select or enter a company first.")
 
-# ── Step 1: Generate main report if needed ────────────────────
 if should_generate and ticker:
     if ticker not in st.session_state.recent:
         st.session_state.recent.append(ticker)
-    st.session_state.report_count += 1
-    st.session_state.cached_html = None
-    st.session_state.generate_html = False
+    st.session_state.report_count       += 1
+    st.session_state.cached_html         = None
+    st.session_state.generate_html       = False
     st.session_state.html_just_generated = False
 
     with report_area:
@@ -864,7 +1241,8 @@ if should_generate and ticker:
             try: sd = fetch(ticker)
             except Exception as e: st.error(f"Failed to fetch data: {e}"); st.stop()
             info = sd.get("info",{})
-            if isinstance(info,dict) and info.get("error"): st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
+            if isinstance(info,dict) and info.get("error"):
+                st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
 
             company_name = info.get("shortName", info.get("longName", ticker))
             st.write(f"Successfully loaded **{company_name}**")
@@ -885,28 +1263,9 @@ if should_generate and ticker:
             rec = a.get("recommendation","WATCH")
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
-    st.session_state.cached_report = {"ticker":ticker, "metrics":m, "analysis":a, "data":sd}
+    st.session_state.cached_report = {"ticker":ticker,"metrics":m,"analysis":a,"data":sd}
 
-# ── Step 2: Handle HTML report generation (flag-based) ────────
-if st.session_state.generate_html and st.session_state.cached_report:
-    cached = st.session_state.cached_report
-    with report_area:
-        with st.status("Generating institutional HTML report...", expanded=True) as html_status:
-            st.write(f"Building comprehensive report for **{cached['metrics'].get('company_name', cached['ticker'])}**...")
-            st.caption("This includes scenario analysis, probability-weighted valuations, catalyst calendars, and risk frameworks")
-            st.write("Calling AI model for full institutional report generation...")
-            st.caption("Typically takes 30-90 seconds depending on model availability")
-            html_report, html_errors = run_ai_html(cached["ticker"], cached["metrics"])
-            if html_report:
-                st.session_state.cached_html = html_report
-                st.session_state.html_just_generated = True
-                html_status.update(label="HTML report ready!", state="complete")
-            else:
-                html_status.update(label="HTML generation failed", state="error")
-                if html_errors:
-                    for e in html_errors: st.code(e)
-    st.session_state.generate_html = False
-    st.rerun()
+# (HTML generation flag handler removed — PDF via browser print replaces it)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -914,25 +1273,28 @@ if st.session_state.generate_html and st.session_state.cached_report:
 # ══════════════════════════════════════════════════════════════
 
 if st.session_state.cached_report:
-    cached = st.session_state.cached_report
+    cached   = st.session_state.cached_report
     c_ticker = cached["ticker"]
-    c_m = cached["metrics"]
-    c_a = cached["analysis"]
-    c_data = cached["data"]
+    c_m      = cached["metrics"]
+    c_a      = cached["analysis"]
+    c_data   = cached["data"]
 
     with report_area:
         render(c_ticker, c_m, c_a, c_data)
 
-        # ── Download section (single, clean) ──────────────────
+        # Track box — only shown for BUY and WATCH
+        render_track_box(c_ticker, c_m, c_a)
+
+        # Download section
         st.markdown('<hr class="div">', unsafe_allow_html=True)
         st.markdown('''<div style="text-align:center;padding:1rem 0 0.5rem;">
             <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div>
         </div>''', unsafe_allow_html=True)
 
-        dl1, dl2, dl3 = st.columns([1,1,1])
+        dl1,dl2,dl3=st.columns([1,1,1])
 
         with dl1:
-            md_lines = [
+            md_lines=[
                 f"# {c_m.get('company_name',c_ticker)} ({c_ticker})",
                 f"PickR Research Report / {datetime.now().strftime('%B %d, %Y')}",
                 f"{c_m.get('sector','')} / {c_m.get('industry','')} / {c_m.get('currency','USD')}","",
@@ -942,65 +1304,140 @@ if st.session_state.cached_report:
             ]
             for k,t in [("business_overview","Business Overview"),("quality_analysis","Quality"),
                          ("growth_analysis","Growth"),("longevity_analysis","Longevity"),("price_analysis","Price")]:
-                md_lines += [f"## {t}","",c_a.get(k,""),"","---",""]
-            md_lines += ["## Risks",""]
+                md_lines+=[f"## {t}","",c_a.get(k,""),"","---",""]
+            md_lines+=["## Risks",""]
             for i,r in enumerate(c_a.get("risks",[]),1): md_lines.append(f"{i}. {r}")
-            md_lines += ["","## Bull Case","",c_a.get("bull_case",""),"","## Bear Case","",c_a.get("bear_case",""),
-                         "","## Position Sizing","",c_a.get("position_sizing",""),
-                         "",f"*PickR / {datetime.now().strftime('%B %d, %Y')}*"]
+            md_lines+=["","## Bull Case","",c_a.get("bull_case",""),
+                        "","## Bear Case","",c_a.get("bear_case",""),
+                        "","## Position Sizing","",c_a.get("position_sizing",""),
+                        "",f"*PickR / {datetime.now().strftime('%B %d, %Y')}*"]
             st.download_button("Summary (Markdown)", "\n".join(md_lines),
-                              f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.md","text/markdown",
-                              use_container_width=True)
+                               f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.md",
+                               "text/markdown", use_container_width=True)
 
         with dl2:
-            if st.session_state.cached_html:
-                # Show download button
-                st.download_button("Download Full Report (HTML)", st.session_state.cached_html,
-                                  f"PickR_{c_ticker}_Full_{datetime.now().strftime('%Y%m%d')}.html","text/html",
-                                  use_container_width=True, key="dl_html")
-                # Auto-open in new tab if just generated
-                if st.session_state.html_just_generated:
-                    b64 = base64.b64encode(st.session_state.cached_html.encode()).decode()
-                    components.html(f"""
-                        <script>
-                            var newTab = window.open();
-                            if (newTab) {{
-                                newTab.document.write(atob("{b64}"));
-                                newTab.document.close();
-                            }}
-                        </script>
-                    """, height=0)
-                    st.session_state.html_just_generated = False
-            else:
-                # Button sets flag, rerun handles generation
-                if st.button("Generate Full Report (HTML)", use_container_width=True, type="primary", key="gen_html"):
-                    st.session_state.generate_html = True
-                    st.rerun()
+            # Build a clean printable HTML version of the report inline from cached data,
+            # then trigger window.print() — user saves as PDF from the browser dialog.
+            cur_sym = get_sym(c_m.get("currency","USD"))
+            try:
+                comp_score = round((int(c_a.get("quality_score",5))+int(c_a.get("growth_score",5))+
+                                    int(c_a.get("longevity_score",5))+int(c_a.get("price_score",5)))/4,1)
+            except: comp_score = 0
+
+            rec_pdf   = c_a.get("recommendation","WATCH").upper()
+            rec_color = "#16a34a" if rec_pdf=="BUY" else ("#b45309" if rec_pdf=="WATCH" else "#dc2626")
+
+            risks_html = "".join(
+                f"<li style='margin:0.4rem 0;'>{r}</li>"
+                for r in c_a.get("risks",[])
+            )
+            pdf_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body{{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1a1a2e;margin:0;padding:2rem 3rem;font-size:13px;line-height:1.7;}}
+  h1{{font-size:2rem;margin:0;color:#1a1a2e;}} h2{{font-size:1rem;text-transform:uppercase;letter-spacing:0.1em;color:#8b1a1a;border-bottom:2px solid #8b1a1a;padding-bottom:0.3rem;margin-top:1.6rem;}}
+  .meta{{color:#666;font-size:0.8rem;margin-top:0.2rem;}}
+  .rec-row{{display:flex;gap:3rem;padding:1rem 0;border-bottom:1px solid #eee;margin:1rem 0;}}
+  .rc{{text-align:center;}} .rc .lbl{{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:#999;}}
+  .rc .val{{font-size:1.6rem;font-weight:800;color:{rec_color};}}
+  .exec{{background:#fdf4f4;border-left:3px solid #8b1a1a;padding:0.8rem 1rem;font-style:italic;color:#444;margin:1rem 0;}}
+  .scores{{display:flex;gap:1.5rem;background:#f8f8f8;border-radius:6px;padding:1rem;margin:1rem 0;}}
+  .sc{{flex:1;text-align:center;}} .sc .sl{{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:#999;}}
+  .sc .sv{{font-size:1.8rem;font-weight:800;color:#8b1a1a;}}
+  table{{width:100%;border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0;}}
+  th{{background:#f0f0f0;text-align:left;padding:0.4rem 0.6rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:#666;}}
+  td{{padding:0.35rem 0.6rem;border-bottom:1px solid #f0f0f0;}}
+  .bull{{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:0.8rem 1rem;}}
+  .bear{{background:#fff1f2;border:1px solid #fecdd3;border-radius:4px;padding:0.8rem 1rem;}}
+  .bull-title{{color:#16a34a;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;}}
+  .bear-title{{color:#dc2626;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;}}
+  .two-col{{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:0.5rem 0;}}
+  .prose{{color:#333;}} ul{{padding-left:1.2rem;}}
+  .footer{{border-top:1px solid #eee;margin-top:2rem;padding-top:0.8rem;font-size:0.7rem;color:#aaa;text-align:center;}}
+  @media print{{body{{padding:1rem 2rem;}} @page{{margin:1.5cm;}}}}
+</style></head><body>
+<h1>{c_m.get('company_name', c_ticker)} ({c_ticker})</h1>
+<div class="meta">{c_m.get('sector','')} &nbsp;·&nbsp; {c_m.get('industry','')} &nbsp;·&nbsp; {c_m.get('currency','USD')} &nbsp;·&nbsp; {datetime.now().strftime('%B %d, %Y')}</div>
+
+<div class="rec-row">
+  <div class="rc"><div class="lbl">Recommendation</div><div class="val">{rec_pdf}</div></div>
+  <div class="rc"><div class="lbl">Conviction</div><div class="val" style="color:{rec_color};">{c_a.get('conviction','—')}</div></div>
+  <div class="rc"><div class="lbl">QGLP Composite</div><div class="val" style="color:{rec_color};">{comp_score}</div></div>
+</div>
+
+<div class="exec">{c_a.get('executive_summary','')}</div>
+<p class="prose" style="color:#555;font-style:italic;">{c_a.get('recommendation_rationale','')}</p>
+
+<h2>QGLP Scorecard</h2>
+<div class="scores">
+  <div class="sc"><div class="sl">Quality</div><div class="sv">{c_a.get('quality_score','—')}</div></div>
+  <div class="sc"><div class="sl">Growth</div><div class="sv">{c_a.get('growth_score','—')}</div></div>
+  <div class="sc"><div class="sl">Longevity</div><div class="sv">{c_a.get('longevity_score','—')}</div></div>
+  <div class="sc"><div class="sl">Price</div><div class="sv">{c_a.get('price_score','—')}</div></div>
+</div>
+
+<h2>Key Metrics</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
+  <tr><td>Market Cap</td><td>{fmt_c(c_m.get('market_cap'),c_m.get('currency','USD'))}</td><td>Revenue</td><td>{fmt_c(c_m.get('total_revenue'),c_m.get('currency','USD'))}</td></tr>
+  <tr><td>Price</td><td>{fmt_c(c_m.get('current_price'),c_m.get('currency','USD'))}</td><td>Gross Margin</td><td>{fmt_p(c_m.get('gross_margin'))}</td></tr>
+  <tr><td>Trailing P/E</td><td>{fmt_r(c_m.get('trailing_pe'))}</td><td>Op. Margin</td><td>{fmt_p(c_m.get('operating_margin'))}</td></tr>
+  <tr><td>Forward P/E</td><td>{fmt_r(c_m.get('forward_pe'))}</td><td>Net Margin</td><td>{fmt_p(c_m.get('profit_margin'))}</td></tr>
+  <tr><td>PEG Ratio</td><td>{fmt_r(c_m.get('peg_ratio'))}</td><td>ROE</td><td>{fmt_p(c_m.get('roe'))}</td></tr>
+  <tr><td>EV/EBITDA</td><td>{fmt_r(c_m.get('ev_to_ebitda'))}</td><td>FCF Yield</td><td>{fmt_p(c_m.get('fcf_yield'))}</td></tr>
+  <tr><td>Rev Growth</td><td>{fmt_p(c_m.get('revenue_growth'))}</td><td>Debt/Equity</td><td>{fmt_r(c_m.get('debt_to_equity'))}</td></tr>
+  <tr><td>Beta</td><td>{fmt_r(c_m.get('beta'))}</td><td>Div Yield</td><td>{fmt_p(c_m.get('dividend_yield'))}</td></tr>
+</table>
+
+<h2>Business Overview</h2><p class="prose">{c_a.get('business_overview','')}</p>
+<h2>Quality Analysis</h2><p class="prose">{c_a.get('quality_analysis','')}</p>
+<h2>Growth Analysis</h2><p class="prose">{c_a.get('growth_analysis','')}</p>
+<h2>Longevity Analysis</h2><p class="prose">{c_a.get('longevity_analysis','')}</p>
+<h2>Price Analysis</h2><p class="prose">{c_a.get('price_analysis','')}</p>
+
+<h2>Key Risks</h2><ul>{risks_html}</ul>
+
+<h2>Bull &amp; Bear Cases</h2>
+<div class="two-col">
+  <div class="bull"><div class="bull-title">Bull Case</div><p style="margin:0.4rem 0 0;">{c_a.get('bull_case','')}</p></div>
+  <div class="bear"><div class="bear-title">Bear Case</div><p style="margin:0.4rem 0 0;">{c_a.get('bear_case','')}</p></div>
+</div>
+
+<h2>Position Sizing</h2><p class="prose">{c_a.get('position_sizing','')}</p>
+
+<div class="footer">PickR Research &nbsp;·&nbsp; {datetime.now().strftime('%B %d, %Y')} &nbsp;·&nbsp; For informational purposes only. Not financial advice.</div>
+<script>window.onload=function(){{window.print();}}</script>
+</body></html>"""
+            b64_pdf = base64.b64encode(pdf_html.encode()).decode()
+            if st.button("Save as PDF", use_container_width=True, key="btn_pdf"):
+                components.html(f"""
+                    <script>
+                        var w = window.open('','_blank');
+                        if(w){{ w.document.write(atob('{b64_pdf}')); w.document.close(); }}
+                    </script>
+                """, height=0)
 
         with dl3:
             try:
-                comp = round((int(c_a.get("quality_score",5))+int(c_a.get("growth_score",5))+int(c_a.get("longevity_score",5))+int(c_a.get("price_score",5)))/4,1)
-            except:
-                comp = 0
-            export_data = {
-                "ticker": c_ticker,
-                "date": datetime.now().strftime("%Y-%m-%d"),
+                comp=round((int(c_a.get("quality_score",5))+int(c_a.get("growth_score",5))+
+                            int(c_a.get("longevity_score",5))+int(c_a.get("price_score",5)))/4,1)
+            except: comp=0
+            export_data={
+                "ticker":   c_ticker,
+                "date":     datetime.now().strftime("%Y-%m-%d"),
                 "currency": c_m.get("currency","USD"),
-                "metrics": {k:v for k,v in c_m.items() if k not in ["description","news","revenue_history","net_income_history"]},
-                "scores": {
-                    "quality": c_a.get("quality_score"), "growth": c_a.get("growth_score"),
-                    "longevity": c_a.get("longevity_score"), "price": c_a.get("price_score"),
-                    "composite": comp,
-                },
+                "metrics":  {k:v for k,v in c_m.items() if k not in ["description","news","revenue_history","net_income_history"]},
+                "scores":   {"quality":c_a.get("quality_score"),"growth":c_a.get("growth_score"),
+                             "longevity":c_a.get("longevity_score"),"price":c_a.get("price_score"),"composite":comp},
                 "recommendation": c_a.get("recommendation"),
-                "conviction": c_a.get("conviction"),
+                "conviction":     c_a.get("conviction"),
             }
-            st.download_button("Raw Data (JSON)", json.dumps(export_data, indent=2, default=str),
-                              f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.json","application/json",
-                              use_container_width=True)
+            st.download_button("Raw Data (JSON)", json.dumps(export_data,indent=2,default=str),
+                               f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.json",
+                               "application/json", use_container_width=True)
 
 
-# ── Footer ───────────────────────────────────────────────────
+# ── Footer ────────────────────────────────────────────────────
 st.markdown(f'''<div class="foot-card">
     <div class="foot-name">Built by Mayukh Kondepudi</div>
     <div class="foot-email">mayukhkondepudi@gmail.com</div>
