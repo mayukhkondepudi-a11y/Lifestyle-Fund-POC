@@ -24,15 +24,9 @@ jobs:
 
       - name: Run price checker
         env:
-          GMAIL_SENDER:    ${{ secrets.GMAIL_SENDER }}
-          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASS:     ${{ secrets.GMAIL_APP_PASS }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO:        ${{ github.repository }}
         run: python check_prices.py
-
-      - name: Commit updated tracker
-        run: |
-          git config user.name  "PickR Bot"
-          git config user.email "bot@pickr"
-          git add tracked_stocks.json
-          git diff --cached --quiet || git commit -m "chore: update tracker [$(date +%Y-%m-%d)]"
-          git push
