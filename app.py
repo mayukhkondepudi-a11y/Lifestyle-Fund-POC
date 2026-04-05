@@ -101,108 +101,132 @@ st.markdown("""
     .params-key { color:rgba(255,255,255,0.35); }
     .params-val { color:rgba(255,255,255,0.7); font-weight:500; }
 
-    .rpt-card { background:#151515; border:1px solid #222; border-radius:10px; padding:2rem 2.5rem; margin-top:1rem; }
-    .rpt-head h2 { font-size:2.4rem; font-weight:800; color:#fff; margin:0; letter-spacing:-0.02em; }
-    .rpt-head .meta { color:rgba(255,255,255,0.3); font-size:0.85rem; letter-spacing:0.05em; margin-top:0.3rem; }
+    /* ── Report card ── */
+    .rpt-card { background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:2rem 2.5rem; margin-top:1rem; }
+    .rpt-head h2 { font-size:2.4rem; font-weight:800; color:#ffffff; margin:0; letter-spacing:-0.02em; }
+    .rpt-head .meta { color:rgba(255,255,255,0.6); font-size:0.88rem; letter-spacing:0.04em; margin-top:0.4rem; font-weight:500; }
 
+    /* ── Recommendation bar ── */
     .rec-bar { display:flex; justify-content:center; gap:3.5rem; padding:1.5rem 0;
-        border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:0.5rem; }
+        border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:0.5rem; }
     .rb-item { text-align:center; }
-    .rb-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.16em;
-        color:rgba(255,255,255,0.22); margin-bottom:0.2rem; }
+    .rb-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em;
+        color:rgba(255,255,255,0.55); margin-bottom:0.3rem; }
     .rb-val { font-size:1.6rem; font-weight:800; }
-    .rb-val.buy { color:#22c55e; }
-    .rb-val.watch { color:#f5c542; }
-    .rb-val.pass { color:#ff4d4d; }
+    .rb-val.buy { color:#4ade80; }
+    .rb-val.watch { color:#fbbf24; }
+    .rb-val.pass { color:#f87171; }
 
-    .exec-summary { background:#1a1a1a; border-left:3px solid #8b1a1a; border-radius:0 6px 6px 0;
-        padding:1.1rem 1.4rem; margin:1rem 0; font-size:1rem; line-height:1.75; color:rgba(255,255,255,0.6);
-        font-style:italic; }
+    /* ── Executive summary ── */
+    .exec-summary { background:#222; border-left:4px solid #e03030; border-radius:0 8px 8px 0;
+        padding:1.2rem 1.6rem; margin:1.2rem 0; font-size:1rem; line-height:1.85;
+        color:#eeeeee; font-style:italic; }
 
-    .rationale-text { text-align:center; font-size:0.95rem; color:rgba(255,255,255,0.38);
-        font-style:italic; max-width:650px; margin:0 auto; padding-bottom:1.5rem; line-height:1.7; }
+    /* ── Rationale ── */
+    .rationale-text { text-align:center; font-size:0.97rem; color:rgba(255,255,255,0.65);
+        font-style:italic; max-width:680px; margin:0 auto; padding-bottom:1.5rem; line-height:1.8; }
 
-    .sec { font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em;
-        color:#e0e0e0; margin:1.8rem 0 0.7rem; padding-bottom:0.4rem;
-        border-bottom:2px solid #8b1a1a; }
+    /* ── Section headers ── */
+    .sec { font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.18em;
+        color:#ffffff; margin:2.2rem 0 0.9rem; padding-bottom:0.5rem;
+        border-bottom:2px solid #e03030; display:block; }
 
-    [data-testid="stMetricLabel"] { font-size:0.72rem !important; color:rgba(255,255,255,0.28) !important;
-        text-transform:uppercase !important; letter-spacing:0.04em !important; font-weight:600 !important; }
-    [data-testid="stMetricValue"] { font-size:1.2rem !important; font-weight:600 !important; color:#fff !important; }
+    /* ── Streamlit metric overrides ── */
+    [data-testid="stMetricLabel"] { font-size:0.68rem !important; color:rgba(255,255,255,0.6) !important;
+        text-transform:uppercase !important; letter-spacing:0.06em !important; font-weight:700 !important; }
+    [data-testid="stMetricValue"] { font-size:1.3rem !important; font-weight:700 !important; color:#ffffff !important; }
     [data-testid="stMetricDelta"] { display:none !important; }
 
+    /* ── 52-week range ── */
     .range-bar-container { margin:0.8rem 0 1.5rem; }
-    .range-bar-labels { display:flex; justify-content:space-between; font-size:0.75rem; color:rgba(255,255,255,0.3); margin-bottom:0.3rem; }
-    .range-bar { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; position:relative; }
-    .range-bar-fill { height:100%; background:linear-gradient(90deg, #8b1a1a, #c03030); border-radius:3px; }
-    .range-bar-dot { width:10px; height:10px; background:#fff; border-radius:50%; position:absolute;
-        top:-2px; transform:translateX(-50%); box-shadow:0 0 6px rgba(139,26,26,0.5); }
+    .range-bar-labels { display:flex; justify-content:space-between; font-size:0.8rem;
+        color:rgba(255,255,255,0.65); margin-bottom:0.4rem; font-weight:600; }
+    .range-bar { height:7px; background:rgba(255,255,255,0.1); border-radius:4px; position:relative; }
+    .range-bar-fill { height:100%; background:linear-gradient(90deg,#8b1a1a,#e03030); border-radius:4px; }
+    .range-bar-dot { width:12px; height:12px; background:#fff; border-radius:50%; position:absolute;
+        top:-2.5px; transform:translateX(-50%); box-shadow:0 0 8px rgba(224,48,48,0.8); }
 
-    .qglp-s { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05);
-        border-radius:8px; padding:1.3rem 1.5rem; margin:0.8rem 0; }
+    /* ── QGLP scorecard ── */
+    .qglp-s { background:#222; border:1px solid rgba(255,255,255,0.1);
+        border-radius:10px; padding:1.4rem 1.5rem; margin:0.8rem 0; }
     .qg { display:flex; justify-content:space-between; }
     .qc { flex:1; text-align:center; padding:0.5rem 0; }
-    .qc .ql { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em;
-        color:rgba(255,255,255,0.22); margin-bottom:0.2rem; }
-    .qc .qs { font-size:2rem; font-weight:800; color:#fff; }
-    .qc .qsub { font-size:0.55rem; color:rgba(255,255,255,0.12); }
-    .qc.comp { border-left:1px solid rgba(255,255,255,0.05); }
-    .qc.comp .qs { color:#8b1a1a; }
+    .qc .ql { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.14em;
+        color:rgba(255,255,255,0.55); margin-bottom:0.3rem; }
+    .qc .qs { font-size:2.1rem; font-weight:900; color:#ffffff; }
+    .qc .qsub { font-size:0.6rem; color:rgba(255,255,255,0.35); font-weight:500; margin-top:0.15rem; }
+    .qc.comp { border-left:1px solid rgba(255,255,255,0.1); }
+    .qc.comp .qs { color:#e03030; }
 
-    .prose { font-size:1rem; line-height:1.85; color:#b8b8b8; padding:0.2rem 0 0.6rem; }
+    /* ── Body prose ── */
+    .prose { font-size:1rem; line-height:1.95; color:#dedede; padding:0.3rem 0 0.8rem; }
 
-    .risk-row { padding:0.6rem 0; border-bottom:1px solid rgba(255,255,255,0.04);
-        font-size:0.95rem; line-height:1.65; color:#b8b8b8; }
+    /* ── Risks ── */
+    .risk-row { padding:0.75rem 0; border-bottom:1px solid rgba(255,255,255,0.07);
+        font-size:0.95rem; line-height:1.75; color:#dedede; }
     .risk-row:last-child { border-bottom:none; }
-    .rn { display:inline-block; width:22px; height:22px; line-height:22px; text-align:center;
-        background:rgba(139,26,26,0.15); border-radius:3px; color:#8b1a1a; font-weight:700;
-        font-size:0.7rem; margin-right:0.6rem; vertical-align:middle; }
+    .rn { display:inline-block; width:24px; height:24px; line-height:24px; text-align:center;
+        background:rgba(224,48,48,0.2); border-radius:4px; color:#f07070; font-weight:800;
+        font-size:0.68rem; margin-right:0.75rem; vertical-align:middle; }
 
-    .cb { padding:1.2rem 1.4rem; border-radius:6px; font-size:0.95rem; line-height:1.7; color:#b8b8b8; }
-    .cb-bull { background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.15); }
-    .cb-bear { background:rgba(255,77,77,0.06); border:1px solid rgba(255,77,77,0.12); }
-    .cb-title { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:0.4rem; }
-    .cb-bull .cb-title { color:#22c55e; }
-    .cb-bear .cb-title { color:#ff4d4d; }
+    /* ── Bull / Bear ── */
+    .cb { padding:1.2rem 1.5rem; border-radius:8px; font-size:0.95rem; line-height:1.8; color:#dedede; }
+    .cb-bull { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.28); }
+    .cb-bear { background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25); }
+    .cb-title { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.14em; margin-bottom:0.5rem; }
+    .cb-bull .cb-title { color:#4ade80; }
+    .cb-bear .cb-title { color:#f87171; }
 
-    .sz-box { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05);
-        padding:1rem 1.4rem; border-radius:6px; font-size:0.95rem; line-height:1.7; color:#b8b8b8; }
+    /* ── Position sizing ── */
+    .sz-box { background:#222; border:1px solid rgba(255,255,255,0.1);
+        padding:1.2rem 1.5rem; border-radius:8px; font-size:0.95rem; line-height:1.8; color:#dedede; }
 
+    /* ── Peer table ── */
     .pt { width:100%; border-collapse:collapse; font-size:0.88rem; }
-    .pt th { text-align:left; font-size:0.62rem; font-weight:700; text-transform:uppercase;
-        letter-spacing:0.07em; color:rgba(255,255,255,0.28); padding:0.55rem 0.7rem;
-        border-bottom:1px solid rgba(255,255,255,0.06); }
-    .pt td { padding:0.5rem 0.7rem; border-bottom:1px solid rgba(255,255,255,0.03); color:#b8b8b8; }
-    .pt tr.hl td { font-weight:600; color:#fff; background:rgba(139,26,26,0.06); }
+    .pt th { text-align:left; font-size:0.65rem; font-weight:800; text-transform:uppercase;
+        letter-spacing:0.08em; color:rgba(255,255,255,0.6); padding:0.6rem 0.75rem;
+        border-bottom:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); }
+    .pt td { padding:0.55rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#dedede; }
+    .pt tr.hl td { font-weight:700; color:#ffffff; background:rgba(224,48,48,0.1); }
 
     .vtag { display:inline-block; font-size:0.52rem; font-weight:700; text-transform:uppercase;
-        letter-spacing:0.08em; color:#8b1a1a; border:1px solid rgba(139,26,26,0.3);
+        letter-spacing:0.08em; color:#e03030; border:1px solid rgba(224,48,48,0.4);
         padding:0.06rem 0.3rem; border-radius:2px; margin-left:0.4rem; vertical-align:middle; }
 
-    .tooltip { position:relative; cursor:help; border-bottom:1px dotted rgba(255,255,255,0.2); }
-    .tooltip .tiptext { visibility:hidden; background:#1a1a1a; color:#b8b8b8; font-size:0.82rem;
-        padding:0.5rem 0.7rem; border-radius:4px; border:1px solid rgba(255,255,255,0.08);
+    .tooltip { position:relative; cursor:help; border-bottom:1px dotted rgba(255,255,255,0.35); }
+    .tooltip .tiptext { visibility:hidden; background:#2a2a2a; color:#e0e0e0; font-size:0.82rem;
+        padding:0.5rem 0.7rem; border-radius:4px; border:1px solid rgba(255,255,255,0.15);
         position:absolute; z-index:10; bottom:125%; left:50%; transform:translateX(-50%);
-        width:220px; text-align:center; line-height:1.4; font-weight:400; font-style:normal; }
+        width:220px; text-align:center; line-height:1.5; font-weight:400; font-style:normal; }
     .tooltip:hover .tiptext { visibility:visible; }
 
-    .div { border:none; border-top:1px solid rgba(255,255,255,0.04); margin:0.8rem 0; }
+    .div { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:1rem 0; }
 
-    .track-box { background:#141414; border:1px solid rgba(139,26,26,0.3); border-radius:8px;
+    /* ── Track box ── */
+    .track-box { background:#1e1e1e; border:1px solid rgba(224,48,48,0.35); border-radius:8px;
         padding:1.5rem 2rem; margin-top:1.5rem; }
-    .track-box-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.16em;
-        color:#8b1a1a; margin-bottom:0.6rem; }
-    .track-success { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2);
-        border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#22c55e; margin-top:0.8rem; }
-    .track-note { font-size:0.75rem; color:rgba(255,255,255,0.2); margin-top:0.6rem; line-height:1.5; }
+    .track-box-title { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
+        color:#e03030; margin-bottom:0.6rem; }
+    .track-success { background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3);
+        border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#4ade80; margin-top:0.8rem; }
+    .track-note { font-size:0.75rem; color:rgba(255,255,255,0.4); margin-top:0.6rem; line-height:1.5; }
 
-    .foot-card { background:#141414; border:1px solid rgba(255,255,255,0.05); border-radius:8px;
+    /* ── Footer ── */
+    .foot-card { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
         padding:1.5rem 2rem; margin-top:2rem; text-align:center; }
-    .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.6); }
-    .foot-email { font-size:0.85rem; color:rgba(255,255,255,0.3); margin-top:0.2rem; }
-    .foot-disclaimer { font-size:0.78rem; color:rgba(255,255,255,0.2); margin-top:1rem;
-        line-height:1.55; max-width:700px; margin-left:auto; margin-right:auto; }
-    .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.12); margin-top:0.8rem; }
+    .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.75); }
+    .foot-email { font-size:0.85rem; color:rgba(255,255,255,0.45); margin-top:0.2rem; }
+    .foot-disclaimer { font-size:0.78rem; color:rgba(255,255,255,0.35); margin-top:1rem;
+        line-height:1.65; max-width:700px; margin-left:auto; margin-right:auto; }
+    .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.2); margin-top:0.8rem; }
+
+    /* ── Info sections (How it works, QGLP, params) ── */
+    .hiw-desc { font-size:0.9rem; color:rgba(255,255,255,0.55); line-height:1.65; }
+    .hiw-title2 { font-size:1.1rem; font-weight:700; color:#ffffff; margin-bottom:0.4rem; }
+    .thesis-card-desc { font-size:0.9rem; color:rgba(255,255,255,0.55); line-height:1.6; }
+    .thesis-card-name { font-size:0.95rem; font-weight:700; color:#ffffff; margin-bottom:0.3rem; }
+    .params-key { color:rgba(255,255,255,0.55); font-weight:500; }
+    .params-val { color:#ffffff; font-weight:600; }
 
     .stTextInput > div > div > input { background:#1a1a1a !important; border:1px solid rgba(255,255,255,0.1) !important;
         border-radius:6px !important; color:#fff !important; font-size:1rem !important;
@@ -231,15 +255,6 @@ st.markdown("""
         text-transform:uppercase !important; box-shadow:none !important; }
     .stDownloadButton > button:hover { border-color:#8b1a1a !important; color:#fff !important; box-shadow:none !important; }
 
-    .stTabs [data-baseweb="tab-list"] { gap:0; background:#141414; border-radius:6px; padding:3px;
-        border:1px solid rgba(255,255,255,0.05); }
-    .stTabs [data-baseweb="tab"] { font-size:0.85rem !important; font-weight:500 !important;
-        color:rgba(255,255,255,0.35) !important; border-radius:4px !important;
-        padding:0.4rem 1rem !important; background:transparent !important; }
-    .stTabs [aria-selected="true"] { background:linear-gradient(160deg,#7a1818,#a52525 40%,#b52d2d 60%,#7a1818) !important;
-        color:#fff !important; font-weight:600 !important;
-        box-shadow:inset 0 1px 0 rgba(255,255,255,0.1) !important; }
-    .stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display:none !important; }
     [data-testid="stVegaLiteChart"] { background:rgba(255,255,255,0.02) !important;
         border:1px solid rgba(255,255,255,0.04) !important; border-radius:6px !important; }
     .stWarning, .stError, .stInfo { background:#1a1a1a !important; color:#e8e8e8 !important; }
@@ -336,41 +351,120 @@ def fmt_c(v,cur="USD",d=2): return fmt_n(v,p=get_sym(cur),d=d)
 
 
 # ══════════════════════════════════════════════════════════════
-# TRACKER — JSON PERSISTENCE
+# TRACKER — GITHUB API PERSISTENCE
+# Always reads/writes to the repo so all users and all systems
+# share one source of truth, and restarts never lose data.
 # ══════════════════════════════════════════════════════════════
 
+import urllib.request as _ur
+import urllib.error   as _ue
+
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN", ""))
+GITHUB_REPO  = st.secrets.get("GITHUB_REPO",  os.getenv("GITHUB_REPO",  ""))
+# GITHUB_REPO format: "username/repo-name"  e.g. "mayukh/pickr"
+
+def _gh_headers():
+    return {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept":        "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type":  "application/json",
+    }
+
+def _gh_get_file():
+    """Fetch tracked_stocks.json from GitHub. Returns (content_list, sha)."""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return [], None
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
+    try:
+        req  = _ur.Request(url, headers=_gh_headers())
+        with _ur.urlopen(req, timeout=8) as resp:
+            data    = json.loads(resp.read().decode())
+            content = json.loads(base64.b64decode(data["content"]).decode())
+            return content, data["sha"]
+    except _ue.HTTPError as e:
+        if e.code == 404:
+            return [], None   # file doesn't exist yet — first run
+        return [], None
+    except Exception:
+        return [], None
+
+def _gh_put_file(content_list, sha=None):
+    """Write tracked_stocks.json back to GitHub."""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return False, "GITHUB_TOKEN or GITHUB_REPO not configured"
+    url     = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
+    payload = {
+        "message": f"chore: update tracker [{datetime.now().strftime('%Y-%m-%d %H:%M')}]",
+        "content":  base64.b64encode(
+            json.dumps(content_list, indent=2, default=str).encode()
+        ).decode(),
+    }
+    if sha:
+        payload["sha"] = sha   # required for updates; omit only on first create
+    try:
+        data = json.dumps(payload).encode()
+        req  = _ur.Request(url, data=data, headers=_gh_headers(), method="PUT")
+        with _ur.urlopen(req, timeout=10):
+            pass
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
 def load_tracker():
+    """Read tracker from GitHub. Falls back to local file if GitHub not configured."""
+    if GITHUB_TOKEN and GITHUB_REPO:
+        content, _ = _gh_get_file()
+        return content
+    # Local fallback (useful for local dev without GitHub creds)
     if os.path.exists(TRACKER_FILE):
         try:
-            with open(TRACKER_FILE,"r") as f: return json.load(f)
+            with open(TRACKER_FILE) as f: return json.load(f)
         except: return []
     return []
 
-def save_tracker(data):
-    with open(TRACKER_FILE,"w") as f:
-        json.dump(data, f, indent=2, default=str)
-
 def add_tracked_stock(ticker, company_name, recommendation, target_price,
                       entry_price, metrics_snapshot, thesis_summary, user_email):
-    tracker = load_tracker()
-    # Remove duplicate for same ticker + email before re-adding
+    """
+    Safe read-modify-write to GitHub.
+    - Fetches latest SHA so we never clobber a concurrent write.
+    - Deduplicates: same ticker + same email = update the existing entry, not a new row.
+    - Falls back to local write if GitHub not configured.
+    """
+    if GITHUB_TOKEN and GITHUB_REPO:
+        tracker, sha = _gh_get_file()
+    else:
+        tracker = load_tracker()
+        sha     = None
+
+    # Remove existing entry for same ticker + email (prevents duplicates)
     tracker = [t for t in tracker
-               if not (t["ticker"]==ticker and t["user_email"]==user_email)]
+               if not (t["ticker"] == ticker and t["user_email"] == user_email)]
+
     tracker.append({
-        "ticker":            ticker,
-        "company_name":      company_name,
-        "user_email":        user_email,
-        "recommendation":    recommendation,
-        "target_price":      float(target_price),
-        "entry_price":       float(entry_price) if entry_price else None,
-        "added_date":        datetime.now().strftime("%Y-%m-%d"),
-        "original_metrics":  metrics_snapshot,
-        "thesis_summary":    thesis_summary,
-        "alert_sent":        False,
-        "last_checked":      None,
-        "last_price":        float(entry_price) if entry_price else None,
+        "ticker":           ticker,
+        "company_name":     company_name,
+        "user_email":       user_email,
+        "recommendation":   recommendation,
+        "target_price":     float(target_price),
+        "entry_price":      float(entry_price) if entry_price else None,
+        "added_date":       datetime.now().strftime("%Y-%m-%d"),
+        "original_metrics": metrics_snapshot,
+        "thesis_summary":   thesis_summary,
+        "alert_sent":       False,
+        "last_checked":     None,
+        "last_price":       float(entry_price) if entry_price else None,
     })
-    save_tracker(tracker)
+
+    if GITHUB_TOKEN and GITHUB_REPO:
+        ok, err = _gh_put_file(tracker, sha)
+        if not ok:
+            # GitHub write failed — fall back to local so data isn't lost
+            with open(TRACKER_FILE, "w") as f:
+                json.dump(tracker, f, indent=2, default=str)
+    else:
+        with open(TRACKER_FILE, "w") as f:
+            json.dump(tracker, f, indent=2, default=str)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -543,6 +637,7 @@ def calc(data):
     info = data.get("info",{})
     if isinstance(info,dict) and "error" in info: return {"error":info["error"]}
     g = lambda k,d=None: info.get(k,d)
+
     m = {
         "company_name":g("shortName",g("longName","Unknown")),
         "sector":g("sector","N/A"),"industry":g("industry","N/A"),
@@ -561,43 +656,194 @@ def calc(data):
         "total_revenue":g("totalRevenue"),"revenue_growth":g("revenueGrowth"),
         "free_cashflow":g("freeCashflow"),"operating_cashflow":g("operatingCashflow"),
         "total_cash":g("totalCash"),"total_debt":g("totalDebt"),
-        "debt_to_equity":g("debtToEquity"),"current_ratio":g("currentRatio"),
         "dividend_yield":g("dividendYield"),"payout_ratio":g("payoutRatio"),
         "beta":g("beta"),"week_52_high":g("fiftyTwoWeekHigh"),"week_52_low":g("fiftyTwoWeekLow"),
         "ma_50":g("fiftyDayAverage"),"ma_200":g("twoHundredDayAverage"),
         "insider_pct":g("heldPercentInsiders"),"institution_pct":g("heldPercentInstitutions"),
         "shares_outstanding":g("sharesOutstanding"),
     }
+
+    # ── FCF Yield (computed) ──────────────────────────────────
     try:
-        m["fcf_yield"] = float(m["free_cashflow"])/float(m["market_cap"]) \
+        m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
             if m["free_cashflow"] and m["market_cap"] else None
     except: m["fcf_yield"] = None
 
-    inc = data.get("inc"); m["revenue_history"]={}; m["net_income_history"]={}
-    def cagr_from(df,labels):
-        if df is None: return None,{}
+    # ── Debt/Equity — Yahoo returns x100 (e.g. 150 = 1.50x), divide to fix ──
+    # Then cross-check against balance sheet for sanity
+    raw_de = g("debtToEquity")
+    bs = data.get("bs")
+    computed_de = None
+    computed_current_ratio = None
+
+    if bs is not None and not bs.empty:
+        def _bs_row(labels):
+            for lb in labels:
+                if lb in bs.index:
+                    row = bs.loc[lb].dropna()
+                    if not row.empty:
+                        return float(row.iloc[0])  # most recent period
+            return None
+
+        total_debt_bs  = _bs_row(["Total Debt","TotalDebt","Long Term Debt And Capital Lease Obligation",
+                                   "Long Term Debt","LongTermDebt"])
+        total_eq       = _bs_row(["Stockholders Equity","Total Stockholder Equity","TotalStockholdersEquity",
+                                   "Common Stock Equity","CommonStockEquity"])
+        current_assets = _bs_row(["Current Assets","TotalCurrentAssets","Total Current Assets"])
+        current_liabs  = _bs_row(["Current Liabilities","TotalCurrentLiabilities","Total Current Liabilities"])
+
+        # D/E from balance sheet (correct, not Yahoo's x100 version)
+        if total_debt_bs and total_eq and total_eq != 0:
+            computed_de = round(total_debt_bs / total_eq, 3)
+
+        # Current ratio from balance sheet
+        if current_assets and current_liabs and current_liabs != 0:
+            computed_current_ratio = round(current_assets / current_liabs, 2)
+
+    # Use computed D/E if available; fall back to Yahoo's (divided by 100)
+    if computed_de is not None:
+        m["debt_to_equity"] = computed_de
+    elif raw_de is not None:
+        try:
+            m["debt_to_equity"] = round(float(raw_de) / 100, 3)
+        except:
+            m["debt_to_equity"] = None
+    else:
+        m["debt_to_equity"] = None
+
+    # Use computed current ratio if available; fall back to Yahoo's
+    if computed_current_ratio is not None:
+        m["current_ratio"] = computed_current_ratio
+    else:
+        m["current_ratio"] = g("currentRatio")
+
+    # ── CAGR helper — robust against NaN, negative bases, mid-year gaps ──
+    inc = data.get("inc")
+    m["revenue_history"] = {}
+    m["net_income_history"] = {}
+
+    def cagr_from(df, labels):
+        if df is None: return None, {}
         for lb in labels:
             if lb in df.index:
-                row=df.loc[lb].dropna().sort_index()
-                if len(row)>=2:
-                    n,o,y=float(row.iloc[-1]),float(row.iloc[0]),len(row)-1
-                    hist={str(d.year):round(float(v)/1e9,2) for d,v in row.items()}
-                    return ((n/o)**(1/y)-1 if o>0 and y>0 else None),hist
-        return None,{}
-    m["revenue_cagr"],m["revenue_history"]=cagr_from(inc,["Total Revenue","TotalRevenue"])
-    m["net_income_cagr"],m["net_income_history"]=cagr_from(inc,["Net Income","NetIncome"])
-    m["eps_cagr"],_=cagr_from(inc,["Basic EPS","Diluted EPS","BasicEPS","DilutedEPS"])
+                row = df.loc[lb].dropna()
+                if row.empty: continue
+                # Sort columns oldest → newest
+                row = row.sort_index()
+                hist = {str(dt.year): round(float(v) / 1e9, 2) for dt, v in row.items()}
+                if len(row) < 2: return None, hist
+                oldest = float(row.iloc[0])
+                newest = float(row.iloc[-1])
+                years  = len(row) - 1
+                # Guard: base must be positive for CAGR to be meaningful
+                if oldest <= 0 or years <= 0:
+                    return None, hist
+                cagr = (newest / oldest) ** (1 / years) - 1
+                return round(cagr, 4), hist
+        return None, {}
 
-    h=data.get("hist")
+    m["revenue_cagr"],    m["revenue_history"]    = cagr_from(inc, ["Total Revenue","TotalRevenue","Revenue"])
+    m["net_income_cagr"], m["net_income_history"]  = cagr_from(inc, ["Net Income","NetIncome",
+                                                                       "Net Income Common Stockholders"])
+    m["eps_cagr"], _ = cagr_from(inc, ["Diluted EPS","Basic EPS","DilutedEPS","BasicEPS",
+                                        "EPS","Earnings Per Share"])
+
+    # ── Gross margin cross-check from income statement ────────
+    # Yahoo sometimes returns None for grossMargins; compute as fallback
+    if m["gross_margin"] is None and inc is not None:
+        try:
+            rev_row = None
+            gp_row  = None
+            for lb in ["Total Revenue","TotalRevenue","Revenue"]:
+                if lb in inc.index:
+                    rev_row = inc.loc[lb].dropna().sort_index()
+                    break
+            for lb in ["Gross Profit","GrossProfit"]:
+                if lb in inc.index:
+                    gp_row = inc.loc[lb].dropna().sort_index()
+                    break
+            if rev_row is not None and gp_row is not None:
+                rev = float(rev_row.iloc[-1])
+                gp  = float(gp_row.iloc[-1])
+                if rev > 0:
+                    m["gross_margin"] = round(gp / rev, 4)
+        except: pass
+
+    # ── Operating margin cross-check ─────────────────────────
+    if m["operating_margin"] is None and inc is not None:
+        try:
+            rev_row = None
+            op_row  = None
+            for lb in ["Total Revenue","TotalRevenue","Revenue"]:
+                if lb in inc.index:
+                    rev_row = inc.loc[lb].dropna().sort_index()
+                    break
+            for lb in ["Operating Income","OperatingIncome","EBIT"]:
+                if lb in inc.index:
+                    op_row = inc.loc[lb].dropna().sort_index()
+                    break
+            if rev_row is not None and op_row is not None:
+                rev = float(rev_row.iloc[-1])
+                op  = float(op_row.iloc[-1])
+                if rev > 0:
+                    m["operating_margin"] = round(op / rev, 4)
+        except: pass
+
+    # ── Net margin cross-check ────────────────────────────────
+    if m["profit_margin"] is None and inc is not None:
+        try:
+            rev_row = None
+            ni_row  = None
+            for lb in ["Total Revenue","TotalRevenue","Revenue"]:
+                if lb in inc.index:
+                    rev_row = inc.loc[lb].dropna().sort_index()
+                    break
+            for lb in ["Net Income","NetIncome","Net Income Common Stockholders"]:
+                if lb in inc.index:
+                    ni_row = inc.loc[lb].dropna().sort_index()
+                    break
+            if rev_row is not None and ni_row is not None:
+                rev = float(rev_row.iloc[-1])
+                ni  = float(ni_row.iloc[-1])
+                if rev > 0:
+                    m["profit_margin"] = round(ni / rev, 4)
+        except: pass
+
+    # ── ROE cross-check ───────────────────────────────────────
+    if m["roe"] is None and inc is not None and bs is not None:
+        try:
+            ni_row = None
+            eq_row = None
+            for lb in ["Net Income","NetIncome","Net Income Common Stockholders"]:
+                if lb in inc.index:
+                    ni_row = inc.loc[lb].dropna().sort_index()
+                    break
+            for lb in ["Stockholders Equity","Total Stockholder Equity","CommonStockEquity"]:
+                if lb in bs.index:
+                    eq_row = bs.loc[lb].dropna().sort_index()
+                    break
+            if ni_row is not None and eq_row is not None:
+                ni = float(ni_row.iloc[-1])
+                eq = float(eq_row.iloc[0])  # most recent period
+                if eq > 0:
+                    m["roe"] = round(ni / eq, 4)
+        except: pass
+
+    # ── 5-year price stats ────────────────────────────────────
+    h = data.get("hist")
     if h is not None and not h.empty:
         try:
-            c=h["Close"]
-            m["price_5y_return"]=round(((c.iloc[-1]/c.iloc[0])-1)*100,2)
-            m["price_5y_high"]=round(float(c.max()),2)
-            m["price_5y_low"]=round(float(c.min()),2)
-        except: m["price_5y_return"]=m["price_5y_high"]=m["price_5y_low"]=None
-    else: m["price_5y_return"]=m["price_5y_high"]=m["price_5y_low"]=None
-    m["news"]=[{"title":n.get("title",""),"publisher":n.get("publisher","")} for n in data.get("news",[])]
+            c = h["Close"]
+            m["price_5y_return"] = round(((c.iloc[-1] / c.iloc[0]) - 1) * 100, 2)
+            m["price_5y_high"]   = round(float(c.max()), 2)
+            m["price_5y_low"]    = round(float(c.min()), 2)
+        except:
+            m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
+    else:
+        m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
+
+    m["news"] = [{"title": n.get("title",""), "publisher": n.get("publisher","")}
+                 for n in data.get("news", [])]
     return m
 
 
@@ -614,7 +860,7 @@ def ai_prompt_ui(ticker, m):
     return [
         {"role":"system","content":f"""You are a senior equity research analyst for PickR. Write institutional-grade research using the QGLP framework.
 
-STYLE: 4-5 substantial paragraphs per QGLP section. Specific numbers. Professional prose.
+STYLE: 3-4 concise paragraphs per QGLP section. Specific numbers. Professional prose. Be concise — the entire JSON response must fit within 4000 tokens.
 FUND THESIS CONTEXT: {sample}
 RULES: Use ONLY provided numbers. Never invent. Respond with ONLY valid JSON, no fences, no extra text.
 
@@ -756,7 +1002,7 @@ def _parse_json_response(raw, model):
 def _cached_ai_json(ticker, metrics_json_str):
     m    = json.loads(metrics_json_str)
     msgs = ai_prompt_ui(ticker, m)
-    raw, model, errors = run_ai(msgs, max_tokens=3500)
+    raw, model, errors = run_ai(msgs, max_tokens=4500)
     if raw is None:
         return {"error": True, "details": errors}
     a, err = _parse_json_response(raw, model)
@@ -1102,43 +1348,66 @@ st.markdown(f'''<div class="stats-row">
 </div>''', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
-cl,cm,cr=st.columns([1,2.5,1])
+cl,cm,cr = st.columns([1,2.5,1])
 with cm:
-    recent_list = st.session_state.recent[-6:]
-    tab_names   = ["Search by Name","Popular Stocks","Enter Ticker"]
-    if recent_list: tab_names.append("Recent")
+    # ── Search row: name input + popular dropdown side by side ──
+    s_col1, s_col2 = st.columns([3,2])
 
-    tabs     = st.tabs(tab_names)
-    resolved = None
-
-    with tabs[0]:
-        sq = st.text_input("Search", placeholder="Type a company name... e.g. Broadcom, Apple, Reliance",
+    with s_col1:
+        sq = st.text_input("Search by name",
+                           placeholder="e.g. Apple, Reliance, Broadcom",
                            label_visibility="collapsed", key="s1")
-        if sq and len(sq)>=2:
+        if sq and len(sq) >= 2:
             res = search_ticker(sq)
             if res:
-                opts = {f"{r['name']} ({r['symbol']})":r['symbol'] for r in res}
-                sel  = st.selectbox("Pick", opts.keys(), label_visibility="collapsed", key="s2")
-                if sel: resolved = opts[sel]
-            else: st.caption("No results found. Try the ticker tab.")
+                opts = {f"{r['name']} ({r['symbol']})": r['symbol'] for r in res}
+                sel  = st.selectbox("Pick result", opts.keys(),
+                                    label_visibility="collapsed", key="s2")
+                if sel:
+                    st.session_state["resolved"] = opts[sel]
+            else:
+                st.caption("No results. Try the ticker box below.")
 
-    with tabs[1]:
-        sp = st.selectbox("Pick", POPULAR.keys(), label_visibility="collapsed", key="s3")
-        if sp and POPULAR[sp]: resolved = POPULAR[sp]
+    with s_col2:
+        sp = st.selectbox("Popular", POPULAR.keys(),
+                          label_visibility="collapsed", key="s3")
+        if sp and POPULAR[sp]:
+            st.session_state["resolved"] = POPULAR[sp]
 
-    with tabs[2]:
-        td = st.text_input("Ticker", placeholder="e.g. AVGO, AAPL, RELIANCE.NS",
+    # ── Ticker / recent row ───────────────────────────────────
+    t_col1, t_col2 = st.columns([3,2])
+    with t_col1:
+        td = st.text_input("Enter ticker directly",
+                           placeholder="e.g. AVGO, AAPL, RELIANCE.NS",
                            label_visibility="collapsed", key="s4")
-        if td: resolved = td.strip().upper()
+        if td:
+            st.session_state["resolved"] = td.strip().upper()
 
-    if recent_list:
-        with tabs[3]:
-            sr = st.selectbox("Select a recent search", [""]+list(reversed(recent_list)),
+    recent_list = st.session_state.recent[-6:]
+    with t_col2:
+        if recent_list:
+            sr = st.selectbox("Recent", ["— recent —"] + list(reversed(recent_list)),
                               label_visibility="collapsed", key="s_recent")
-            if sr: resolved = sr
+            if sr and sr != "— recent —":
+                st.session_state["resolved"] = sr
+        else:
+            st.markdown("<div style='height:2.3rem'></div>", unsafe_allow_html=True)
+
+    # ── Currently selected indicator ─────────────────────────
+    resolved_now = st.session_state.get("resolved")
+    if resolved_now:
+        st.markdown(
+            f'<div style="text-align:center;font-size:0.78rem;color:rgba(255,255,255,0.45);'
+            f'padding:0.4rem 0 0.1rem;font-weight:600;letter-spacing:0.04em;">'
+            f'Selected: <span style="color:#ffffff;">{resolved_now}</span></div>',
+            unsafe_allow_html=True
+        )
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
     go = st.button("Generate Report", use_container_width=True, type="primary")
+
+# Status area sits directly below the search bar — first report generation loads here
+status_area = st.container()
 
 
 # ── Static info sections ──────────────────────────────────────
@@ -1208,8 +1477,7 @@ st.markdown('''<div class="params-card">
     <div class="params-row"><span class="params-key">Download Report</span><span class="params-val">Full institutional PDF report with scenario analysis</span></div>
 </div>''', unsafe_allow_html=True)
 
-# report_area placed HERE so the status widget + report render below the info cards,
-# not between the button and the cards
+# report_area placed HERE — below all info cards
 report_area = st.container()
 
 # ══════════════════════════════════════════════════════════════
@@ -1219,11 +1487,14 @@ report_area = st.container()
 should_generate = False
 ticker          = None
 
+# Read from session state — survives the rerun triggered by button click
+resolved = st.session_state.get("resolved", None)
+
 if go and resolved:
     ticker          = resolved.strip().upper()
     should_generate = True
 elif go and not resolved:
-    with report_area:
+    with status_area:
         st.warning("Select or enter a company first.")
 
 if should_generate and ticker:
@@ -1234,7 +1505,8 @@ if should_generate and ticker:
     st.session_state.generate_html       = False
     st.session_state.html_just_generated = False
 
-    with report_area:
+    # Loading widget renders in status_area — directly below the search bar
+    with status_area:
         with st.status(f"Analyzing {ticker}...", expanded=True) as status:
             st.write(f"Connecting to Yahoo Finance for **{ticker}**...")
             st.caption("Pulling real-time price, fundamentals, financials, and 5-year history")
@@ -1285,7 +1557,7 @@ if st.session_state.cached_report:
         # Track box — only shown for BUY and WATCH
         render_track_box(c_ticker, c_m, c_a)
 
-        # Download section
+        # Download section — in report_area, below the full report
         st.markdown('<hr class="div">', unsafe_allow_html=True)
         st.markdown('''<div style="text-align:center;padding:1rem 0 0.5rem;">
             <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div>

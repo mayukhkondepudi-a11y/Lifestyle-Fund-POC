@@ -6,18 +6,29 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:  # allows manual trigger from GitHub UI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   check-prices:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Keep app awake
+        # Pings the Streamlit app daily so it never hits the 7-day inactivity sleep.
+        # Replace the URL with your actual Streamlit app URL.
+        run: |
+          curl -s -o /dev/null -w "HTTP %{http_code}" \
+            --max-time 30 \
+            "${{ secrets.STREAMLIT_APP_URL }}" || true
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: pip install yfinance openai

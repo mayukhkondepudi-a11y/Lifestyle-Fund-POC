@@ -1,12 +1,16 @@
 """
 check_prices.py — run daily by GitHub Actions.
-Checks every tracked stock, fires thesis re-eval + email when target is hit.
+Reads and writes tracked_stocks.json via the GitHub API — the single
+source of truth across all users and systems.
 """
 
+import base64
 import json
 import os
 import smtplib
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -18,6 +22,8 @@ TRACKER_FILE   = "tracked_stocks.json"
 GMAIL_SENDER   = os.environ["GMAIL_SENDER"]
 GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"]
 OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
+GITHUB_TOKEN   = os.environ["GITHUB_TOKEN"]
+GITHUB_REPO    = os.environ["GITHUB_REPO"]   # e.g. "mayukh/pickr"
 
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY)
 
@@ -32,17 +38,61 @@ FREE_MODELS = [
 ]
 
 
-def load_tracker():
-    if not os.path.exists(TRACKER_FILE):
-        return []
-    with open(TRACKER_FILE) as f:
-        return json.load(f)
+# ── GitHub API helpers ────────────────────────────────────────
+
+def _gh_headers():
+    return {
+        "Authorization":        f"Bearer {GITHUB_TOKEN}",
+        "Accept":               "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type":         "application/json",
+    }
+
+def gh_load_tracker():
+    """Fetch tracker JSON from GitHub. Returns (list, sha)."""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
+    try:
+        req = urllib.request.Request(url, headers=_gh_headers())
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data    = json.loads(resp.read().decode())
+            content = json.loads(base64.b64decode(data["content"]).decode())
+            return content, data["sha"]
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print("tracked_stocks.json not found in repo — nothing to check.")
+        else:
+            print(f"GitHub fetch error: {e.code} {e.reason}")
+        return [], None
+    except Exception as e:
+        print(f"GitHub fetch exception: {e}")
+        return [], None
+
+def gh_save_tracker(content_list, sha):
+    """
+    Write updated tracker back to GitHub.
+    Uses the SHA from the read to prevent clobbering concurrent writes.
+    """
+    url     = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
+    payload = {
+        "message": f"chore: update tracker [{datetime.now().strftime('%Y-%m-%d')}]",
+        "content":  base64.b64encode(
+            json.dumps(content_list, indent=2, default=str).encode()
+        ).decode(),
+        "sha": sha,
+    }
+    try:
+        data = json.dumps(payload).encode()
+        req  = urllib.request.Request(url, data=data, headers=_gh_headers(), method="PUT")
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+        print("Tracker saved to GitHub successfully.")
+        return True
+    except Exception as e:
+        print(f"GitHub save error: {e}")
+        return False
 
 
-def save_tracker(data):
-    with open(TRACKER_FILE, "w") as f:
-        json.dump(data, f, indent=2, default=str)
-
+# ── Price & metrics fetching ──────────────────────────────────
 
 def get_current_price(ticker):
     try:
@@ -51,10 +101,11 @@ def get_current_price(ticker):
     except:
         return None
 
-
 def get_current_metrics(ticker):
     try:
         info = yf.Ticker(ticker).info
+        fcf  = info.get("freeCashflow")
+        mcap = info.get("marketCap")
         return {
             "trailing_pe":      info.get("trailingPE"),
             "forward_pe":       info.get("forwardPE"),
@@ -62,14 +113,15 @@ def get_current_metrics(ticker):
             "operating_margin": info.get("operatingMargins"),
             "roe":              info.get("returnOnEquity"),
             "revenue_growth":   info.get("revenueGrowth"),
-            "fcf_yield":        (info.get("freeCashflow") / info.get("marketCap")
-                                 if info.get("freeCashflow") and info.get("marketCap") else None),
+            "fcf_yield":        (fcf / mcap if fcf and mcap else None),
             "debt_to_equity":   info.get("debtToEquity"),
             "ev_to_ebitda":     info.get("enterpriseToEbitda"),
         }
     except:
         return {}
 
+
+# ── AI ────────────────────────────────────────────────────────
 
 def run_ai(messages, max_tokens=800):
     for model in FREE_MODELS:
@@ -84,30 +136,24 @@ def run_ai(messages, max_tokens=800):
             time.sleep(2)
     return None, None
 
-
 def parse_json(raw):
     if not raw:
         return None
     raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+    for prefix in ("```json", "```", "json"):
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):]
     if raw.endswith("```"):
         raw = raw[:-3]
-    if raw.startswith("json"):
-        raw = raw[4:]
     raw = raw.strip()
     try:
         return json.loads(raw)
     except:
-        # Best-effort bracket repair
         last = raw.rfind("}")
         if last != -1:
-            raw = raw[:last+1]
-        try:
-            return json.loads(raw)
-        except:
-            return None
-
+            try: return json.loads(raw[:last+1])
+            except: pass
+        return None
 
 def thesis_check(ticker, company, original_metrics, original_thesis, current_metrics):
     messages = [
@@ -139,18 +185,20 @@ thesis_intact: true if the core investment case is still valid.
 updated_action: exactly BUY, WATCH, or PASS.
 confidence: High, Medium, or Low."""}
     ]
-    raw, model = run_ai(messages, max_tokens=800)
+    raw, _ = run_ai(messages, max_tokens=800)
     result = parse_json(raw)
     if not result:
         result = {
-            "thesis_intact": True,
-            "confidence": "Low",
+            "thesis_intact":  True,
+            "confidence":     "Low",
             "updated_action": "WATCH",
-            "key_changes": ["AI evaluation unavailable at this time."],
-            "rationale": "Automated thesis check could not be completed. Please review manually.",
+            "key_changes":    ["AI evaluation unavailable at this time."],
+            "rationale":      "Automated thesis check could not be completed. Please review manually.",
         }
     return result
 
+
+# ── Email ─────────────────────────────────────────────────────
 
 def send_email(to_email, subject, html_body):
     msg = MIMEMultipart("alternative")
@@ -162,17 +210,16 @@ def send_email(to_email, subject, html_body):
         server.login(GMAIL_SENDER, GMAIL_APP_PASS)
         server.sendmail(GMAIL_SENDER, to_email, msg.as_string())
 
-
 def build_alert_email(ticker, company, recommendation, target_price, current_price, thesis_eval):
-    intact      = thesis_eval.get("thesis_intact", True)
-    action      = thesis_eval.get("updated_action", recommendation)
-    rationale   = thesis_eval.get("rationale", "")
-    key_changes = thesis_eval.get("key_changes", [])
-    confidence  = thesis_eval.get("confidence", "Medium")
-    color       = "#22c55e" if action == "BUY" else ("#f5c542" if action == "WATCH" else "#ff4d4d")
-    intact_color= "#22c55e" if intact else "#ff4d4d"
-    intact_text = "INTACT" if intact else "CHANGED"
-    changes_html= "".join(
+    intact       = thesis_eval.get("thesis_intact", True)
+    action       = thesis_eval.get("updated_action", recommendation)
+    rationale    = thesis_eval.get("rationale", "")
+    key_changes  = thesis_eval.get("key_changes", [])
+    confidence   = thesis_eval.get("confidence", "Medium")
+    color        = "#22c55e" if action=="BUY" else ("#f5c542" if action=="WATCH" else "#ff4d4d")
+    intact_color = "#22c55e" if intact else "#ff4d4d"
+    intact_text  = "INTACT" if intact else "CHANGED"
+    changes_html = "".join(
         f"<li style='color:rgba(255,255,255,0.5);font-size:0.88rem;margin:0.3rem 0;'>{c}</li>"
         for c in key_changes
     )
@@ -217,32 +264,40 @@ def build_alert_email(ticker, company, recommendation, target_price, current_pri
     """
 
 
+# ── Main ──────────────────────────────────────────────────────
+
 def main():
-    tracker = load_tracker()
+    print(f"PickR price checker — {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}")
+
+    tracker, sha = gh_load_tracker()
     if not tracker:
         print("No stocks being tracked.")
         return
+    if sha is None:
+        print("Could not get file SHA — aborting to avoid overwriting data.")
+        return
 
+    print(f"Loaded {len(tracker)} tracked stock(s).")
     updated = False
     today   = datetime.now().strftime("%Y-%m-%d")
 
     for i, stock in enumerate(tracker):
-        ticker   = stock["ticker"]
-        email    = stock["user_email"]
-        target   = stock["target_price"]
-        rec      = stock["recommendation"]
-        company  = stock.get("company_name", ticker)
-        sent     = stock.get("alert_sent", False)
+        ticker  = stock["ticker"]
+        email   = stock["user_email"]
+        target  = stock["target_price"]
+        rec     = stock["recommendation"]
+        company = stock.get("company_name", ticker)
+        sent    = stock.get("alert_sent", False)
 
-        print(f"\n[{i+1}/{len(tracker)}] Checking {ticker} for {email} (target: ${target})")
+        print(f"\n[{i+1}/{len(tracker)}] {ticker} for {email} (target: ${target})")
 
         if sent:
-            print(f"  Alert already sent, skipping.")
+            print("  Alert already sent — skipping.")
             continue
 
         price = get_current_price(ticker)
         if price is None:
-            print(f"  Could not fetch price for {ticker}, skipping.")
+            print(f"  Could not fetch price — skipping.")
             continue
 
         print(f"  Current: ${price:.2f} | Target: ${target:.2f}")
@@ -250,42 +305,36 @@ def main():
         tracker[i]["last_price"]   = price
         updated = True
 
-        # Check if target reached (handles both BUY targets above and WATCH targets)
-        target_reached = price >= target
-
-        if target_reached:
-            print(f"  Target reached! Running thesis check...")
-            current_metrics  = get_current_metrics(ticker)
-            original_metrics = stock.get("original_metrics", {})
-            original_thesis  = stock.get("thesis_summary", "")
-
+        if price >= target:
+            print("  Target reached! Running thesis check...")
             thesis_eval = thesis_check(
-                ticker, company, original_metrics, original_thesis, current_metrics
+                ticker, company,
+                stock.get("original_metrics", {}),
+                stock.get("thesis_summary", ""),
+                get_current_metrics(ticker),
             )
             print(f"  Thesis: {'INTACT' if thesis_eval.get('thesis_intact') else 'CHANGED'} | "
                   f"Action: {thesis_eval.get('updated_action')} | "
                   f"Confidence: {thesis_eval.get('confidence')}")
 
-            html_body = build_alert_email(ticker, company, rec, target, price, thesis_eval)
-            subject   = f"PickR Alert: {ticker} hit your target (${price:,.2f})"
-
             try:
-                send_email(email, subject, html_body)
+                send_email(
+                    email,
+                    f"PickR Alert: {ticker} hit your target (${price:,.2f})",
+                    build_alert_email(ticker, company, rec, target, price, thesis_eval),
+                )
                 print(f"  Email sent to {email}")
                 tracker[i]["alert_sent"]   = True
                 tracker[i]["alert_date"]   = today
                 tracker[i]["final_price"]  = price
                 tracker[i]["thesis_check"] = thesis_eval
-                updated = True
             except Exception as e:
                 print(f"  Email failed: {e}")
 
-        # Pace requests to avoid hammering yfinance
-        time.sleep(1)
+        time.sleep(1)  # pace yfinance calls
 
     if updated:
-        save_tracker(tracker)
-        print(f"\nTracker updated.")
+        gh_save_tracker(tracker, sha)
 
     print(f"\nDone. Checked {len(tracker)} stock(s).")
 
