@@ -411,6 +411,47 @@ def _gh_put_file(content_list, sha=None):
     except Exception as e:
         return False, str(e)
 
+def _gh_put_file_tracked(ticker, company_name, recommendation, target_price,
+                          entry_price, metrics_snapshot, thesis_summary, user_email):
+    """
+    Wrapper around add_tracked_stock that returns (ok, error_message)
+    so the UI can surface GitHub write failures explicitly.
+    """
+    if GITHUB_TOKEN and GITHUB_REPO:
+        tracker, sha = _gh_get_file()
+    else:
+        tracker = load_tracker()
+        sha     = None
+
+    tracker = [t for t in tracker
+               if not (t["ticker"] == ticker and t["user_email"] == user_email)]
+    tracker.append({
+        "ticker":           ticker,
+        "company_name":     company_name,
+        "user_email":       user_email,
+        "recommendation":   recommendation,
+        "target_price":     float(target_price),
+        "entry_price":      float(entry_price) if entry_price else None,
+        "added_date":       datetime.now().strftime("%Y-%m-%d"),
+        "original_metrics": metrics_snapshot,
+        "thesis_summary":   thesis_summary,
+        "alert_sent":       False,
+        "last_checked":     None,
+        "last_price":       float(entry_price) if entry_price else None,
+    })
+
+    if GITHUB_TOKEN and GITHUB_REPO:
+        ok, err = _gh_put_file(tracker, sha)
+        return ok, err
+    else:
+        try:
+            with open(TRACKER_FILE, "w") as f:
+                json.dump(tracker, f, indent=2, default=str)
+            return False, "GitHub not configured — saved locally only"
+        except Exception as e:
+            return False, str(e)
+
+
 def load_tracker():
     """Read tracker from GitHub. Falls back to local file if GitHub not configured."""
     if GITHUB_TOKEN and GITHUB_REPO:
@@ -1303,23 +1344,27 @@ def render_track_box(ticker, m, a):
             elif not GMAIL_SENDER or not GMAIL_APP_PASS:
                 st.warning("Email not configured. Add GMAIL_SENDER and GMAIL_APP_PASS to .streamlit/secrets.toml")
             else:
-                add_tracked_stock(
-                    ticker=ticker, company_name=company, recommendation=rec,
-                    target_price=target_price, entry_price=cp,
-                    metrics_snapshot=metrics_snapshot,
-                    thesis_summary=thesis_snapshot, user_email=user_email,
-                )
+                gh_ok, gh_err = _gh_put_file_tracked(ticker, company, rec,
+                    target_price, cp, metrics_snapshot, thesis_snapshot, user_email)
                 ok, err = email_confirmation(
                     user_email, ticker, company, rec,
                     f"{sym}{target_price:,.2f}", f"{sym}{cp:,.2f}"
                 )
-                if ok:
-                    st.session_state.track_success = f"✓ Tracking set up! Confirmation sent to {user_email}"
+                if gh_ok and ok:
+                    st.session_state.track_success = ("green", f"✓ Tracking live! Confirmation sent to {user_email}")
+                elif gh_ok and not ok:
+                    st.session_state.track_success = ("green", f"✓ Tracking live! (Email failed: {err})")
+                elif not gh_ok and ok:
+                    st.session_state.track_success = ("yellow", f"⚠ Email sent but GitHub save failed: {gh_err} — tracking won't persist across restarts")
                 else:
-                    st.session_state.track_success = f"✓ Saved locally (email failed: {err})"
+                    st.session_state.track_success = ("red", f"✗ Both GitHub save and email failed. GitHub: {gh_err} | Email: {err}")
 
         if st.session_state.track_success:
-            st.markdown(f'<div class="track-success">{st.session_state.track_success}</div>',
+            colour, msg = st.session_state.track_success
+            bg = {"green":"rgba(74,222,128,0.1)","yellow":"rgba(251,191,36,0.1)","red":"rgba(248,113,113,0.1)"}.get(colour,"rgba(74,222,128,0.1)")
+            border = {"green":"rgba(74,222,128,0.3)","yellow":"rgba(251,191,36,0.3)","red":"rgba(248,113,113,0.3)"}.get(colour,"rgba(74,222,128,0.3)")
+            text = {"green":"#4ade80","yellow":"#fbbf24","red":"#f87171"}.get(colour,"#4ade80")
+            st.markdown(f'<div style="background:{bg};border:1px solid {border};border-radius:6px;padding:0.8rem 1.2rem;font-size:0.88rem;color:{text};margin-top:0.8rem;line-height:1.5;">{msg}</div>',
                         unsafe_allow_html=True)
             st.session_state.track_success = None
 
@@ -1350,6 +1395,15 @@ st.markdown(f'''<div class="stats-row">
 st.markdown("<br>", unsafe_allow_html=True)
 cl,cm,cr = st.columns([1,2.5,1])
 with cm:
+    recent_list = st.session_state.recent[-6:]
+
+    # ── Row labels ───────────────────────────────────────────
+    l1, l2 = st.columns([3,2])
+    with l1:
+        st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Search by company name</div>', unsafe_allow_html=True)
+    with l2:
+        st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Popular stocks</div>', unsafe_allow_html=True)
+
     # ── Search row: name input + popular dropdown side by side ──
     s_col1, s_col2 = st.columns([3,2])
 
@@ -1374,6 +1428,14 @@ with cm:
         if sp and POPULAR[sp]:
             st.session_state["resolved"] = POPULAR[sp]
 
+    # ── Ticker / recent row labels ────────────────────────────
+    tl1, tl2 = st.columns([3,2])
+    with tl1:
+        st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Enter ticker directly</div>', unsafe_allow_html=True)
+    with tl2:
+        if recent_list:
+            st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Recent searches</div>', unsafe_allow_html=True)
+
     # ── Ticker / recent row ───────────────────────────────────
     t_col1, t_col2 = st.columns([3,2])
     with t_col1:
@@ -1382,8 +1444,6 @@ with cm:
                            label_visibility="collapsed", key="s4")
         if td:
             st.session_state["resolved"] = td.strip().upper()
-
-    recent_list = st.session_state.recent[-6:]
     with t_col2:
         if recent_list:
             sr = st.selectbox("Recent", ["— recent —"] + list(reversed(recent_list)),
