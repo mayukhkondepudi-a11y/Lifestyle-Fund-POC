@@ -49,23 +49,33 @@ def _gh_headers():
     }
 
 def gh_load_tracker():
-    """Fetch tracker JSON from GitHub. Returns (list, sha)."""
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
-    try:
-        req = urllib.request.Request(url, headers=_gh_headers())
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data    = json.loads(resp.read().decode())
-            content = json.loads(base64.b64decode(data["content"]).decode())
-            return content, data["sha"]
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            print("tracked_stocks.json not found in repo — nothing to check.")
-        else:
-            print(f"GitHub fetch error: {e.code} {e.reason}")
-        return [], None
-    except Exception as e:
-        print(f"GitHub fetch exception: {e}")
-        return [], None
+    """
+    Read tracker from local file — Actions already checks out the repo
+    so tracked_stocks.json is on disk. No API call or token needed for reading.
+    Returns (list, sha) where sha comes from the API for the write back.
+    """
+    # Load content from local file
+    tracker = []
+    if os.path.exists(TRACKER_FILE):
+        try:
+            with open(TRACKER_FILE) as f:
+                tracker = json.load(f)
+        except Exception as e:
+            print(f"Local file read error: {e}")
+
+    # Still need the SHA from GitHub API for the write back
+    sha = None
+    if GITHUB_TOKEN and GITHUB_REPO:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
+        try:
+            req = urllib.request.Request(url, headers=_gh_headers())
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+                sha  = data["sha"]
+        except Exception as e:
+            print(f"GitHub SHA fetch error: {e} — will attempt write without SHA")
+
+    return tracker, sha
 
 def gh_save_tracker(content_list, sha):
     """
@@ -272,9 +282,6 @@ def main():
     tracker, sha = gh_load_tracker()
     if not tracker:
         print("No stocks being tracked.")
-        return
-    if sha is None:
-        print("Could not get file SHA — aborting to avoid overwriting data.")
         return
 
     print(f"Loaded {len(tracker)} tracked stock(s).")
