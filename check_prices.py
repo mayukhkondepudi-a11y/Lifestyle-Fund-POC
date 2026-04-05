@@ -20,7 +20,7 @@ from openai import OpenAI
 
 TRACKER_FILE   = "tracked_stocks.json"
 GMAIL_SENDER   = os.environ["GMAIL_SENDER"]
-GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"]
+GMAIL_APP_PASS = GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"].replace(" ", "")
 OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
 GITHUB_TOKEN   = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
 GITHUB_REPO    = os.environ["GITHUB_REPO"]   # e.g. "mayukh/pickr"
