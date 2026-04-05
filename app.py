@@ -46,7 +46,19 @@ st.markdown("""
     #MainMenu, footer, header { visibility:hidden !important; }
 
     .hero { padding:4rem 2rem 1.5rem; text-align:center; }
-    .hero h1 { font-size:4.2rem; font-weight:900; color:#fff; letter-spacing:-0.03em; margin:0; }
+    .hero h1 { font-size:4.2rem; font-weight:900; letter-spacing:-0.03em; margin:0; }
+    .hero h1 .pick {
+        background: linear-gradient(180deg,
+            #ffffff 0%,
+            #ffffff 35%,
+            #e0e0e0 55%,
+            #c8c8c8 75%,
+            #e8e8e8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(255,255,255,0.08));
+    }
     .hero h1 .accent {
         background: linear-gradient(135deg, #a52525 0%, #e04040 30%, #ff8a8a 50%, #e04040 70%, #a52525 100%);
         -webkit-background-clip: text;
@@ -1379,17 +1391,15 @@ def render_track_box(ticker, m, a):
 # ══════════════════════════════════════════════════════════════
 
 st.markdown('''<div class="hero">
-    <h1>Pick<span class="accent">R</span></h1>
+    <h1><span class="pick">Pick</span><span class="accent">R</span></h1>
     <div class="tag">Intelligent Equity Research</div>
     <div class="desc">Institutional-quality research reports powered by the QGLP framework. Verified financials, scenario analysis, peer comparisons, and AI-driven insights.</div>
 </div>''', unsafe_allow_html=True)
 
-rc = st.session_state.report_count
 st.markdown(f'''<div class="stats-row">
     <div class="sr-item"><span class="sr-num">24</span><span class="sr-lbl">Verified Metrics</span></div>
     <div class="sr-item"><span class="sr-num">4</span><span class="sr-lbl">QGLP Dimensions</span></div>
     <div class="sr-item"><span class="sr-num">5Y</span><span class="sr-lbl">Price History</span></div>
-    <div class="sr-item"><span class="sr-num">{rc}+</span><span class="sr-lbl">Reports Generated</span></div>
 </div>''', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
