@@ -23,5 +23,30 @@
     "alert_sent": false,
     "last_checked": "2026-04-05",
     "last_price": 209.77
+  },
+  {
+    "ticker": "AMZN",
+    "company_name": "Amazon.com, Inc.",
+    "user_email": "Mayukh.Kondepudi@gmail.com",
+    "recommendation": "BUY",
+    "target_price": 209.77,
+    "entry_price": 209.77,
+    "added_date": "2026-04-05",
+    "original_metrics": {
+      "trailing_pe": 29.256624,
+      "forward_pe": 22.332802,
+      "peg_ratio": null,
+      "operating_margin": 0.10533,
+      "roe": 0.22286,
+      "revenue_growth": 0.136,
+      "revenue_cagr": 0.1173,
+      "fcf_yield": 0.010565967156279943,
+      "debt_to_equity": 0.372,
+      "ev_to_ebitda": 15.833
+    },
+    "thesis_summary": "Amazon is a dominant player in high-growth markets (e-commerce, cloud computing, advertising) with strong competitive advantages and solid financial metrics. While revenue growth meets the fund's criteria at 13.6%, earnings growth has been modest at 5% due to heavy reinvestment. The stock trades at premium valuations reflecting its market leadership and growth prospects. Amazon's dominant position in e-commerce and cloud computing, combined with its expansion into high-growth areas like advertising, provides a compelling growth trajectory. The company's financial strength and management track record support the investment thesis, despite the premium valuation.",
+    "alert_sent": false,
+    "last_checked": null,
+    "last_price": 209.77
   }
 ]
