@@ -22,7 +22,7 @@ TRACKER_FILE   = "tracked_stocks.json"
 GMAIL_SENDER   = os.environ["GMAIL_SENDER"]
 GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"]
 OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
-GITHUB_TOKEN   = os.environ["GITHUB_TOKEN"]
+GITHUB_TOKEN   = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
 GITHUB_REPO    = os.environ["GITHUB_REPO"]   # e.g. "mayukh/pickr"
 
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY)
