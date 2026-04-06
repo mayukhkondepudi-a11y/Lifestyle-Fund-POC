@@ -73,5 +73,30 @@
     "alert_sent": false,
     "last_checked": null,
     "last_price": 255.92
+  },
+  {
+    "ticker": "AAPL",
+    "company_name": "Apple Inc.",
+    "user_email": "mayukh.kondepudi@gmail.com",
+    "recommendation": "WATCH",
+    "target_price": 255.92,
+    "entry_price": 255.92,
+    "added_date": "2026-04-06",
+    "original_metrics": {
+      "trailing_pe": null,
+      "forward_pe": null,
+      "peg_ratio": null,
+      "operating_margin": 0.3238395195779779,
+      "roe": 1.7754,
+      "revenue_growth": 0.0643,
+      "revenue_cagr": 0.0328,
+      "fcf_yield": 0.026257393122650585,
+      "debt_to_equity": 2.164,
+      "ev_to_ebitda": null
+    },
+    "thesis_summary": "Apple demonstrates exceptional quality with premium brand positioning, robust margins, and ecosystem lock-in, but growth metrics fall below the fund's minimum thresholds. The company benefits from secular tailwinds in digital transformation and services expansion. Valuation appears reasonable relative to historical ranges, suggesting moderate upside potential. Apple demonstrates exceptional quality and durability but fails to meet the fund's minimum growth thresholds of 12-15% earnings CAGR. The company's strong ecosystem and brand provide competitive advantages, but its scale makes high growth rates challenging. The valuation appears reasonable but not compelling enough to offset the growth shortfall.",
+    "alert_sent": false,
+    "last_checked": null,
+    "last_price": 255.92
   }
 ]
