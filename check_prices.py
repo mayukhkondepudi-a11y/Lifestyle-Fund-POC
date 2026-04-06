@@ -1,7 +1,6 @@
 """
 check_prices.py — run daily by GitHub Actions.
-Reads and writes tracked_stocks.json via the GitHub API — the single
-source of truth across all users and systems.
+Uses FMP API (via fmp_api.py) with automatic yfinance fallback.
 """
 
 import base64
@@ -15,31 +14,31 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import yfinance as yf
 from openai import OpenAI
+from fmp_api import get_current_price, get_current_metrics
 
 TRACKER_FILE   = "tracked_stocks.json"
-GMAIL_SENDER   = os.environ["GMAIL_SENDER"]
-GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"].replace(" ", "").strip()
-print(f"Gmail config: sender={GMAIL_SENDER}, app_pass_len={len(GMAIL_APP_PASS)}")
+GMAIL_SENDER   = os.environ.get("GMAIL_SENDER", "")
+GMAIL_APP_PASS = os.environ.get("GMAIL_APP_PASS", "").replace(" ", "").strip()
 OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
 GITHUB_TOKEN   = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
-GITHUB_REPO    = os.environ["GITHUB_REPO"]   # e.g. "mayukh/pickr"
+GITHUB_REPO    = os.environ["GITHUB_REPO"]
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY)
 
 FREE_MODELS = [
+    "z-ai/glm-4.5-air:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-27b-it:free",
+    "openai/gpt-oss-120b:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "arcee-ai/trinity-large-preview:free",
     "qwen/qwen3-coder:free",
-    "deepseek/deepseek-chat-v3-5:free",
-    "microsoft/phi-4-reasoning-plus:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-3-27b-it:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
     "google/gemma-3-12b-it:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
 ]
-
-
-# ── GitHub API helpers ────────────────────────────────────────
 
 def _gh_headers():
     return {
@@ -50,12 +49,6 @@ def _gh_headers():
     }
 
 def gh_load_tracker():
-    """
-    Read tracker from local file — Actions already checks out the repo
-    so tracked_stocks.json is on disk. No API call or token needed for reading.
-    Returns (list, sha) where sha comes from the API for the write back.
-    """
-    # Load content from local file
     tracker = []
     if os.path.exists(TRACKER_FILE):
         try:
@@ -64,7 +57,6 @@ def gh_load_tracker():
         except Exception as e:
             print(f"Local file read error: {e}")
 
-    # Still need the SHA from GitHub API for the write back
     sha = None
     if GITHUB_TOKEN and GITHUB_REPO:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
@@ -74,15 +66,11 @@ def gh_load_tracker():
                 data = json.loads(resp.read().decode())
                 sha  = data["sha"]
         except Exception as e:
-            print(f"GitHub SHA fetch error: {e} — will attempt write without SHA")
+            print(f"GitHub SHA fetch error: {e}")
 
     return tracker, sha
 
 def gh_save_tracker(content_list, sha):
-    """
-    Write updated tracker back to GitHub.
-    Uses the SHA from the read to prevent clobbering concurrent writes.
-    """
     url     = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
     payload = {
         "message": f"chore: update tracker [{datetime.now().strftime('%Y-%m-%d')}]",
@@ -102,38 +90,6 @@ def gh_save_tracker(content_list, sha):
         print(f"GitHub save error: {e}")
         return False
 
-
-# ── Price & metrics fetching ──────────────────────────────────
-
-def get_current_price(ticker):
-    try:
-        info = yf.Ticker(ticker).info
-        return info.get("currentPrice") or info.get("regularMarketPrice")
-    except:
-        return None
-
-def get_current_metrics(ticker):
-    try:
-        info = yf.Ticker(ticker).info
-        fcf  = info.get("freeCashflow")
-        mcap = info.get("marketCap")
-        return {
-            "trailing_pe":      info.get("trailingPE"),
-            "forward_pe":       info.get("forwardPE"),
-            "peg_ratio":        info.get("pegRatio"),
-            "operating_margin": info.get("operatingMargins"),
-            "roe":              info.get("returnOnEquity"),
-            "revenue_growth":   info.get("revenueGrowth"),
-            "fcf_yield":        (fcf / mcap if fcf and mcap else None),
-            "debt_to_equity":   info.get("debtToEquity"),
-            "ev_to_ebitda":     info.get("enterpriseToEbitda"),
-        }
-    except:
-        return {}
-
-
-# ── AI ────────────────────────────────────────────────────────
-
 def run_ai(messages, max_tokens=800):
     for model in FREE_MODELS:
         try:
@@ -144,8 +100,9 @@ def run_ai(messages, max_tokens=800):
             return r.choices[0].message.content.strip(), model
         except Exception as e:
             print(f"  Model {model} failed: {str(e)[:80]}")
-            time.sleep(2)
+            time.sleep(3)
     return None, None
+
 
 def parse_json(raw):
     if not raw:
@@ -209,9 +166,27 @@ confidence: High, Medium, or Low."""}
     return result
 
 
-# ── Email ─────────────────────────────────────────────────────
-
 def send_email(to_email, subject, html_body):
+    # Try Resend first
+    if RESEND_API_KEY:
+        try:
+            import resend
+            resend.api_key = RESEND_API_KEY
+            r = resend.Emails.send({
+                "from": "PickR <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+            })
+            print(f"  Email sent via Resend: {r.get('id', r)}")
+            return
+        except Exception as e:
+            print(f"  Resend failed: {e}, trying Gmail...")
+
+    # Gmail fallback
+    if not GMAIL_SENDER or not GMAIL_APP_PASS:
+        print("  No email provider configured.")
+        return
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = f"PickR Alerts <{GMAIL_SENDER}>"
@@ -275,10 +250,9 @@ def build_alert_email(ticker, company, recommendation, target_price, current_pri
     """
 
 
-# ── Main ──────────────────────────────────────────────────────
-
 def main():
     print(f"PickR price checker — {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"Data source: FMP API (with yfinance fallback)")
 
     tracker, sha = gh_load_tracker()
     if not tracker:
@@ -315,11 +289,12 @@ def main():
 
         if price >= target:
             print("  Target reached! Running thesis check...")
+            current_metrics = get_current_metrics(ticker)
             thesis_eval = thesis_check(
                 ticker, company,
                 stock.get("original_metrics", {}),
                 stock.get("thesis_summary", ""),
-                get_current_metrics(ticker),
+                current_metrics,
             )
             print(f"  Thesis: {'INTACT' if thesis_eval.get('thesis_intact') else 'CHANGED'} | "
                   f"Action: {thesis_eval.get('updated_action')} | "
@@ -339,7 +314,7 @@ def main():
             except Exception as e:
                 print(f"  Email failed: {e}")
 
-        time.sleep(1)  # pace yfinance calls
+        time.sleep(1)
 
     if updated:
         gh_save_tracker(tracker, sha)

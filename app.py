@@ -1,6 +1,5 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import yfinance as yf
 import pandas as pd
 from openai import OpenAI
 import os
@@ -14,6 +13,8 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import urllib.request
 import urllib.parse
+
+import fmp_api
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide")
 
@@ -113,12 +114,10 @@ st.markdown("""
     .params-key { color:rgba(255,255,255,0.35); }
     .params-val { color:rgba(255,255,255,0.7); font-weight:500; }
 
-    /* ── Report card ── */
     .rpt-card { background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:2rem 2.5rem; margin-top:1rem; }
     .rpt-head h2 { font-size:2.4rem; font-weight:800; color:#ffffff; margin:0; letter-spacing:-0.02em; }
     .rpt-head .meta { color:rgba(255,255,255,0.6); font-size:0.88rem; letter-spacing:0.04em; margin-top:0.4rem; font-weight:500; }
 
-    /* ── Recommendation bar ── */
     .rec-bar { display:flex; justify-content:center; gap:3.5rem; padding:1.5rem 0;
         border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:0.5rem; }
     .rb-item { text-align:center; }
@@ -129,27 +128,22 @@ st.markdown("""
     .rb-val.watch { color:#fbbf24; }
     .rb-val.pass { color:#f87171; }
 
-    /* ── Executive summary ── */
     .exec-summary { background:#222; border-left:4px solid #e03030; border-radius:0 8px 8px 0;
         padding:1.2rem 1.6rem; margin:1.2rem 0; font-size:1rem; line-height:1.85;
         color:#eeeeee; font-style:italic; }
 
-    /* ── Rationale ── */
     .rationale-text { text-align:center; font-size:0.97rem; color:rgba(255,255,255,0.65);
         font-style:italic; max-width:680px; margin:0 auto; padding-bottom:1.5rem; line-height:1.8; }
 
-    /* ── Section headers ── */
     .sec { font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.18em;
         color:#ffffff; margin:2.2rem 0 0.9rem; padding-bottom:0.5rem;
         border-bottom:2px solid #e03030; display:block; }
 
-    /* ── Streamlit metric overrides ── */
     [data-testid="stMetricLabel"] { font-size:0.68rem !important; color:rgba(255,255,255,0.6) !important;
         text-transform:uppercase !important; letter-spacing:0.06em !important; font-weight:700 !important; }
     [data-testid="stMetricValue"] { font-size:1.3rem !important; font-weight:700 !important; color:#ffffff !important; }
     [data-testid="stMetricDelta"] { display:none !important; }
 
-    /* ── 52-week range ── */
     .range-bar-container { margin:0.8rem 0 1.5rem; }
     .range-bar-labels { display:flex; justify-content:space-between; font-size:0.8rem;
         color:rgba(255,255,255,0.65); margin-bottom:0.4rem; font-weight:600; }
@@ -158,7 +152,6 @@ st.markdown("""
     .range-bar-dot { width:12px; height:12px; background:#fff; border-radius:50%; position:absolute;
         top:-2.5px; transform:translateX(-50%); box-shadow:0 0 8px rgba(224,48,48,0.8); }
 
-    /* ── QGLP scorecard ── */
     .qglp-s { background:#222; border:1px solid rgba(255,255,255,0.1);
         border-radius:10px; padding:1.4rem 1.5rem; margin:0.8rem 0; }
     .qg { display:flex; justify-content:space-between; }
@@ -170,10 +163,8 @@ st.markdown("""
     .qc.comp { border-left:1px solid rgba(255,255,255,0.1); }
     .qc.comp .qs { color:#e03030; }
 
-    /* ── Body prose ── */
     .prose { font-size:1rem; line-height:1.95; color:#dedede; padding:0.3rem 0 0.8rem; }
 
-    /* ── Risks ── */
     .risk-row { padding:0.75rem 0; border-bottom:1px solid rgba(255,255,255,0.07);
         font-size:0.95rem; line-height:1.75; color:#dedede; }
     .risk-row:last-child { border-bottom:none; }
@@ -181,7 +172,6 @@ st.markdown("""
         background:rgba(224,48,48,0.2); border-radius:4px; color:#f07070; font-weight:800;
         font-size:0.68rem; margin-right:0.75rem; vertical-align:middle; }
 
-    /* ── Bull / Bear ── */
     .cb { padding:1.2rem 1.5rem; border-radius:8px; font-size:0.95rem; line-height:1.8; color:#dedede; }
     .cb-bull { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.28); }
     .cb-bear { background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.25); }
@@ -189,11 +179,9 @@ st.markdown("""
     .cb-bull .cb-title { color:#4ade80; }
     .cb-bear .cb-title { color:#f87171; }
 
-    /* ── Position sizing ── */
     .sz-box { background:#222; border:1px solid rgba(255,255,255,0.1);
         padding:1.2rem 1.5rem; border-radius:8px; font-size:0.95rem; line-height:1.8; color:#dedede; }
 
-    /* ── Peer table ── */
     .pt { width:100%; border-collapse:collapse; font-size:0.88rem; }
     .pt th { text-align:left; font-size:0.65rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.08em; color:rgba(255,255,255,0.6); padding:0.6rem 0.75rem;
@@ -214,7 +202,6 @@ st.markdown("""
 
     .div { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:1rem 0; }
 
-    /* ── Track box ── */
     .track-box { background:#1e1e1e; border:1px solid rgba(224,48,48,0.35); border-radius:8px;
         padding:1.5rem 2rem; margin-top:1.5rem; }
     .track-box-title { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
@@ -223,7 +210,6 @@ st.markdown("""
         border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#4ade80; margin-top:0.8rem; }
     .track-note { font-size:0.75rem; color:rgba(255,255,255,0.4); margin-top:0.6rem; line-height:1.5; }
 
-    /* ── Footer ── */
     .foot-card { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
         padding:1.5rem 2rem; margin-top:2rem; text-align:center; }
     .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.75); }
@@ -232,7 +218,6 @@ st.markdown("""
         line-height:1.65; max-width:700px; margin-left:auto; margin-right:auto; }
     .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.2); margin-top:0.8rem; }
 
-    /* ── Info sections (How it works, QGLP, params) ── */
     .hiw-desc { font-size:0.9rem; color:rgba(255,255,255,0.55); line-height:1.65; }
     .hiw-title2 { font-size:1.1rem; font-weight:700; color:#ffffff; margin-bottom:0.4rem; }
     .thesis-card-desc { font-size:0.9rem; color:rgba(255,255,255,0.55); line-height:1.6; }
@@ -280,24 +265,28 @@ OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", os.getenv("OPENROUTER_
 if not OPENROUTER_API_KEY or "your" in OPENROUTER_API_KEY:
     st.error("Add your OpenRouter API key to .streamlit/secrets.toml"); st.stop()
 
+FMP_API_KEY = st.secrets.get("FMP_API_KEY", os.getenv("FMP_API_KEY", ""))
+if not FMP_API_KEY:
+    st.warning("FMP_API_KEY not found — will use yfinance as fallback for all data.")
+
 GMAIL_SENDER   = st.secrets.get("GMAIL_SENDER",   os.getenv("GMAIL_SENDER",   ""))
 GMAIL_APP_PASS = st.secrets.get("GMAIL_APP_PASS",  os.getenv("GMAIL_APP_PASS", ""))
+RESEND_API_KEY = st.secrets.get("RESEND_API_KEY",  os.getenv("RESEND_API_KEY", ""))
 TRACKER_FILE   = "tracked_stocks.json"
 
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
 
-# Cleaned model list — dead 404s removed, reliable fallbacks added
 FREE_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-27b-it:free",
-    "qwen/qwen3-coder:free",
     "z-ai/glm-4.5-air:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "openai/gpt-oss-120b:free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
-    "deepseek/deepseek-chat-v3-5:free",
-    "microsoft/phi-4-reasoning-plus:free",
+    "arcee-ai/trinity-large-preview:free",
+    "qwen/qwen3-coder:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-3-27b-it:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
     "google/gemma-3-12b-it:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
 ]
 
 @st.cache_data
@@ -364,8 +353,6 @@ def fmt_c(v,cur="USD",d=2): return fmt_n(v,p=get_sym(cur),d=d)
 
 # ══════════════════════════════════════════════════════════════
 # TRACKER — GITHUB API PERSISTENCE
-# Always reads/writes to the repo so all users and all systems
-# share one source of truth, and restarts never lose data.
 # ══════════════════════════════════════════════════════════════
 
 import urllib.request as _ur
@@ -373,7 +360,6 @@ import urllib.error   as _ue
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN", ""))
 GITHUB_REPO  = st.secrets.get("GITHUB_REPO",  os.getenv("GITHUB_REPO",  ""))
-# GITHUB_REPO format: "username/repo-name"  e.g. "mayukh/pickr"
 
 def _gh_headers():
     return {
@@ -384,7 +370,6 @@ def _gh_headers():
     }
 
 def _gh_get_file():
-    """Fetch tracked_stocks.json from GitHub. Returns (content_list, sha)."""
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return [], None
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
@@ -396,13 +381,12 @@ def _gh_get_file():
             return content, data["sha"]
     except _ue.HTTPError as e:
         if e.code == 404:
-            return [], None   # file doesn't exist yet — first run
+            return [], None
         return [], None
     except Exception:
         return [], None
 
 def _gh_put_file(content_list, sha=None):
-    """Write tracked_stocks.json back to GitHub."""
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return False, "GITHUB_TOKEN or GITHUB_REPO not configured"
     url     = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{TRACKER_FILE}"
@@ -413,7 +397,7 @@ def _gh_put_file(content_list, sha=None):
         ).decode(),
     }
     if sha:
-        payload["sha"] = sha   # required for updates; omit only on first create
+        payload["sha"] = sha
     try:
         data = json.dumps(payload).encode()
         req  = _ur.Request(url, data=data, headers=_gh_headers(), method="PUT")
@@ -425,10 +409,6 @@ def _gh_put_file(content_list, sha=None):
 
 def _gh_put_file_tracked(ticker, company_name, recommendation, target_price,
                           entry_price, metrics_snapshot, thesis_summary, user_email):
-    """
-    Wrapper around add_tracked_stock that returns (ok, error_message)
-    so the UI can surface GitHub write failures explicitly.
-    """
     if GITHUB_TOKEN and GITHUB_REPO:
         tracker, sha = _gh_get_file()
     else:
@@ -465,11 +445,9 @@ def _gh_put_file_tracked(ticker, company_name, recommendation, target_price,
 
 
 def load_tracker():
-    """Read tracker from GitHub. Falls back to local file if GitHub not configured."""
     if GITHUB_TOKEN and GITHUB_REPO:
         content, _ = _gh_get_file()
         return content
-    # Local fallback (useful for local dev without GitHub creds)
     if os.path.exists(TRACKER_FILE):
         try:
             with open(TRACKER_FILE) as f: return json.load(f)
@@ -478,19 +456,12 @@ def load_tracker():
 
 def add_tracked_stock(ticker, company_name, recommendation, target_price,
                       entry_price, metrics_snapshot, thesis_summary, user_email):
-    """
-    Safe read-modify-write to GitHub.
-    - Fetches latest SHA so we never clobber a concurrent write.
-    - Deduplicates: same ticker + same email = update the existing entry, not a new row.
-    - Falls back to local write if GitHub not configured.
-    """
     if GITHUB_TOKEN and GITHUB_REPO:
         tracker, sha = _gh_get_file()
     else:
         tracker = load_tracker()
         sha     = None
 
-    # Remove existing entry for same ticker + email (prevents duplicates)
     tracker = [t for t in tracker
                if not (t["ticker"] == ticker and t["user_email"] == user_email)]
 
@@ -512,7 +483,6 @@ def add_tracked_stock(ticker, company_name, recommendation, target_price,
     if GITHUB_TOKEN and GITHUB_REPO:
         ok, err = _gh_put_file(tracker, sha)
         if not ok:
-            # GitHub write failed — fall back to local so data isn't lost
             with open(TRACKER_FILE, "w") as f:
                 json.dump(tracker, f, indent=2, default=str)
     else:
@@ -525,20 +495,32 @@ def add_tracked_stock(ticker, company_name, recommendation, target_price,
 # ══════════════════════════════════════════════════════════════
 
 def send_email(to_email, subject, html_body):
+    if RESEND_API_KEY:
+        try:
+            import resend
+            resend.api_key = RESEND_API_KEY
+            r = resend.Emails.send({
+                "from": "PickR <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+            })
+            return True, None
+        except Exception as e:
+            return False, f"Resend error: {str(e)}"
     if not GMAIL_SENDER or not GMAIL_APP_PASS:
-        return False, "Gmail credentials not configured in secrets.toml"
+        return False, "No email provider configured."
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"]    = f"PickR Alerts <{GMAIL_SENDER}>"
-        msg["To"]      = to_email
+        msg["From"] = f"PickR Alerts <{GMAIL_SENDER}>"
+        msg["To"] = to_email
         msg.attach(MIMEText(html_body, "html"))
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(GMAIL_SENDER, GMAIL_APP_PASS)
             server.sendmail(GMAIL_SENDER, to_email, msg.as_string())
         return True, None
-    except Exception as e:
-        return False, str(e)
+    except Exception as e: return False, str(e)
 
 def email_confirmation(to_email, ticker, company_name, recommendation, target_price, entry_price):
     color = "#22c55e" if recommendation=="BUY" else "#f5c542"
@@ -634,53 +616,57 @@ def email_price_alert(to_email, ticker, company_name, recommendation,
 
 
 # ══════════════════════════════════════════════════════════════
-# DATA FETCHING
+# DATA FETCHING — NOW USES fmp_api.py
 # ══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def search_ticker(query):
-    try:
-        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
-            return [{"symbol":q["symbol"],"name":q.get("shortname",q["symbol"]),"exchange":q.get("exchange","")}
-                    for q in data.get("quotes",[]) if q.get("quoteType") in ("EQUITY","ETF")]
-    except: return []
+    return fmp_api.search_ticker(query)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch(ticker):
-    s = yf.Ticker(ticker)
-    d = {}
-    try: d["info"] = s.info
-    except Exception as e: d["info"] = {"error": str(e)}
-    for attr, key in [("income_stmt","inc"),("quarterly_income_stmt","qinc"),("balance_sheet","bs"),("cashflow","cf")]:
-        try:
-            df = getattr(s, attr)
-            d[key] = df if df is not None and not df.empty else None
-        except: d[key] = None
-    try:
-        h = s.history(period="5y", interval="1wk")
-        d["hist"] = h if h is not None and not h.empty else None
-    except: d["hist"] = None
-    try: d["news"] = s.news[:8] if s.news else []
-    except: d["news"] = []
-    return d
+    result = fmp_api.fetch_full(ticker)
+    if result is None:
+        return {"info": {"error": f"Could not fetch data for {ticker}"}, "inc": None, "qinc": None, "bs": None, "cf": None, "hist": None, "news": []}
+    return result
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_peers(ticker, sector):
-    pl = [p for p in SECTOR_PEERS.get(sector,[]) if p.upper()!=ticker.upper()][:4]
+    peer_tickers = [p for p in SECTOR_PEERS.get(sector, []) if p.upper() != ticker.upper()][:4]
     out = []
-    for pt in pl:
+    for pt in peer_tickers:
         try:
-            i = yf.Ticker(pt).info; c = i.get("currency","USD")
-            out.append({"Ticker":pt,"Company":i.get("shortName",pt),"Mkt Cap":fmt_c(i.get("marketCap"),c),
-                "P/E":fmt_r(i.get("trailingPE")),"Fwd P/E":fmt_r(i.get("forwardPE")),
-                "PEG":fmt_r(i.get("pegRatio")),"Margin":fmt_p(i.get("operatingMargins")),
-                "ROE":fmt_p(i.get("returnOnEquity")),"Rev Gr.":fmt_p(i.get("revenueGrowth"))})
-        except: continue
+            profile = fmp_api.get_profile(pt)
+            if profile:
+                c = profile.get("currency", "USD")
+                out.append({
+                    "Ticker": pt, "Company": profile.get("shortName", pt),
+                    "Mkt Cap": fmt_c(profile.get("marketCap"), c),
+                    "P/E": fmt_r(profile.get("trailingPE")),
+                    "Fwd P/E": fmt_r(profile.get("forwardPE")),
+                    "PEG": fmt_r(profile.get("pegRatio")),
+                    "Margin": fmt_p(profile.get("operatingMargins")),
+                    "ROE": fmt_p(profile.get("returnOnEquity")),
+                    "Rev Gr.": fmt_p(profile.get("revenueGrowth")),
+                })
+            else:
+                # yfinance fallback
+                import yfinance as yf
+                i = yf.Ticker(pt).info
+                c = i.get("currency", "USD")
+                out.append({
+                    "Ticker": pt, "Company": i.get("shortName", pt),
+                    "Mkt Cap": fmt_c(i.get("marketCap"), c),
+                    "P/E": fmt_r(i.get("trailingPE")),
+                    "Fwd P/E": fmt_r(i.get("forwardPE")),
+                    "PEG": fmt_r(i.get("pegRatio")),
+                    "Margin": fmt_p(i.get("operatingMargins")),
+                    "ROE": fmt_p(i.get("returnOnEquity")),
+                    "Rev Gr.": fmt_p(i.get("revenueGrowth")),
+                })
+        except:
+            continue
     return out
-
 
 # ══════════════════════════════════════════════════════════════
 # METRICS
@@ -716,14 +702,13 @@ def calc(data):
         "shares_outstanding":g("sharesOutstanding"),
     }
 
-    # ── FCF Yield (computed) ──────────────────────────────────
+    # ── FCF Yield ─────────────────────────────────────────────
     try:
         m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
             if m["free_cashflow"] and m["market_cap"] else None
     except: m["fcf_yield"] = None
 
-    # ── Debt/Equity — Yahoo returns x100 (e.g. 150 = 1.50x), divide to fix ──
-    # Then cross-check against balance sheet for sanity
+    # ── Debt/Equity ───────────────────────────────────────────
     raw_de = g("debtToEquity")
     bs = data.get("bs")
     computed_de = None
@@ -735,7 +720,7 @@ def calc(data):
                 if lb in bs.index:
                     row = bs.loc[lb].dropna()
                     if not row.empty:
-                        return float(row.iloc[0])  # most recent period
+                        return float(row.iloc[0])
             return None
 
         total_debt_bs  = _bs_row(["Total Debt","TotalDebt","Long Term Debt And Capital Lease Obligation",
@@ -745,32 +730,32 @@ def calc(data):
         current_assets = _bs_row(["Current Assets","TotalCurrentAssets","Total Current Assets"])
         current_liabs  = _bs_row(["Current Liabilities","TotalCurrentLiabilities","Total Current Liabilities"])
 
-        # D/E from balance sheet (correct, not Yahoo's x100 version)
         if total_debt_bs and total_eq and total_eq != 0:
             computed_de = round(total_debt_bs / total_eq, 3)
-
-        # Current ratio from balance sheet
         if current_assets and current_liabs and current_liabs != 0:
             computed_current_ratio = round(current_assets / current_liabs, 2)
 
-    # Use computed D/E if available; fall back to Yahoo's (divided by 100)
+    # FMP returns D/E as a proper ratio (1.5), yfinance returns x100 (150)
     if computed_de is not None:
         m["debt_to_equity"] = computed_de
     elif raw_de is not None:
         try:
-            m["debt_to_equity"] = round(float(raw_de) / 100, 3)
+            raw_de_float = float(raw_de)
+            if info.get("_source") == "fmp":
+                m["debt_to_equity"] = round(raw_de_float, 3)
+            else:
+                m["debt_to_equity"] = round(raw_de_float / 100, 3)
         except:
             m["debt_to_equity"] = None
     else:
         m["debt_to_equity"] = None
 
-    # Use computed current ratio if available; fall back to Yahoo's
     if computed_current_ratio is not None:
         m["current_ratio"] = computed_current_ratio
     else:
         m["current_ratio"] = g("currentRatio")
 
-    # ── CAGR helper — robust against NaN, negative bases, mid-year gaps ──
+    # ── CAGR helper ───────────────────────────────────────────
     inc = data.get("inc")
     m["revenue_history"] = {}
     m["net_income_history"] = {}
@@ -781,14 +766,12 @@ def calc(data):
             if lb in df.index:
                 row = df.loc[lb].dropna()
                 if row.empty: continue
-                # Sort columns oldest → newest
                 row = row.sort_index()
-                hist = {str(dt.year): round(float(v) / 1e9, 2) for dt, v in row.items()}
+                hist = {str(dt.year) if hasattr(dt, 'year') else str(dt): round(float(v) / 1e9, 2) for dt, v in row.items()}
                 if len(row) < 2: return None, hist
                 oldest = float(row.iloc[0])
                 newest = float(row.iloc[-1])
                 years  = len(row) - 1
-                # Guard: base must be positive for CAGR to be meaningful
                 if oldest <= 0 or years <= 0:
                     return None, hist
                 cagr = (newest / oldest) ** (1 / years) - 1
@@ -801,8 +784,7 @@ def calc(data):
     m["eps_cagr"], _ = cagr_from(inc, ["Diluted EPS","Basic EPS","DilutedEPS","BasicEPS",
                                         "EPS","Earnings Per Share"])
 
-    # ── Gross margin cross-check from income statement ────────
-    # Yahoo sometimes returns None for grossMargins; compute as fallback
+    # ── Gross margin cross-check ──────────────────────────────
     if m["gross_margin"] is None and inc is not None:
         try:
             rev_row = None
@@ -877,7 +859,7 @@ def calc(data):
                     break
             if ni_row is not None and eq_row is not None:
                 ni = float(ni_row.iloc[-1])
-                eq = float(eq_row.iloc[0])  # most recent period
+                eq = float(eq_row.iloc[0])
                 if eq > 0:
                     m["roe"] = round(ni / eq, 4)
         except: pass
@@ -903,7 +885,6 @@ def calc(data):
 # ══════════════════════════════════════════════════════════════
 # AI — PROMPTS
 # ══════════════════════════════════════════════════════════════
-
 def ai_prompt_ui(ticker, m):
     ms = json.dumps(
         {k:v for k,v in m.items() if k not in ["description","news","revenue_history","net_income_history"]},
@@ -913,7 +894,7 @@ def ai_prompt_ui(ticker, m):
     return [
         {"role":"system","content":f"""You are a senior equity research analyst for PickR. Write institutional-grade research using the QGLP framework.
 
-STYLE: 3-4 concise paragraphs per QGLP section. Specific numbers. Professional prose. Be concise — the entire JSON response must fit within 4000 tokens.
+STYLE: 3-4 concise paragraphs per QGLP section. Specific numbers. Professional prose. Output compact JSON with no unnecessary whitespace inside string values.
 FUND THESIS CONTEXT: {sample}
 RULES: Use ONLY provided numbers. Never invent. Respond with ONLY valid JSON, no fences, no extra text.
 
@@ -997,65 +978,100 @@ confidence: High, Medium, or Low."""}
 # ══════════════════════════════════════════════════════════════
 
 def run_ai(msgs, max_tokens=3500):
-    errors    = []
-    now       = time.time()
+    errors = []
+    now = time.time()
     cooldowns = st.session_state.get("model_cooldowns", {})
-
     available = [m for m in FREE_MODELS if now >= cooldowns.get(m, 0)]
-    cooling   = [m for m in FREE_MODELS if now <  cooldowns.get(m, 0)]
-    ordered   = available + cooling
-
+    cooling = [m for m in FREE_MODELS if now < cooldowns.get(m, 0)]
+    ordered = available + cooling
     for model in ordered:
         try:
             r = client.chat.completions.create(
                 model=model, messages=msgs, max_tokens=max_tokens, temperature=0.3,
                 extra_headers={"HTTP-Referer":"https://pickr.streamlit.app","X-Title":"PickR"},
             )
-            raw = r.choices[0].message.content.strip()
-            return raw, model, None
+            return r.choices[0].message.content.strip(), model, None
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "rate" in err_str.lower() or "limit" in err_str.lower():
-                st.session_state.model_cooldowns[model] = time.time() + 300
+            if "429" in err_str or "rate" in err_str.lower():
+                st.session_state.model_cooldowns[model] = time.time() + 900
             errors.append(f"{model}: {err_str[:120]}")
-
+            time.sleep(3)
     return None, None, errors
 
-
 def _parse_json_response(raw, model):
-    """Best-effort JSON parsing with bracket repair."""
     try:
         if raw.startswith("```"): raw = raw.split("\n",1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"):   raw = raw[:-3]
+        if raw.endswith("```"): raw = raw[:-3]
         if raw.startswith("json"): raw = raw[4:]
         raw = raw.strip()
+
+        # Try direct parse first
         try:
             a = json.loads(raw)
+            a["model_used"] = model
+            return a, None
         except json.JSONDecodeError:
-            last_brace = raw.rfind("}")
-            if last_brace == -1:
-                raw = raw.rstrip().rstrip(",").rstrip('"')
-                if raw.count('"') % 2 != 0: raw += '"'
-                raw += "]" * (raw.count("[") - raw.count("]"))
-                raw += "}" * (raw.count("{") - raw.count("}"))
-            else:
-                raw = raw[:last_brace+1]
-                if raw.count('"') % 2 != 0: raw += '"'
-                raw += "]" * (raw.count("[") - raw.count("]"))
-                raw += "}" * (raw.count("{") - raw.count("}"))
-            a = json.loads(raw)
-        a["model_used"] = model
-        return a, None
-    except json.JSONDecodeError as e:
-        return None, f"{model}: Bad JSON — {str(e)[:100]} | Raw: {raw[:300]}"
+            pass
 
+        # Try to find the last complete key-value pair and close the JSON
+        # First, try truncating at the last complete string value
+        last_quote_pair = raw.rfind('","')
+        last_bracket = raw.rfind('"]')
+        cut_point = max(last_quote_pair + 1, last_bracket + 1) if max(last_quote_pair, last_bracket) > 0 else -1
 
-# ── Cached QGLP analysis (24-hour cache per ticker) ───────────
+        if cut_point > len(raw) * 0.5:
+            attempt = raw[:cut_point + 1]
+            # Close any open arrays and objects
+            open_brackets = attempt.count("[") - attempt.count("]")
+            open_braces = attempt.count("{") - attempt.count("}")
+            attempt += "]" * open_brackets
+            attempt += "}" * open_braces
+            try:
+                a = json.loads(attempt)
+                a["model_used"] = model
+                return a, None
+            except json.JSONDecodeError:
+                pass
+
+        # Aggressive repair: find last complete "key":"value" and close
+        last_brace = raw.rfind("}")
+        if last_brace > 0:
+            attempt = raw[:last_brace + 1]
+            if attempt.count('"') % 2 != 0: attempt += '"'
+            attempt += "]" * (attempt.count("[") - attempt.count("]"))
+            attempt += "}" * (attempt.count("{") - attempt.count("}"))
+            try:
+                a = json.loads(attempt)
+                a["model_used"] = model
+                return a, None
+            except json.JSONDecodeError:
+                pass
+
+        # Last resort: find the last cleanly closed string and rebuild
+        for i in range(len(raw) - 1, len(raw) // 2, -1):
+            if raw[i] == '"' and (i == 0 or raw[i-1] != '\\'):
+                attempt = raw[:i+1]
+                open_brackets = attempt.count("[") - attempt.count("]")
+                open_braces = attempt.count("{") - attempt.count("}")
+                attempt += "]" * open_brackets
+                attempt += "}" * open_braces
+                try:
+                    a = json.loads(attempt)
+                    a["model_used"] = model
+                    return a, None
+                except json.JSONDecodeError:
+                    continue
+
+        return None, f"{model}: Bad JSON — could not repair | Raw: {raw[:300]}"
+    except Exception as e:
+        return None, f"{model}: Parse error — {str(e)[:100]}"
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def _cached_ai_json(ticker, metrics_json_str):
     m    = json.loads(metrics_json_str)
     msgs = ai_prompt_ui(ticker, m)
-    raw, model, errors = run_ai(msgs, max_tokens=4500)
+    raw, model, errors = run_ai(msgs, max_tokens=6000)
     if raw is None:
         return {"error": True, "details": errors}
     a, err = _parse_json_response(raw, model)
@@ -1097,7 +1113,6 @@ def run_ai_html(ticker, m):
     return raw.strip(), None
 
 def run_thesis_check(ticker, company_name, original_metrics, original_thesis, current_metrics):
-    """Lightweight thesis re-evaluation — ~800 tokens, not a full report."""
     msgs = ai_prompt_thesis_check(ticker, company_name, original_metrics, original_thesis, current_metrics)
     raw, model, errors = run_ai(msgs, max_tokens=800)
     if raw is None: return None, errors
@@ -1164,7 +1179,7 @@ def render(ticker, m, a, data):
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
         cd=h[["Close"]].copy(); cd.columns=["Price"]
-        st.line_chart(cd, use_container_width=True, height=250, color="#8b1a1a")
+        st.line_chart(cd, width="stretch", height=250, color="#8b1a1a")
 
     st.markdown('<div class="sec">Valuation <span class="vtag">Verified</span></div>', unsafe_allow_html=True)
     c1,c2,c3,c4,c5,c6=st.columns(6)
@@ -1206,9 +1221,9 @@ def render(ticker, m, a, data):
         st.markdown('<div class="sec">Revenue & Earnings Trend (Billions)</div>', unsafe_allow_html=True)
         cc1,cc2=st.columns(2)
         with cc1:
-            if rh: st.bar_chart(pd.DataFrame({"Revenue":rh}), use_container_width=True, height=200, color="#8b1a1a")
+            if rh: st.bar_chart(pd.DataFrame({"Revenue":rh}), width="stretch", height=200, color="#8b1a1a")
         with cc2:
-            if nh: st.bar_chart(pd.DataFrame({"Net Income":nh}), use_container_width=True, height=200, color="#d4443a")
+            if nh: st.bar_chart(pd.DataFrame({"Net Income":nh}), width="stretch", height=200, color="#d4443a")
 
     st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
     c1,c2,c3,c4,c5,c6=st.columns(6)
@@ -1407,14 +1422,12 @@ cl,cm,cr = st.columns([1,2.5,1])
 with cm:
     recent_list = st.session_state.recent[-6:]
 
-    # ── Row labels ───────────────────────────────────────────
     l1, l2 = st.columns([3,2])
     with l1:
         st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Search by company name</div>', unsafe_allow_html=True)
     with l2:
         st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Popular stocks</div>', unsafe_allow_html=True)
 
-    # ── Search row: name input + popular dropdown side by side ──
     s_col1, s_col2 = st.columns([3,2])
 
     with s_col1:
@@ -1438,7 +1451,6 @@ with cm:
         if sp and POPULAR[sp]:
             st.session_state["resolved"] = POPULAR[sp]
 
-    # ── Ticker / recent row labels ────────────────────────────
     tl1, tl2 = st.columns([3,2])
     with tl1:
         st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Enter ticker directly</div>', unsafe_allow_html=True)
@@ -1446,7 +1458,6 @@ with cm:
         if recent_list:
             st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Recent searches</div>', unsafe_allow_html=True)
 
-    # ── Ticker / recent row ───────────────────────────────────
     t_col1, t_col2 = st.columns([3,2])
     with t_col1:
         td = st.text_input("Enter ticker directly",
@@ -1463,7 +1474,6 @@ with cm:
         else:
             st.markdown("<div style='height:2.3rem'></div>", unsafe_allow_html=True)
 
-    # ── Currently selected indicator ─────────────────────────
     resolved_now = st.session_state.get("resolved")
     if resolved_now:
         st.markdown(
@@ -1474,13 +1484,11 @@ with cm:
         )
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
-    go = st.button("Generate Report", use_container_width=True, type="primary")
+    go = st.button("Generate Report", width="stretch", type="primary")
 
-# Status area sits directly below the search bar — first report generation loads here
 status_area = st.container()
 
 
-# ── Static info sections ──────────────────────────────────────
 st.markdown('''<div class="hiw">
     <div class="hiw-title">How It Works</div>
     <div class="hiw-grid">
@@ -1538,16 +1546,15 @@ st.markdown('''<div class="thesis-section">
 
 st.markdown('''<div class="params-card">
     <div class="thesis-title">Research Parameters</div>
-    <div class="params-row"><span class="params-key">Financial Data</span><span class="params-val">Yahoo Finance (real-time)</span></div>
+    <div class="params-row"><span class="params-key">Financial Data</span><span class="params-val">FMP API (with yfinance fallback)</span></div>
     <div class="params-row"><span class="params-key">AI Analysis</span><span class="params-val">Multi-model via OpenRouter (best available)</span></div>
     <div class="params-row"><span class="params-key">Metrics Calculation</span><span class="params-val">Python (verified, not AI-generated)</span></div>
     <div class="params-row"><span class="params-key">CAGR Period</span><span class="params-val">Based on available annual data (typically 3-4 years)</span></div>
-    <div class="params-row"><span class="params-key">Peer Selection</span><span class="params-val">Top 4 sector peers by market relevance</span></div>
+    <div class="params-row"><span class="params-key">Peer Selection</span><span class="params-val">FMP peers + sector fallback (top 4)</span></div>
     <div class="params-row"><span class="params-key">Price Tracking</span><span class="params-val">Daily email alerts when target price is reached</span></div>
     <div class="params-row"><span class="params-key">Download Report</span><span class="params-val">Full institutional PDF report with scenario analysis</span></div>
 </div>''', unsafe_allow_html=True)
 
-# report_area placed HERE — below all info cards
 report_area = st.container()
 
 # ══════════════════════════════════════════════════════════════
@@ -1557,7 +1564,6 @@ report_area = st.container()
 should_generate = False
 ticker          = None
 
-# Read from session state — survives the rerun triggered by button click
 resolved = st.session_state.get("resolved", None)
 
 if go and resolved:
@@ -1575,10 +1581,9 @@ if should_generate and ticker:
     st.session_state.generate_html       = False
     st.session_state.html_just_generated = False
 
-    # Loading widget renders in status_area — directly below the search bar
     with status_area:
         with st.status(f"Analyzing {ticker}...", expanded=True) as status:
-            st.write(f"Connecting to Yahoo Finance for **{ticker}**...")
+            st.write(f"Connecting to FMP API for **{ticker}**...")
             st.caption("Pulling real-time price, fundamentals, financials, and 5-year history")
             try: sd = fetch(ticker)
             except Exception as e: st.error(f"Failed to fetch data: {e}"); st.stop()
@@ -1587,7 +1592,8 @@ if should_generate and ticker:
                 st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
 
             company_name = info.get("shortName", info.get("longName", ticker))
-            st.write(f"Successfully loaded **{company_name}**")
+            data_source = info.get('_source', 'yfinance')
+            st.write(f"Loaded **{company_name}** (via {data_source})")
 
             st.write("Computing 24 verified financial metrics...")
             st.caption("Revenue CAGR, margins, ROE/ROA, FCF yield, valuation ratios, debt metrics")
@@ -1607,8 +1613,6 @@ if should_generate and ticker:
 
     st.session_state.cached_report = {"ticker":ticker,"metrics":m,"analysis":a,"data":sd}
 
-# (HTML generation flag handler removed — PDF via browser print replaces it)
-
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
@@ -1624,10 +1628,8 @@ if st.session_state.cached_report:
     with report_area:
         render(c_ticker, c_m, c_a, c_data)
 
-        # Track box — only shown for BUY and WATCH
         render_track_box(c_ticker, c_m, c_a)
 
-        # Download section — in report_area, below the full report
         st.markdown('<hr class="div">', unsafe_allow_html=True)
         st.markdown('''<div style="text-align:center;padding:1rem 0 0.5rem;">
             <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div>
@@ -1655,11 +1657,9 @@ if st.session_state.cached_report:
                         "",f"*PickR / {datetime.now().strftime('%B %d, %Y')}*"]
             st.download_button("Summary (Markdown)", "\n".join(md_lines),
                                f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.md",
-                               "text/markdown", use_container_width=True)
+                               "text/markdown", width="stretch")
 
         with dl2:
-            # Build a clean printable HTML version of the report inline from cached data,
-            # then trigger window.print() — user saves as PDF from the browser dialog.
             cur_sym = get_sym(c_m.get("currency","USD"))
             try:
                 comp_score = round((int(c_a.get("quality_score",5))+int(c_a.get("growth_score",5))+
@@ -1751,7 +1751,7 @@ if st.session_state.cached_report:
 <script>window.onload=function(){{window.print();}}</script>
 </body></html>"""
             b64_pdf = base64.b64encode(pdf_html.encode()).decode()
-            if st.button("Save as PDF", use_container_width=True, key="btn_pdf"):
+            if st.button("Save as PDF", width="stretch", key="btn_pdf"):
                 components.html(f"""
                     <script>
                         var w = window.open('','_blank');
@@ -1776,7 +1776,7 @@ if st.session_state.cached_report:
             }
             st.download_button("Raw Data (JSON)", json.dumps(export_data,indent=2,default=str),
                                f"PickR_{c_ticker}_{datetime.now().strftime('%Y%m%d')}.json",
-                               "application/json", use_container_width=True)
+                               "application/json", width="stretch")
 
 
 # ── Footer ────────────────────────────────────────────────────
@@ -1786,7 +1786,7 @@ st.markdown(f'''<div class="foot-card">
     <div class="foot-disclaimer">
         PickR is an AI-powered equity research tool for educational and informational purposes only.
         It does not constitute financial advice, investment recommendations, or an offer to buy or sell securities.
-        All financial data is sourced from Yahoo Finance and may be delayed. AI-generated analysis is based on
+        All financial data is sourced from FMP API with Yahoo Finance fallback and may be delayed. AI-generated analysis is based on
         publicly available information and should not be relied upon as the sole basis for investment decisions.
         Past performance does not guarantee future results. Always consult a qualified financial advisor
         before making investment decisions.
