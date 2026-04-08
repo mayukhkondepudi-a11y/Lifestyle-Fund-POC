@@ -20,9 +20,21 @@
       "ev_to_ebitda": null
     },
     "thesis_summary": "",
-    "alert_sent": false,
-    "last_checked": null,
-    "last_price": 253.5
+    "alert_sent": true,
+    "last_checked": "2026-04-08",
+    "last_price": 253.5,
+    "alert_date": "2026-04-08",
+    "final_price": 253.5,
+    "thesis_check": {
+      "thesis_intact": true,
+      "confidence": "Medium",
+      "updated_action": "BUY",
+      "key_changes": [
+        "Operating margin improved from 32.4% to 35.4%",
+        "Revenue growth accelerated from 6.4% to 15.7%"
+      ],
+      "rationale": "Despite a concerning spike in the reported debt-to-equity ratio, Apple\u2019s profitability and growth metrics have strengthened, supporting the original buy case, though the debt figure warrants further verification."
+    }
   },
   {
     "ticker": "AAPL",
@@ -45,8 +57,20 @@
       "ev_to_ebitda": null
     },
     "thesis_summary": "",
-    "alert_sent": false,
-    "last_checked": null,
-    "last_price": 253.5
+    "alert_sent": true,
+    "last_checked": "2026-04-08",
+    "last_price": 253.5,
+    "alert_date": "2026-04-08",
+    "final_price": 253.5,
+    "thesis_check": {
+      "thesis_intact": false,
+      "confidence": "Medium",
+      "updated_action": "WATCH",
+      "key_changes": [
+        "Debt-to-equity ratio surged from ~2.2 to over 100, indicating a massive increase in leverage",
+        "Revenue growth accelerated from 6.4% to 15.7% and operating margin improved"
+      ],
+      "rationale": "While top-line growth and margins have strengthened, the dramatic rise in leverage raises significant risk, weakening the original investment case and suggesting a more cautious stance."
+    }
   }
 ]
