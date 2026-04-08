@@ -1387,7 +1387,7 @@ def run_ai(msgs, max_tokens=3500):
                     user_msgs.append(m)
 
             r = anthropic_client.messages.create(
-                model="claude-haiku-4-5-20251015",
+                model="claude-haiku-4-5-20251001",
                 system=system_msg,
                 messages=user_msgs,
                 max_tokens=max_tokens,
