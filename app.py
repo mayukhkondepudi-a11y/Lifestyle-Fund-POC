@@ -865,6 +865,33 @@ def calc(data):
     else:
         m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
 
+            # ── PEG fallback: compute manually if FMP didn't return it ──
+    if m["peg_ratio"] is None:
+        try:
+            pe = float(m["trailing_pe"]) if m["trailing_pe"] else None
+            growth = None
+
+            # Priority 1: earnings growth (YoY)
+            if m.get("earnings_growth"):
+                g = float(m["earnings_growth"])
+                # If it's a decimal ratio (e.g. 0.15), convert to percentage
+                growth = g * 100 if abs(g) < 1 else g
+
+            # Priority 2: EPS CAGR
+            if growth is None and m.get("eps_cagr") and float(m["eps_cagr"]) != 0:
+                g = float(m["eps_cagr"])
+                growth = g * 100 if abs(g) < 1 else g
+
+            # Priority 3: revenue CAGR as last-resort proxy
+            if growth is None and m.get("revenue_cagr") and float(m["revenue_cagr"]) != 0:
+                g = float(m["revenue_cagr"])
+                growth = g * 100 if abs(g) < 1 else g
+
+            if pe and pe > 0 and growth and growth > 0:
+                m["peg_ratio"] = round(pe / growth, 2)
+        except Exception:
+            pass
+
     m["news"] = [{"title": n.get("title",""), "publisher": n.get("publisher","")}
                  for n in data.get("news", [])]
     return m
@@ -1533,6 +1560,61 @@ def run_ai_json(ticker, m):
     scenario_math = compute_scenario_math(m, llm_output)
     llm_output["scenario_math"] = scenario_math
 
+    # ── Reconcile recommendation with scenario math ──────────
+    prob_pos = scenario_math.get("prob_positive_return", 0)
+    exp_ret  = scenario_math.get("expected_return", 0)
+    sharpe   = scenario_math.get("sharpe_ratio", 0)
+    rec      = llm_output.get("recommendation", "WATCH").upper()
+
+    original_rec = rec
+
+    # Hard override: can't be BUY if math doesn't support it
+    if rec == "BUY":
+        if prob_pos < 0.50:
+            rec = "WATCH"
+            llm_output["recommendation"] = "WATCH"
+            llm_output["conviction"] = "Low"
+            llm_output["rec_override_reason"] = (
+                f"Downgraded from BUY: probability of positive return is "
+                f"{prob_pos*100:.0f}% (below 50% threshold)."
+            )
+        elif exp_ret < 0.05:
+            rec = "WATCH"
+            llm_output["recommendation"] = "WATCH"
+            llm_output["conviction"] = "Low"
+            llm_output["rec_override_reason"] = (
+                f"Downgraded from BUY: expected return is "
+                f"{exp_ret*100:.1f}% (below 5% threshold)."
+            )
+        elif sharpe < 0.3:
+            rec = "WATCH"
+            llm_output["recommendation"] = "WATCH"
+            llm_output["conviction"] = "Medium"
+            llm_output["rec_override_reason"] = (
+                f"Downgraded from BUY: Sharpe ratio is "
+                f"{sharpe:.2f} (below 0.3 threshold)."
+            )
+
+    # Upgrade: if math strongly supports BUY but LLM said WATCH
+    if rec == "WATCH" and original_rec == "WATCH":
+        if prob_pos >= 0.70 and exp_ret >= 0.15 and sharpe >= 1.0:
+            llm_output["recommendation"] = "BUY"
+            llm_output["conviction"] = "Medium"
+            llm_output["rec_override_reason"] = (
+                f"Upgraded from WATCH: strong quantitative support "
+                f"(P(positive)={prob_pos*100:.0f}%, E[r]={exp_ret*100:.1f}%, "
+                f"Sharpe={sharpe:.2f})."
+            )
+
+    # PASS reinforcement: if math is terrible, force PASS
+    if prob_pos < 0.30 and exp_ret < -0.10:
+        llm_output["recommendation"] = "PASS"
+        llm_output["conviction"] = "High"
+        llm_output["rec_override_reason"] = (
+            f"Forced PASS: probability of positive return is only "
+            f"{prob_pos*100:.0f}% with expected return of {exp_ret*100:.1f}%."
+        )
+
     return llm_output
 
 def run_ai_html(ticker, m):
@@ -1588,6 +1670,16 @@ def render(ticker, m, a, data):
     # ── CHANGED: strip_html on investment thesis ──
     if a.get("investment_thesis"):
         st.markdown(f'<div class="exec-summary">{strip_html(a["investment_thesis"])}</div>', unsafe_allow_html=True)
+
+        # ── ADD THIS BLOCK RIGHT HERE ──────────────────────────
+    if a.get("rec_override_reason"):
+        st.markdown(
+            f'<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);'
+            f'border-radius:6px;padding:0.8rem 1.2rem;font-size:0.85rem;color:#fbbf24;'
+            f'margin:0.8rem 0;line-height:1.5;">'
+            f'⚠ {a["rec_override_reason"]}</div>',
+            unsafe_allow_html=True
+        )
 
     # ── 52-Week Range ──
     w52h = m.get("week_52_high"); w52l = m.get("week_52_low"); cp = m.get("current_price")

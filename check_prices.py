@@ -14,18 +14,22 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import anthropic
 from openai import OpenAI
 from fmp_api import get_current_price, get_current_metrics
 
-TRACKER_FILE   = "tracked_stocks.json"
-GMAIL_SENDER   = os.environ.get("GMAIL_SENDER", "")
-GMAIL_APP_PASS = os.environ.get("GMAIL_APP_PASS", "").replace(" ", "").strip()
-OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
-GITHUB_TOKEN   = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
-GITHUB_REPO    = os.environ["GITHUB_REPO"]
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+TRACKER_FILE    = "tracked_stocks.json"
+GMAIL_SENDER    = os.environ.get("GMAIL_SENDER", "")
+GMAIL_APP_PASS  = os.environ.get("GMAIL_APP_PASS", "").replace(" ", "").strip()
+OPENROUTER_KEY  = os.environ["OPENROUTER_API_KEY"]
+ANTHROPIC_KEY   = os.environ.get("ANTHROPIC_API_KEY", "")
+GITHUB_TOKEN    = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
+GITHUB_REPO     = os.environ["GITHUB_REPO"]
+RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
 
+# ── Clients ──
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY)
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_KEY) if ANTHROPIC_KEY else None
 
 FREE_MODELS = [
     "z-ai/glm-4.5-air:free",
@@ -39,6 +43,49 @@ FREE_MODELS = [
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "google/gemma-3-12b-it:free",
 ]
+
+
+def run_ai(messages, max_tokens=800):
+    """Try Anthropic first, then fall back to OpenRouter free models."""
+
+    # ── Anthropic (primary) ──
+    if anthropic_client:
+        try:
+            system_msg = ""
+            user_msgs = []
+            for m in messages:
+                if m["role"] == "system":
+                    system_msg = m["content"]
+                else:
+                    user_msgs.append(m)
+
+            r = anthropic_client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                system=system_msg,
+                messages=user_msgs,
+                max_tokens=max_tokens,
+                temperature=0.3,
+            )
+            text = r.content[0].text.strip()
+            print(f"  AI response via claude-haiku-4.5 ({len(text)} chars)")
+            return text, "claude-haiku-4.5"
+        except Exception as e:
+            print(f"  Claude failed: {str(e)[:120]}, falling back to OpenRouter...")
+
+    # ── OpenRouter free models (fallback) ──
+    for model in FREE_MODELS:
+        try:
+            r = client.chat.completions.create(
+                model=model, messages=messages, max_tokens=max_tokens, temperature=0.3,
+                extra_headers={"HTTP-Referer": "https://pickr.streamlit.app", "X-Title": "PickR"},
+            )
+            text = r.choices[0].message.content.strip()
+            print(f"  AI response via {model} ({len(text)} chars)")
+            return text, model
+        except Exception as e:
+            print(f"  Model {model} failed: {str(e)[:80]}")
+            time.sleep(3)
+    return None, None
 
 def _gh_headers():
     return {
