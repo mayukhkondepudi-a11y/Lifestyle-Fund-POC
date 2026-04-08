@@ -5,6 +5,7 @@ Used by both app.py and check_prices.py.
 
 import json
 import os
+import time as _time
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -177,14 +178,29 @@ def enrich_info_with_ratios(info_dict, ticker):
     ratios  = get_ratios_ttm(ticker)
     metrics = get_key_metrics_ttm(ticker)
 
+    # DEBUG: uncomment to see actual FMP field names
+    # if ratios:
+    #     print(f"DEBUG ratios keys for {ticker}: {list(ratios.keys())}")
+    # if metrics:
+    #     print(f"DEBUG metrics keys for {ticker}: {list(metrics.keys())}")
+
     if ratios:
         # P/E: use ratio endpoint as primary, keep quote value as fallback
         pe_from_ratios = ratios.get("peRatioTTM") or ratios.get("priceEarningsRatioTTM")
         if pe_from_ratios:
             info_dict["trailingPE"] = pe_from_ratios
 
-        info_dict["pegRatio"]           = ratios.get("priceEarningsToGrowthRatioTTM")
-        info_dict["priceToSalesTrailing12Months"] = ratios.get("priceToSalesRatioTTM")
+        # PEG: try multiple possible field names
+        info_dict["pegRatio"] = (
+            ratios.get("pegRatioTTM")
+            or ratios.get("priceEarningsToGrowthRatioTTM")
+            or ratios.get("pegRatio")
+        )
+
+        info_dict["priceToSalesTrailing12Months"] = (
+            ratios.get("priceToSalesRatioTTM")
+            or ratios.get("priceSalesRatioTTM")
+        )
         info_dict["returnOnEquity"]     = ratios.get("returnOnEquityTTM")
         info_dict["returnOnAssets"]     = ratios.get("returnOnAssetsTTM")
         info_dict["grossMargins"]       = ratios.get("grossProfitMarginTTM")
@@ -201,10 +217,9 @@ def enrich_info_with_ratios(info_dict, ticker):
         info_dict["earningsGrowth"]     = metrics.get("earningsYieldTTM")
         info_dict["revenueGrowth"]      = None
 
-        # Forward PE from metrics (PE excluding cash)
+        # Forward PE from metrics
         forward_pe = metrics.get("peRatioTTM")
         if not forward_pe:
-            # Compute from earnings yield
             earnings_yield = metrics.get("earningsYieldTTM")
             if earnings_yield and float(earnings_yield) > 0:
                 try:
@@ -229,6 +244,7 @@ def enrich_info_with_ratios(info_dict, ticker):
         info_dict.setdefault("totalRevenue", None)
 
     return info_dict
+
 
 def get_income_statement(ticker, period="annual", limit=5):
     data = _fmp_get("/income-statement", {"symbol": ticker, "period": period, "limit": limit})
@@ -334,12 +350,29 @@ def get_peers(ticker):
 
 
 def fetch_full(ticker):
+    print(f"DEBUG fetch_full({ticker}): starting")
+
     info = get_profile(ticker)
 
+    print(f"DEBUG fetch_full({ticker}): info is None = {info is None}")
+    if info is not None:
+        print(f"DEBUG fetch_full({ticker}): source = {info.get('_source')}, "
+              f"name = {info.get('shortName', 'N/A')}")
+
     if info is None:
+        print(f"FMP: No profile for {ticker}, trying yfinance full fetch")
         if HAS_YF:
             return _yf_full_fetch(ticker)
         return None
+
+    # Verify we got a valid company name from FMP
+    if info.get("_source") == "fmp":
+        name = info.get("shortName") or info.get("longName") or ""
+        if not name or name.strip() == "":
+            print(f"FMP: Empty company name for {ticker}, trying yfinance")
+            if HAS_YF:
+                return _yf_full_fetch(ticker)
+            return None
 
     if info.get("_source") == "fmp":
         info = enrich_info_with_ratios(info, ticker)
@@ -385,6 +418,7 @@ def fetch_full(ticker):
             "news": news,
         }
 
+    # If yfinance was source from get_profile, do full yfinance fetch
     return _yf_full_fetch(ticker)
 
 
@@ -392,12 +426,37 @@ def _yf_full_fetch(ticker):
     if not HAS_YF:
         return None
 
+    print(f"DEBUG _yf_full_fetch({ticker}): starting")
+
     s = yf.Ticker(ticker)
     d = {}
-    try:
-        d["info"] = s.info
-    except Exception as e:
-        d["info"] = {"error": str(e)}
+
+    # ── Retry .info up to 2 times ──
+    for attempt in range(2):
+        try:
+            info = s.info
+            if info and "shortName" in info:
+                info["_source"] = "yfinance"
+                d["info"] = info
+                print(f"DEBUG _yf_full_fetch({ticker}): got info on attempt {attempt+1}, "
+                      f"name = {info.get('shortName')}")
+                break
+            elif info and info.get("quoteType") == "NONE_TYPE":
+                d["info"] = {"error": f"Ticker '{ticker}' not found on Yahoo Finance"}
+                print(f"DEBUG _yf_full_fetch({ticker}): NONE_TYPE on attempt {attempt+1}")
+                break
+            else:
+                d["info"] = {"error": f"Empty response for {ticker} from Yahoo Finance"}
+                print(f"DEBUG _yf_full_fetch({ticker}): empty info on attempt {attempt+1}")
+        except Exception as e:
+            d["info"] = {"error": f"Yahoo Finance error: {str(e)[:200]}"}
+            print(f"DEBUG _yf_full_fetch({ticker}): exception on attempt {attempt+1}: {str(e)[:120]}")
+            if attempt == 0:
+                _time.sleep(2)
+
+    # If info failed, still return the dict so caller sees the error
+    if "info" not in d:
+        d["info"] = {"error": f"All attempts to fetch {ticker} failed"}
 
     for attr, key in [("income_stmt", "inc"), ("quarterly_income_stmt", "qinc"),
                       ("balance_sheet", "bs"), ("cashflow", "cf")]:
@@ -461,7 +520,11 @@ def get_current_metrics(ticker):
         return {
             "trailing_pe":      r.get("priceEarningsRatioTTM"),
             "forward_pe":       r.get("priceEarningsToGrowthRatioTTM"),
-            "peg_ratio":        r.get("priceEarningsToGrowthRatioTTM"),
+            "peg_ratio":        (
+                r.get("pegRatioTTM")
+                or r.get("priceEarningsToGrowthRatioTTM")
+                or r.get("pegRatio")
+            ),
             "operating_margin": r.get("operatingProfitMarginTTM"),
             "roe":              r.get("returnOnEquityTTM"),
             "revenue_growth":   None,
