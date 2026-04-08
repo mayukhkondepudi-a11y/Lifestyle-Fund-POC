@@ -1387,13 +1387,13 @@ def run_ai(msgs, max_tokens=3500):
                     user_msgs.append(m)
 
             r = anthropic_client.messages.create(
-                model="claude-haiku-3-5-20241022",
+                model="claude-haiku-4-5-20251015",
                 system=system_msg,
                 messages=user_msgs,
                 max_tokens=max_tokens,
                 temperature=0.3,
             )
-            return r.content[0].text.strip(), "claude-haiku-3.5", None
+            return r.content[0].text.strip(), "claude-haiku-4.5", None
         except Exception as e:
             err = f"Claude: {str(e)[:120]}"
     else:
