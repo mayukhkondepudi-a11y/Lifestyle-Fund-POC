@@ -340,6 +340,15 @@ def fmt_r(v,d=2):
 def fmt_c(v,cur="USD",d=2): return fmt_n(v,p=get_sym(cur),d=d)
 
 
+# ── CHANGED: strip_html utility ───────────────────────────────
+def strip_html(text):
+    """Remove HTML tags from LLM output to prevent rendering issues."""
+    if not text:
+        return ""
+    clean = re.sub(r'<[^>]+>', '', str(text))
+    return clean.strip()
+
+
 # ══════════════════════════════════════════════════════════════
 # TRACKER — GITHUB API PERSISTENCE
 # ══════════════════════════════════════════════════════════════
@@ -627,9 +636,6 @@ def fetch_peers(ticker, sector):
         try:
             profile = fmp_api.get_profile(pt)
             if profile:
-                # ENRICH with ratios — this was missing!
-                if profile.get("_source") == "fmp":
-                    profile = fmp_api.enrich_info_with_ratios(profile, pt)
                 c = profile.get("currency", "USD")
                 out.append({
                     "Ticker": pt, "Company": profile.get("shortName", pt),
@@ -693,13 +699,11 @@ def calc(data):
         "shares_outstanding":g("sharesOutstanding"),
     }
 
-    # ── FCF Yield ─────────────────────────────────────────────
     try:
         m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
             if m["free_cashflow"] and m["market_cap"] else None
     except: m["fcf_yield"] = None
 
-    # ── Debt/Equity ───────────────────────────────────────────
     raw_de = g("debtToEquity")
     bs = data.get("bs")
     computed_de = None
@@ -726,7 +730,6 @@ def calc(data):
         if current_assets and current_liabs and current_liabs != 0:
             computed_current_ratio = round(current_assets / current_liabs, 2)
 
-    # FMP returns D/E as a proper ratio (1.5), yfinance returns x100 (150)
     if computed_de is not None:
         m["debt_to_equity"] = computed_de
     elif raw_de is not None:
@@ -746,7 +749,6 @@ def calc(data):
     else:
         m["current_ratio"] = g("currentRatio")
 
-    # ── CAGR helper ───────────────────────────────────────────
     inc = data.get("inc")
     m["revenue_history"] = {}
     m["net_income_history"] = {}
@@ -775,7 +777,6 @@ def calc(data):
     m["eps_cagr"], _ = cagr_from(inc, ["Diluted EPS","Basic EPS","DilutedEPS","BasicEPS",
                                         "EPS","Earnings Per Share"])
 
-    # ── Gross margin cross-check ──────────────────────────────
     if m["gross_margin"] is None and inc is not None:
         try:
             rev_row = None
@@ -795,7 +796,6 @@ def calc(data):
                     m["gross_margin"] = round(gp / rev, 4)
         except: pass
 
-    # ── Operating margin cross-check ─────────────────────────
     if m["operating_margin"] is None and inc is not None:
         try:
             rev_row = None
@@ -815,7 +815,6 @@ def calc(data):
                     m["operating_margin"] = round(op / rev, 4)
         except: pass
 
-    # ── Net margin cross-check ────────────────────────────────
     if m["profit_margin"] is None and inc is not None:
         try:
             rev_row = None
@@ -835,7 +834,6 @@ def calc(data):
                     m["profit_margin"] = round(ni / rev, 4)
         except: pass
 
-    # ── ROE cross-check ───────────────────────────────────────
     if m["roe"] is None and inc is not None and bs is not None:
         try:
             ni_row = None
@@ -855,7 +853,6 @@ def calc(data):
                     m["roe"] = round(ni / eq, 4)
         except: pass
 
-    # ── 5-year price stats ────────────────────────────────────
     h = data.get("hist")
     if h is not None and not h.empty:
         try:
@@ -871,20 +868,24 @@ def calc(data):
     m["news"] = [{"title": n.get("title",""), "publisher": n.get("publisher","")}
                  for n in data.get("news", [])]
     return m
+
+
+# ── CHANGED: complete rewrite of compute_scenario_math ────────
 def compute_scenario_math(metrics, llm_output):
     """
     All financial math happens here. LLM provides narrative + assumptions,
-    Python computes every number.
+    Python computes every number from revenue fundamentals.
     """
     current_price = metrics.get("current_price") or 0
     trailing_eps = metrics.get("trailing_eps") or 0
     total_revenue = metrics.get("total_revenue") or 0
     shares = metrics.get("shares_outstanding") or 0
     operating_margin = metrics.get("operating_margin") or 0
-    market_cap = metrics.get("market_cap") or 0
     profit_margin = metrics.get("profit_margin") or 0
+    market_cap = metrics.get("market_cap") or 0
     risk_free_rate = 0.043
 
+    # ── Type coercion ──
     try: current_price = float(current_price)
     except: current_price = 0
     try: trailing_eps = float(trailing_eps)
@@ -900,63 +901,125 @@ def compute_scenario_math(metrics, llm_output):
     try: profit_margin = float(profit_margin)
     except: profit_margin = 0
 
-    # Derive shares from market cap and price if missing
+    # ── Derive missing fundamentals ──
     if shares == 0 and current_price > 0 and market_cap > 0:
         shares = market_cap / current_price
 
-    # Derive EPS from net income and shares if missing
+    # Derive trailing EPS from P/E if missing
+    if trailing_eps == 0 and current_price > 0:
+        pe = 0
+        try:
+            pe = float(metrics.get("trailing_pe") or 0)
+        except:
+            pe = 0
+        if pe > 0:
+            trailing_eps = current_price / pe
+
+    # Still missing? Try forward P/E
+    if trailing_eps == 0 and current_price > 0:
+        fpe = 0
+        try:
+            fpe = float(metrics.get("forward_pe") or 0)
+        except:
+            fpe = 0
+        if fpe > 0:
+            trailing_eps = current_price / fpe
+
+    # Derive revenue from market cap and price-to-sales if missing
+    if total_revenue == 0 and market_cap > 0:
+        ps = 0
+        try:
+            ps = float(metrics.get("price_to_sales") or 0)
+        except:
+            ps = 0
+        if ps > 0:
+            total_revenue = market_cap / ps
+
     if trailing_eps == 0 and total_revenue > 0 and profit_margin != 0 and shares > 0:
-        net_income = total_revenue * profit_margin
-        trailing_eps = net_income / shares
+        trailing_eps = (total_revenue * profit_margin) / shares
 
-    # Fallback: derive EPS from operating margin with assumed tax rate
     if trailing_eps == 0 and total_revenue > 0 and operating_margin != 0 and shares > 0:
-        net_income = total_revenue * operating_margin * (1 - 0.21)
-        trailing_eps = net_income / shares
+        trailing_eps = (total_revenue * operating_margin * 0.79) / shares
 
-    print(f"DEBUG scenario math: price={current_price}, eps={trailing_eps:.2f}, revenue={total_revenue}, shares={shares:.0f}, op_margin={operating_margin}")
+    # ── Net-to-operating ratio ──
+    # How much of each dollar of operating income becomes net income
+    if operating_margin > 0 and profit_margin > 0:
+        net_to_op_ratio = profit_margin / operating_margin
+    else:
+        net_to_op_ratio = 0.79
+
+    net_to_op_ratio = max(0.3, min(net_to_op_ratio, 1.0))
+
+    print(f"DEBUG scenario math: price={current_price}, eps={trailing_eps:.2f}, "
+          f"revenue={total_revenue}, shares={shares:.0f}, "
+          f"op_margin={operating_margin}, net_to_op={net_to_op_ratio:.3f}")
 
     scenarios = llm_output.get("scenarios", {})
     results = {}
 
-    
     for scenario_name, s in scenarios.items():
         try:
             prob = float(s.get("probability", 0))
             rev_growth = float(s.get("revenue_growth", 0))
-            op_margin = float(s.get("operating_margin", operating_margin or 0.15))
             pe_mult = float(s.get("pe_multiple", 20))
 
-            # Revenue projection
+            # ── Determine projected operating margin ──
+            if "margin_delta_pp" in s:
+                margin_delta = float(s.get("margin_delta_pp", 0)) / 100.0
+                projected_op_margin = operating_margin + margin_delta
+            elif "operating_margin" in s:
+                raw_margin = float(s.get("operating_margin", operating_margin or 0.15))
+                # SAFETY: cap unrealistic absolute margins from LLM
+                if operating_margin > 0 and raw_margin > operating_margin + 0.10:
+                    projected_op_margin = operating_margin + 0.05
+                elif operating_margin > 0 and raw_margin < operating_margin - 0.10:
+                    projected_op_margin = operating_margin - 0.05
+                else:
+                    projected_op_margin = raw_margin
+            else:
+                projected_op_margin = operating_margin if operating_margin > 0 else 0.15
+
+            projected_op_margin = max(0.01, min(projected_op_margin, 0.60))
+
+            # ── Revenue projection ──
             projected_revenue = total_revenue * (1 + rev_growth)
 
-            # EPS projection: anchor to actual trailing EPS if available
-            if trailing_eps != 0:
-                # Scale EPS by revenue growth and margin change
-                current_op_margin = operating_margin if operating_margin != 0 else 0.15
-                margin_effect = op_margin / current_op_margin if current_op_margin != 0 else 1.0
-                projected_eps = trailing_eps * (1 + rev_growth) * margin_effect
-            elif shares > 0:
-                # Fallback: compute from scratch
-                projected_operating_income = projected_revenue * op_margin
-                tax_rate = 0.21
-                projected_net_income = projected_operating_income * (1 - tax_rate)
+            # ── EPS projection: ground-up from revenue ──
+            if projected_revenue > 0 and shares > 0 and projected_op_margin > 0:
+                projected_operating_income = projected_revenue * projected_op_margin
+                projected_net_income = projected_operating_income * net_to_op_ratio
                 projected_eps = projected_net_income / shares
+            elif trailing_eps != 0:
+                # Fallback: just grow EPS by revenue growth rate
+                projected_eps = trailing_eps * (1 + rev_growth)
             else:
-                projected_eps = 0
+                # Last resort: derive from price and PE
+                current_pe = 0
+                try:
+                    current_pe = float(metrics.get("trailing_pe") or metrics.get("forward_pe") or 0)
+                except:
+                    current_pe = 0
+                if current_pe > 0 and current_price > 0:
+                    derived_eps = current_price / current_pe
+                    projected_eps = derived_eps * (1 + rev_growth)
+                elif current_price > 0:
+                    projected_eps = (current_price / 20.0) * (1 + rev_growth)
+                else:
+                    projected_eps = 0
 
-            # Price target
+            # ── Price target ──
             price_target = projected_eps * pe_mult
 
-            # Return from current price
+            # ── Implied return ──
             implied_return = (price_target - current_price) / current_price if current_price > 0 else 0
 
-            # Breakeven PE
+            # ── Breakeven P/E ──
             breakeven_pe = current_price / projected_eps if projected_eps > 0 else None
 
             results[scenario_name] = {
                 "probability": round(prob, 4),
                 "projected_revenue": round(projected_revenue, 0),
+                "projected_op_margin": round(projected_op_margin, 4),
                 "projected_eps": round(projected_eps, 2),
                 "pe_multiple": pe_mult,
                 "pe_rationale": s.get("pe_rationale", ""),
@@ -967,12 +1030,52 @@ def compute_scenario_math(metrics, llm_output):
             }
         except Exception as e:
             results[scenario_name] = {
-                "probability": 0, "projected_revenue": 0, "projected_eps": 0,
-                "pe_multiple": 0, "price_target": 0, "implied_return": 0,
-                "breakeven_pe": None, "narrative": str(e), "pe_rationale": "",
+                "probability": 0, "projected_revenue": 0, "projected_op_margin": 0,
+                "projected_eps": 0, "pe_multiple": 0, "price_target": 0,
+                "implied_return": 0, "breakeven_pe": None, "narrative": str(e),
+                "pe_rationale": "",
             }
 
-    # Sanity check: if current PE is available, ensure scenario PEs are reasonable
+    # ── Sanity check: if ALL scenarios >100% return, fall back to EPS-growth only ──
+    returns = [r["implied_return"] for r in results.values() if r["implied_return"] != 0]
+    if returns and all(r > 1.0 for r in returns):
+        print("WARNING: All scenarios >100% return. Falling back to EPS-growth-only mode.")
+        for scenario_name, s in scenarios.items():
+            try:
+                prob = float(s.get("probability", 0))
+                rev_growth = float(s.get("revenue_growth", 0))
+                pe_mult = float(s.get("pe_multiple", 20))
+
+                projected_eps = trailing_eps * (1 + rev_growth) if trailing_eps != 0 else 0
+                if projected_eps == 0 and current_price > 0:
+                    current_pe = 0
+                    try:
+                        current_pe = float(metrics.get("trailing_pe") or 0)
+                    except:
+                        current_pe = 0
+                    if current_pe > 0:
+                        projected_eps = (current_price / current_pe) * (1 + rev_growth)
+
+                price_target = projected_eps * pe_mult
+                implied_return = (price_target - current_price) / current_price if current_price > 0 else 0
+                breakeven_pe = current_price / projected_eps if projected_eps > 0 else None
+
+                results[scenario_name] = {
+                    "probability": round(prob, 4),
+                    "projected_revenue": round(total_revenue * (1 + rev_growth), 0),
+                    "projected_op_margin": round(operating_margin, 4),
+                    "projected_eps": round(projected_eps, 2),
+                    "pe_multiple": pe_mult,
+                    "pe_rationale": s.get("pe_rationale", ""),
+                    "price_target": round(price_target, 2),
+                    "implied_return": round(implied_return, 4),
+                    "breakeven_pe": round(breakeven_pe, 2) if breakeven_pe else None,
+                    "narrative": s.get("narrative", ""),
+                }
+            except:
+                pass
+
+    # ── PE sanity check ──
     current_pe = 0
     try:
         current_pe = float(metrics.get("trailing_pe") or 0)
@@ -982,9 +1085,7 @@ def compute_scenario_math(metrics, llm_output):
     if current_pe > 0:
         for scenario_name, s in results.items():
             if s["pe_multiple"] > 0 and s["price_target"] > 0:
-                # If bull case PE is less than half current PE, it's probably wrong
                 if scenario_name == "bull" and s["pe_multiple"] < current_pe * 0.6:
-                    # Adjust PE up to at least 80% of current
                     adjusted_pe = round(current_pe * 0.9, 1)
                     s["pe_multiple"] = adjusted_pe
                     s["price_target"] = round(s["projected_eps"] * adjusted_pe, 2)
@@ -1003,21 +1104,18 @@ def compute_scenario_math(metrics, llm_output):
                     s["implied_return"] = round((s["price_target"] - current_price) / current_price, 4) if current_price > 0 else 0
                     s["breakeven_pe"] = round(current_price / s["projected_eps"], 2) if s["projected_eps"] > 0 else None
 
-    # Expected value (probability-weighted)
+    # ── Aggregate metrics ──
     expected_value = sum(r["price_target"] * r["probability"] for r in results.values())
     expected_return = (expected_value - current_price) / current_price if current_price > 0 else 0
 
-    # Standard deviation of returns
     variance = sum(
         r["probability"] * (r["implied_return"] - expected_return) ** 2
         for r in results.values()
     )
     std_dev = variance ** 0.5
 
-    # Sharpe-like ratio
     sharpe = (expected_return - risk_free_rate) / std_dev if std_dev > 0 else 0
 
-    # Upside/downside capture
     upside_return = sum(
         r["implied_return"] * r["probability"]
         for r in results.values()
@@ -1030,19 +1128,17 @@ def compute_scenario_math(metrics, llm_output):
     )
     upside_downside_ratio = abs(upside_return / downside_return) if downside_return != 0 else float('inf')
 
-    # Probability of positive return
     prob_positive = sum(
         r["probability"]
         for r in results.values()
         if r["price_target"] > current_price
     )
 
-    # Max drawdown (bear case)
     bear = results.get("bear", {})
     max_drawdown_prob = bear.get("probability", 0)
     max_drawdown_magnitude = bear.get("implied_return", 0)
 
-    # Risk impact quantification
+    # ── Risk impacts ──
     risk_impacts = []
     for risk in llm_output.get("risks", []):
         try:
@@ -1077,9 +1173,12 @@ def compute_scenario_math(metrics, llm_output):
         "risk_free_rate": risk_free_rate,
     }
 
+
 # ══════════════════════════════════════════════════════════════
 # AI — PROMPTS
 # ══════════════════════════════════════════════════════════════
+
+# ── CHANGED: updated prompt to use margin_delta_pp ────────────
 def ai_prompt_ui(ticker, m):
     ms = json.dumps(
         {k:v for k,v in m.items() if k not in ["description","news","revenue_history","net_income_history"]},
@@ -1090,8 +1189,9 @@ def ai_prompt_ui(ticker, m):
 
 CRITICAL RULES:
 1. Use ONLY the financial data provided. Never invent numbers.
-2. Do NOT perform any calculations. Provide assumptions only (growth rates, margins, PE multiples, probabilities). All math will be done externally in Python.
+2. Do NOT perform any calculations. Provide directional assumptions only. All math will be done externally in Python.
 3. Respond with ONLY valid JSON, no fences, no extra text.
+4. All narrative text must be PLAIN TEXT. Do NOT include any HTML tags in your response.
 
 JSON STRUCTURE:
 {"investment_thesis": "3 sentences. Recommendation (BUY/WATCH/PASS), conviction (High/Medium/Low), and why.",
@@ -1104,30 +1204,31 @@ JSON STRUCTURE:
 "peer_positioning": "One-line summary of how this company compares to peers on valuation, growth, and quality.",
 "scenarios": {
   "bull": {
-    "probability": 0.25,
-    "narrative": "2-3 sentences on what has to go right.",
+    "probability": 0.20,
+    "narrative": "2-3 sentences on what has to go right. PLAIN TEXT ONLY, no HTML.",
     "revenue_growth": 0.15,
-    "operating_margin": 0.35,
+    "margin_delta_pp": 3.0,
     "pe_multiple": 32,
-    "pe_rationale": "1 sentence justifying the multiple."
+    "pe_rationale": "1 sentence justifying the multiple. PLAIN TEXT ONLY."
   },
   "base": {
-    "probability": 0.50,
-    "narrative": "2-3 sentences on continuation trajectory.",
+    "probability": 0.60,
+    "narrative": "2-3 sentences on continuation trajectory. PLAIN TEXT ONLY, no HTML.",
     "revenue_growth": 0.08,
-    "operating_margin": 0.31,
+    "margin_delta_pp": 1.0,
     "pe_multiple": 26,
-    "pe_rationale": "1 sentence justifying the multiple."
+    "pe_rationale": "1 sentence justifying the multiple. PLAIN TEXT ONLY."
   },
   "bear": {
-    "probability": 0.25,
-    "narrative": "2-3 sentences on what goes wrong.",
+    "probability": 0.20,
+    "narrative": "2-3 sentences on what goes wrong. PLAIN TEXT ONLY, no HTML.",
     "revenue_growth": -0.02,
-    "operating_margin": 0.24,
+    "margin_delta_pp": -2.0,
     "pe_multiple": 18,
-    "pe_rationale": "1 sentence justifying the multiple."
+    "pe_rationale": "1 sentence justifying the multiple. PLAIN TEXT ONLY."
   }
 },
+"probability_reasoning": "1-2 sentences explaining why you assigned these specific probabilities. Reference specific metrics that skewed your assessment.",
 "risks": [
   {
     "name": "Short name",
@@ -1150,23 +1251,45 @@ JSON STRUCTURE:
 
 SCENARIO GUIDELINES:
 - Probabilities must sum to 1.0
-- DO NOT use 0.20/0.60/0.20 as default. Every company is different. Vary based on risk profile:
-  * Strong BUY with high conviction: e.g. Bull 0.30, Base 0.50, Bear 0.20
-  * Balanced WATCH: e.g. Bull 0.20, Base 0.55, Bear 0.25
-  * Risky or deteriorating business: e.g. Bull 0.15, Base 0.45, Bear 0.40
-  * Stable compounder: e.g. Bull 0.25, Base 0.55, Bear 0.20
-- Each company MUST have unique probabilities that reflect its specific situation
-- PE multiples anchored to peer multiples and historical ranges
-- Revenue growth rates realistic given historical trajectory
-- Operating margins within industry range
+- Each probability must be between 0.05 and 0.70
+- DO NOT default to 20/60/20. Use the data to assign differentiated probabilities.
+- You MUST include a "probability_reasoning" field (1-2 sentences) explaining WHY you assigned these specific probabilities based on the data.
 
-CRITICAL PRICE TARGET ALIGNMENT RULE:
-- Your scenario assumptions MUST produce price targets consistent with your recommendation:
-  * BUY: the probability-weighted expected value should be ABOVE current price (positive expected return)
-  * WATCH: the probability-weighted expected value should be NEAR current price (within +/- 8%)
-  * PASS: the probability-weighted expected value should be BELOW current price (negative expected return)
-- The BASE case PE multiple should be near the CURRENT trailing PE for a WATCH, or above it for a BUY
-- If your base case implies significant downside from current price, your recommendation should be PASS not WATCH
+PROBABILITY ASSIGNMENT RULES — use these signals to skew probabilities:
+  Skew TOWARD bull (bull 25-40%, bear 10-20%) when:
+    - Revenue growth is accelerating (current > CAGR)
+    - Operating margins are expanding
+    - Forward P/E < Trailing P/E (earnings expected to grow)
+    - Strong balance sheet (low debt/equity, high current ratio)
+    - High ROE with reinvestment runway
+  
+  Skew TOWARD bear (bear 25-40%, bull 10-20%) when:
+    - Revenue growth is decelerating or negative
+    - Margins are compressing
+    - Forward P/E > Trailing P/E (earnings expected to decline)
+    - High leverage (debt/equity > 1.5)
+    - Valuation stretched (PEG > 3, EV/EBITDA historically high)
+    - Beta > 1.5 (high volatility)
+  
+  Keep roughly balanced (bull 20-25%, bear 20-25%) when:
+    - Metrics are mixed or stable
+    - Company is mature with predictable trajectory
+
+  Examples of GOOD probability splits:
+    - High-growth accelerating: bull 35%, base 45%, bear 20%
+    - Decelerating with high valuation: bull 15%, base 45%, bear 40%
+    - Stable compounder: bull 25%, base 55%, bear 20%
+    - Turnaround story: bull 30%, base 30%, bear 40%
+    - Cyclical at peak: bull 10%, base 40%, bear 50%
+
+- PE multiples anchored to current trailing P/E and peer multiples
+- Revenue growth rates realistic for NEXT 12 MONTHS given historical trajectory
+- margin_delta_pp is the CHANGE in operating margin in percentage points from current level
+  - This is a 12-month forward change, NOT a long-term aspiration
+  - Bull: typically +1 to +5 pp improvement
+  - Base: typically -1 to +2 pp (near current)
+  - Bear: typically -2 to -6 pp compression
+  - Example: if current operating margin is 11%, bull margin_delta_pp of +3.0 means 14% projected margin
 
 RISK GUIDELINES:
 - Provide 4-6 risks
@@ -1186,15 +1309,18 @@ CURRENT VALUATION CONTEXT:
 - Current Forward P/E: {m.get('forward_pe')}
 - Current EV/EBITDA: {m.get('ev_to_ebitda')}
 - Trailing EPS: {m.get('trailing_eps')}
+- Current Operating Margin: {m.get('operating_margin')}
+- Current Net Margin: {m.get('profit_margin')}
 
 IMPORTANT: Your scenario PE multiples must be anchored to the CURRENT trailing P/E shown above. The bull case PE should be at or above current PE. The base case PE should be near current PE. The bear case PE should be a meaningful discount but still realistic for this company's historical range.
 
-Your scenario probabilities MUST be unique to this company. Do NOT use 0.20/0.60/0.20.
+IMPORTANT: margin_delta_pp values represent INCREMENTAL change in percentage points from the current operating margin over the NEXT 12 MONTHS. Do NOT provide long-term aspirational margins. A company with 11% operating margin improving by +2pp means projected margin of 13%, not 30%.
 
 BUSINESS: {m.get('description','N/A')[:500]}
 
-JSON only."""}
+JSON only. No HTML tags anywhere in your response."""}
     ]
+
 
 def ai_prompt_report(ticker, m):
     ms = json.dumps({k:v for k,v in m.items() if k not in ["news"]}, indent=2, default=str)
@@ -1244,13 +1370,11 @@ updated_action: exactly BUY, WATCH, or PASS.
 confidence: High, Medium, or Low."""}
     ]
 
-
 # ══════════════════════════════════════════════════════════════
 # AI — RUNNER
 # ══════════════════════════════════════════════════════════════
 
 def run_ai(msgs, max_tokens=3500):
-    # Try Claude first
     if anthropic_client:
         try:
             print(f"DEBUG: Attempting Claude with key: {ANTHROPIC_API_KEY[:10]}...")
@@ -1263,7 +1387,7 @@ def run_ai(msgs, max_tokens=3500):
                     user_msgs.append(m)
 
             r = anthropic_client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model="claude-haiku-3-5-20241022",
                 system=system_msg,
                 messages=user_msgs,
                 max_tokens=max_tokens,
@@ -1275,7 +1399,6 @@ def run_ai(msgs, max_tokens=3500):
     else:
         err = "Claude: No API key configured"
 
-    # OpenRouter fallback
     FREE_MODELS = [
         "z-ai/glm-4.5-air:free",
         "meta-llama/llama-3.3-70b-instruct:free",
@@ -1304,7 +1427,6 @@ def _parse_json_response(raw, model):
         if raw.startswith("json"): raw = raw[4:]
         raw = raw.strip()
 
-        # Try direct parse first
         try:
             a = json.loads(raw)
             a["model_used"] = model
@@ -1312,15 +1434,12 @@ def _parse_json_response(raw, model):
         except json.JSONDecodeError:
             pass
 
-        # Try to find the last complete key-value pair and close the JSON
-        # First, try truncating at the last complete string value
         last_quote_pair = raw.rfind('","')
         last_bracket = raw.rfind('"]')
         cut_point = max(last_quote_pair + 1, last_bracket + 1) if max(last_quote_pair, last_bracket) > 0 else -1
 
         if cut_point > len(raw) * 0.5:
             attempt = raw[:cut_point + 1]
-            # Close any open arrays and objects
             open_brackets = attempt.count("[") - attempt.count("]")
             open_braces = attempt.count("{") - attempt.count("}")
             attempt += "]" * open_brackets
@@ -1332,7 +1451,6 @@ def _parse_json_response(raw, model):
             except json.JSONDecodeError:
                 pass
 
-        # Aggressive repair: find last complete "key":"value" and close
         last_brace = raw.rfind("}")
         if last_brace > 0:
             attempt = raw[:last_brace + 1]
@@ -1346,7 +1464,6 @@ def _parse_json_response(raw, model):
             except json.JSONDecodeError:
                 pass
 
-        # Last resort: find the last cleanly closed string and rebuild
         for i in range(len(raw) - 1, len(raw) // 2, -1):
             if raw[i] == '"' and (i == 0 or raw[i-1] != '\\'):
                 attempt = raw[:i+1]
@@ -1365,6 +1482,8 @@ def _parse_json_response(raw, model):
     except Exception as e:
         return None, f"{model}: Parse error — {str(e)[:100]}"
 
+
+# ── CHANGED: updated defaults to use margin_delta_pp ──────────
 @st.cache_data(ttl=86400, show_spinner=False)
 def _cached_ai_json(ticker, metrics_json_str):
     m = json.loads(metrics_json_str)
@@ -1385,9 +1504,12 @@ def _cached_ai_json(ticker, metrics_json_str):
         "financial_commentary": "Analysis not available.",
         "peer_positioning": "Analysis not available.",
         "scenarios": {
-            "bull": {"probability": 0.20, "narrative": "N/A", "revenue_growth": 0.10, "operating_margin": 0.30, "pe_multiple": 25, "pe_rationale": "N/A"},
-            "base": {"probability": 0.60, "narrative": "N/A", "revenue_growth": 0.05, "operating_margin": 0.25, "pe_multiple": 20, "pe_rationale": "N/A"},
-            "bear": {"probability": 0.20, "narrative": "N/A", "revenue_growth": -0.05, "operating_margin": 0.18, "pe_multiple": 15, "pe_rationale": "N/A"},
+            "bull": {"probability": 0.20, "narrative": "N/A", "revenue_growth": 0.10,
+                     "margin_delta_pp": 2.0, "pe_multiple": 25, "pe_rationale": "N/A"},
+            "base": {"probability": 0.60, "narrative": "N/A", "revenue_growth": 0.05,
+                     "margin_delta_pp": 0.5, "pe_multiple": 20, "pe_rationale": "N/A"},
+            "bear": {"probability": 0.20, "narrative": "N/A", "revenue_growth": -0.05,
+                     "margin_delta_pp": -2.0, "pe_multiple": 15, "pe_rationale": "N/A"},
         },
         "risks": [],
         "catalysts": [],
@@ -1408,10 +1530,7 @@ def run_ai_json(ticker, m):
     if isinstance(llm_output, dict) and llm_output.get("error"):
         return llm_output
 
-    # Python computes all the math
     scenario_math = compute_scenario_math(m, llm_output)
-
-    # Merge LLM narrative with Python math
     llm_output["scenario_math"] = scenario_math
 
     return llm_output
@@ -1466,9 +1585,9 @@ def render(ticker, m, a, data):
         <div class="rb-item"><div class="rb-label">P(Positive)</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
     </div>''', unsafe_allow_html=True)
 
-    # ── Investment Thesis ──
+    # ── CHANGED: strip_html on investment thesis ──
     if a.get("investment_thesis"):
-        st.markdown(f'<div class="exec-summary">{a["investment_thesis"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="exec-summary">{strip_html(a["investment_thesis"])}</div>', unsafe_allow_html=True)
 
     # ── 52-Week Range ──
     w52h = m.get("week_52_high"); w52l = m.get("week_52_low"); cp = m.get("current_price")
@@ -1528,28 +1647,25 @@ def render(ticker, m, a, data):
         with cc2:
             if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), width="stretch", height=200, color="#d4443a")
 
-    # ── Business Overview ──
+    # ── CHANGED: strip_html on all LLM prose sections ─────────
     st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="prose">{a.get("business_overview", "Not available.")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="prose">{strip_html(a.get("business_overview", "Not available."))}</div>', unsafe_allow_html=True)
 
-    # ── Revenue Architecture ──
     st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="prose">{a.get("revenue_architecture", "Not available.")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="prose">{strip_html(a.get("revenue_architecture", "Not available."))}</div>', unsafe_allow_html=True)
 
-    # ── Growth Drivers & Moats ──
     st.markdown('<div class="sec">Growth Drivers & Competitive Moats</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="prose">{a.get("growth_drivers", "Not available.")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="prose">{strip_html(a.get("growth_drivers", "Not available."))}</div>', unsafe_allow_html=True)
 
-    # ── Financial Commentary ──
     st.markdown('<div class="sec">Financial Commentary</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="prose">{a.get("financial_commentary", "Not available.")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="prose">{strip_html(a.get("financial_commentary", "Not available."))}</div>', unsafe_allow_html=True)
 
     # ── Peer Comparison ──
     sector = m.get("sector", "")
     if sector in SECTOR_PEERS:
         st.markdown('<div class="sec">Peer Comparison</div>', unsafe_allow_html=True)
         if a.get("peer_positioning"):
-            st.markdown(f'<div class="rationale-text">{a["peer_positioning"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="rationale-text">{strip_html(a["peer_positioning"])}</div>', unsafe_allow_html=True)
         with st.spinner("Loading peers..."):
             peers = fetch_peers(ticker, sector)
         if peers:
@@ -1563,8 +1679,13 @@ def render(ticker, m, a, data):
             tr_p = "".join("<tr>" + "".join(f"<td>{pr.get(h, '-')}</td>" for h in hds) + "</tr>" for pr in peers)
             st.markdown(f'<table class="pt"><thead><tr>{th}</tr></thead><tbody>{tr_c}{tr_p}</tbody></table>', unsafe_allow_html=True)
 
-    # ── Scenario Analysis (Python-computed) ──
+    # ── CHANGED: Scenario Analysis with strip_html ────────────
     st.markdown('<div class="sec">Scenario Analysis <span class="vtag">Python-Computed</span></div>', unsafe_allow_html=True)
+
+    # ── CHANGED: show probability reasoning ──
+    prob_reasoning = a.get("probability_reasoning", "")
+    if prob_reasoning:
+        st.markdown(f'<div class="rationale-text">{strip_html(prob_reasoning)}</div>', unsafe_allow_html=True)
 
     scenarios = sm.get("scenarios", {})
     for sname, slabel, scolor in [("bull", "Bull Case", "#4ade80"), ("base", "Base Case", "#fbbf24"), ("bear", "Bear Case", "#f87171")]:
@@ -1576,8 +1697,9 @@ def render(ticker, m, a, data):
         eps = s.get("projected_eps", 0)
         pe = s.get("pe_multiple", 0)
         bpe = s.get("breakeven_pe")
-        narrative = s.get("narrative", "")
-        pe_rationale = s.get("pe_rationale", "")
+        proj_margin = s.get("projected_op_margin", 0)
+        narrative = strip_html(s.get("narrative", ""))
+        pe_rationale = strip_html(s.get("pe_rationale", ""))
 
         st.markdown(f'''<div style="background:#1a1a1a;border-left:3px solid {scolor};border-radius:0 6px 6px 0;padding:1rem 1.5rem;margin:0.8rem 0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
@@ -1587,13 +1709,14 @@ def render(ticker, m, a, data):
             <div style="display:flex;gap:2rem;margin-bottom:0.5rem;">
                 <span style="color:rgba(255,255,255,0.4);font-size:0.8rem;">EPS: {sym}{eps:.2f}</span>
                 <span style="color:rgba(255,255,255,0.4);font-size:0.8rem;">P/E: {pe:.1f}x</span>
+                <span style="color:rgba(255,255,255,0.4);font-size:0.8rem;">Op. Margin: {proj_margin*100:.1f}%</span>
                 {f"<span style='color:rgba(255,255,255,0.4);font-size:0.8rem;'>Breakeven P/E: {bpe:.1f}x</span>" if bpe else ""}
             </div>
             <p style="color:rgba(255,255,255,0.6);font-size:0.9rem;line-height:1.6;margin:0.3rem 0 0;font-style:italic;">{narrative}</p>
             <p style="color:rgba(255,255,255,0.35);font-size:0.78rem;margin:0.3rem 0 0;">Multiple rationale: {pe_rationale}</p>
         </div>''', unsafe_allow_html=True)
 
-    # ── Risk Impact Table (Python-computed) ──
+    # ── Risk Impact Table ──
     risk_impacts = sm.get("risk_impacts", [])
     if risk_impacts:
         st.markdown('<div class="sec">Risk Quantification <span class="vtag">Python-Computed</span></div>', unsafe_allow_html=True)
@@ -1605,7 +1728,7 @@ def render(ticker, m, a, data):
             rev_pct = ri.get("revenue_impact_pct", 0) * 100
             eps_pct = ri.get("eps_impact_pct", 0) * 100
             risk_rows += f'''<tr>
-                <td><strong>{ri.get("name","")}</strong><br><span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">{ri.get("description","")}</span></td>
+                <td><strong>{strip_html(ri.get("name",""))}</strong><br><span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">{strip_html(ri.get("description",""))}</span></td>
                 <td>{ri.get("probability",0)*100:.0f}%</td>
                 <td style="color:#f87171;">{fmt_n(rev_imp, p=sym)} ({rev_pct:+.1f}%)</td>
                 <td style="color:#f87171;">{sym}{eps_imp:+.2f} ({eps_pct:+.1f}%)</td>
@@ -1613,7 +1736,7 @@ def render(ticker, m, a, data):
             </tr>'''
         st.markdown(f'<table class="pt"><thead>{risk_header}</thead><tbody>{risk_rows}</tbody></table>', unsafe_allow_html=True)
 
-    # ── Risk-Adjusted Metrics (Python-computed) ──
+    # ── Risk-Adjusted Metrics ──
     st.markdown('<div class="sec">Risk-Adjusted Metrics <span class="vtag">Python-Computed</span></div>', unsafe_allow_html=True)
 
     sharpe = sm.get("sharpe_ratio", 0)
@@ -1623,6 +1746,12 @@ def render(ticker, m, a, data):
     mdd = sm.get("max_drawdown_magnitude", 0) * 100
     mdd_prob = sm.get("max_drawdown_prob", 0) * 100
     rfr = sm.get("risk_free_rate", 0.043) * 100
+
+    # ── CHANGED: handle inf upside/downside ratio display ─────
+    if ud_ratio == float('inf'):
+        ud_display = "∞"
+    else:
+        ud_display = f"{ud_ratio:.2f}x"
 
     st.markdown(f'''<div class="qglp-s">
         <div class="qg">
@@ -1641,7 +1770,7 @@ def render(ticker, m, a, data):
             </div>
             <div class="qc">
                 <div class="ql">Up/Down Capture</div>
-                <div class="qs" style="color:{ud_color};">{ud_ratio:.2f}x</div>
+                <div class="qs" style="color:{ud_color};">{ud_display}</div>
             </div>
             <div class="qc">
                 <div class="ql">Max Drawdown</div>
@@ -1659,17 +1788,17 @@ def render(ticker, m, a, data):
         cat_rows = ""
         for c in catalysts:
             cat_rows += f'''<tr>
-                <td style="font-weight:600;">{c.get("date","")}</td>
-                <td>{c.get("event","")}</td>
-                <td style="color:#4ade80;">{c.get("bull_signal","")}</td>
-                <td style="color:#f87171;">{c.get("bear_signal","")}</td>
+                <td style="font-weight:600;">{strip_html(c.get("date",""))}</td>
+                <td>{strip_html(c.get("event",""))}</td>
+                <td style="color:#4ade80;">{strip_html(c.get("bull_signal",""))}</td>
+                <td style="color:#f87171;">{strip_html(c.get("bear_signal",""))}</td>
             </tr>'''
         st.markdown(f'<table class="pt"><thead>{cat_header}</thead><tbody>{cat_rows}</tbody></table>', unsafe_allow_html=True)
 
     # ── Conclusion ──
     if a.get("conclusion"):
         st.markdown('<div class="sec">Conclusion</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{a["conclusion"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["conclusion"])}</div>', unsafe_allow_html=True)
 
     # ── Footer ──
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
@@ -1693,11 +1822,9 @@ def render_track_box(ticker, m, a):
     try:    cp = float(cp_raw) if cp_raw else 0.0
     except: cp = 0.0
 
-        # Use base case price target from scenario math
     sm = a.get("scenario_math", {})
     base_scenario = sm.get("scenarios", {}).get("base", {})
     suggested_target = base_scenario.get("price_target", 0.0)
-        # Use bear case price target as entry suggestion
     bear_scenario = sm.get("scenarios", {}).get("bear", {})
     suggested_entry = bear_scenario.get("price_target", 0.0)
     try:
@@ -2032,11 +2159,11 @@ if st.session_state.cached_report:
                 f"PickR Research / {datetime.now().strftime('%B %d, %Y')}",
                 f"{c_m.get('sector','')} / {c_m.get('industry','')} / {c_m.get('currency','USD')}", "",
                 f"## {c_a.get('recommendation','N/A')} | {c_a.get('conviction','N/A')}", "",
-                c_a.get("investment_thesis", ""), "", "---", "",
-                "## Business Overview", "", c_a.get("business_overview", ""), "",
-                "## Revenue Architecture", "", c_a.get("revenue_architecture", ""), "",
-                "## Growth Drivers & Moats", "", c_a.get("growth_drivers", ""), "",
-                "## Financial Commentary", "", c_a.get("financial_commentary", ""), "",
+                strip_html(c_a.get("investment_thesis", "")), "", "---", "",
+                "## Business Overview", "", strip_html(c_a.get("business_overview", "")), "",
+                "## Revenue Architecture", "", strip_html(c_a.get("revenue_architecture", "")), "",
+                "## Growth Drivers & Moats", "", strip_html(c_a.get("growth_drivers", "")), "",
+                "## Financial Commentary", "", strip_html(c_a.get("financial_commentary", "")), "",
                 "---", "", "## Scenario Analysis", "",
             ]
             for sn, sl in [("bull","Bull"), ("base","Base"), ("bear","Bear")]:
@@ -2044,15 +2171,15 @@ if st.session_state.cached_report:
                 md_lines += [
                     f"### {sl} Case ({s.get('probability',0)*100:.0f}%)",
                     f"Price Target: ${s.get('price_target',0):,.2f} ({s.get('implied_return',0)*100:+.1f}%)",
-                    f"EPS: ${s.get('projected_eps',0):.2f} | P/E: {s.get('pe_multiple',0):.1f}x",
-                    s.get("narrative", ""), "",
+                    f"EPS: ${s.get('projected_eps',0):.2f} | P/E: {s.get('pe_multiple',0):.1f}x | Op. Margin: {s.get('projected_op_margin',0)*100:.1f}%",
+                    strip_html(s.get("narrative", "")), "",
                 ]
             md_lines += [
                 "---", "",
                 f"Expected Value: ${sm.get('expected_value',0):,.2f}",
                 f"Sharpe Ratio: {sm.get('sharpe_ratio',0):.2f}",
                 f"Probability of Positive Return: {sm.get('prob_positive_return',0)*100:.0f}%", "",
-                "## Conclusion", "", c_a.get("conclusion", ""),
+                "## Conclusion", "", strip_html(c_a.get("conclusion", "")),
                 "", f"*PickR / {datetime.now().strftime('%B %d, %Y')}*"
             ]
             st.download_button("Download (Markdown)", "\n".join(md_lines),
