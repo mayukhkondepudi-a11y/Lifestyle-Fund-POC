@@ -34,5 +34,30 @@
       ],
       "rationale": "Automated thesis check could not be completed. Please review manually."
     }
+  },
+  {
+    "ticker": "AAPL",
+    "company_name": "Apple Inc.",
+    "user_email": "Mayukh.Kondepudi@gmail.com",
+    "recommendation": "WATCH",
+    "target_price": 253.5,
+    "entry_price": 253.5,
+    "added_date": "2026-04-08",
+    "original_metrics": {
+      "trailing_pe": null,
+      "forward_pe": null,
+      "peg_ratio": null,
+      "operating_margin": 0.3238395195779779,
+      "roe": 1.7754,
+      "revenue_growth": 0.0643,
+      "revenue_cagr": 0.0328,
+      "fcf_yield": 0.026508055993091993,
+      "debt_to_equity": 2.164,
+      "ev_to_ebitda": null
+    },
+    "thesis_summary": "",
+    "alert_sent": false,
+    "last_checked": null,
+    "last_price": 253.5
   }
 ]
