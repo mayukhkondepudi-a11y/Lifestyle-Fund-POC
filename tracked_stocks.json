@@ -2,11 +2,11 @@
   {
     "ticker": "AAPL",
     "company_name": "Apple Inc.",
-    "user_email": "mayukh.kondepudi@gmail.com",
-    "recommendation": "BUY",
-    "target_price": 255.92,
-    "entry_price": 255.92,
-    "added_date": "2026-04-06",
+    "user_email": "Mayukh.Kondepudi@gmail.com",
+    "recommendation": "WATCH",
+    "target_price": 253.5,
+    "entry_price": 253.5,
+    "added_date": "2026-04-08",
     "original_metrics": {
       "trailing_pe": null,
       "forward_pe": null,
@@ -15,30 +15,19 @@
       "roe": 1.7754,
       "revenue_growth": 0.0643,
       "revenue_cagr": 0.0328,
-      "fcf_yield": 0.026257393122650585,
+      "fcf_yield": 0.026508055993091993,
       "debt_to_equity": 2.164,
       "ev_to_ebitda": null
     },
-    "thesis_summary": "Apple demonstrates exceptional quality with strong competitive moats, robust profitability, and consistent cash flow generation. Despite recent growth deceleration, the company benefits from premium positioning, ecosystem lock-in, and diversification into higher-margin services. At current valuation levels, Apple offers an attractive entry point for long-term investors. Apple's exceptional quality, durable competitive advantages, and attractive valuation at current levels outweigh near-term growth concerns. The company's strong ecosystem, premium positioning, and services diversification provide durable growth drivers for the 2-4 year investment horizon.",
-    "alert_sent": true,
-    "last_checked": "2026-04-06",
-    "last_price": 255.92,
-    "alert_date": "2026-04-06",
-    "final_price": 255.92,
-    "thesis_check": {
-      "thesis_intact": true,
-      "confidence": "Low",
-      "updated_action": "WATCH",
-      "key_changes": [
-        "AI evaluation unavailable at this time."
-      ],
-      "rationale": "Automated thesis check could not be completed. Please review manually."
-    }
+    "thesis_summary": "",
+    "alert_sent": false,
+    "last_checked": null,
+    "last_price": 253.5
   },
   {
     "ticker": "AAPL",
     "company_name": "Apple Inc.",
-    "user_email": "Mayukh.Kondepudi@gmail.com",
+    "user_email": "mayukh.kondepudi@gmail.com",
     "recommendation": "WATCH",
     "target_price": 253.5,
     "entry_price": 253.5,
