@@ -273,6 +273,7 @@ GMAIL_APP_PASS = st.secrets.get("GMAIL_APP_PASS",  os.getenv("GMAIL_APP_PASS", "
 RESEND_API_KEY = st.secrets.get("RESEND_API_KEY",  os.getenv("RESEND_API_KEY", ""))
 ANTHROPIC_API_KEY = st.secrets.get("ANTHROPIC_API_KEY", os.getenv("ANTHROPIC_API_KEY", ""))
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+print(f"DEBUG: Claude configured: {anthropic_client is not None}, key length: {len(ANTHROPIC_API_KEY)}")
 TRACKER_FILE   = "tracked_stocks.json"
 
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
@@ -1235,6 +1236,7 @@ def run_ai(msgs, max_tokens=3500):
     # Try Claude first
     if anthropic_client:
         try:
+            print(f"DEBUG: Attempting Claude with key: {ANTHROPIC_API_KEY[:10]}...")
             system_msg = ""
             user_msgs = []
             for m in msgs:
