@@ -178,7 +178,11 @@ def enrich_info_with_ratios(info_dict, ticker):
     metrics = get_key_metrics_ttm(ticker)
 
     if ratios:
-        info_dict["forwardPE"]          = ratios.get("priceEarningsToGrowthRatioTTM")
+        # P/E: use ratio endpoint as primary, keep quote value as fallback
+        pe_from_ratios = ratios.get("peRatioTTM") or ratios.get("priceEarningsRatioTTM")
+        if pe_from_ratios:
+            info_dict["trailingPE"] = pe_from_ratios
+
         info_dict["pegRatio"]           = ratios.get("priceEarningsToGrowthRatioTTM")
         info_dict["priceToSalesTrailing12Months"] = ratios.get("priceToSalesRatioTTM")
         info_dict["returnOnEquity"]     = ratios.get("returnOnEquityTTM")
@@ -197,6 +201,18 @@ def enrich_info_with_ratios(info_dict, ticker):
         info_dict["earningsGrowth"]     = metrics.get("earningsYieldTTM")
         info_dict["revenueGrowth"]      = None
 
+        # Forward PE from metrics (PE excluding cash)
+        forward_pe = metrics.get("peRatioTTM")
+        if not forward_pe:
+            # Compute from earnings yield
+            earnings_yield = metrics.get("earningsYieldTTM")
+            if earnings_yield and float(earnings_yield) > 0:
+                try:
+                    forward_pe = round(1.0 / float(earnings_yield), 2)
+                except:
+                    forward_pe = None
+        info_dict["forwardPE"] = forward_pe
+
         shares = info_dict.get("sharesOutstanding")
         fcf_ps = metrics.get("freeCashFlowPerShareTTM")
         if shares and fcf_ps:
@@ -213,7 +229,6 @@ def enrich_info_with_ratios(info_dict, ticker):
         info_dict.setdefault("totalRevenue", None)
 
     return info_dict
-
 
 def get_income_statement(ticker, period="annual", limit=5):
     data = _fmp_get("/income-statement", {"symbol": ticker, "period": period, "limit": limit})

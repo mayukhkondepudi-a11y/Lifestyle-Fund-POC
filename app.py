@@ -627,6 +627,9 @@ def fetch_peers(ticker, sector):
         try:
             profile = fmp_api.get_profile(pt)
             if profile:
+                # ENRICH with ratios — this was missing!
+                if profile.get("_source") == "fmp":
+                    profile = fmp_api.enrich_info_with_ratios(profile, pt)
                 c = profile.get("currency", "USD")
                 out.append({
                     "Ticker": pt, "Company": profile.get("shortName", pt),
@@ -639,7 +642,6 @@ def fetch_peers(ticker, sector):
                     "Rev Gr.": fmt_p(profile.get("revenueGrowth")),
                 })
             else:
-                # yfinance fallback
                 import yfinance as yf
                 i = yf.Ticker(pt).info
                 c = i.get("currency", "USD")
@@ -1102,7 +1104,7 @@ JSON STRUCTURE:
 "peer_positioning": "One-line summary of how this company compares to peers on valuation, growth, and quality.",
 "scenarios": {
   "bull": {
-    "probability": 0.20,
+    "probability": 0.25,
     "narrative": "2-3 sentences on what has to go right.",
     "revenue_growth": 0.15,
     "operating_margin": 0.35,
@@ -1110,7 +1112,7 @@ JSON STRUCTURE:
     "pe_rationale": "1 sentence justifying the multiple."
   },
   "base": {
-    "probability": 0.60,
+    "probability": 0.50,
     "narrative": "2-3 sentences on continuation trajectory.",
     "revenue_growth": 0.08,
     "operating_margin": 0.31,
@@ -1118,7 +1120,7 @@ JSON STRUCTURE:
     "pe_rationale": "1 sentence justifying the multiple."
   },
   "bear": {
-    "probability": 0.20,
+    "probability": 0.25,
     "narrative": "2-3 sentences on what goes wrong.",
     "revenue_growth": -0.02,
     "operating_margin": 0.24,
@@ -1148,10 +1150,23 @@ JSON STRUCTURE:
 
 SCENARIO GUIDELINES:
 - Probabilities must sum to 1.0
-- Bull probability: 0.15-0.30, Base: 0.45-0.65, Bear: 0.15-0.30
+- DO NOT use 0.20/0.60/0.20 as default. Every company is different. Vary based on risk profile:
+  * Strong BUY with high conviction: e.g. Bull 0.30, Base 0.50, Bear 0.20
+  * Balanced WATCH: e.g. Bull 0.20, Base 0.55, Bear 0.25
+  * Risky or deteriorating business: e.g. Bull 0.15, Base 0.45, Bear 0.40
+  * Stable compounder: e.g. Bull 0.25, Base 0.55, Bear 0.20
+- Each company MUST have unique probabilities that reflect its specific situation
 - PE multiples anchored to peer multiples and historical ranges
 - Revenue growth rates realistic given historical trajectory
 - Operating margins within industry range
+
+CRITICAL PRICE TARGET ALIGNMENT RULE:
+- Your scenario assumptions MUST produce price targets consistent with your recommendation:
+  * BUY: the probability-weighted expected value should be ABOVE current price (positive expected return)
+  * WATCH: the probability-weighted expected value should be NEAR current price (within +/- 8%)
+  * PASS: the probability-weighted expected value should be BELOW current price (negative expected return)
+- The BASE case PE multiple should be near the CURRENT trailing PE for a WATCH, or above it for a BUY
+- If your base case implies significant downside from current price, your recommendation should be PASS not WATCH
 
 RISK GUIDELINES:
 - Provide 4-6 risks
@@ -1160,7 +1175,7 @@ RISK GUIDELINES:
 
 recommendation: exactly BUY, WATCH, or PASS.
 conviction: exactly High, Medium, or Low."""},
-                {"role":"user","content":f"""Analyze {ticker} ({m.get('company_name',ticker)}).
+        {"role":"user","content":f"""Analyze {ticker} ({m.get('company_name',ticker)}).
 
 VERIFIED METRICS:
 {ms}
@@ -1173,6 +1188,8 @@ CURRENT VALUATION CONTEXT:
 - Trailing EPS: {m.get('trailing_eps')}
 
 IMPORTANT: Your scenario PE multiples must be anchored to the CURRENT trailing P/E shown above. The bull case PE should be at or above current PE. The base case PE should be near current PE. The bear case PE should be a meaningful discount but still realistic for this company's historical range.
+
+Your scenario probabilities MUST be unique to this company. Do NOT use 0.20/0.60/0.20.
 
 BUSINESS: {m.get('description','N/A')[:500]}
 
@@ -1246,7 +1263,7 @@ def run_ai(msgs, max_tokens=3500):
                     user_msgs.append(m)
 
             r = anthropic_client.messages.create(
-                model="claude-haiku-3-5-20241022",
+                model="claude-haiku-4-5-20251001",
                 system=system_msg,
                 messages=user_msgs,
                 max_tokens=max_tokens,
