@@ -2714,7 +2714,7 @@ def render_track_box(ticker, m, a):
 st.markdown('''<div class="hero">
     <h1><span class="pick">Pick</span><span class="accent">R</span></h1>
     <div class="tag">AI Assisted Equity Research</div>
-    <div class="desc">Equity analysis powered by the QGLP framework. Bottoms up EPS projections with quantified headwinds, probability assigned scenarios, and AI-assised insights.</div>
+    <div class="desc">Equity analysis powered by the Quality Growth Longevity Price (QGLP) framework. Bottoms up EPS projections with quantified headwinds, probability assigned scenarios, and AI-assised insights.</div>
 </div>''', unsafe_allow_html=True)
 
 # ── QGLP Top Picks ──
