@@ -796,12 +796,15 @@ def calc(data):
         return None, {}, 0
 
     m["revenue_cagr"], m["revenue_history"], m["revenue_cagr_years"] = cagr_from(
-        inc, ["Total Revenue", "TotalRevenue", "Revenue"])
+        inc, ["Total Revenue", "TotalRevenue", "Revenue",
+              "revenue", "totalRevenue"])
     m["net_income_cagr"], m["net_income_history"], m["ni_cagr_years"] = cagr_from(
-        inc, ["Net Income", "NetIncome", "Net Income Common Stockholders"])
+        inc, ["Net Income", "NetIncome", "Net Income Common Stockholders",
+              "netIncome", "Net Income From Continuing Operation Net Minority Interest"])
     m["eps_cagr"], _, m["eps_cagr_years"] = cagr_from(
         inc, ["Diluted EPS", "Basic EPS", "DilutedEPS", "BasicEPS",
-              "EPS", "Earnings Per Share"])
+              "EPS", "Earnings Per Share", "epsdiluted", "eps",
+              "Diluted NI Availto Com Stockholders"])
 
     # ── Compute margins from statements if missing ──
     if m["gross_margin"] is None and inc is not None:
