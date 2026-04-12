@@ -777,9 +777,17 @@ def calc(data):
                 hist = {str(dt.year) if hasattr(dt, 'year') else str(dt): round(float(v) / 1e9, 2)
                         for dt, v in row.items()}
                 if len(row) < 2: return None, hist
-                oldest = float(row.iloc[0])
-                newest = float(row.iloc[-1])
-                years  = len(row) - 1
+
+                # Use exactly 5-year window if available
+                if len(row) >= 5:
+                    oldest = float(row.iloc[-5])
+                    newest = float(row.iloc[-1])
+                    years = 4
+                else:
+                    oldest = float(row.iloc[0])
+                    newest = float(row.iloc[-1])
+                    years = len(row) - 1
+
                 if oldest <= 0 or years <= 0:
                     return None, hist
                 cagr = (newest / oldest) ** (1 / years) - 1
@@ -921,8 +929,7 @@ def calc(data):
 
                 if growth and growth > 0:
                 # Cap growth at 50% to prevent supercycle distortion
-                 capped_growth = min(growth, 50.0)
-                peg = round(pe / capped_growth, 2)
+                 peg = round(pe / growth, 2)
                 if 0 < peg <= 5.0:
                     m["peg_ratio"] = peg
                     print(f"  PEG computed: {pe:.1f}x PE / {growth:.1f}% growth = {peg:.2f}")

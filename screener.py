@@ -210,9 +210,15 @@ def fetch_earnings_cagr(ticker):
             if label in inc.index:
                 row = inc.loc[label].dropna().sort_index()
                 if len(row) >= 2:
-                    oldest = float(row.iloc[0])
-                    newest = float(row.iloc[-1])
-                    years = len(row) - 1
+                    # Use exactly 5-year window if available
+                    if len(row) >= 5:
+                        oldest = float(row.iloc[-5])
+                        newest = float(row.iloc[-1])
+                        years = 4
+                    else:
+                        oldest = float(row.iloc[0])
+                        newest = float(row.iloc[-1])
+                        years = len(row) - 1
                     if oldest > 0 and newest > 0 and years > 0:
                         cagr = (newest / oldest) ** (1 / years) - 1
                         return round(cagr, 4)
@@ -301,7 +307,7 @@ def screen_universe(tickers, market_label, filters=None):
         if pe and pe > 0 and cagr > 0:
             # Cap CAGR at 50% for PEG computation to avoid
             # backward-looking supercycles distorting the ratio
-            cagr_for_peg = min(cagr, 0.50)
+            cagr_for_peg = cagr
             peg = pe / (cagr_for_peg * 100)
             m["peg_ratio"] = round(peg, 2)
         else:
