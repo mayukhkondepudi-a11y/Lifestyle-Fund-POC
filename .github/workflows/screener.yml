@@ -1,0 +1,25 @@
+name: QGLP Screener
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # 10am UTC daily (5:30pm IST, 6am ET)
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance
+
+      - name: Run screener
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+        run: python screener.py

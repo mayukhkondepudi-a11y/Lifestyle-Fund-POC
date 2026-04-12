@@ -1,0 +1,430 @@
+TASK: Provide structured assumptions for {ticker} ({company_name}).
+
+CRITICAL ANCHORING RULES:
+- You are analyzing {ticker} ({company_name}) and NO OTHER COMPANY.
+- The revenue segments you identify MUST correspond to {company_name}'s
+  actual business segments as reported in its most recent annual filing.
+- The total of your segment revenues MUST approximately equal the total
+  revenue figure provided below ({total_revenue}).
+- If the segment revenues you provide sum to a number that differs from
+  {total_revenue} by more than 15%, your analysis is wrong.
+- Do not confuse this company with any other company regardless of
+  how the financial metrics may appear.
+
+VERIFIED FINANCIAL METRICS:
+{metrics_json}
+
+VALUATION ANCHORS:
+- Current Price: {current_price}
+- Trailing P/E: {trailing_pe}
+- Forward P/E: {forward_pe} <-- PRIMARY ANCHOR
+- EV/EBITDA: {ev_to_ebitda}
+- Trailing EPS: {trailing_eps}
+- Forward EPS: {forward_eps}
+- Operating Margin: {operating_margin}
+- Net Margin: {profit_margin}
+
+TODAY'S DATE: {today_date}
+
+BUSINESS DESCRIPTION:
+{description}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECTION 1: REVENUE SEGMENTATION
+
+Break this company's revenue into its 2-5 most meaningful segments.
+Use whatever segmentation best reveals where growth and risk live:
+business units, product lines, geographies, customer types, or
+revenue model (recurring vs transactional). Choose the split that
+a portfolio manager would actually use to model this business.
+
+For each segment provide:
+- Segment name
+- Current annual revenue (dollar amount, use latest fiscal year)
+- Percentage of total revenue
+- Approximate gross margin for this segment (if distinguishable)
+- Year-over-year growth rate (latest fiscal year)
+- The single most important driver of growth or decline
+- Whether this segment is accelerating, stable, or decelerating
+
+If the company reports only one segment, disaggregate by whatever
+dimension creates the most useful analytical separation: geography,
+channel, product category, or contract type. Every company has at
+least two meaningfully different revenue streams.
+
+SECTION 2: REVENUE CONCENTRATION AND DEPENDENCIES
+
+Identify the key concentration risks for this business:
+- Customer concentration (top 1, top 5, or top 10 share if known)
+- Geographic revenue exposure (major regions with approximate split)
+- Critical supply chain or platform dependencies
+- Any key relationships at risk of change within 12 months
+  (contract renewals, competitor displacement, insourcing,
+  regulatory action)
+
+SECTION 3: HEADWINDS
+
+Identify 2-4 specific, quantifiable headwinds that could reduce
+revenue or earnings over the next 12 months. These are not vague
+risks. Each headwind must be a concrete event or trend that you
+can attach a dollar impact to.
+
+For each headwind provide:
+- Name (short, specific)
+- Description (2-3 sentences explaining what this is and why it
+  matters for this company specifically)
+- Probability of materialising (0.0 to 1.0)
+- Revenue at risk (dollar amount that could be lost)
+- Impact per scenario:
+  - Bull case: revenue impact ($) and EPS impact ($). In the bull
+    case, headwinds are typically minor or do not materialise.
+  - Base case: revenue impact ($) and EPS impact ($). Partial
+    materialisation.
+  - Bear case: revenue impact ($) and EPS impact ($). Full force.
+
+The sum of headwind impacts in each scenario must be consistent
+with the scenario revenue builds in Section 6. These are not
+independent numbers. They are inputs to the scenario math.
+
+SECTION 4: TAILWINDS
+
+Identify 1-3 specific tailwinds that could accelerate growth beyond
+the base expectation. Same rigour as headwinds.
+
+For each tailwind provide:
+- Name (short, specific)
+- Description (2-3 sentences)
+- Probability of materialising (0.0 to 1.0)
+- Revenue opportunity (dollar amount of incremental upside)
+- Impact per scenario:
+  - Bull case: revenue impact ($) and EPS impact ($). Tailwinds
+    fire fully in the bull case.
+  - Base case: revenue impact ($) and EPS impact ($). Partial
+    benefit.
+  - Bear case: revenue impact ($) and EPS impact ($). Typically
+    zero or negligible.
+
+SECTION 5: MACRO DRIVERS
+
+Identify exactly 2-4 independent drivers that together determine
+which scenario plays out for this company. These are the variables
+that, if you knew their outcome with certainty, would tell you
+whether the bull, base, or bear case materialises.
+
+Good drivers are specific to this company: the trajectory of a
+product line, the outcome of a regulatory process, the behaviour
+of a key customer, the direction of a relevant end-market. Avoid
+generic macro drivers like "global recession" unless this company
+has specific, quantifiable exposure to that outcome.
+
+For each driver provide:
+- Name
+- What it measures (one sentence)
+- Bull outcome: what happens, and the probability (0.0 to 1.0)
+- Base outcome: what happens, and the probability (0.0 to 1.0)
+- Bear outcome: what happens, and the probability (0.0 to 1.0)
+- The three outcome probabilities MUST sum to 1.0
+
+These driver probabilities are the raw inputs to the probability
+engine. Python will compute the final scenario probabilities using
+geometric mean and correlation adjustment. You do not assign
+scenario probabilities directly.
+
+SECTION 6: SCENARIO BUILDS
+
+For each scenario (bull, base, bear), build the 12-month forward
+financials from the segments up. This is the core of the analysis.
+
+For each scenario provide:
+
+a) Segment-level revenue projections:
+   For each segment identified in Section 1, provide:
+   - Projected revenue (dollar amount, 12 months forward)
+   - Growth rate implied
+   - One sentence explaining why this growth rate in this scenario
+
+b) Headwind and tailwind adjustments:
+   - Total headwind revenue impact for this scenario (must match
+     the per-scenario impacts from Sections 3 and 4)
+   - Total headwind EPS impact for this scenario
+   - Total tailwind revenue impact for this scenario
+   - Total tailwind EPS impact for this scenario
+
+c) Consolidated financials:
+   - Total projected revenue (sum of segments, net of adjustments)
+   - Projected operating margin (with one sentence explaining the
+     margin change vs current: is it mix shift, pricing pressure,
+     operating leverage, or cost inflation?)
+   - Projected net margin
+   - Projected EPS (derived from revenue, margins, shares outstanding)
+   - Assigned P/E multiple with one sentence rationale anchored to
+     the forward P/E provided in the data. Reference a specific
+     comparable or historical precedent to justify the multiple.
+
+d) Price target:
+   - Price target = Projected EPS x P/E multiple
+   - Implied return vs current price
+   - FCF yield at this price target (use current FCF margin applied
+     to projected revenue, divided by implied market cap at target)
+   - Breakeven P/E: what P/E would the market need to assign to
+     this scenario's EPS to return to today's price?
+
+e) Narrative:
+   - 2-3 sentences describing what has to go right (bull), what is
+     most likely (base), or what goes wrong (bear)
+
+CRITICAL: The EPS in each scenario must be mathematically consistent
+with the revenue, margins, tax rate, and share count. Python will
+verify this. Do not round in ways that break the arithmetic.
+
+SECTION 7: MARKET EXPECTATIONS
+
+Answer this question: what earnings growth rate is the current
+stock price already pricing in?
+
+Use the forward P/E and compare it to:
+- The sector average P/E
+- The company's own 5-year average P/E (if you know it)
+- The PEG = 1.0 implied growth rate (if forward PE is 35x, the
+  market is implicitly pricing ~35% earnings growth)
+
+State clearly: "The market is pricing in approximately X% earnings
+growth. Our base case assumes Y%. This means [the stock is
+undervalued / fairly valued / overvalued on base case assumptions]."
+
+SECTION 8: SENSITIVITY
+
+Identify the single most important driver from Section 5 (the one
+that moves the expected value the most). Show how the expected
+value changes if that driver's bull probability shifts by +10
+percentage points and -10 percentage points, holding everything
+else constant.
+
+SECTION 9: CATALYSTS
+
+List 3-6 upcoming events in the next 12 months that will confirm
+or deny the thesis. Each catalyst must have:
+- Expected date or timeframe
+- What the event is
+- What a positive signal looks like
+- What a negative signal looks like
+
+All catalyst dates must be AFTER {today_date}.
+
+SECTION 10: PEER COMPARISON
+
+Suggest 4-5 publicly traded companies that are the most relevant
+comparisons for valuation purposes. Choose based on actual business
+model overlap, not just sector classification. Provide the ticker
+symbol for each.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OUTPUT FORMAT
+
+Return ONLY the following JSON structure. Every field is required.
+All dollar amounts are in the company's reporting currency.
+All percentages are decimals (0.15 = 15%).
+
+{
+  "segments": [
+    {
+      "name": "Segment Name",
+      "current_revenue": 36900000000,
+      "pct_of_total": 0.58,
+      "gross_margin": 0.68,
+      "yoy_growth": 0.22,
+      "primary_driver": "One sentence explaining what drives this segment.",
+      "trajectory": "accelerating"
+    }
+  ],
+
+  "concentration": {
+    "top_customer_pct": 0.40,
+    "top_5_customers_pct": 0.40,
+    "geographic_split": {
+      "US": 0.55,
+      "China_HK": 0.17,
+      "Europe": 0.15,
+      "Rest_of_World": 0.13
+    },
+    "critical_dependencies": [
+      "One sentence per dependency."
+    ],
+    "relationships_at_risk": [
+      "One sentence per at-risk relationship."
+    ]
+  },
+
+  "headwinds": [
+    {
+      "name": "Short Name",
+      "description": "2-3 sentences. Plain text.",
+      "probability": 0.55,
+      "revenue_at_risk": 4000000000,
+      "bull_impact": {
+        "revenue": -200000000,
+        "eps": -0.03
+      },
+      "base_impact": {
+        "revenue": -1300000000,
+        "eps": -0.24
+      },
+      "bear_impact": {
+        "revenue": -4000000000,
+        "eps": -0.52
+      }
+    }
+  ],
+
+  "tailwinds": [
+    {
+      "name": "Short Name",
+      "description": "2-3 sentences. Plain text.",
+      "probability": 0.60,
+      "revenue_opportunity": 3000000000,
+      "bull_impact": {
+        "revenue": 3000000000,
+        "eps": 0.35
+      },
+      "base_impact": {
+        "revenue": 1000000000,
+        "eps": 0.12
+      },
+      "bear_impact": {
+        "revenue": 0,
+        "eps": 0.0
+      }
+    }
+  ],
+
+  "macro_drivers": [
+    {
+      "name": "Short Name",
+      "measures": "One sentence describing what this driver captures.",
+      "bull_outcome": {
+        "description": "1-2 sentences. Plain text.",
+        "probability": 0.30
+      },
+      "base_outcome": {
+        "description": "1-2 sentences. Plain text.",
+        "probability": 0.50
+      },
+      "bear_outcome": {
+        "description": "1-2 sentences. Plain text.",
+        "probability": 0.20
+      }
+    }
+  ],
+
+  "scenarios": {
+    "bull": {
+      "segment_builds": [
+        {
+          "name": "Segment Name",
+          "projected_revenue": 40000000000,
+          "growth_rate": 1.00,
+          "rationale": "One sentence."
+        }
+      ],
+      "total_headwind_revenue": -200000000,
+      "total_headwind_eps": -0.03,
+      "total_tailwind_revenue": 3000000000,
+      "total_tailwind_eps": 0.35,
+      "total_revenue": 88800000000,
+      "operating_margin": 0.65,
+      "margin_rationale": "One sentence.",
+      "net_margin": 0.54,
+      "tax_rate": 0.165,
+      "projected_eps": 10.25,
+      "pe_multiple": 32,
+      "pe_rationale": "One sentence.",
+      "price_target": 328.00,
+      "narrative": "2-3 sentences. Plain text."
+    },
+    "base": {
+      "segment_builds": [],
+      "total_headwind_revenue": 0,
+      "total_headwind_eps": 0,
+      "total_tailwind_revenue": 0,
+      "total_tailwind_eps": 0,
+      "total_revenue": 0,
+      "operating_margin": 0,
+      "margin_rationale": "",
+      "net_margin": 0,
+      "tax_rate": 0,
+      "projected_eps": 0,
+      "pe_multiple": 0,
+      "pe_rationale": "",
+      "price_target": 0,
+      "narrative": ""
+    },
+    "bear": {
+      "segment_builds": [],
+      "total_headwind_revenue": 0,
+      "total_headwind_eps": 0,
+      "total_tailwind_revenue": 0,
+      "total_tailwind_eps": 0,
+      "total_revenue": 0,
+      "operating_margin": 0,
+      "margin_rationale": "",
+      "net_margin": 0,
+      "tax_rate": 0,
+      "projected_eps": 0,
+      "pe_multiple": 0,
+      "pe_rationale": "",
+      "price_target": 0,
+      "narrative": ""
+    }
+  },
+
+  "market_expectations": {
+    "implied_growth_rate": 0.35,
+    "basis": "One sentence.",
+    "vs_base_case": "undervalued",
+    "commentary": "2-3 sentences."
+  },
+
+  "sensitivity": {
+    "dominant_driver": "Name of the most important driver",
+    "current_bull_probability": 0.30,
+    "ev_if_bull_plus_10": 0.0,
+    "ev_if_bull_minus_10": 0.0,
+    "interpretation": "1-2 sentences. Plain text."
+  },
+
+  "catalysts": [
+    {
+      "date": "Q3 2026",
+      "event": "Specific event name",
+      "positive_signal": "What good looks like",
+      "negative_signal": "What bad looks like"
+    }
+  ],
+
+  "peer_tickers": ["AAPL", "MSFT", "GOOGL", "NVDA"]
+}
+
+VALIDATION RULES (Python will check these):
+
+1. The sum of segment current_revenue values must approximately equal
+   {total_revenue}. If it does not, you are analyzing the wrong company.
+
+2. The sum of segment projected revenues in each scenario plus
+   total_headwind_revenue plus total_tailwind_revenue must equal
+   total_revenue for that scenario.
+
+3. Each macro driver's three outcome probabilities must sum to 1.0.
+
+4. price_target must equal projected_eps x pe_multiple (within rounding).
+
+5. All catalyst dates must be after {today_date}.
+
+6. projected_eps must be derivable from: (total_revenue x net_margin)
+   / shares_outstanding. The shares outstanding for this company is
+   approximately {shares_outstanding}. Show your work internally.
+   If the numbers do not reconcile, adjust before outputting.
+
+Return ONLY valid JSON. No HTML. No markdown fences. No text before
+or after the JSON.

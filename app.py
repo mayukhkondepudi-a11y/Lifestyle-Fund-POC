@@ -307,8 +307,9 @@ def load_text_file(fp):
         with open(fp, "r", encoding="utf-8") as f: return f.read()
     except FileNotFoundError: return ""
 
-FUND_THESIS   = load_text_file("fund_thesis.md")
-REPORT_PROMPT = load_text_file("report_prompt.txt")
+SYSTEM_PROMPT   = load_text_file("prompt_system.txt")
+PASS1_PROMPT    = load_text_file("prompt_pass1.txt")
+PASS2_PROMPT    = load_text_file("prompt_pass2.txt")
 
 POPULAR = {
     "":"", "Apple (AAPL)":"AAPL", "Microsoft (MSFT)":"MSFT", "Nvidia (NVDA)":"NVDA",
@@ -604,6 +605,22 @@ def email_confirmation(to_email, ticker, company_name, recommendation, target_pr
 # ══════════════════════════════════════════════════════════════
 # DATA FETCHING
 # ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_screener_results():
+    if GITHUB_TOKEN and GITHUB_REPO:
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/screener_results.json"
+            req = urllib.request.Request(url, headers=_gh_headers())
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode())
+                return json.loads(base64.b64decode(data["content"]).decode())
+        except Exception:
+            pass
+    try:
+        with open("screener_results.json") as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def search_ticker(query):
@@ -677,7 +694,7 @@ def calc(data):
         "current_price": g("currentPrice", g("regularMarketPrice")),
         "market_cap": g("marketCap"), "enterprise_value": g("enterpriseValue"),
         "trailing_pe": g("trailingPE"), "forward_pe": g("forwardPE"),
-        "peg_ratio": g("pegRatio"), "price_to_book": g("priceToBook"),
+        "peg_ratio": None,
         "price_to_sales": g("priceToSalesTrailing12Months"),
         "ev_to_ebitda": g("enterpriseToEbitda"),
         "gross_margin": g("grossMargins"), "operating_margin": g("operatingMargins"),
@@ -875,30 +892,48 @@ def calc(data):
         except:
             pass
 
-    # ── PEG fallback: only use earnings growth, never revenue ──
-    if m["peg_ratio"] is None:
-        try:
+    # ── PEG: compute from multi-year earnings CAGR, never trust API ──
+    m["peg_ratio"] = None
+
+    try:
+        # Use forward PE as numerator (preferred) or trailing PE
+        pe = safe_float(m.get("forward_pe"))
+        if pe <= 0:
             pe = safe_float(m.get("trailing_pe"))
-            if pe <= 0:
-                pe = safe_float(m.get("forward_pe"))
+
+        if pe > 0:
             growth = None
-            # Priority 1: earnings growth (YoY)
-            if m.get("earnings_growth"):
+
+            # Priority 1: EPS CAGR (most direct measure)
+            if m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
+                growth = float(m["eps_cagr"]) * 100
+
+            # Priority 2: Net income CAGR
+            if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
+                growth = float(m["net_income_cagr"]) * 100
+
+            # Priority 3: Single-year earnings growth (least reliable)
+            if growth is None and m.get("earnings_growth"):
                 g_val = float(m["earnings_growth"])
-                growth = g_val * 100 if abs(g_val) < 1 else g_val
-            # Priority 2: EPS CAGR
-            if growth is None and m.get("eps_cagr") and float(m["eps_cagr"]) != 0:
-                g_val = float(m["eps_cagr"])
-                growth = g_val * 100 if abs(g_val) < 1 else g_val
-            # Priority 3: Net income CAGR
-            if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) != 0:
-                g_val = float(m["net_income_cagr"])
-                growth = g_val * 100 if abs(g_val) < 1 else g_val
-            # Never fall back to revenue CAGR - show "-" instead
-            if pe and pe > 0 and growth and growth > 0:
-                m["peg_ratio"] = round(pe / growth, 2)
-        except Exception:
-            pass
+                g_pct = g_val * 100 if abs(g_val) < 1 else g_val
+                if g_pct > 0:
+                    growth = g_pct
+
+                if growth and growth > 0:
+                # Cap growth at 50% to prevent supercycle distortion
+                 capped_growth = min(growth, 50.0)
+                peg = round(pe / capped_growth, 2)
+                if 0 < peg <= 5.0:
+                    m["peg_ratio"] = peg
+                    print(f"  PEG computed: {pe:.1f}x PE / {growth:.1f}% growth = {peg:.2f}")
+                else:
+                    print(f"  PEG computed but out of range ({peg:.2f}), discarding")
+            else:
+                print(f"  PEG: no positive earnings growth available")
+    except Exception as e:
+        print(f"  PEG computation error: {e}")
+
+    pass
 
     m["news"] = [{"title": n.get("title",""), "publisher": n.get("publisher","")}
                  for n in data.get("news", [])]
@@ -1005,18 +1040,17 @@ def compute_scenario_probabilities(llm_output):
 
 def compute_scenario_math(metrics, llm_output):
     """
-    All financial math lives here. The LLM provides qualitative assumptions
-    (revenue growth, margin delta, PE multiple per scenario). Python computes
-    every number from fundamentals.
-
-    Key design decisions:
-    - EPS is anchored to trailing EPS and grown, never rebuilt from scratch
-    - Forward PE is the primary valuation anchor
-    - Headwinds/tailwinds are display-only, not applied to scenario math
-    - Risk-free rate is 6%
+    Segment-level scenario math engine.
+    
+    The LLM provides segment revenue builds, headwind/tailwind dollar
+    impacts, margins, and PE multiples per scenario. Python computes
+    every derived number and cross-validates the LLM's stated EPS.
+    
+    If the LLM's EPS and Python's EPS diverge by more than 10%,
+    Python's number wins and a flag is raised.
     """
 
-    # ── Step 1: Extract all base metrics upfront ──
+    # ── Step 1: Extract base metrics ──
     current_price    = safe_float(metrics.get("current_price"))
     trailing_eps     = safe_float(metrics.get("trailing_eps"))
     forward_eps      = safe_float(metrics.get("forward_eps"))
@@ -1027,52 +1061,30 @@ def compute_scenario_math(metrics, llm_output):
     market_cap       = safe_float(metrics.get("market_cap"))
     trailing_pe      = safe_float(metrics.get("trailing_pe"))
     forward_pe       = safe_float(metrics.get("forward_pe"))
-    ev_ebitda        = safe_float(metrics.get("ev_to_ebitda"))
+    free_cashflow    = safe_float(metrics.get("free_cashflow"))
     risk_free_rate   = 0.06
 
-    # ── Step 2: Derive missing fundamentals ──
+    # Derive shares if missing
     if shares == 0 and current_price > 0 and market_cap > 0:
         shares = market_cap / current_price
 
-    if trailing_eps == 0 and current_price > 0:
-        if trailing_pe > 0:
-            trailing_eps = current_price / trailing_pe
-        elif forward_pe > 0:
-            trailing_eps = current_price / forward_pe
+    # FCF margin for FCF yield calculations
+    fcf_margin = (free_cashflow / total_revenue) if total_revenue > 0 and free_cashflow > 0 else 0.0
 
-    if trailing_eps == 0 and forward_eps > 0:
-        trailing_eps = forward_eps
-
-    if total_revenue == 0 and market_cap > 0:
-        ps = safe_float(metrics.get("price_to_sales"))
-        if ps > 0:
-            total_revenue = market_cap / ps
-
-    if trailing_eps == 0 and total_revenue > 0 and shares > 0 and profit_margin > 0:
-        trailing_eps = (total_revenue * profit_margin) / shares
-
-    # ── Step 3: Net-to-operating ratio ──
-    if operating_margin > 0 and profit_margin > 0:
-        net_to_op_ratio = profit_margin / operating_margin
-    else:
-        net_to_op_ratio = 0.79
-    net_to_op_ratio = max(0.3, min(net_to_op_ratio, 1.0))
-
-    # ── Step 4: PE anchor (forward PE primary) ──
+    # PE anchor
     if forward_pe > 0:
         anchor_pe = forward_pe
     elif trailing_pe > 0:
         anchor_pe = trailing_pe
     else:
-        # No PE available at all - trust LLM multiples without clamping
         anchor_pe = 0
 
-    print(f"  Scenario math inputs: price={current_price}, eps={trailing_eps:.2f}, "
-          f"forward_eps={forward_eps:.2f}, revenue={total_revenue:.0f}, shares={shares:.0f}, "
-          f"op_margin={operating_margin:.3f}, net_to_op={net_to_op_ratio:.3f}, "
-          f"trailing_pe={trailing_pe:.1f}, forward_pe={forward_pe:.1f}, anchor_pe={anchor_pe:.1f}")
+    print(f"  Scenario math inputs: price={current_price}, trailing_eps={trailing_eps:.2f}, "
+          f"forward_eps={forward_eps:.2f}, shares={shares:.0f}, "
+          f"op_margin={operating_margin:.3f}, net_margin={profit_margin:.3f}, "
+          f"fcf_margin={fcf_margin:.3f}, anchor_pe={anchor_pe:.1f}")
 
-    # ── Step 5: Compute probabilities from macro driver engine ──
+    # ── Step 2: Compute scenario probabilities from macro drivers ──
     prob_output = compute_scenario_probabilities(llm_output)
     scenario_probs = {
         "bull": prob_output["bull"],
@@ -1080,98 +1092,151 @@ def compute_scenario_math(metrics, llm_output):
         "bear": prob_output["bear"],
     }
 
-    # ── Step 6: PE floor and ceiling bands ──
-    # Only apply if we have a valid anchor PE
-    if anchor_pe > 0:
-        # Normalize to prevent extreme PEs from distorting bands
-        normalized_pe = min(anchor_pe, 50.0)
-        pe_floors = {
-            "bull": normalized_pe * 0.70,
-            "base": normalized_pe * 0.55,
-            "bear": normalized_pe * 0.25,
-        }
-        pe_ceilings = {
-            "bull": normalized_pe * 1.60,
-            "base": normalized_pe * 1.25,
-            "bear": normalized_pe * 0.90,
-        }
-        apply_pe_clamp = True
-    else:
-        pe_floors = {"bull": 5.0, "base": 5.0, "bear": 5.0}
-        pe_ceilings = {"bull": 80.0, "base": 60.0, "bear": 40.0}
-        apply_pe_clamp = True
+    # ── Step 3: Compute each scenario ──
+    scenarios_input = llm_output.get("scenarios", {})
+    results = {}
 
-    # ── Step 7: Compute each scenario ──
-    scenarios = llm_output.get("scenarios", {})
-    results   = {}
+    for scenario_name in ["bull", "base", "bear"]:
+        s = scenarios_input.get(scenario_name, {})
+        if not s:
+            continue
 
-    for scenario_name, s in scenarios.items():
         try:
-            prob       = scenario_probs.get(scenario_name, 0.20)
-            rev_growth = safe_float(s.get("revenue_growth"))
-            pe_mult    = safe_float(s.get("pe_multiple"), default=20.0)
+            prob = scenario_probs.get(scenario_name, 0.20)
 
-            # Clamp PE to floor/ceiling
-            if apply_pe_clamp:
-                floor   = pe_floors.get(scenario_name, 5.0)
-                ceiling = pe_ceilings.get(scenario_name, 80.0)
-                pe_mult = max(floor, min(pe_mult, ceiling))
+            # ── Segment revenue build ──
+            segment_builds = s.get("segment_builds", [])
+            segment_revenue_total = sum(
+                safe_float(seg.get("projected_revenue"))
+                for seg in segment_builds
+            )
+
+            # ── Headwind and tailwind adjustments ──
+            hw_revenue = safe_float(s.get("total_headwind_revenue"))
+            hw_eps     = safe_float(s.get("total_headwind_eps"))
+            tw_revenue = safe_float(s.get("total_tailwind_revenue"))
+            tw_eps     = safe_float(s.get("total_tailwind_eps"))
+
+            # ── Total revenue ──
+            # Segment builds should already include organic growth.
+            # Headwinds subtract, tailwinds add.
+            llm_total_revenue = safe_float(s.get("total_revenue"))
+
+            # Python-computed total
+            python_total_revenue = segment_revenue_total + hw_revenue + tw_revenue
+            # hw_revenue is negative, tw_revenue is positive
+
+            # Use Python's total if available, fall back to LLM's
+            if python_total_revenue > 0:
+                total_rev = python_total_revenue
+            elif llm_total_revenue > 0:
+                total_rev = llm_total_revenue
+            else:
+                total_rev = total_revenue  # fall back to current
+
+            # Log discrepancy
+            if llm_total_revenue > 0 and python_total_revenue > 0:
+                rev_diff = abs(python_total_revenue - llm_total_revenue) / llm_total_revenue
+                if rev_diff > 0.05:
+                    print(f"  {scenario_name}: Revenue discrepancy - "
+                          f"Python={python_total_revenue:.0f}, "
+                          f"LLM={llm_total_revenue:.0f} ({rev_diff*100:.1f}% diff)")
+
+            # ── Revenue growth ──
+            rev_growth = ((total_rev / total_revenue) - 1) if total_revenue > 0 else 0.0
+
+            # ── Margins ──
+            op_margin  = safe_float(s.get("operating_margin"), default=operating_margin)
+            net_margin = safe_float(s.get("net_margin"), default=profit_margin)
+            tax_rate   = safe_float(s.get("tax_rate"), default=0.21)
+            margin_rationale = s.get("margin_rationale", "")
+
+            # If net margin not provided, derive from operating margin and tax rate
+            if net_margin == 0 and op_margin > 0:
+                net_margin = op_margin * (1 - tax_rate)
+
+            # ── EPS: Python computation ──
+            if total_rev > 0 and net_margin > 0 and shares > 0:
+                python_eps = (total_rev * net_margin) / shares
+            elif total_rev > 0 and op_margin > 0 and shares > 0:
+                python_eps = (total_rev * op_margin * (1 - tax_rate)) / shares
+            else:
+                python_eps = 0.0
+
+            # Add headwind/tailwind EPS adjustments if not already in margin
+            # Only add if Python built EPS from revenue * margin (pre-adjustment)
+            # The LLM's segment builds should include headwind revenue impact,
+            # but the EPS impact from headwinds might include non-revenue effects
+            # (margin compression, one-time charges). We add the delta.
+            llm_eps = safe_float(s.get("projected_eps"))
+
+            # Cross-validate
+            eps_flag = None
+            if python_eps > 0 and llm_eps > 0:
+                eps_diff = abs(python_eps - llm_eps) / llm_eps
+                if eps_diff > 0.10:
+                    eps_flag = (f"Python EPS ({python_eps:.2f}) differs from "
+                                f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
+                                f"Using Python's number.")
+                    print(f"  {scenario_name}: {eps_flag}")
+                    final_eps = python_eps
+                else:
+                    final_eps = python_eps  # Python always wins, but no flag
+            elif python_eps > 0:
+                final_eps = python_eps
+            elif llm_eps > 0:
+                final_eps = llm_eps
+                eps_flag = "Python could not compute EPS. Using LLM's number."
+            else:
+                # Last resort: grow trailing EPS by revenue growth
+                final_eps = trailing_eps * (1 + rev_growth) if trailing_eps > 0 else 0
+                eps_flag = "Both computations failed. Using trailing EPS grown by revenue growth."
+
+            # ── PE multiple ──
+            pe_mult = safe_float(s.get("pe_multiple"), default=20.0)
             pe_mult = max(pe_mult, 3.0)  # absolute floor
+            pe_rationale = s.get("pe_rationale", "")
 
-            # ── Projected operating margin ──
-            if "margin_delta_pp" in s:
-                margin_delta        = safe_float(s.get("margin_delta_pp")) / 100.0
-                projected_op_margin = operating_margin + margin_delta
-            else:
-                projected_op_margin = operating_margin if operating_margin > 0 else 0.15
-            projected_op_margin = max(0.01, min(projected_op_margin, 0.65))
+            # ── Price target ──
+            price_target = final_eps * pe_mult
 
-            # ── EPS projection: anchored to trailing EPS ──
-            # Core formula: earnings grow with revenue AND margin changes
-            # earnings_growth = (1 + rev_growth) * (new_margin / old_margin) - 1
-            if trailing_eps != 0 and operating_margin > 0:
-                margin_effect     = projected_op_margin / operating_margin
-                effective_growth  = (1 + rev_growth) * margin_effect - 1
-                projected_eps     = trailing_eps * (1 + effective_growth)
-            elif trailing_eps != 0:
-                # No margin data, just grow EPS by revenue growth
-                projected_eps = trailing_eps * (1 + rev_growth)
-            elif current_price > 0 and anchor_pe > 0:
-                # Derive EPS from price/PE, then grow
-                implied_eps   = current_price / anchor_pe
-                projected_eps = implied_eps * (1 + rev_growth)
-            elif current_price > 0:
-                # Last resort: assume 20x PE
-                implied_eps   = current_price / 20.0
-                projected_eps = implied_eps * (1 + rev_growth)
-            else:
-                projected_eps = 0.0
-
-            # ── Projected revenue (for display only) ──
-            projected_revenue = total_revenue * (1 + rev_growth) if total_revenue > 0 else 0
-
-            # ── Price target and return ──
-            price_target   = projected_eps * pe_mult
+            # ── Implied return ──
             implied_return = ((price_target - current_price) / current_price
                               if current_price > 0 else 0.0)
 
             # ── Breakeven PE ──
-            breakeven_pe = (current_price / projected_eps
-                            if projected_eps > 0 else None)
+            breakeven_pe = (current_price / final_eps) if final_eps > 0 else None
+
+            # ── FCF yield at target price ──
+            if fcf_margin > 0 and total_rev > 0 and price_target > 0 and shares > 0:
+                implied_market_cap = price_target * shares
+                projected_fcf = total_rev * fcf_margin
+                fcf_yield_at_target = projected_fcf / implied_market_cap
+            else:
+                fcf_yield_at_target = None
 
             results[scenario_name] = {
                 "probability":          round(prob, 4),
-                "projected_revenue":    round(projected_revenue, 0),
-                "projected_op_margin":  round(projected_op_margin, 4),
-                "projected_eps":        round(projected_eps, 2),
-                "effective_growth":     round(effective_growth if trailing_eps != 0 and operating_margin > 0
-                                              else rev_growth, 4),
+                "segment_builds":       segment_builds,
+                "segment_revenue_total": round(segment_revenue_total, 0),
+                "total_headwind_revenue": round(hw_revenue, 0),
+                "total_headwind_eps":   round(hw_eps, 2),
+                "total_tailwind_revenue": round(tw_revenue, 0),
+                "total_tailwind_eps":   round(tw_eps, 2),
+                "total_revenue":        round(total_rev, 0),
+                "revenue_growth":       round(rev_growth, 4),
+                "operating_margin":     round(op_margin, 4),
+                "net_margin":           round(net_margin, 4),
+                "margin_rationale":     margin_rationale,
+                "projected_eps":        round(final_eps, 2),
+                "llm_eps":              round(llm_eps, 2) if llm_eps else None,
+                "eps_flag":             eps_flag,
                 "pe_multiple":          round(pe_mult, 1),
-                "pe_rationale":         s.get("pe_rationale", ""),
+                "pe_rationale":         pe_rationale,
                 "price_target":         round(price_target, 2),
                 "implied_return":       round(implied_return, 4),
-                "effective_rev_growth": round(rev_growth, 4),
                 "breakeven_pe":         round(breakeven_pe, 2) if breakeven_pe else None,
+                "fcf_yield_at_target":  round(fcf_yield_at_target, 4) if fcf_yield_at_target else None,
                 "narrative":            s.get("narrative", ""),
             }
 
@@ -1179,53 +1244,23 @@ def compute_scenario_math(metrics, llm_output):
             print(f"  Scenario {scenario_name} math error: {e}")
             results[scenario_name] = {
                 "probability": scenario_probs.get(scenario_name, 0.20),
-                "projected_revenue": 0, "projected_op_margin": 0,
-                "projected_eps": 0, "effective_growth": 0,
+                "segment_builds": [], "segment_revenue_total": 0,
+                "total_headwind_revenue": 0, "total_headwind_eps": 0,
+                "total_tailwind_revenue": 0, "total_tailwind_eps": 0,
+                "total_revenue": 0, "revenue_growth": 0,
+                "operating_margin": 0, "net_margin": 0,
+                "margin_rationale": "", "projected_eps": 0,
+                "llm_eps": None, "eps_flag": str(e),
                 "pe_multiple": 0, "pe_rationale": "",
                 "price_target": 0, "implied_return": 0,
-                "effective_rev_growth": 0, "breakeven_pe": None,
+                "breakeven_pe": None, "fcf_yield_at_target": None,
                 "narrative": str(e),
             }
 
-    # ── Step 8: Sanity check - if all returns are absurd, fall back ──
-    returns = [r["implied_return"] for r in results.values() if r["implied_return"] != 0]
-    if returns and all(abs(r) > 5.0 for r in returns):
-        print("  WARNING: All scenarios >500% magnitude. Using simple EPS growth fallback.")
-        for scenario_name, s in scenarios.items():
-            try:
-                prob       = scenario_probs.get(scenario_name, 0.20)
-                rev_growth = safe_float(s.get("revenue_growth"))
-                pe_mult    = safe_float(s.get("pe_multiple"), default=20.0)
-                if apply_pe_clamp:
-                    floor   = pe_floors.get(scenario_name, 5.0)
-                    ceiling = pe_ceilings.get(scenario_name, 80.0)
-                    pe_mult = max(floor, min(pe_mult, ceiling))
-
-                if trailing_eps != 0:
-                    projected_eps = trailing_eps * (1 + rev_growth)
-                elif current_price > 0 and anchor_pe > 0:
-                    projected_eps = (current_price / anchor_pe) * (1 + rev_growth)
-                else:
-                    projected_eps = 0
-
-                price_target   = projected_eps * pe_mult
-                implied_return = ((price_target - current_price) / current_price
-                                  if current_price > 0 else 0)
-                breakeven_pe   = (current_price / projected_eps
-                                  if projected_eps > 0 else None)
-                results[scenario_name].update({
-                    "probability":   prob,
-                    "projected_eps": round(projected_eps, 2),
-                    "pe_multiple":   round(pe_mult, 1),
-                    "price_target":  round(price_target, 2),
-                    "implied_return": round(implied_return, 4),
-                    "breakeven_pe":  round(breakeven_pe, 2) if breakeven_pe else None,
-                })
-            except Exception:
-                pass
-
-    # ── Step 9: Aggregate metrics ──
-    expected_value  = sum(r["price_target"] * r["probability"] for r in results.values())
+    # ── Step 4: Aggregate metrics ──
+    expected_value = sum(
+        r["price_target"] * r["probability"] for r in results.values()
+    )
     expected_return = ((expected_value - current_price) / current_price
                        if current_price > 0 else 0)
 
@@ -1235,8 +1270,8 @@ def compute_scenario_math(metrics, llm_output):
     )
     std_dev = variance ** 0.5
 
-    # Risk-Adjusted Score (similar to Sharpe but from 3 scenarios, with 6% risk-free)
-    risk_adj_score = ((expected_return - risk_free_rate) / std_dev if std_dev > 0 else 0)
+    risk_adj_score = ((expected_return - risk_free_rate) / std_dev
+                      if std_dev > 0 else 0)
 
     upside_return = sum(
         r["implied_return"] * r["probability"]
@@ -1248,46 +1283,37 @@ def compute_scenario_math(metrics, llm_output):
     )
     upside_downside_ratio = (abs(upside_return / downside_return)
                              if downside_return != 0 else float("inf"))
+
     prob_positive = sum(
-        r["probability"] for r in results.values() if r["price_target"] > current_price
+        r["probability"] for r in results.values()
+        if r["price_target"] > current_price
     )
 
     bear = results.get("bear", {})
 
-    # ── Step 10: Risk impacts (display-only, for the risk table) ──
-    risk_impacts = []
-    for risk in llm_output.get("risks", []):
-        try:
-            rev_impact_pct = safe_float(risk.get("revenue_impact_pct"))
-            eps_impact_pct = safe_float(risk.get("eps_impact_pct"))
-            risk_impacts.append({
-                "name":               risk.get("name", "Unknown"),
-                "probability":        safe_float(risk.get("probability")),
-                "revenue_impact":     round(total_revenue * rev_impact_pct, 0),
-                "revenue_impact_pct": rev_impact_pct,
-                "eps_impact":         round(trailing_eps * eps_impact_pct, 2),
-                "eps_impact_pct":     eps_impact_pct,
-                "scenario_affected":  risk.get("scenario_affected", "bear"),
-                "description":        risk.get("description", ""),
-            })
-        except Exception:
-            continue
+    # ── Step 5: Market expectations (pass through from LLM) ──
+    market_expectations = llm_output.get("market_expectations", {})
+
+    # ── Step 6: Sensitivity (pass through, LLM computed) ──
+    sensitivity = llm_output.get("sensitivity", {})
 
     return {
-        "scenarios":               results,
-        "scenario_probabilities":  prob_output,
-        "expected_value":          round(expected_value, 2),
-        "expected_return":         round(expected_return, 4),
-        "std_dev":                 round(std_dev, 4),
-        "risk_adjusted_score":     round(risk_adj_score, 2),
-        "upside_downside_ratio":   round(upside_downside_ratio, 2),
-        "prob_positive_return":    round(prob_positive, 4),
-        "max_drawdown_prob":       round(bear.get("probability", 0), 4),
-        "max_drawdown_magnitude":  round(bear.get("implied_return", 0), 4),
-        "risk_impacts":            risk_impacts,
-        "risk_free_rate":          risk_free_rate,
-        "anchor_pe":               anchor_pe,
-        "trailing_eps_used":       round(trailing_eps, 2),
+        "scenarios":              results,
+        "scenario_probabilities": prob_output,
+        "expected_value":         round(expected_value, 2),
+        "expected_return":        round(expected_return, 4),
+        "std_dev":                round(std_dev, 4),
+        "risk_adjusted_score":    round(risk_adj_score, 2),
+        "upside_downside_ratio":  round(upside_downside_ratio, 2),
+        "prob_positive_return":   round(prob_positive, 4),
+        "max_drawdown_prob":      round(bear.get("probability", 0), 4),
+        "max_drawdown_magnitude": round(bear.get("implied_return", 0), 4),
+        "risk_free_rate":         risk_free_rate,
+        "anchor_pe":              anchor_pe,
+        "trailing_eps_used":      round(trailing_eps, 2),
+        "fcf_margin_used":        round(fcf_margin, 4),
+        "market_expectations":    market_expectations,
+        "sensitivity":            sensitivity,
     }
 
 # ══════════════════════════════════════════════════════════════
@@ -1322,13 +1348,13 @@ def run_ai(msgs, max_tokens=4000):
                 else:
                     user_msgs.append(m)
             r = anthropic_client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model="claude-opus-4-6",
                 system=system_msg,
                 messages=user_msgs,
                 max_tokens=max_tokens,
                 temperature=0.3,
             )
-            return r.content[0].text.strip(), "claude-haiku-4.5", None
+            return r.content[0].text.strip(), "claude-opus-4.6", None
         except Exception as e:
             err = f"Claude: {str(e)[:120]}"
     else:
@@ -1401,265 +1427,103 @@ def _parse_json_response(raw, model):
 # ══════════════════════════════════════════════════════════════
 
 def ai_prompt_pass1(ticker, m):
-    """Ask the LLM for structured assumptions. No prose, no recommendation."""
+    """Build Pass 1 messages from external prompt files."""
     ms = json.dumps(
         {k: v for k, v in m.items()
          if k not in ["description", "news", "revenue_history", "net_income_history"]},
         indent=2, default=str
     )
-    description_snippet = (m.get("description") or "N/A")[:600]
+    description_snippet = (m.get("description") or "N/A")[:800]
+
+    replacements = {
+        "{ticker}": ticker,
+        "{company_name}": m.get("company_name", ticker),
+        "{metrics_json}": ms,
+        "{current_price}": str(m.get("current_price")),
+        "{trailing_pe}": str(m.get("trailing_pe")),
+        "{forward_pe}": str(m.get("forward_pe")),
+        "{ev_to_ebitda}": str(m.get("ev_to_ebitda")),
+        "{trailing_eps}": str(m.get("trailing_eps")),
+        "{forward_eps}": str(m.get("forward_eps")),
+        "{operating_margin}": str(m.get("operating_margin")),
+        "{profit_margin}": str(m.get("profit_margin")),
+        "{description}": description_snippet,
+        "{today_date}": datetime.now().strftime("%B %d, %Y"),
+        "{total_revenue}": fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
+    }
+
+    user_prompt = PASS1_PROMPT
+    for key, val in replacements.items():
+        user_prompt = user_prompt.replace(key, val)
 
     return [
-        {"role": "system", "content": """You are a senior equity research analyst. Your job is to provide STRUCTURED ASSUMPTIONS for a stock analysis. You do NOT write prose or make recommendations - that comes later after the math is computed.
-
-CRITICAL RULES:
-1. Use ONLY the financial data provided plus your training knowledge about this company.
-2. Respond with ONLY valid JSON. No markdown fences, no extra text.
-3. All text fields must be PLAIN TEXT. No HTML tags anywhere.
-4. Be specific with numbers. "Revenue grew 24% driven by AI chip demand" not "strong growth."
-5. Your scenario assumptions (revenue_growth, margin_delta_pp, pe_multiple) will be used by Python to compute price targets. The LLM does NOT compute any numbers.
-
-MACRO DRIVER RULES:
-- Identify exactly 2-4 drivers that are the REAL swing factors for THIS company.
-- Each driver's outcomes (bull + base + bear probabilities) must sum to 1.0.
-- Bear probability on any single driver should be between 0.10 and 0.45.
-
-SCENARIO RULES:
-- revenue_growth: realistic 12-month forward rate.
-- margin_delta_pp: INCREMENTAL change in operating margin in percentage points.
-  Bull: typically +1 to +5 pp. Base: -1 to +2 pp. Bear: -2 to -8 pp.
-- pe_multiple: anchored to Forward P/E provided below. 
-  Bull: at or above forward P/E. Base: near forward P/E. Bear: meaningful discount.
-  If no forward P/E available, use trailing P/E as anchor.
-
-HEADWIND/TAILWIND RULES:
-- These are for DISPLAY ONLY. They do not modify the scenario math.
-- They explain WHY the scenarios have the growth rates they do.
-- revenue_impact_pct values are informational context, not applied to calculations.
-
-PEER RULES:
-- Suggest exactly 4-5 US-listed ticker symbols that are the most relevant comparisons.
-- Choose peers based on actual business model overlap, NOT just sector classification.
-- For a company like Tesla, include EV competitors AND tech/AI comparables, not generic Consumer Cyclical stocks.
-- For a company like Broadcom, include semiconductor peers AND infrastructure software peers.
-
-CATALYST RULES:
-- Only include events that are in the FUTURE (after today's date provided below).
-- Do not include any past events. Focus on the next 6-12 months.
-- Include earnings dates, product launches, regulatory decisions, and macro events.
-
-RISK RULES:
-- revenue_impact_pct and eps_impact_pct describe the POTENTIAL impact if the risk materializes.
-- These are display-only for the risk quantification table."""},
-
-        {"role": "user", "content": f"""Provide structured assumptions for {ticker} ({m.get('company_name', ticker)}).
-
-VERIFIED FINANCIAL METRICS:
-{ms}
-
-VALUATION ANCHORS (use these to calibrate PE multiples):
-- Current Price: {m.get('current_price')}
-- Trailing P/E: {m.get('trailing_pe')} 
-- Forward P/E: {m.get('forward_pe')} <-- PRIMARY ANCHOR for PE multiples
-- EV/EBITDA: {m.get('ev_to_ebitda')}
-- Trailing EPS: {m.get('trailing_eps')}
-- Forward EPS: {m.get('forward_eps')}
-- Current Operating Margin: {m.get('operating_margin')}
-- Current Net Margin: {m.get('profit_margin')}
-- Revenue Growth (YoY): {m.get('revenue_growth')}
-- Revenue CAGR: {m.get('revenue_cagr')}
-
-TODAY'S DATE: {datetime.now().strftime('%B %d, %Y')}
-All catalyst dates must be AFTER this date. Do not include past events.
-
-BUSINESS DESCRIPTION:
-{description_snippet}
-
-Return this EXACT JSON structure:
-{{
-  "macro_drivers": [
-    {{
-      "name": "Short name",
-      "description": "1-2 sentences. Plain text only.",
-      "bull_outcome": {{
-        "narrative": "1-2 sentences. Plain text only.",
-        "probability": 0.30
-      }},
-      "base_outcome": {{
-        "narrative": "1-2 sentences. Plain text only.",
-        "probability": 0.50
-      }},
-      "bear_outcome": {{
-        "narrative": "1-2 sentences. Plain text only.",
-        "probability": 0.20
-      }}
-    }}
-  ],
-
-  "headwinds": [
-    {{
-      "name": "Short name",
-      "description": "2-3 sentences. Plain text only.",
-      "probability": 0.40,
-      "base_revenue_impact_pct": -0.05,
-      "bear_revenue_impact_pct": -0.12,
-      "base_eps_impact_pct": -0.08,
-      "bear_eps_impact_pct": -0.18
-    }}
-  ],
-
-  "tailwinds": [
-    {{
-      "name": "Short name",
-      "description": "2 sentences. Plain text only.",
-      "probability": 0.60,
-      "bull_revenue_impact_pct": 0.08
-    }}
-  ],
-
-  "scenarios": {{
-    "bull": {{
-      "revenue_growth": 0.25,
-      "margin_delta_pp": 3.0,
-      "pe_multiple": 35,
-      "pe_rationale": "1 sentence justifying this multiple. Plain text only.",
-      "narrative": "2-3 sentences on what has to go right. Plain text only."
-    }},
-    "base": {{
-      "revenue_growth": 0.10,
-      "margin_delta_pp": 0.5,
-      "pe_multiple": 28,
-      "pe_rationale": "1 sentence. Plain text only.",
-      "narrative": "2-3 sentences. Plain text only."
-    }},
-    "bear": {{
-      "revenue_growth": -0.05,
-      "margin_delta_pp": -3.0,
-      "pe_multiple": 18,
-      "pe_rationale": "1 sentence. Plain text only.",
-      "narrative": "2-3 sentences. Plain text only."
-    }}
-  }},
-
-  "risks": [
-    {{
-      "name": "Short name",
-      "probability": 0.30,
-      "revenue_impact_pct": -0.08,
-      "eps_impact_pct": -0.12,
-      "scenario_affected": "bear",
-      "description": "2 sentences. Plain text only."
-    }}
-  ],
-
-  "catalysts": [
-    {{
-      "date": "Q3 2026",
-      "event": "Specific event name",
-      "bull_signal": "What positive signal to watch for",
-      "bear_signal": "What negative signal to watch for"
-    }}
-  ],
-
-  "peer_tickers": ["AAPL", "MSFT", "GOOGL", "NVDA"]
-}}
-
-Return ONLY valid JSON. No HTML. No markdown fences."""}
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
     ]
 
-
-# ══════════════════════════════════════════════════════════════
-# PASS 2 PROMPT: NARRATIVE WITH COMPUTED MATH
-# ══════════════════════════════════════════════════════════════
-
-def ai_prompt_pass2(ticker, m, scenario_math):
-    """Ask the LLM to write the full narrative seeing the computed numbers."""
+def ai_prompt_pass2(ticker, m, scenario_math, pass1_output):
+    """Build Pass 2 messages from external prompt file with computed math."""
     ms = json.dumps(
         {k: v for k, v in m.items()
          if k not in ["description", "news", "revenue_history", "net_income_history"]},
         indent=2, default=str
     )
-    description_snippet = (m.get("description") or "N/A")[:600]
+    description_snippet = (m.get("description") or "N/A")[:800]
 
-    # Build a clean summary of computed results for the LLM
-    scenarios = scenario_math.get("scenarios", {})
+    sm = scenario_math
+    scenarios = sm.get("scenarios", {})
+
     math_summary = {
-        "expected_value":        scenario_math.get("expected_value"),
-        "expected_return":       f"{scenario_math.get('expected_return', 0) * 100:.1f}%",
-        "prob_positive_return":  f"{scenario_math.get('prob_positive_return', 0) * 100:.0f}%",
-        "risk_adjusted_score":   scenario_math.get("risk_adjusted_score"),
-        "upside_downside_ratio": scenario_math.get("upside_downside_ratio"),
+        "expected_value":       sm.get("expected_value"),
+        "expected_return":      f"{sm.get('expected_return', 0) * 100:.1f}%",
+        "prob_positive_return": f"{sm.get('prob_positive_return', 0) * 100:.0f}%",
+        "risk_adjusted_score":  sm.get("risk_adjusted_score"),
+        "upside_downside_ratio": sm.get("upside_downside_ratio"),
     }
     for sname in ["bull", "base", "bear"]:
         s = scenarios.get(sname, {})
-        math_summary[f"{sname}_price_target"] = s.get("price_target")
-        math_summary[f"{sname}_implied_return"] = f"{s.get('implied_return', 0) * 100:.1f}%"
-        math_summary[f"{sname}_probability"] = f"{s.get('probability', 0) * 100:.0f}%"
-        math_summary[f"{sname}_eps"] = s.get("projected_eps")
-        math_summary[f"{sname}_pe"] = s.get("pe_multiple")
+        math_summary[f"{sname}_price_target"]      = s.get("price_target")
+        math_summary[f"{sname}_implied_return"]     = f"{s.get('implied_return', 0) * 100:.1f}%"
+        math_summary[f"{sname}_probability"]        = f"{s.get('probability', 0) * 100:.0f}%"
+        math_summary[f"{sname}_eps"]                = s.get("projected_eps")
+        math_summary[f"{sname}_pe"]                 = s.get("pe_multiple")
+        math_summary[f"{sname}_revenue"]            = s.get("total_revenue")
+        math_summary[f"{sname}_op_margin"]          = s.get("operating_margin")
+        math_summary[f"{sname}_fcf_yield"]          = s.get("fcf_yield_at_target")
+        math_summary[f"{sname}_breakeven_pe"]       = s.get("breakeven_pe")
+        math_summary[f"{sname}_margin_rationale"]   = s.get("margin_rationale")
+
+    mkt = sm.get("market_expectations", {})
+    segments = pass1_output.get("segments", [])
+    hw_tw = {
+        "headwinds": pass1_output.get("headwinds", []),
+        "tailwinds": pass1_output.get("tailwinds", []),
+    }
+
+    replacements = {
+        "{ticker}": ticker,
+        "{company_name}": m.get("company_name", ticker),
+        "{metrics_json}": ms,
+        "{description}": description_snippet,
+        "{segments_json}": json.dumps(segments, indent=2, default=str),
+        "{scenario_math_json}": json.dumps(math_summary, indent=2, default=str),
+        "{market_expectations_json}": json.dumps(mkt, indent=2, default=str),
+        "{headwinds_tailwinds_json}": json.dumps(hw_tw, indent=2, default=str),
+        "{expected_return}": math_summary["expected_return"],
+        "{prob_positive}": math_summary["prob_positive_return"],
+        "{risk_adjusted_score}": str(sm.get("risk_adjusted_score")),
+        "{upside_downside_ratio}": str(sm.get("upside_downside_ratio")),
+        "{implied_vs_base}": mkt.get("vs_base_case", "N/A"),
+    }
+
+    user_prompt = PASS2_PROMPT
+    for key, val in replacements.items():
+        user_prompt = user_prompt.replace(key, str(val))
 
     return [
-        {"role": "system", "content": """You are a senior equity research analyst writing for a mixed audience: institutional investors AND engaged non-professionals who want to understand a company deeply without needing an MBA.
-
-You are writing the NARRATIVE sections of a research report. The MATH HAS ALREADY BEEN COMPUTED and is provided to you below. Your job is to:
-
-1. Write a recommendation (BUY, WATCH, or PASS) that is CONSISTENT with the computed math
-2. Write clear, specific narrative sections that explain the numbers
-3. Use plain English - explain financial concepts briefly when you use them
-4. Be specific with numbers, names, and evidence - not generic statements
-
-CRITICAL RULES:
-- Your recommendation MUST be consistent with the math. If expected return is positive and probability of positive return is above 50%, lean toward BUY. If expected return is negative, lean toward WATCH or PASS.
-- All text must be PLAIN TEXT. No HTML tags anywhere.
-- Do not invent metrics. Use only what is provided.
-- Respond with ONLY valid JSON. No markdown fences."""},
-
-        {"role": "user", "content": f"""Write the narrative analysis for {ticker} ({m.get('company_name', ticker)}).
-
-VERIFIED FINANCIAL METRICS:
-{ms}
-
-BUSINESS DESCRIPTION:
-{description_snippet}
-
-COMPUTED SCENARIO MATH (already calculated - your narrative must be consistent with these):
-{json.dumps(math_summary, indent=2, default=str)}
-
-RECOMMENDATION GUIDELINES based on the computed math:
-- Expected return: {math_summary['expected_return']}
-- Probability of positive return: {math_summary['prob_positive_return']}
-- Risk-adjusted score: {math_summary['risk_adjusted_score']}
-- Upside/downside ratio: {math_summary['upside_downside_ratio']}
-
-If expected return > 10% AND prob positive > 55%: recommend BUY
-If expected return > 0% AND prob positive > 40%: recommend WATCH or BUY depending on conviction
-If expected return < 0% OR prob positive < 40%: recommend WATCH or PASS
-If expected return < -15% AND prob positive < 30%: recommend PASS
-
-Return this EXACT JSON structure:
-{{
-  "recommendation": "BUY",
-  "conviction": "High",
-  "investment_thesis": "3 sentences. State the recommendation, conviction level, and single most important reason. Briefly identify what the company does. Must be consistent with the computed expected return of {math_summary['expected_return']} and probability of positive return of {math_summary['prob_positive_return']}. Plain text only.",
-
-  "business_overview": "2 paragraphs. What does this company do and how does it make money? Plain text only.",
-
-  "revenue_architecture": "3-4 paragraphs. Break down revenue by segment with specific numbers. Plain text only.",
-
-  "growth_drivers": "2-3 paragraphs. What are the 2-3 biggest structural forces driving growth? Plain text only.",
-
-  "financial_commentary": "2-3 paragraphs. Assess margins, cash flow, balance sheet. Use actual metrics provided. Plain text only.",
-
-  "peer_positioning": "2-3 sentences. How does this company compare to closest peers? Plain text only.",
-
-  "conclusion": "1 paragraph. Restate the thesis consistent with the computed math. Name the single variable all scenarios hinge on. State the most important upcoming datapoint. Plain text only."
-}}
-
-CRITICAL: Your recommendation and all narrative text MUST be consistent with the computed math above. Do not say BUY if the math shows negative expected returns. Do not say PASS if the math shows strong positive returns.
-
-Return ONLY valid JSON. No HTML. No markdown fences."""}
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
     ]
-
 
 # ══════════════════════════════════════════════════════════════
 # AI — ORCHESTRATOR (TWO-PASS)
@@ -1670,7 +1534,7 @@ def _cached_pass1(ticker, metrics_json_str):
     """Pass 1: Get structured assumptions from LLM."""
     m = json.loads(metrics_json_str)
     msgs = ai_prompt_pass1(ticker, m)
-    raw, model, errors = run_ai(msgs, max_tokens=4000)
+    raw, model, errors = run_ai(msgs, max_tokens=6000)
     if raw is None:
         return {"error": True, "details": errors}
     a, err = _parse_json_response(raw, model)
@@ -1679,33 +1543,68 @@ def _cached_pass1(ticker, metrics_json_str):
 
     # Apply defaults for missing fields
     defaults = {
-        "macro_drivers": [],
+        "segments": [],
+        "concentration": {},
         "headwinds": [],
         "tailwinds": [],
+        "macro_drivers": [],
         "scenarios": {
-            "bull": {"revenue_growth": 0.15, "margin_delta_pp": 2.0,
-                     "pe_multiple": 25, "pe_rationale": "N/A", "narrative": "N/A"},
-            "base": {"revenue_growth": 0.08, "margin_delta_pp": 0.5,
-                     "pe_multiple": 20, "pe_rationale": "N/A", "narrative": "N/A"},
-            "bear": {"revenue_growth": -0.05, "margin_delta_pp": -2.0,
-                     "pe_multiple": 14, "pe_rationale": "N/A", "narrative": "N/A"},
+            "bull": {"segment_builds": [], "total_revenue": 0,
+                     "operating_margin": 0, "net_margin": 0,
+                     "projected_eps": 0, "pe_multiple": 20,
+                     "pe_rationale": "N/A", "narrative": "N/A"},
+            "base": {"segment_builds": [], "total_revenue": 0,
+                     "operating_margin": 0, "net_margin": 0,
+                     "projected_eps": 0, "pe_multiple": 18,
+                     "pe_rationale": "N/A", "narrative": "N/A"},
+            "bear": {"segment_builds": [], "total_revenue": 0,
+                     "operating_margin": 0, "net_margin": 0,
+                     "projected_eps": 0, "pe_multiple": 14,
+                     "pe_rationale": "N/A", "narrative": "N/A"},
         },
-        "risks": [],
+        "market_expectations": {},
+        "sensitivity": {},
         "catalysts": [],
+        "peer_tickers": [],
     }
     for k, v in defaults.items():
         if k not in a:
             a[k] = v
+
+    # ── Validate segment revenue totals against actual data ──
+    m = json.loads(metrics_json_str)
+    actual_revenue = safe_float(m.get("total_revenue"))
+    if actual_revenue > 0 and a.get("segments"):
+        segment_total = sum(
+            safe_float(seg.get("current_revenue"))
+            for seg in a["segments"]
+        )
+        if segment_total > 0:
+            rev_ratio = segment_total / actual_revenue
+            if rev_ratio < 0.5 or rev_ratio > 2.0:
+                print(f"  VALIDATION FAIL: Segment total ({segment_total:.0f}) vs "
+                      f"actual revenue ({actual_revenue:.0f}) = {rev_ratio:.2f}x. "
+                      f"LLM may have analyzed the wrong company.")
+                return {
+                    "error": True,
+                    "details": [
+                        f"LLM segment revenues ({fmt_n(segment_total)}) do not match "
+                        f"actual company revenue ({fmt_n(actual_revenue)}). "
+                        f"The model may have analyzed the wrong company. "
+                        f"Please retry."
+                    ]
+                }
+
     return a
 
-
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_pass2(ticker, metrics_json_str, math_json_str):
+def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str):
     """Pass 2: Get narrative from LLM seeing computed math."""
     m = json.loads(metrics_json_str)
     sm = json.loads(math_json_str)
-    msgs = ai_prompt_pass2(ticker, m, sm)
-    raw, model, errors = run_ai(msgs, max_tokens=4000)
+    p1 = json.loads(pass1_json_str)
+    msgs = ai_prompt_pass2(ticker, m, sm, p1)
+    raw, model, errors = run_ai(msgs, max_tokens=6000)
     if raw is None:
         return {"error": True, "details": errors}
     a, err = _parse_json_response(raw, model)
@@ -1719,8 +1618,13 @@ def _cached_pass2(ticker, metrics_json_str, math_json_str):
         "business_overview": "Analysis not available.",
         "revenue_architecture": "Analysis not available.",
         "growth_drivers": "Analysis not available.",
-        "financial_commentary": "Analysis not available.",
-        "peer_positioning": "Analysis not available.",
+        "margin_analysis": "Analysis not available.",
+        "financial_health": "Analysis not available.",
+        "competitive_position": "Analysis not available.",
+        "headwind_narrative": "Analysis not available.",
+        "tailwind_narrative": "Analysis not available.",
+        "market_pricing_commentary": "Analysis not available.",
+        "scenario_commentary": "Analysis not available.",
         "conclusion": "Analysis not available.",
     }
     for k, v in defaults.items():
@@ -1733,9 +1637,9 @@ def _cached_pass2(ticker, metrics_json_str, math_json_str):
 def run_ai_two_pass(ticker, m):
     """
     Main orchestrator:
-    1. Pass 1: Get structured assumptions
-    2. Python: Compute all scenario math
-    3. Pass 2: Get narrative consistent with math
+    1. Pass 1: Get structured assumptions (segments, drivers, scenarios)
+    2. Python: Compute all scenario math from segment builds
+    3. Pass 2: Get narrative consistent with computed math
     4. Merge everything into final output
     """
 
@@ -1753,40 +1657,36 @@ def run_ai_two_pass(ticker, m):
     scenario_math = compute_scenario_math(m, pass1)
 
     # ── Pass 2: Narrative ──
-    math_json_str = json.dumps(scenario_math, sort_keys=True, default=str)
-    pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str)
+    math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
+    pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
+
+    pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str)
     if isinstance(pass2, dict) and pass2.get("error"):
         return pass2
 
-    # ── Merge: Combine pass1 assumptions + pass2 narrative + computed math ──
+    # ── Merge ──
     final = {}
 
     # From pass2 (narrative)
-    final["recommendation"]       = pass2.get("recommendation", "WATCH")
-    final["conviction"]           = pass2.get("conviction", "Medium")
-    final["investment_thesis"]    = pass2.get("investment_thesis", "")
-    final["business_overview"]    = pass2.get("business_overview", "")
-    final["revenue_architecture"] = pass2.get("revenue_architecture", "")
-    final["growth_drivers"]       = pass2.get("growth_drivers", "")
-    final["financial_commentary"] = pass2.get("financial_commentary", "")
-    final["peer_positioning"]     = pass2.get("peer_positioning", "")
-    final["conclusion"]           = pass2.get("conclusion", "")
-    final["model_used"]           = pass2.get("model_used", "")
+    for key in ["recommendation", "conviction", "investment_thesis",
+                "business_overview", "revenue_architecture", "growth_drivers",
+                "margin_analysis", "financial_health", "competitive_position",
+                "headwind_narrative", "tailwind_narrative",
+                "market_pricing_commentary", "scenario_commentary",
+                "conclusion", "model_used"]:
+        final[key] = pass2.get(key, "")
 
     # From pass1 (structured data)
-    final["macro_drivers"]  = pass1.get("macro_drivers", [])
-    final["headwinds"]      = pass1.get("headwinds", [])
-    final["tailwinds"]      = pass1.get("tailwinds", [])
-    final["scenarios"]      = pass1.get("scenarios", {})
-    final["risks"]          = pass1.get("risks", [])
-    final["catalysts"]      = pass1.get("catalysts", [])
-    final["peer_tickers"]   = pass1.get("peer_tickers", [])
+    for key in ["segments", "concentration", "headwinds", "tailwinds",
+                "macro_drivers", "scenarios", "catalysts", "peer_tickers",
+                "market_expectations", "sensitivity"]:
+        final[key] = pass1.get(key, {} if key in ["concentration",
+                     "market_expectations", "sensitivity"] else [])
 
     # Computed math
     final["scenario_math"] = scenario_math
 
-    # ── Final consistency check ──
-    # Only override if LLM made a clearly wrong recommendation despite seeing the math
+    # ── Consistency check ──
     exp_ret  = scenario_math.get("expected_return", 0)
     prob_pos = scenario_math.get("prob_positive_return", 0)
     rec      = final["recommendation"].upper()
@@ -1808,7 +1708,6 @@ def run_ai_two_pass(ticker, m):
 
     return final
 
-
 # ══════════════════════════════════════════════════════════════
 # LEGACY: HTML REPORT GENERATOR
 # ══════════════════════════════════════════════════════════════
@@ -1817,8 +1716,6 @@ def ai_prompt_report(ticker, m):
     ms = json.dumps({k: v for k, v in m.items() if k not in ["news"]}, indent=2, default=str)
     return [
         {"role": "system", "content": f"""You are a senior equity research analyst producing a comprehensive investment research report.
-
-{REPORT_PROMPT}
 
 CRITICAL: Use ONLY the financial data provided. Do not invent any figures.
 Output clean HTML with inline CSS. White background (#ffffff), dark text (#1a1a2e), professional sans-serif font.
@@ -1933,7 +1830,7 @@ def render(ticker, m, a, data):
             unsafe_allow_html=True
         )
 
-    # ── Override warning (only in extreme edge cases now) ──
+    # ── Override warning ──
     if a.get("rec_override_reason"):
         st.markdown(
             f'<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);'
@@ -1942,9 +1839,39 @@ def render(ticker, m, a, data):
             unsafe_allow_html=True
         )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: 52-WEEK RANGE
-    # ════════════════════════════════════════════════════════
+    # ── Market Expectations (NEW) ──
+    mkt = sm.get("market_expectations", {})
+    if mkt:
+        implied_growth = safe_float(mkt.get("implied_growth_rate")) * 100
+        vs_base = mkt.get("vs_base_case", "")
+        commentary = strip_html(mkt.get("commentary", ""))
+        vs_color = "#4ade80" if vs_base == "undervalued" else (
+                   "#f87171" if vs_base == "overvalued" else "#fbbf24")
+
+        st.markdown(f'''<div class="sec">What The Market Is Pricing In</div>
+        <div style="background:#141414;border:1px solid rgba(255,255,255,0.06);
+            border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
+            <div style="display:flex;justify-content:center;gap:3rem;margin-bottom:1rem;">
+                <div style="text-align:center;">
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">
+                        Implied Growth Rate</div>
+                    <div style="font-size:1.6rem;font-weight:800;color:#fff;">
+                        {implied_growth:.0f}%</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">
+                        vs Base Case</div>
+                    <div style="font-size:1.6rem;font-weight:800;color:{vs_color};
+                        text-transform:uppercase;">{vs_base}</div>
+                </div>
+            </div>
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);line-height:1.7;
+                text-align:center;max-width:680px;margin:0 auto;">{commentary}</div>
+        </div>''', unsafe_allow_html=True)
+
+    # ── 52-Week Range ──
     w52h = m.get("week_52_high")
     w52l = m.get("week_52_low")
     cp   = m.get("current_price")
@@ -1969,9 +1896,7 @@ def render(ticker, m, a, data):
         except:
             pass
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: 5-YEAR PRICE HISTORY
-    # ════════════════════════════════════════════════════════
+    # ── 5-Year Price History ──
     h = data.get("hist")
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
@@ -1979,9 +1904,7 @@ def render(ticker, m, a, data):
         cd.columns = ["Price"]
         st.line_chart(cd, height=250, color="#8b1a1a")
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: KEY METRICS
-    # ════════════════════════════════════════════════════════
+    # ── Key Metrics ──
     st.markdown(
         '<div class="sec">Key Metrics <span class="vtag">Python-Verified</span></div>',
         unsafe_allow_html=True
@@ -2012,14 +1935,12 @@ def render(ticker, m, a, data):
         r5 = m.get("price_5y_return")
         st.metric("5Y Return", f"{r5}%" if r5 else "-")
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: REVENUE & EARNINGS TREND
-    # ════════════════════════════════════════════════════════
+    # ── Revenue & Earnings Trend ──
     rh = m.get("revenue_history", {})
     nh = m.get("net_income_history", {})
     if rh or nh:
         st.markdown(
-            '<div class="sec">Revenue & Earnings Trend (Billions)</div>',
+            '<div class="sec">Revenue &amp; Earnings Trend (Billions)</div>',
             unsafe_allow_html=True
         )
         cc1, cc2 = st.columns(2)
@@ -2030,27 +1951,121 @@ def render(ticker, m, a, data):
             if nh:
                 st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#d4443a")
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: BUSINESS OVERVIEW
-    # ════════════════════════════════════════════════════════
+    # ── Revenue Segmentation (NEW) ──
+    segments = a.get("segments", [])
+    if segments:
+        st.markdown(
+            '<div class="sec">Revenue Segmentation</div>',
+            unsafe_allow_html=True
+        )
+        seg_header = ("<tr><th>Segment</th><th>Revenue</th><th>% of Total</th>"
+                      "<th>Gross Margin</th><th>YoY Growth</th>"
+                      "<th>Trajectory</th><th>Primary Driver</th></tr>")
+        seg_rows = ""
+        for seg in segments:
+            traj = strip_html(seg.get("trajectory", ""))
+            traj_color = ("#4ade80" if traj == "accelerating"
+                          else ("#f87171" if traj == "decelerating" else "#fbbf24"))
+            seg_rows += f'''<tr>
+                <td><strong>{strip_html(seg.get("name",""))}</strong></td>
+                <td>{fmt_c(seg.get("current_revenue"), cur)}</td>
+                <td>{fmt_p(seg.get("pct_of_total"))}</td>
+                <td>{fmt_p(seg.get("gross_margin"))}</td>
+                <td>{fmt_p(seg.get("yoy_growth"))}</td>
+                <td style="color:{traj_color};font-weight:600;
+                    text-transform:uppercase;font-size:0.78rem;">{traj}</td>
+                <td style="font-size:0.82rem;color:rgba(255,255,255,0.5);">
+                    {strip_html(seg.get("primary_driver",""))}</td>
+            </tr>'''
+        st.markdown(
+            f'<table class="pt"><thead>{seg_header}</thead>'
+            f'<tbody>{seg_rows}</tbody></table>',
+            unsafe_allow_html=True
+        )
+
+    # ── Concentration & Dependencies (NEW) ──
+    conc = a.get("concentration", {})
+    if conc:
+        st.markdown(
+            '<div class="sec">Concentration &amp; Dependencies</div>',
+            unsafe_allow_html=True
+        )
+        conc_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">'
+
+        # Geographic split
+        geo = conc.get("geographic_split", {})
+        if geo:
+            geo_items = ""
+            for region, pct in geo.items():
+                geo_items += f'''<div class="params-row">
+                    <span class="params-key">{region.replace("_"," ")}</span>
+                    <span class="params-val">{fmt_p(pct)}</span>
+                </div>'''
+            conc_html += f'''<div class="params-card" style="margin-bottom:0;">
+                <div class="thesis-title">Geographic Exposure</div>
+                {geo_items}
+            </div>'''
+
+        # Customer and dependency info
+        dep_items = ""
+        top_cust = conc.get("top_customer_pct")
+        top_5 = conc.get("top_5_customers_pct")
+        if top_cust:
+            dep_items += f'''<div class="params-row">
+                <span class="params-key">Top Customer</span>
+                <span class="params-val">{fmt_p(top_cust)}</span>
+            </div>'''
+        if top_5:
+            dep_items += f'''<div class="params-row">
+                <span class="params-key">Top 5 Customers</span>
+                <span class="params-val">{fmt_p(top_5)}</span>
+            </div>'''
+        for dep in conc.get("critical_dependencies", []):
+            dep_items += f'''<div class="params-row">
+                <span class="params-key">Dependency</span>
+                <span class="params-val" style="font-size:0.82rem;">{strip_html(dep)}</span>
+            </div>'''
+        if dep_items:
+            conc_html += f'''<div class="params-card" style="margin-bottom:0;">
+                <div class="thesis-title">Customer &amp; Supply Chain</div>
+                {dep_items}
+            </div>'''
+
+        conc_html += '</div>'
+        st.markdown(conc_html, unsafe_allow_html=True)
+
+        # Relationships at risk
+        at_risk = conc.get("relationships_at_risk", [])
+        if at_risk:
+            risk_items = ""
+            for r in at_risk:
+                risk_items += f'''<div style="padding:0.4rem 0;border-bottom:1px solid
+                    rgba(255,255,255,0.04);font-size:0.88rem;color:rgba(255,255,255,0.55);">
+                    {strip_html(r)}</div>'''
+            st.markdown(f'''<div style="background:rgba(248,113,113,0.06);
+                border:1px solid rgba(248,113,113,0.15);border-radius:6px;
+                padding:0.8rem 1.2rem;margin-top:0.8rem;">
+                <div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;
+                    letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">
+                    Relationships At Risk</div>
+                {risk_items}
+            </div>''', unsafe_allow_html=True)
+
+    # ── Business Overview ──
     st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="prose">{strip_html(a.get("business_overview", "Not available."))}</div>',
         unsafe_allow_html=True
     )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: REVENUE ARCHITECTURE
-    # ════════════════════════════════════════════════════════
+    # ── Revenue Architecture ──
     st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="prose">{strip_html(a.get("revenue_architecture", "Not available."))}</div>',
         unsafe_allow_html=True
     )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: GROWTH DRIVERS
-    # ════════════════════════════════════════════════════════
+    # ── Growth Drivers ──
     st.markdown(
         '<div class="sec">Growth Drivers &amp; Competitive Moats</div>',
         unsafe_allow_html=True
@@ -2060,27 +2075,32 @@ def render(ticker, m, a, data):
         unsafe_allow_html=True
     )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: FINANCIAL COMMENTARY
-    # ════════════════════════════════════════════════════════
-    st.markdown('<div class="sec">Financial Commentary</div>', unsafe_allow_html=True)
+    # ── Margin Analysis (NEW) ──
+    st.markdown('<div class="sec">Margin Analysis</div>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="prose">{strip_html(a.get("financial_commentary", "Not available."))}</div>',
+        f'<div class="prose">{strip_html(a.get("margin_analysis", "Not available."))}</div>',
         unsafe_allow_html=True
     )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: PEER COMPARISON
-    # ════════════════════════════════════════════════════════
+    # ── Financial Health (NEW) ──
+    st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="prose">{strip_html(a.get("financial_health", "Not available."))}</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── Competitive Position (NEW) ──
+    st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="prose">{strip_html(a.get("competitive_position", "Not available."))}</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── Peer Comparison ──
     sector = m.get("sector", "")
     llm_peers = a.get("peer_tickers", [])
     if sector in SECTOR_PEERS or llm_peers:
         st.markdown('<div class="sec">Peer Comparison</div>', unsafe_allow_html=True)
-        if a.get("peer_positioning"):
-            st.markdown(
-                f'<div class="rationale-text">{strip_html(a["peer_positioning"])}</div>',
-                unsafe_allow_html=True
-            )
         with st.spinner("Loading peers..."):
             peers = fetch_peers(ticker, sector, llm_peers=llm_peers)
         if peers:
@@ -2106,36 +2126,121 @@ def render(ticker, m, a, data):
                 unsafe_allow_html=True
             )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: WHAT DRIVES THE OUTCOME — MACRO DRIVERS
-    # ════════════════════════════════════════════════════════
+    # ── Headwinds & Tailwinds (NEW - with dollar impacts) ──
+    headwinds = a.get("headwinds", [])
+    tailwinds = a.get("tailwinds", [])
+
+    if headwinds or tailwinds:
+        st.markdown(
+            '<div class="sec">Headwinds &amp; Tailwinds '
+            '<span class="vtag">Quantified</span></div>',
+            unsafe_allow_html=True
+        )
+
+        # Headwind narrative from Pass 2
+        if a.get("headwind_narrative"):
+            st.markdown(
+                f'<div class="prose">{strip_html(a["headwind_narrative"])}</div>',
+                unsafe_allow_html=True
+            )
+
+        # Headwind impact table
+        if headwinds:
+            hw_header = ("<tr><th>Headwind</th><th>Prob.</th><th>Revenue at Risk</th>"
+                         "<th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>")
+            hw_rows = ""
+            for hw in headwinds:
+                bull_imp = hw.get("bull_impact", {})
+                base_imp = hw.get("base_impact", {})
+                bear_imp = hw.get("bear_impact", {})
+                hw_rows += f'''<tr>
+                    <td><strong>{strip_html(hw.get("name",""))}</strong><br>
+                    <span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">
+                        {strip_html(hw.get("description",""))[:120]}</span></td>
+                    <td>{safe_float(hw.get("probability"))*100:.0f}%</td>
+                    <td style="color:#f87171;">{fmt_c(hw.get("revenue_at_risk"), cur)}</td>
+                    <td style="font-size:0.82rem;">{fmt_c(bull_imp.get("revenue"), cur)}
+                        <br><span style="color:rgba(255,255,255,0.4);">
+                        {sym}{safe_float(bull_imp.get("eps")):+.2f} EPS</span></td>
+                    <td style="font-size:0.82rem;">{fmt_c(base_imp.get("revenue"), cur)}
+                        <br><span style="color:rgba(255,255,255,0.4);">
+                        {sym}{safe_float(base_imp.get("eps")):+.2f} EPS</span></td>
+                    <td style="font-size:0.82rem;color:#f87171;">
+                        {fmt_c(bear_imp.get("revenue"), cur)}
+                        <br><span>{sym}{safe_float(bear_imp.get("eps")):+.2f} EPS</span></td>
+                </tr>'''
+            st.markdown(
+                f'<table class="pt"><thead>{hw_header}</thead>'
+                f'<tbody>{hw_rows}</tbody></table>',
+                unsafe_allow_html=True
+            )
+
+        # Tailwind narrative from Pass 2
+        if a.get("tailwind_narrative"):
+            st.markdown(
+                f'<div class="prose" style="margin-top:1rem;">'
+                f'{strip_html(a["tailwind_narrative"])}</div>',
+                unsafe_allow_html=True
+            )
+
+        # Tailwind impact table
+        if tailwinds:
+            tw_header = ("<tr><th>Tailwind</th><th>Prob.</th><th>Revenue Opportunity</th>"
+                         "<th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>")
+            tw_rows = ""
+            for tw in tailwinds:
+                bull_imp = tw.get("bull_impact", {})
+                base_imp = tw.get("base_impact", {})
+                bear_imp = tw.get("bear_impact", {})
+                tw_rows += f'''<tr>
+                    <td><strong>{strip_html(tw.get("name",""))}</strong><br>
+                    <span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">
+                        {strip_html(tw.get("description",""))[:120]}</span></td>
+                    <td>{safe_float(tw.get("probability"))*100:.0f}%</td>
+                    <td style="color:#4ade80;">{fmt_c(tw.get("revenue_opportunity"), cur)}</td>
+                    <td style="font-size:0.82rem;color:#4ade80;">
+                        {fmt_c(bull_imp.get("revenue"), cur)}
+                        <br><span>{sym}{safe_float(bull_imp.get("eps")):+.2f} EPS</span></td>
+                    <td style="font-size:0.82rem;">{fmt_c(base_imp.get("revenue"), cur)}
+                        <br><span style="color:rgba(255,255,255,0.4);">
+                        {sym}{safe_float(base_imp.get("eps")):+.2f} EPS</span></td>
+                    <td style="font-size:0.82rem;">{fmt_c(bear_imp.get("revenue"), cur)}
+                        <br><span style="color:rgba(255,255,255,0.4);">
+                        {sym}{safe_float(bear_imp.get("eps")):+.2f} EPS</span></td>
+                </tr>'''
+            st.markdown(
+                f'<table class="pt"><thead>{tw_header}</thead>'
+                f'<tbody>{tw_rows}</tbody></table>',
+                unsafe_allow_html=True
+            )
+
+    # ── Macro Drivers ──
     macro_drivers = a.get("macro_drivers", [])
     if macro_drivers:
         st.markdown(
             '<div class="sec">What Drives the Outcome '
-            '<span class="vtag">Bottom-Up Framework</span></div>',
+            '<span class="vtag">Bottom-Up Probability</span></div>',
             unsafe_allow_html=True
         )
 
         st.markdown('''<div class="plain-callout">
             <div class="plain-callout-label">How this works</div>
-            Instead of guessing that the bull case has a 35% chance of happening,
-            we identify the 2-4 specific events that actually determine this
-            company's outcome. We assign a probability to each one independently,
-            then let the math compute the final scenario probabilities.
+            Instead of guessing scenario probabilities, we identify the specific
+            events that determine this company's outcome. Each event gets an
+            independent probability. The math computes final scenario
+            probabilities from these inputs.
         </div>''', unsafe_allow_html=True)
 
-        # Render each driver as separate st.markdown to prevent cascade failure
         for d in macro_drivers:
             dname = strip_html(d.get("name", ""))
-            ddesc = strip_html(d.get("description", ""))
+            dmeasures = strip_html(d.get("measures", ""))
 
             bull_p = safe_float(d.get("bull_outcome", {}).get("probability"))
             base_p = safe_float(d.get("base_outcome", {}).get("probability"))
             bear_p = safe_float(d.get("bear_outcome", {}).get("probability"))
-            bull_n = strip_html(d.get("bull_outcome", {}).get("narrative", ""))[:100]
-            base_n = strip_html(d.get("base_outcome", {}).get("narrative", ""))[:100]
-            bear_n = strip_html(d.get("bear_outcome", {}).get("narrative", ""))[:100]
+            bull_n = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
+            base_n = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
+            bear_n = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
 
             bull_w = max(2, min(100, round(bull_p * 100)))
             base_w = max(2, min(100, round(base_p * 100)))
@@ -2143,7 +2248,7 @@ def render(ticker, m, a, data):
 
             st.markdown(f'''<div class="driver-card">
                 <div class="driver-card-name">{dname}</div>
-                <div class="driver-card-desc">{ddesc}</div>
+                <div class="driver-card-desc">{dmeasures}</div>
                 <div style="margin:0.3rem 0;">
                     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
                         <div style="width:100px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
@@ -2181,10 +2286,10 @@ def render(ticker, m, a, data):
 
             st.markdown(f'''<div class="prob-explainer">
                 <strong>How the final probabilities were computed:</strong><br><br>
-                We take the geometric mean of each driver's bull/bear probabilities,
-                then apply a mild clustering adjustment: <strong>{bull_mult:.1f}x</strong> for
-                the bull tail and <strong>{bear_mult:.1f}x</strong> for the bear tail, reflecting
-                the empirical reality that outcomes tend to correlate.
+                Geometric mean of each driver's bull/bear probabilities, with
+                clustering adjustment: <strong>{bull_mult:.1f}x</strong> bull tail,
+                <strong>{bear_mult:.1f}x</strong> bear tail (downside scenarios
+                correlate more tightly in practice).
                 <div class="prob-math-row" style="margin-top:0.8rem;">
                     <span style="color:rgba(255,255,255,0.4);font-size:0.82rem;">Geometric mean:</span>
                     <span class="prob-math-chip bull">Bull {raw_bull*100:.1f}%</span>
@@ -2196,67 +2301,27 @@ def render(ticker, m, a, data):
                 </div>
             </div>''', unsafe_allow_html=True)
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: HEADWINDS & TAILWINDS (display-only)
-    # ════════════════════════════════════════════════════════
-    headwinds = a.get("headwinds", [])
-    tailwinds = a.get("tailwinds", [])
-
-    if headwinds or tailwinds:
+    # ── Market Pricing Commentary (NEW) ──
+    if a.get("market_pricing_commentary"):
+        st.markdown('<div class="sec">Valuation vs Expectations</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="sec">Headwinds &amp; Tailwinds</div>',
+            f'<div class="prose">{strip_html(a["market_pricing_commentary"])}</div>',
             unsafe_allow_html=True
         )
 
-        st.markdown('''<div class="plain-callout">
-            <div class="plain-callout-label">Context</div>
-            Headwinds are specific risks that could reduce revenue or profits.
-            Tailwinds are opportunities that could accelerate growth.
-            These factors are already reflected in the scenario growth rates
-            and margin assumptions above.
-        </div>''', unsafe_allow_html=True)
-
-        hw_cards = ""
-        for hw in headwinds:
-            hname = strip_html(hw.get("name", ""))
-            hdesc = strip_html(hw.get("description", ""))
-            hprob = safe_float(hw.get("probability"))
-            hw_cards += f'''<div class="hw-card">
-                <div class="hw-prob-badge">{hprob*100:.0f}% probability</div>
-                <div class="hw-card-title">{hname}</div>
-                <div class="hw-card-desc">{hdesc}</div>
-            </div>'''
-
-        tw_cards = ""
-        for tw in tailwinds:
-            tname = strip_html(tw.get("name", ""))
-            tdesc = strip_html(tw.get("description", ""))
-            tprob = safe_float(tw.get("probability"))
-            tw_cards += f'''<div class="tw-card">
-                <div class="tw-prob-badge">{tprob*100:.0f}% probability</div>
-                <div class="tw-card-title">{tname}</div>
-                <div class="hw-card-desc">{tdesc}</div>
-            </div>'''
-
-        all_cards = hw_cards + tw_cards
-        st.markdown(f'<div class="hw-grid">{all_cards}</div>', unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════════════════
-    # SECTION: SCENARIO ANALYSIS
-    # ════════════════════════════════════════════════════════
+    # ── Scenario Analysis (NEW - segment-level builds) ──
     st.markdown(
         '<div class="sec">Scenario Analysis '
-        '<span class="vtag">Python-Computed</span></div>',
+        '<span class="vtag">Segment-Level Builds</span></div>',
         unsafe_allow_html=True
     )
 
-    st.markdown('''<div class="plain-callout">
-        <div class="plain-callout-label">How to read this</div>
-        Each scenario shows what the stock could be worth in 12 months under
-        different conditions. The price target is computed from projected
-        earnings multiplied by a valuation multiple. Probabilities were derived
-        mathematically from the driver analysis above.
-    </div>''', unsafe_allow_html=True)
+    # Scenario commentary from Pass 2
+    if a.get("scenario_commentary"):
+        st.markdown(
+            f'<div class="prose">{strip_html(a["scenario_commentary"])}</div>',
+            unsafe_allow_html=True
+        )
 
     scenarios = sm.get("scenarios", {})
     scenario_configs = [
@@ -2276,47 +2341,139 @@ def render(ticker, m, a, data):
         eps         = s.get("projected_eps", 0)
         pe          = s.get("pe_multiple", 0)
         bpe         = s.get("breakeven_pe")
-        proj_margin = s.get("projected_op_margin", 0)
-        eff_growth  = s.get("effective_rev_growth", 0)
+        op_margin   = s.get("operating_margin", 0)
+        rev_growth  = s.get("revenue_growth", 0)
+        total_rev   = s.get("total_revenue", 0)
+        fcf_y       = s.get("fcf_yield_at_target")
+        margin_rat  = strip_html(s.get("margin_rationale", ""))
         narrative   = strip_html(s.get("narrative", ""))
         pe_rat      = strip_html(s.get("pe_rationale", ""))
+        eps_flag    = s.get("eps_flag")
+        hw_rev      = s.get("total_headwind_revenue", 0)
+        hw_eps      = s.get("total_headwind_eps", 0)
+        tw_rev      = s.get("total_tailwind_revenue", 0)
+        tw_eps      = s.get("total_tailwind_eps", 0)
 
-        bpe_html = (f'<span class="scenario-stat">Breakeven P/E: '
-                    f'<strong>{bpe:.1f}x</strong></span>') if bpe else ""
+        bpe_text = f"Breakeven P/E: {bpe:.1f}x" if bpe else ""
+        fcf_text = f"FCF Yield at Target: {fcf_y*100:.1f}%" if fcf_y else ""
 
+        # Header card
         st.markdown(f'''<div class="scenario-card" style="border-left:3px solid {scolor};">
-            <div class="scenario-header">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
                 <div>
-                    <span class="scenario-label" style="color:{scolor};">
-                        {slabel}</span>
+                    <span style="font-weight:800;font-size:0.9rem;text-transform:uppercase;
+                        letter-spacing:0.1em;color:{scolor};">{slabel}</span>
                     <span style="color:rgba(255,255,255,0.35);font-size:0.8rem;
-                        font-weight:600;margin-left:0.6rem;">
-                        {prob:.0f}% probability</span>
+                        font-weight:600;margin-left:0.6rem;">{prob:.0f}% probability</span>
                     <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);
                         margin-top:0.2rem;font-style:italic;">{stag}</div>
                 </div>
-                <div class="scenario-target">
-                    <div class="scenario-target-price">{sym}{pt:,.2f}</div>
-                    <div class="scenario-return" style="color:{scolor};">
-                        {ret:+.1f}%</div>
+                <div style="text-align:right;">
+                    <div style="font-size:1.4rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
+                    <div style="font-size:0.88rem;font-weight:700;color:{scolor};
+                        margin-top:0.1rem;">{ret:+.1f}%</div>
                 </div>
             </div>
-            <div class="scenario-stats">
-                <span class="scenario-stat">Revenue growth:
-                    <strong>{eff_growth*100:+.1f}%</strong></span>
-                <span class="scenario-stat">EPS:
-                    <strong>{sym}{eps:.2f}</strong></span>
-                <span class="scenario-stat">P/E multiple:
-                    <strong>{pe:.1f}x</strong></span>
-                <span class="scenario-stat">Op. margin:
-                    <strong>{proj_margin*100:.1f}%</strong></span>
-                {bpe_html}
-            </div>
-            <div class="scenario-narrative">{narrative}</div>
-            <div class="scenario-pe-note">Valuation: {pe_rat}</div>
         </div>''', unsafe_allow_html=True)
 
-    # ── Expected Value Summary Bar ──
+        # Stats row
+        stats_parts = [
+            f"Revenue: <strong>{fmt_c(total_rev, cur)}</strong> ({rev_growth*100:+.1f}%)",
+            f"EPS: <strong>{sym}{eps:.2f}</strong>",
+            f"P/E: <strong>{pe:.1f}x</strong>",
+            f"Op. Margin: <strong>{op_margin*100:.1f}%</strong>",
+        ]
+        if bpe_text:
+            stats_parts.append(f"<strong>{bpe_text}</strong>")
+        if fcf_text:
+            stats_parts.append(f"<strong>{fcf_text}</strong>")
+        stats_html = " &nbsp;/&nbsp; ".join(
+            f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.4);">{p}</span>'
+            for p in stats_parts
+        )
+        st.markdown(
+            f'<div style="padding:0.4rem 0 0.6rem;">{stats_html}</div>',
+            unsafe_allow_html=True
+        )
+
+        # Segment builds
+        seg_builds = s.get("segment_builds", [])
+        if seg_builds:
+            seg_lines = []
+            for seg in seg_builds:
+                seg_rev = safe_float(seg.get("projected_revenue"))
+                seg_gr  = safe_float(seg.get("growth_rate"))
+                seg_lines.append(
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'padding:0.2rem 0;font-size:0.82rem;">'
+                    f'<span style="color:rgba(255,255,255,0.55);">'
+                    f'{strip_html(seg.get("name",""))}</span>'
+                    f'<span style="color:#fff;font-weight:600;">'
+                    f'{fmt_c(seg_rev, cur)}'
+                    f'<span style="color:{scolor};font-size:0.75rem;margin-left:0.4rem;">'
+                    f'{seg_gr*100:+.0f}%</span></span></div>'
+                )
+            st.markdown(
+                f'<div style="border-top:1px solid rgba(255,255,255,0.06);'
+                f'padding:0.6rem 0;margin:0.3rem 0;">'
+                f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:0.4rem;">'
+                f'Segment Revenue Builds</div>'
+                f'{"".join(seg_lines)}</div>',
+                unsafe_allow_html=True
+            )
+
+        # Headwind/tailwind summary
+        if hw_rev != 0 or tw_rev != 0:
+            hw_tw_parts = []
+            if hw_rev != 0:
+                hw_tw_parts.append(
+                    f'Headwinds: <span style="color:#f87171;">'
+                    f'{fmt_c(hw_rev, cur)} / {sym}{hw_eps:+.2f} EPS</span>'
+                )
+            if tw_rev != 0:
+                hw_tw_parts.append(
+                    f'Tailwinds: <span style="color:#4ade80;">'
+                    f'{fmt_c(tw_rev, cur)} / {sym}{tw_eps:+.2f} EPS</span>'
+                )
+            st.markdown(
+                f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.4);'
+                f'margin:0.3rem 0;">{" &nbsp;|&nbsp; ".join(hw_tw_parts)}</div>',
+                unsafe_allow_html=True
+            )
+
+        # Narrative and rationale
+        st.markdown(
+            f'<div style="font-size:0.9rem;color:rgba(255,255,255,0.6);line-height:1.7;'
+            f'font-style:italic;margin:0.4rem 0;">{narrative}</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">'
+            f'Margin: {margin_rat}</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">'
+            f'Valuation: {pe_rat}</div>',
+            unsafe_allow_html=True
+        )
+
+        # EPS flag
+        if eps_flag:
+            st.markdown(
+                f'<div style="font-size:0.75rem;color:#fbbf24;margin-top:0.4rem;'
+                f'font-style:italic;">{strip_html(eps_flag)}</div>',
+                unsafe_allow_html=True
+            )
+
+        # Spacer between scenarios
+        st.markdown(
+            '<div style="height:0.8rem;"></div>',
+            unsafe_allow_html=True
+        )
+
+    # ── Expected Value Bar ──
     ras      = sm.get("risk_adjusted_score", 0)
     ud_ratio = sm.get("upside_downside_ratio", 0)
     mdd      = sm.get("max_drawdown_magnitude", 0) * 100
@@ -2361,55 +2518,53 @@ def render(ticker, m, a, data):
         </div>
     </div>''', unsafe_allow_html=True)
 
-    # Explainer
-    st.markdown(f'''<div class="plain-callout">
-        <div class="plain-callout-label">What these numbers mean</div>
-        <strong>Expected Return</strong> is the probability-weighted average return
-        across all three scenarios. <strong>Risk-Adjusted Score</strong> measures
-        return per unit of risk relative to a {rfr:.0f}% risk-free rate: above 1.0
-        is strong, above 0.3 is acceptable. <strong>Up/Down Capture</strong>
-        compares upside potential to downside risk: above 1.5x means upside
-        materially outweighs the downside.
-    </div>''', unsafe_allow_html=True)
+    # ── Sensitivity Analysis (NEW) ──
+    sensitivity = sm.get("sensitivity", {})
+    if sensitivity and sensitivity.get("dominant_driver"):
+        driver_name = strip_html(sensitivity.get("dominant_driver", ""))
+        current_p   = safe_float(sensitivity.get("current_bull_probability")) * 100
+        ev_plus     = safe_float(sensitivity.get("ev_if_bull_plus_10"))
+        ev_minus    = safe_float(sensitivity.get("ev_if_bull_minus_10"))
+        interp      = strip_html(sensitivity.get("interpretation", ""))
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: RISK QUANTIFICATION
-    # ════════════════════════════════════════════════════════
-    risk_impacts = sm.get("risk_impacts", [])
-    if risk_impacts:
         st.markdown(
-            '<div class="sec">Risk Quantification '
-            '<span class="vtag">Python-Computed</span></div>',
+            '<div class="sec">Sensitivity Analysis '
+            '<span class="vtag">Dominant Driver</span></div>',
             unsafe_allow_html=True
         )
-        risk_header = ("<tr><th>Risk</th><th>Prob.</th>"
-                       "<th>Revenue Impact</th><th>EPS Impact</th><th>Scenario</th></tr>")
-        risk_rows = ""
-        for ri in risk_impacts:
-            rev_imp = ri.get("revenue_impact", 0)
-            eps_imp = ri.get("eps_impact", 0)
-            rev_pct = ri.get("revenue_impact_pct", 0) * 100
-            eps_pct = ri.get("eps_impact_pct", 0) * 100
-            risk_rows += f'''<tr>
-                <td><strong>{strip_html(ri.get("name",""))}</strong><br>
-                <span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">
-                    {strip_html(ri.get("description",""))}</span></td>
-                <td>{ri.get("probability",0)*100:.0f}%</td>
-                <td style="color:#f87171;">
-                    {fmt_n(rev_imp, p=sym)} ({rev_pct:+.1f}%)</td>
-                <td style="color:#f87171;">
-                    {sym}{eps_imp:+.2f} ({eps_pct:+.1f}%)</td>
-                <td>{strip_html(ri.get("scenario_affected","")).title()}</td>
-            </tr>'''
-        st.markdown(
-            f'<table class="pt"><thead>{risk_header}</thead>'
-            f'<tbody>{risk_rows}</tbody></table>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f'''<div style="background:#141414;border:1px solid rgba(255,255,255,0.06);
+            border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
+                What happens to the expected value if we change the bull probability
+                on <strong style="color:#fff;">{driver_name}</strong>?</div>
+            <div style="display:flex;justify-content:center;gap:2.5rem;">
+                <div style="text-align:center;">
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.1em;color:#f87171;margin-bottom:0.3rem;">
+                        Bull Prob -10pp ({current_p - 10:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#f87171;">
+                        {sym}{ev_minus:,.2f}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">
+                        Current ({current_p:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#fff;">
+                        {sym}{ev:,.2f}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.1em;color:#4ade80;margin-bottom:0.3rem;">
+                        Bull Prob +10pp ({current_p + 10:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#4ade80;">
+                        {sym}{ev_plus:,.2f}</div>
+                </div>
+            </div>
+            <div style="font-size:0.85rem;color:rgba(255,255,255,0.45);text-align:center;
+                margin-top:1rem;line-height:1.6;font-style:italic;">{interp}</div>
+        </div>''', unsafe_allow_html=True)
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: CATALYST CALENDAR
-    # ════════════════════════════════════════════════════════
+    # ── Catalyst Calendar ──
     catalysts = a.get("catalysts", [])
     if catalysts:
         st.markdown('<div class="sec">Catalyst Calendar</div>', unsafe_allow_html=True)
@@ -2421,8 +2576,8 @@ def render(ticker, m, a, data):
             cat_rows += f'''<tr>
                 <td style="font-weight:600;">{strip_html(c.get("date",""))}</td>
                 <td>{strip_html(c.get("event",""))}</td>
-                <td style="color:#4ade80;">{strip_html(c.get("bull_signal",""))}</td>
-                <td style="color:#f87171;">{strip_html(c.get("bear_signal",""))}</td>
+                <td style="color:#4ade80;">{strip_html(c.get("positive_signal", c.get("bull_signal","")))}</td>
+                <td style="color:#f87171;">{strip_html(c.get("negative_signal", c.get("bear_signal","")))}</td>
             </tr>'''
         st.markdown(
             f'<table class="pt"><thead>{cat_header}</thead>'
@@ -2430,9 +2585,7 @@ def render(ticker, m, a, data):
             unsafe_allow_html=True
         )
 
-    # ════════════════════════════════════════════════════════
-    # SECTION: CONCLUSION
-    # ════════════════════════════════════════════════════════
+    # ── Conclusion ──
     if a.get("conclusion"):
         st.markdown('<div class="sec">Conclusion</div>', unsafe_allow_html=True)
         st.markdown(
@@ -2444,12 +2597,11 @@ def render(ticker, m, a, data):
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;
         font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")}
-        &nbsp;/&nbsp; Math computed in Python
+        &nbsp;/&nbsp; Math computed in Python (segment-level)
         &nbsp;/&nbsp; Report #{st.session_state.report_count}
     </div>''', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
-
 
 # ══════════════════════════════════════════════════════════════
 # RENDER — TRACK BOX
@@ -2562,12 +2714,105 @@ def render_track_box(ticker, m, a):
 st.markdown('''<div class="hero">
     <h1><span class="pick">Pick</span><span class="accent">R</span></h1>
     <div class="tag">Intelligent Equity Research</div>
-    <div class="desc">Institutional-quality research reports powered by the QGLP framework. Verified financials, scenario analysis, peer comparisons, and AI-driven insights.</div>
+    <div class="desc">Segment-level equity analysis powered by the QGLP framework. Quantified headwinds, scenario builds, and AI-driven insights.</div>
 </div>''', unsafe_allow_html=True)
+
+# ── QGLP Top Picks ──
+screener_data = load_screener_results()
+if screener_data:
+    last_updated = screener_data.get("last_updated", "")
+
+    st.markdown(f'''<div style="padding:1.5rem 0 0.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:0.18em;color:rgba(255,255,255,0.18);">
+                QGLP Top Picks</div>
+            <div style="font-size:0.62rem;color:rgba(255,255,255,0.15);">
+                Updated {last_updated}</div>
+        </div>
+    </div>''', unsafe_allow_html=True)
+
+    us_picks    = screener_data.get("us_picks", [])[:5]
+    india_picks = screener_data.get("india_picks", [])[:5]
+
+    st.markdown(
+        '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);'
+        'text-align:center;margin-bottom:1.2rem;">Select any ticker from '
+        'the tables below to generate a full report, or search for a stock further down.</div>',
+        unsafe_allow_html=True
+    )
+
+    def render_picks_table(picks, market_label, select_key):
+        if not picks:
+            return
+        st.markdown(
+            f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.12em;color:rgba(255,255,255,0.25);margin:0.8rem 0 0.4rem;">'
+            f'{market_label}</div>',
+            unsafe_allow_html=True
+        )
+
+        header = ("<tr><th>Ticker</th><th>Company</th><th>Score</th>"
+                  "<th>PEG</th><th>ROE</th><th>Earnings CAGR</th>"
+                  "<th>FCF Yield</th><th>D/E</th></tr>")
+        rows = ""
+        for pick in picks:
+            score = pick.get("qglp_score", 0)
+            if score >= 85:
+                sc = "#4ade80"
+            elif score >= 70:
+                sc = "#fbbf24"
+            else:
+                sc = "#f87171"
+
+            roe  = pick.get("roe", 0)
+            cagr = pick.get("earnings_cagr", 0)
+            fcf  = pick.get("fcf_yield")
+            de   = pick.get("debt_equity", 0)
+            peg  = pick.get("peg_ratio", "-")
+            ticker = pick.get("ticker", "")
+            name   = pick.get("name", ticker)
+
+            rows += f'''<tr>
+                <td style="font-weight:700;color:#fff;">{ticker.replace(".NS","")}</td>
+                <td style="color:rgba(255,255,255,0.55);font-size:0.82rem;">{name[:25]}</td>
+                <td style="color:{sc};font-weight:800;">{score}</td>
+                <td style="font-weight:600;">{peg}</td>
+                <td>{roe*100:.1f}%</td>
+                <td>{cagr*100:.1f}%</td>
+                <td>{f"{fcf*100:.1f}%" if fcf else "-"}</td>
+                <td>{de:.2f}</td>
+            </tr>'''
+
+        st.markdown(
+            f'<table class="pt"><thead>{header}</thead>'
+            f'<tbody>{rows}</tbody></table>',
+            unsafe_allow_html=True
+        )
+
+        # Selectbox to pick a ticker
+        ticker_options = [""] + [p.get("ticker", "") for p in picks]
+        display_options = ["Select a ticker to analyze..."] + [
+            f"{p.get('ticker','').replace('.NS','')} - {p.get('name','')[:25]}"
+            for p in picks
+        ]
+        sel = st.selectbox(
+            "Analyze", display_options,
+            label_visibility="collapsed", key=select_key
+        )
+        if sel and sel != "Select a ticker to analyze...":
+            idx = display_options.index(sel)
+            chosen = ticker_options[idx]
+            if chosen:
+                st.session_state["resolved"] = chosen
+                st.session_state["auto_generate"] = True
+
+    render_picks_table(us_picks, "United States", "us_pick_select")
+    render_picks_table(india_picks, "India", "india_pick_select")
 
 st.markdown(f'''<div class="stats-row">
     <div class="sr-item"><span class="sr-num">24</span><span class="sr-lbl">Verified Metrics</span></div>
-    <div class="sr-item"><span class="sr-num">4</span><span class="sr-lbl">QGLP Dimensions</span></div>
+    <div class="sr-item"><span class="sr-num">5</span><span class="sr-lbl">Revenue Segments</span></div>
     <div class="sr-item"><span class="sr-num">5Y</span><span class="sr-lbl">Price History</span></div>
 </div>''', unsafe_allow_html=True)
 
@@ -2642,75 +2887,34 @@ with cm:
 
 status_area = st.container()
 
-st.markdown('''<div class="hiw">
-    <div class="hiw-title">How It Works</div>
-    <div class="hiw-grid">
-        <div class="hiw-card">
-            <div class="hiw-step">Step 1</div>
-            <div class="hiw-title2">Search</div>
-            <div class="hiw-desc">Enter a company name or ticker. We support US, Indian, European, and Asian markets.</div>
+with st.expander("About the QGLP Framework", expanded=False):
+    st.markdown('''<div class="thesis-section" style="margin:0;">
+        <div class="thesis-title">Quality-Growth-Longevity-Price</div>
+        <div class="thesis-grid">
+            <div class="thesis-card">
+                <div class="thesis-card-letter">Q</div>
+                <div class="thesis-card-name">Quality</div>
+                <div class="thesis-card-desc">Durable moats, ROE/ROCE above 15%, strong FCF, clean management. Debt/Equity below 1.0.</div>
+            </div>
+            <div class="thesis-card">
+                <div class="thesis-card-letter">G</div>
+                <div class="thesis-card-name">Growth</div>
+                <div class="thesis-card-desc">Earnings CAGR above 12%. Revenue and EPS trajectory assessed by segment. TAM expanding at 2x+ GDP.</div>
+            </div>
+            <div class="thesis-card">
+                <div class="thesis-card-letter">L</div>
+                <div class="thesis-card-name">Longevity</div>
+                <div class="thesis-card-desc">Competitive advantages persist 5+ years. Market share stability, succession depth, regulatory durability.</div>
+            </div>
+            <div class="thesis-card">
+                <div class="thesis-card-letter">P</div>
+                <div class="thesis-card-name">Price</div>
+                <div class="thesis-card-desc">PEG below 1.2x is target. Below 1.0x is exceptional. Above 1.4x requires documented rationale.</div>
+            </div>
         </div>
-        <div class="hiw-card">
-            <div class="hiw-step">Step 2</div>
-            <div class="hiw-title2">Analyze</div>
-            <div class="hiw-desc">We fetch real-time data, compute 24 financial metrics in Python, and run two-pass AI analysis.</div>
-        </div>
-        <div class="hiw-card">
-            <div class="hiw-step">Step 3</div>
-            <div class="hiw-title2">Report</div>
-            <div class="hiw-desc">Get a full research report with scores, charts, peer comparison, and downloadable analysis.</div>
-        </div>
-    </div>
-</div>''', unsafe_allow_html=True)
-
-st.markdown('''<div class="thesis-section">
-    <div class="thesis-title">The QGLP Framework</div>
-    <div class="thesis-grid">
-        <div class="thesis-card">
-            <div class="thesis-card-letter">Q</div>
-            <div class="thesis-card-name">Quality</div>
-            <div class="thesis-card-desc">Competitive moats, margin durability, return on capital, free cash flow quality, and management's capital allocation track record.</div>
-        </div>
-        <div class="thesis-card">
-            <div class="thesis-card-letter">G</div>
-            <div class="thesis-card-name">Growth</div>
-            <div class="thesis-card-desc">Revenue and EPS trajectory, organic vs. acquired growth, forward estimates, and whether growth is accelerating or decelerating.</div>
-        </div>
-        <div class="thesis-card">
-            <div class="thesis-card-letter">L</div>
-            <div class="thesis-card-name">Longevity</div>
-            <div class="thesis-card-desc">Secular tailwinds, total addressable market, management quality, reinvestment runway, and 10-year business durability.</div>
-        </div>
-        <div class="thesis-card">
-            <div class="thesis-card-letter">P</div>
-            <div class="thesis-card-name">Price</div>
-            <div class="thesis-card-desc">Valuation through multiple lenses: P/E, PEG, EV/EBITDA, FCF yield, historical context, and margin of safety analysis.</div>
-        </div>
-    </div>
-    <div class="thesis-scoring">
-        <div class="thesis-scoring-title">Scoring Thresholds</div>
-        <div class="scoring-row">
-            <div class="scoring-item"><div class="scoring-range buy">7.5 - 10</div><div class="scoring-label">Buy</div></div>
-            <div class="scoring-item"><div class="scoring-range watch">5.0 - 7.4</div><div class="scoring-label">Watch</div></div>
-            <div class="scoring-item"><div class="scoring-range pass">0 - 4.9</div><div class="scoring-label">Pass</div></div>
-        </div>
-    </div>
-</div>''', unsafe_allow_html=True)
-
-st.markdown('''<div class="params-card">
-    <div class="thesis-title">Research Parameters</div>
-    <div class="params-row"><span class="params-key">Financial Data</span><span class="params-val">FMP API (with yfinance fallback)</span></div>
-    <div class="params-row"><span class="params-key">AI Analysis</span><span class="params-val">Two-pass architecture (assumptions then narrative)</span></div>
-    <div class="params-row"><span class="params-key">Metrics Calculation</span><span class="params-val">Python (verified, not AI-generated)</span></div>
-    <div class="params-row"><span class="params-key">Valuation Anchor</span><span class="params-val">Forward P/E (primary), Trailing P/E (fallback)</span></div>
-    <div class="params-row"><span class="params-key">Risk-Free Rate</span><span class="params-val">6.0%</span></div>
-    <div class="params-row"><span class="params-key">EPS Method</span><span class="params-val">Anchored to trailing EPS, grown by revenue + margin delta</span></div>
-    <div class="params-row"><span class="params-key">Peer Selection</span><span class="params-val">FMP peers + sector fallback (top 4)</span></div>
-    <div class="params-row"><span class="params-key">Price Tracking</span><span class="params-val">Daily email alerts when target price is reached</span></div>
-</div>''', unsafe_allow_html=True)
+    </div>''', unsafe_allow_html=True)
 
 report_area = st.container()
-
 
 # ══════════════════════════════════════════════════════════════
 # GENERATION LOGIC
@@ -2721,7 +2925,9 @@ ticker          = None
 
 resolved = st.session_state.get("resolved", None)
 
-if go and resolved:
+auto_gen = st.session_state.pop("auto_generate", False)
+
+if (go or auto_gen) and resolved:
     ticker          = resolved.strip().upper()
     should_generate = True
 elif go and not resolved:
