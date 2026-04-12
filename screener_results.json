@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-12 15:12 UTC",
+  "last_updated": "2026-04-12 18:23 UTC",
   "filters": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -14,9 +14,10 @@
       "sector": "Technology",
       "price": 188.63,
       "market_cap": 4584652144640,
-      "peg_ratio": 0.34,
+      "peg_ratio": 0.08,
       "roe": 1.0149,
       "earnings_cagr": 2.0424,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0127,
       "debt_equity": 0.073,
       "qglp_score": 91.8
@@ -30,6 +31,7 @@
       "peg_ratio": 0.21,
       "roe": 0.2573,
       "earnings_cagr": 0.373,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0786,
       "debt_equity": 0.607,
       "qglp_score": 90.4
@@ -43,6 +45,7 @@
       "peg_ratio": 0.73,
       "roe": 0.4276,
       "earnings_cagr": 0.3649,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0568,
       "debt_equity": 0.638,
       "qglp_score": 89.0
@@ -56,6 +59,7 @@
       "peg_ratio": 0.57,
       "roe": 0.2346,
       "earnings_cagr": 0.2337,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0543,
       "debt_equity": 0.361,
       "qglp_score": 87.9
@@ -69,6 +73,7 @@
       "peg_ratio": 0.47,
       "roe": 0.5877,
       "earnings_cagr": 0.1825,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.1015,
       "debt_equity": 0.583,
       "qglp_score": 87.4
@@ -82,6 +87,7 @@
       "peg_ratio": 0.71,
       "roe": 0.3571,
       "earnings_cagr": 0.3334,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0099,
       "debt_equity": 0.161,
       "qglp_score": 86.2
@@ -92,9 +98,10 @@
       "sector": "Technology",
       "price": 83.0,
       "market_cap": 86817996800,
-      "peg_ratio": 0.33,
+      "peg_ratio": 0.23,
       "roe": 0.1549,
       "earnings_cagr": 0.7346,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.057,
       "debt_equity": 0.185,
       "qglp_score": 86.1
@@ -108,6 +115,7 @@
       "peg_ratio": 0.74,
       "roe": 0.2578,
       "earnings_cagr": 0.3904,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0199,
       "debt_equity": 0.689,
       "qglp_score": 78.8
@@ -121,6 +129,7 @@
       "peg_ratio": 0.88,
       "roe": 0.3024,
       "earnings_cagr": 0.2011,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0147,
       "debt_equity": 0.392,
       "qglp_score": 76.5
@@ -134,6 +143,7 @@
       "peg_ratio": 0.96,
       "roe": 0.3337,
       "earnings_cagr": 0.216,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0145,
       "debt_equity": 0.827,
       "qglp_score": 72.0
@@ -146,12 +156,13 @@
       "sector": "Communication Services",
       "price": 1870.0,
       "market_cap": 11391052283904,
-      "peg_ratio": 0.56,
+      "peg_ratio": 0.3,
       "roe": 0.2313,
       "earnings_cagr": 0.9438,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0411,
       "debt_equity": 1.171,
-      "qglp_score": 81.3
+      "qglp_score": 82.5
     },
     {
       "ticker": "DRREDDY.NS",
@@ -162,6 +173,7 @@
       "peg_ratio": 0.67,
       "roe": 0.161,
       "earnings_cagr": 0.3374,
+      "earnings_cagr_years": 3,
       "fcf_yield": 0.0131,
       "debt_equity": 0.18,
       "qglp_score": 75.8

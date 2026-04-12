@@ -2774,6 +2774,7 @@ if screener_data:
 
             roe  = pick.get("roe", 0)
             cagr = pick.get("earnings_cagr", 0)
+            cagr_yrs = pick.get("earnings_cagr_years", 0)
             fcf  = pick.get("fcf_yield")
             de   = pick.get("debt_equity", 0)
             peg  = pick.get("peg_ratio", "-")
@@ -2786,7 +2787,7 @@ if screener_data:
                 <td style="color:{sc};font-weight:800;">{score}</td>
                 <td style="font-weight:600;">{peg}</td>
                 <td>{roe*100:.1f}%</td>
-                <td>{cagr*100:.1f}%</td>
+                <td>{cagr*100:.1f}% <span style="font-size:0.6rem;color:rgba(255,255,255,0.2);">({cagr_yrs}Y)</span></td>
                 <td>{f"{fcf*100:.1f}%" if fcf else "-"}</td>
                 <td>{de:.2f}</td>
             </tr>'''

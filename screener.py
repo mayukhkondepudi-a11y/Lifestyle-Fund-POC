@@ -102,17 +102,26 @@ def fetch_metrics(ticker):
         if not info or "shortName" not in info:
             return None
 
-        # Basic metrics from info
         roe = info.get("returnOnEquity")
+        fcf = info.get("freeCashflow")
+        mcap = info.get("marketCap")
+        forward_pe = info.get("forwardPE")
+        trailing_pe = info.get("trailingPE")
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        forward_eps = info.get("forwardEps")
 
-        # yfinance often returns None for ROE on Indian stocks
-        # Compute from statements if missing
+        # D/E from API
+        de = None
+        de_api = info.get("debtToEquity")
+        if de_api is not None:
+            de = de_api / 100 if de_api > 5 else de_api
+
+        # ROE fallback: compute from statements
         if roe is None:
             try:
                 inc = t.income_stmt
-                bs  = t.balance_sheet
+                bs = t.balance_sheet
                 if inc is not None and bs is not None:
-                    # Get latest net income
                     ni = None
                     for label in ["Net Income", "Net Income Common Stockholders"]:
                         if label in inc.index:
@@ -120,7 +129,6 @@ def fetch_metrics(ticker):
                             if not row.empty:
                                 ni = float(row.iloc[0])
                                 break
-                    # Get latest stockholders equity
                     eq = None
                     for label in ["Stockholders Equity", "Total Stockholder Equity",
                                   "Common Stock Equity", "Stockholders' Equity"]:
@@ -131,25 +139,22 @@ def fetch_metrics(ticker):
                                 break
                     if ni and eq and eq > 0:
                         roe = round(ni / eq, 4)
-                        print(f"(ROE computed: {roe:.1%}) ", end="")
             except Exception:
                 pass
-                de_raw = info.get("debtToEquity")
-        de = de_raw / 100 if de_raw and de_raw > 5 else de_raw
 
-        # Compute D/E from balance sheet if missing
+        # D/E fallback: compute from statements
         if de is None:
             try:
                 bs = t.balance_sheet
                 if bs is not None:
                     debt = None
-                    eq = None
                     for label in ["Total Debt", "Long Term Debt"]:
                         if label in bs.index:
                             row = bs.loc[label].dropna()
                             if not row.empty:
                                 debt = float(row.iloc[0])
                                 break
+                    eq = None
                     for label in ["Stockholders Equity", "Total Stockholder Equity",
                                   "Common Stock Equity", "Stockholders' Equity"]:
                         if label in bs.index:
@@ -159,15 +164,8 @@ def fetch_metrics(ticker):
                                 break
                     if debt is not None and eq and eq > 0:
                         de = round(debt / eq, 3)
-                        print(f"(D/E computed: {de:.2f}) ", end="")
             except Exception:
                 pass
-        fcf = info.get("freeCashflow")
-        mcap = info.get("marketCap")
-        forward_pe = info.get("forwardPE")
-        trailing_pe = info.get("trailingPE")
-        price = info.get("currentPrice") or info.get("regularMarketPrice")
-        forward_eps = info.get("forwardEps")
 
         # FCF yield
         fcf_yield = None
@@ -192,7 +190,6 @@ def fetch_metrics(ticker):
         print(f"  {ticker}: fetch error - {str(e)[:80]}")
         return None
 
-
 def fetch_earnings_cagr(ticker):
     """
     Compute earnings CAGR from income statement.
@@ -203,7 +200,7 @@ def fetch_earnings_cagr(ticker):
         inc = t.income_stmt
 
         if inc is None or inc.empty:
-            return None
+            return None, 0
 
         # Look for EPS or Net Income
         for label in ["Diluted EPS", "Basic EPS"]:
@@ -219,9 +216,8 @@ def fetch_earnings_cagr(ticker):
                         oldest = float(row.iloc[0])
                         newest = float(row.iloc[-1])
                         years = len(row) - 1
-                    if oldest > 0 and newest > 0 and years > 0:
                         cagr = (newest / oldest) ** (1 / years) - 1
-                        return round(cagr, 4)
+                        return round(cagr, 4), years
 
         # Fallback to net income
         for label in ["Net Income", "Net Income Common Stockholders"]:
@@ -231,15 +227,13 @@ def fetch_earnings_cagr(ticker):
                     oldest = float(row.iloc[0])
                     newest = float(row.iloc[-1])
                     years = len(row) - 1
-                    if oldest > 0 and newest > 0 and years > 0:
-                        cagr = (newest / oldest) ** (1 / years) - 1
-                        return round(cagr, 4)
+                    cagr = (newest / oldest) ** (1 / years) - 1
+                    return round(cagr, 4), years
 
-        return None
+        return None, 0
     except Exception as e:
         print(f"  {ticker}: earnings CAGR error - {str(e)[:80]}")
-        return None
-
+        return None, 0
 
 # ══════════════════════════════════════════════════════════════
 # SCREENING PIPELINE
@@ -294,13 +288,15 @@ def screen_universe(tickers, market_label, filters=None):
         ticker = m["ticker"]
         print(f"  {ticker}: computing earnings CAGR...", end=" ")
 
-        cagr = fetch_earnings_cagr(ticker)
+        cagr, cagr_years = fetch_earnings_cagr(ticker)
         if cagr is None or cagr < filters["min_earnings_cagr"]:
             print(f"FAIL CAGR ({cagr})")
             time.sleep(0.5)
             continue
 
         m["earnings_cagr"] = cagr
+        m["earnings_cagr_years"] = cagr_years
+
 
         # Compute PEG
         pe = m.get("forward_pe") or m.get("trailing_pe")
@@ -358,6 +354,7 @@ def save_results(us_picks, india_picks):
                 "peg_ratio":     m.get("peg_ratio"),
                 "roe":           round(m.get("roe", 0), 4),
                 "earnings_cagr": round(m.get("earnings_cagr", 0), 4),
+                "earnings_cagr_years": m.get("earnings_cagr_years", 0),
                 "fcf_yield":     round(m.get("fcf_yield", 0), 4) if m.get("fcf_yield") else None,
                 "debt_equity":   round(m.get("debt_equity", 0), 3),
                 "qglp_score":    m.get("qglp_score"),
@@ -374,6 +371,7 @@ def save_results(us_picks, india_picks):
                 "peg_ratio":     m.get("peg_ratio"),
                 "roe":           round(m.get("roe", 0), 4),
                 "earnings_cagr": round(m.get("earnings_cagr", 0), 4),
+                "earnings_cagr_years": m.get("earnings_cagr_years", 0),
                 "fcf_yield":     round(m.get("fcf_yield", 0), 4) if m.get("fcf_yield") else None,
                 "debt_equity":   round(m.get("debt_equity", 0), 3),
                 "qglp_score":    m.get("qglp_score"),
