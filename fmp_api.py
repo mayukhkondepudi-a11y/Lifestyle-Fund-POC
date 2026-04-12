@@ -89,6 +89,23 @@ def search_ticker(query):
 
 
 def get_profile(ticker):
+    """
+    Get company profile. yfinance primary (better forward estimates),
+    FMP as fallback.
+    """
+    # ── yfinance first: better forward PE, forward EPS, analyst estimates ──
+    if HAS_YF:
+        try:
+            info = yf.Ticker(ticker).info
+            if info and "shortName" in info:
+                info["_source"] = "yfinance"
+                print(f"  Profile: yfinance OK for {ticker} "
+                      f"(fwd_pe={info.get('forwardPE')}, fwd_eps={info.get('forwardEps')})")
+                return info
+        except Exception as e:
+            print(f"  yfinance profile failed for {ticker}: {str(e)[:80]}")
+
+    # ── FMP fallback ──
     profile = _fmp_get("/profile", {"symbol": ticker})
     quote   = _fmp_get("/quote", {"symbol": ticker})
 
@@ -100,16 +117,7 @@ def get_profile(ticker):
     if profile and quote:
         return _merge_profile_quote(profile, quote)
 
-    if HAS_YF:
-        try:
-            info = yf.Ticker(ticker).info
-            if info and "shortName" in info:
-                info["_source"] = "yfinance"
-                return info
-        except Exception:
-            pass
     return None
-
 
 def _merge_profile_quote(profile, quote):
     p = profile
@@ -419,10 +427,10 @@ def fetch_full(ticker):
         }
 
     # If yfinance was source from get_profile, do full yfinance fetch
-    return _yf_full_fetch(ticker)
+    return _yf_full_fetch(ticker, existing_info=info)
 
-
-def _yf_full_fetch(ticker):
+def _yf_full_fetch(ticker, existing_info=None):
+    """Full yfinance fetch. Can reuse existing info dict to avoid duplicate calls."""
     if not HAS_YF:
         return None
 
@@ -431,30 +439,30 @@ def _yf_full_fetch(ticker):
     s = yf.Ticker(ticker)
     d = {}
 
-    # ── Retry .info up to 2 times ──
-    for attempt in range(2):
-        try:
-            info = s.info
-            if info and "shortName" in info:
-                info["_source"] = "yfinance"
-                d["info"] = info
-                print(f"DEBUG _yf_full_fetch({ticker}): got info on attempt {attempt+1}, "
-                      f"name = {info.get('shortName')}")
-                break
-            elif info and info.get("quoteType") == "NONE_TYPE":
-                d["info"] = {"error": f"Ticker '{ticker}' not found on Yahoo Finance"}
-                print(f"DEBUG _yf_full_fetch({ticker}): NONE_TYPE on attempt {attempt+1}")
-                break
-            else:
-                d["info"] = {"error": f"Empty response for {ticker} from Yahoo Finance"}
-                print(f"DEBUG _yf_full_fetch({ticker}): empty info on attempt {attempt+1}")
-        except Exception as e:
-            d["info"] = {"error": f"Yahoo Finance error: {str(e)[:200]}"}
-            print(f"DEBUG _yf_full_fetch({ticker}): exception on attempt {attempt+1}: {str(e)[:120]}")
-            if attempt == 0:
-                _time.sleep(2)
+    # ── Reuse existing info if provided, otherwise fetch ──
+    if existing_info and "shortName" in existing_info:
+        d["info"] = existing_info
+        print(f"DEBUG _yf_full_fetch({ticker}): reusing existing info, "
+              f"name = {existing_info.get('shortName')}")
+    else:
+        for attempt in range(2):
+            try:
+                info = s.info
+                if info and "shortName" in info:
+                    info["_source"] = "yfinance"
+                    d["info"] = info
+                    print(f"DEBUG _yf_full_fetch({ticker}): got info on attempt {attempt+1}")
+                    break
+                elif info and info.get("quoteType") == "NONE_TYPE":
+                    d["info"] = {"error": f"Ticker '{ticker}' not found on Yahoo Finance"}
+                    break
+                else:
+                    d["info"] = {"error": f"Empty response for {ticker} from Yahoo Finance"}
+            except Exception as e:
+                d["info"] = {"error": f"Yahoo Finance error: {str(e)[:200]}"}
+                if attempt == 0:
+                    _time.sleep(2)
 
-    # If info failed, still return the dict so caller sees the error
     if "info" not in d:
         d["info"] = {"error": f"All attempts to fetch {ticker} failed"}
 
@@ -478,7 +486,6 @@ def _yf_full_fetch(ticker):
         d["news"] = []
 
     return d
-
 
 def get_current_price(ticker):
     data = _fmp_get("/quote", {"symbol": ticker})
