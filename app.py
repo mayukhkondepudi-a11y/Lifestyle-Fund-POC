@@ -2713,8 +2713,8 @@ def render_track_box(ticker, m, a):
 
 st.markdown('''<div class="hero">
     <h1><span class="pick">Pick</span><span class="accent">R</span></h1>
-    <div class="tag">Intelligent Equity Research</div>
-    <div class="desc">Segment-level equity analysis powered by the QGLP framework. Quantified headwinds, scenario builds, and AI-driven insights.</div>
+    <div class="tag">AI Assisted Equity Research</div>
+    <div class="desc">Equity analysis powered by the QGLP framework. Bottoms up EPS projections with quantified headwinds, probability assigned scenarios, and AI-assised insights.</div>
 </div>''', unsafe_allow_html=True)
 
 # ── QGLP Top Picks ──
@@ -2724,10 +2724,10 @@ if screener_data:
 
     st.markdown(f'''<div style="padding:1.5rem 0 0.5rem;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;
+            <div style="font-size:0.9rem;font-weight:900;text-transform:uppercase;
                 letter-spacing:0.18em;color:rgba(255,255,255,0.18);">
                 QGLP Top Picks</div>
-            <div style="font-size:0.62rem;color:rgba(255,255,255,0.15);">
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.15);">
                 Updated {last_updated}</div>
         </div>
     </div>''', unsafe_allow_html=True)
@@ -2738,7 +2738,7 @@ if screener_data:
     st.markdown(
         '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);'
         'text-align:center;margin-bottom:1.2rem;">Select any ticker from '
-        'the tables below to generate a full report, or search for a stock further down.</div>',
+        'the tables below to generate a full report, or search for a stock below the tables.</div>',
         unsafe_allow_html=True
     )
 
@@ -3069,12 +3069,12 @@ if st.session_state.cached_report:
 
 # ── Footer ────────────────────────────────────────────────────
 st.markdown(f'''<div class="foot-card">
-    <div class="foot-name">Built by Mayukh Kondepudi</div>
+    <div class="foot-name">Mayukh Kondepudi</div>
     <div class="foot-email">mayukhkondepudi@gmail.com</div>
     <div class="foot-disclaimer">
-        PickR is an AI-powered equity research tool for educational and informational purposes only.
+        PickR is an AI-assisted equity research tool for educational and informational purposes only.
         It does not constitute financial advice, investment recommendations, or an offer to buy or sell securities.
-        All financial data is sourced from FMP API with Yahoo Finance fallback and may be delayed. AI-generated analysis
+        All financial data is sourced from Yahoo Finance or FMP as fallback and may be delayed. AI-assisted analysis
         is based on publicly available information and should not be relied upon as the sole basis for investment decisions.
         Past performance does not guarantee future results. Always consult a qualified financial advisor
         before making investment decisions.
