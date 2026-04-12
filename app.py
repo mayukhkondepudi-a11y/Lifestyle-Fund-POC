@@ -791,14 +791,17 @@ def calc(data):
                 if oldest <= 0 or years <= 0:
                     return None, hist
                 cagr = (newest / oldest) ** (1 / years) - 1
-                return round(cagr, 4), hist
-        return None, {}
+                return round(cagr, 4), hist, years
 
-    m["revenue_cagr"],    m["revenue_history"]    = cagr_from(inc, ["Total Revenue","TotalRevenue","Revenue"])
-    m["net_income_cagr"], m["net_income_history"]  = cagr_from(inc, ["Net Income","NetIncome",
-                                                                       "Net Income Common Stockholders"])
-    m["eps_cagr"], _ = cagr_from(inc, ["Diluted EPS","Basic EPS","DilutedEPS","BasicEPS",
-                                        "EPS","Earnings Per Share"])
+        return None, {}, 0
+
+    m["revenue_cagr"], m["revenue_history"], m["revenue_cagr_years"] = cagr_from(
+        inc, ["Total Revenue", "TotalRevenue", "Revenue"])
+    m["net_income_cagr"], m["net_income_history"], m["ni_cagr_years"] = cagr_from(
+        inc, ["Net Income", "NetIncome", "Net Income Common Stockholders"])
+    m["eps_cagr"], _, m["eps_cagr_years"] = cagr_from(
+        inc, ["Diluted EPS", "Basic EPS", "DilutedEPS", "BasicEPS",
+              "EPS", "Earnings Per Share"])
 
     # ── Compute margins from statements if missing ──
     if m["gross_margin"] is None and inc is not None:
@@ -1153,14 +1156,35 @@ def compute_scenario_math(metrics, llm_output):
             rev_growth = ((total_rev / total_revenue) - 1) if total_revenue > 0 else 0.0
 
             # ── Margins ──
-            op_margin  = safe_float(s.get("operating_margin"), default=operating_margin)
-            net_margin = safe_float(s.get("net_margin"), default=profit_margin)
-            tax_rate   = safe_float(s.get("tax_rate"), default=0.21)
+            llm_op_margin  = safe_float(s.get("operating_margin"))
+            llm_net_margin = safe_float(s.get("net_margin"))
+            tax_rate       = safe_float(s.get("tax_rate"), default=0.21)
             margin_rationale = s.get("margin_rationale", "")
 
-            # If net margin not provided, derive from operating margin and tax rate
+            # Validate LLM margins against current margins
+            # Allow up to 2x current margin for bull, down to 0.3x for bear
+            if operating_margin > 0 and llm_op_margin > 0:
+                margin_ratio = llm_op_margin / operating_margin
+                if margin_ratio > 3.0 or margin_ratio < 0.1:
+                    print(f"  {scenario_name}: LLM op margin ({llm_op_margin:.1%}) "
+                          f"is {margin_ratio:.1f}x current ({operating_margin:.1%}). "
+                          f"Clamping to reasonable range.")
+                    llm_op_margin = max(operating_margin * 0.3,
+                                       min(llm_op_margin, operating_margin * 2.5))
+
+            op_margin = llm_op_margin if llm_op_margin > 0 else operating_margin
+            net_margin = llm_net_margin if llm_net_margin > 0 else profit_margin
+
+            # If net margin not provided or unreliable, derive from op margin
             if net_margin == 0 and op_margin > 0:
                 net_margin = op_margin * (1 - tax_rate)
+
+            # Cross-check net margin against op margin
+            # Net margin should not exceed op margin
+            if op_margin > 0 and net_margin > op_margin:
+                net_margin = op_margin * (1 - tax_rate)
+                print(f"  {scenario_name}: Net margin ({net_margin:.1%}) exceeded "
+                      f"op margin ({op_margin:.1%}). Recalculated from op margin.")
 
             # ── EPS: Python computation ──
             if total_rev > 0 and net_margin > 0 and shares > 0:
@@ -1934,7 +1958,9 @@ def render(ticker, m, a, data):
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1: st.metric("Rev Growth",    fmt_p(m.get("revenue_growth")))
-    with c2: st.metric("Rev CAGR",      fmt_p(m.get("revenue_cagr")))
+    rev_cagr_yrs = m.get("revenue_cagr_years", 0)
+    rev_cagr_label = f"Rev CAGR ({rev_cagr_yrs}Y)" if rev_cagr_yrs else "Rev CAGR"
+    with c2: st.metric(rev_cagr_label, fmt_p(m.get("revenue_cagr")))
     with c3: st.metric("Debt/Equity",   fmt_r(m.get("debt_to_equity")))
     with c4: st.metric("Current Ratio", fmt_r(m.get("current_ratio")))
     with c5: st.metric("Beta",          fmt_r(m.get("beta")))
