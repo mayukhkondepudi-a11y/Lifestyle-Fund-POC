@@ -5,6 +5,9 @@ on:
     - cron: '0 10 * * *'  # 10am UTC daily (5:30pm IST, 6am ET)
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   screen:
     runs-on: ubuntu-latest
