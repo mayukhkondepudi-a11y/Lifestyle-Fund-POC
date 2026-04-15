@@ -60,6 +60,25 @@ def _fmp_get(path, params=None):
 
 
 def search_ticker(query):
+    # ── yfinance first: works for all markets (US, India, etc.)
+    if HAS_YF:
+        try:
+            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                ydata = json.loads(resp.read().decode())
+                results = [
+                    {"symbol": q["symbol"], "name": q.get("shortname", q["symbol"]), "exchange": q.get("exchange", "")}
+                    for q in ydata.get("quotes", [])
+                    if q.get("quoteType") in ("EQUITY", "ETF")
+                ]
+                if results:
+                    print(f"  Search: yfinance found {len(results)} results for '{query}'")
+                    return results
+        except Exception as e:
+            print(f"  yfinance search failed for '{query}': {str(e)[:60]}")
+
+    # ── FMP fallback (limited - no Indian stocks)
     data = _fmp_get("/search", {"query": query, "limit": 6})
     if data:
         return [
@@ -72,19 +91,6 @@ def search_ticker(query):
             if item.get("symbol")
         ]
 
-    if HAS_YF:
-        try:
-            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0"
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                ydata = json.loads(resp.read().decode())
-                return [
-                    {"symbol": q["symbol"], "name": q.get("shortname", q["symbol"]), "exchange": q.get("exchange", "")}
-                    for q in ydata.get("quotes", [])
-                    if q.get("quoteType") in ("EQUITY", "ETF")
-                ]
-        except Exception:
-            pass
     return []
 
 

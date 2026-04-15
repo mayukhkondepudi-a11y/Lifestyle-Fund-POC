@@ -3,23 +3,52 @@ name: QGLP Screener
 on:
   schedule:
     - cron: '0 10 * * *'  # 10am UTC daily (5:30pm IST, 6am ET)
-  workflow_dispatch:       # manual trigger
+  workflow_dispatch:
 
 jobs:
   screen:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+    steps:
+      # 1. Checkout repo (REQUIRED for pushing back)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      # 3. Install dependencies
       - name: Install dependencies
         run: pip install yfinance
 
+      # 4. Run screener
       - name: Run screener
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
           GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
         run: python screener.py
+
+      # 5. DEBUG — verify file exists
+      - name: Verify output file
+        run: |
+          echo "Listing files..."
+          ls -la
+          echo "Showing screener_results.json..."
+          cat screener_results.json || echo "File not found!"
+
+      # 6. Commit and push results (THIS IS THE FIX)
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add screener_results.json
+
+          git commit -m "update screener results $(date)" || echo "No changes to commit"
+
+          git push

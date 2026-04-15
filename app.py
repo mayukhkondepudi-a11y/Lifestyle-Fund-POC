@@ -1873,38 +1873,6 @@ def render(ticker, m, a, data):
             unsafe_allow_html=True
         )
 
-    # ── Market Expectations (NEW) ──
-    mkt = sm.get("market_expectations", {})
-    if mkt:
-        implied_growth = safe_float(mkt.get("implied_growth_rate")) * 100
-        vs_base = mkt.get("vs_base_case", "")
-        commentary = strip_html(mkt.get("commentary", ""))
-        vs_color = "#4ade80" if vs_base == "undervalued" else (
-                   "#f87171" if vs_base == "overvalued" else "#fbbf24")
-
-        st.markdown(f'''<div class="sec">What The Market Is Pricing In</div>
-        <div style="background:#141414;border:1px solid rgba(255,255,255,0.06);
-            border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
-            <div style="display:flex;justify-content:center;gap:3rem;margin-bottom:1rem;">
-                <div style="text-align:center;">
-                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
-                        letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">
-                        Implied Growth Rate</div>
-                    <div style="font-size:1.6rem;font-weight:800;color:#fff;">
-                        {implied_growth:.0f}%</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
-                        letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">
-                        vs Base Case</div>
-                    <div style="font-size:1.6rem;font-weight:800;color:{vs_color};
-                        text-transform:uppercase;">{vs_base}</div>
-                </div>
-            </div>
-            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);line-height:1.7;
-                text-align:center;max-width:680px;margin:0 auto;">{commentary}</div>
-        </div>''', unsafe_allow_html=True)
-
     # ── 52-Week Range ──
     w52h = m.get("week_52_high")
     w52l = m.get("week_52_low")
