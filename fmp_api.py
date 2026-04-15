@@ -99,17 +99,18 @@ def get_profile(ticker):
     Get company profile. yfinance primary (better forward estimates),
     FMP as fallback.
     """
-    # ── yfinance first: better forward PE, forward EPS, analyst estimates ──
-    if HAS_YF:
+
+    # 🔥 FIX 1 — Force yfinance for Indian stocks
+    if ticker.endswith(".NS"):
         try:
             info = yf.Ticker(ticker).info
-            if info and "shortName" in info:
+            if info:
                 info["_source"] = "yfinance"
-                print(f"  Profile: yfinance OK for {ticker} "
-                      f"(fwd_pe={info.get('forwardPE')}, fwd_eps={info.get('forwardEps')})")
+                print(f"  Profile: yfinance (forced India) OK for {ticker}")
                 return info
         except Exception as e:
-            print(f"  yfinance profile failed for {ticker}: {str(e)[:80]}")
+            print(f"  yfinance failed for {ticker}: {str(e)[:80]}")
+            return None
 
     # ── FMP fallback ──
     profile = _fmp_get("/profile", {"symbol": ticker})
@@ -454,7 +455,7 @@ def _yf_full_fetch(ticker, existing_info=None):
         for attempt in range(2):
             try:
                 info = s.info
-                if info and "shortName" in info:
+                if info and (info.get("shortName") or info.get("longName")):
                     info["_source"] = "yfinance"
                     d["info"] = info
                     print(f"DEBUG _yf_full_fetch({ticker}): got info on attempt {attempt+1}")
@@ -502,6 +503,7 @@ def get_current_price(ticker):
 
     if HAS_YF:
         try:
+            print(f"  Fetching {ticker} from yfinance...")
             info = yf.Ticker(ticker).info
             return info.get("currentPrice") or info.get("regularMarketPrice")
         except Exception:
