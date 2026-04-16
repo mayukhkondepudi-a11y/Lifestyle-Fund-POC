@@ -174,7 +174,30 @@ st.markdown("""
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_screener_results():
-    return load_screener_results_raw()
+    from config import GITHUB_TOKEN, GITHUB_REPO, SCREENER_FILE
+    import urllib.request, json, base64
+    
+    st.sidebar.write(f"DEBUG load_screener: FILE={SCREENER_FILE}")
+    
+    if GITHUB_TOKEN and GITHUB_REPO:
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SCREENER_FILE}"
+            headers = {
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+                content = json.loads(base64.b64decode(data["content"]).decode())
+                st.sidebar.write(f"DEBUG load_screener: GOT {type(content)}, keys={list(content.keys()) if isinstance(content, dict) else 'not dict'}")
+                return content
+        except Exception as e:
+            st.sidebar.write(f"DEBUG load_screener ERROR: {str(e)[:200]}")
+    
+    return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def search_ticker(query):
