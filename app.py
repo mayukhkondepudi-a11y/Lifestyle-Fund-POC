@@ -826,6 +826,11 @@ def render_picks_table(picks, market_label, select_key):
             st.session_state["resolved"] = chosen
             st.session_state["auto_generate"] = True
 
+screener_data = None
+try:
+    screener_data = load_screener_results()
+except Exception as e:
+    st.error(f"Screener load error: {e}")
 
 if screener_data:
     last_updated = screener_data.get("last_updated", "")
