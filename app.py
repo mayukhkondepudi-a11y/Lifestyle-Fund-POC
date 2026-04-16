@@ -773,6 +773,14 @@ st.markdown('''<div class="hero">
 # QGLP Top Picks
 screener_data = load_screener_results()
 
+screener_data = load_screener_results()
+
+# ── DEBUG: Remove after fixing ──
+st.write(f"DEBUG SCREENER: data={'LOADED' if screener_data else 'NONE'}")
+if screener_data:
+    st.write(f"DEBUG: keys={list(screener_data.keys())}, "
+             f"us={len(screener_data.get('us_picks', []))}, "
+             f"india={len(screener_data.get('india_picks', []))}")
 
 def render_picks_table(picks, market_label, select_key):
     if not picks: return
