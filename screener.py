@@ -7,86 +7,17 @@ from each market.
 
 import json
 import time
-import base64
 import os
-import urllib.request
-import urllib.error
 from datetime import datetime
 
 import yfinance as yf
 
 from universe import SP500_TOP_100, NIFTY_50
+from config import FILTERS, FILTERS_INDIA
+from compute import compute_qglp_score
+from github_store import push_screener_results
 
-# ── Config ──
-GITHUB_TOKEN = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", ""))
-GITHUB_REPO  = os.environ.get("GITHUB_REPO", "")
-OUTPUT_FILE  = "screener_results.json"
-
-# ══════════════════════════════════════════════════════════════
-# QGLP HARD FILTERS
-# ══════════════════════════════════════════════════════════════
-
-FILTERS = {
-    "min_roe":           0.15,
-    "max_debt_equity":   1.0,
-    "min_fcf":           0,
-    "max_peg":           1.4,
-    "min_earnings_cagr": 0.12,
-}
-
-FILTERS_INDIA = {
-    "min_roe":           0.12,
-    "max_debt_equity":   1.5,
-    "min_fcf":           0,
-    "max_peg":           1.4,
-    "min_earnings_cagr": 0.10,
-}
-
-# ══════════════════════════════════════════════════════════════
-# SCORING WEIGHTS (composite score out of 100)
-# ══════════════════════════════════════════════════════════════
-
-# Lower PEG = better, Higher ROE = better, Higher growth = better,
-# Higher FCF yield = better, Lower D/E = better
-
-def compute_score(metrics):
-    """
-    Composite QGLP score from 0 to 100.
-    Weights: PEG (30), ROE (25), Earnings CAGR (25), FCF Yield (10), D/E (10)
-    """
-    score = 0.0
-
-    # PEG score: 30 points. PEG 0.5 = 30, PEG 1.0 = 20, PEG 1.4 = 10, PEG 2.0 = 0
-    peg = metrics.get("peg_ratio", 999)
-    if peg > 0:
-        peg_score = max(0, min(30, 30 * (1 - (peg - 0.5) / 1.5)))
-        score += peg_score
-
-    # ROE score: 25 points. ROE 30% = 25, ROE 15% = 12.5, ROE 50%+ = 25
-    roe = metrics.get("roe", 0)
-    if roe > 0:
-        roe_score = max(0, min(25, 25 * (roe / 0.30)))
-        score += roe_score
-
-    # Earnings CAGR score: 25 points. CAGR 25% = 25, CAGR 12% = 12, CAGR 40%+ = 25
-    cagr = metrics.get("earnings_cagr", 0)
-    if cagr > 0:
-        cagr_score = max(0, min(25, 25 * (cagr / 0.25)))
-        score += cagr_score
-
-    # FCF Yield score: 10 points. Yield 5% = 10, Yield 2.5% = 5, Yield 0% = 0
-    fcf_y = metrics.get("fcf_yield", 0)
-    if fcf_y > 0:
-        fcf_score = max(0, min(10, 10 * (fcf_y / 0.05)))
-        score += fcf_score
-
-    # D/E score: 10 points. D/E 0 = 10, D/E 0.5 = 5, D/E 1.0 = 0
-    de = metrics.get("debt_equity", 0)
-    if de >= 0:
-        de_score = max(0, min(10, 10 * (1 - de)))
-        score += de_score
-
-    return round(score, 1)
+OUTPUT_FILE = "screener_results.json"
 
 
 # ══════════════════════════════════════════════════════════════
@@ -123,15 +54,18 @@ def fetch_metrics(ticker):
                 bs = t.balance_sheet
                 if inc is not None and bs is not None:
                     ni = None
-                    for label in ["Net Income", "Net Income Common Stockholders"]:
+                    for label in ["Net Income",
+                                  "Net Income Common Stockholders"]:
                         if label in inc.index:
                             row = inc.loc[label].dropna()
                             if not row.empty:
                                 ni = float(row.iloc[0])
                                 break
                     eq = None
-                    for label in ["Stockholders Equity", "Total Stockholder Equity",
-                                  "Common Stock Equity", "Stockholders' Equity"]:
+                    for label in ["Stockholders Equity",
+                                  "Total Stockholder Equity",
+                                  "Common Stock Equity",
+                                  "Stockholders' Equity"]:
                         if label in bs.index:
                             row = bs.loc[label].dropna()
                             if not row.empty:
@@ -155,8 +89,10 @@ def fetch_metrics(ticker):
                                 debt = float(row.iloc[0])
                                 break
                     eq = None
-                    for label in ["Stockholders Equity", "Total Stockholder Equity",
-                                  "Common Stock Equity", "Stockholders' Equity"]:
+                    for label in ["Stockholders Equity",
+                                  "Total Stockholder Equity",
+                                  "Common Stock Equity",
+                                  "Stockholders' Equity"]:
                         if label in bs.index:
                             row = bs.loc[label].dropna()
                             if not row.empty:
@@ -190,11 +126,9 @@ def fetch_metrics(ticker):
         print(f"  {ticker}: fetch error - {str(e)[:80]}")
         return None
 
+
 def fetch_earnings_cagr(ticker):
-    """
-    Compute earnings CAGR from income statement.
-    Only called for stocks that pass the cheap filters.
-    """
+    """Compute earnings CAGR from income statement."""
     try:
         t = yf.Ticker(ticker)
         inc = t.income_stmt
@@ -202,12 +136,10 @@ def fetch_earnings_cagr(ticker):
         if inc is None or inc.empty:
             return None, 0
 
-        # Look for EPS or Net Income
         for label in ["Diluted EPS", "Basic EPS"]:
             if label in inc.index:
                 row = inc.loc[label].dropna().sort_index()
                 if len(row) >= 2:
-                    # Use exactly 5-year window if available
                     if len(row) >= 5:
                         oldest = float(row.iloc[-5])
                         newest = float(row.iloc[-1])
@@ -216,10 +148,10 @@ def fetch_earnings_cagr(ticker):
                         oldest = float(row.iloc[0])
                         newest = float(row.iloc[-1])
                         years = len(row) - 1
+                    if oldest > 0 and years > 0:
                         cagr = (newest / oldest) ** (1 / years) - 1
                         return round(cagr, 4), years
 
-        # Fallback to net income
         for label in ["Net Income", "Net Income Common Stockholders"]:
             if label in inc.index:
                 row = inc.loc[label].dropna().sort_index()
@@ -227,27 +159,30 @@ def fetch_earnings_cagr(ticker):
                     oldest = float(row.iloc[0])
                     newest = float(row.iloc[-1])
                     years = len(row) - 1
-                    cagr = (newest / oldest) ** (1 / years) - 1
-                    return round(cagr, 4), years
+                    if oldest > 0 and years > 0:
+                        cagr = (newest / oldest) ** (1 / years) - 1
+                        return round(cagr, 4), years
 
         return None, 0
     except Exception as e:
         print(f"  {ticker}: earnings CAGR error - {str(e)[:80]}")
         return None, 0
 
+
 # ══════════════════════════════════════════════════════════════
 # SCREENING PIPELINE
 # ══════════════════════════════════════════════════════════════
 
 def screen_universe(tickers, market_label, filters=None):
+    """Screen a list of tickers through QGLP hard filters."""
     if filters is None:
         filters = FILTERS
-    """Screen a list of tickers through QGLP hard filters."""
+
     print(f"\n{'='*60}")
     print(f"Screening {market_label}: {len(tickers)} tickers")
     print(f"{'='*60}")
 
-    # Phase 1: Cheap filters (info only, no statements)
+    # Phase 1: Cheap filters (info only)
     phase1_pass = []
     for i, ticker in enumerate(tickers):
         print(f"  [{i+1}/{len(tickers)}] {ticker}...", end=" ")
@@ -258,19 +193,16 @@ def screen_universe(tickers, market_label, filters=None):
             time.sleep(0.3)
             continue
 
-        # Hard filter: ROE
         if m.get("roe") is None or m["roe"] < filters["min_roe"]:
             print(f"FAIL ROE ({m.get('roe')})")
             time.sleep(0.3)
             continue
 
-        # Hard filter: Debt/Equity
         if m.get("debt_equity") is None or m["debt_equity"] > filters["max_debt_equity"]:
             print(f"FAIL D/E ({m.get('debt_equity')})")
             time.sleep(0.3)
             continue
 
-        # Hard filter: Positive FCF
         if m.get("fcf") is None or m["fcf"] <= filters["min_fcf"]:
             print(f"FAIL FCF ({m.get('fcf')})")
             time.sleep(0.3)
@@ -282,7 +214,7 @@ def screen_universe(tickers, market_label, filters=None):
 
     print(f"\nPhase 1 survivors: {len(phase1_pass)} / {len(tickers)}")
 
-    # Phase 2: Compute earnings CAGR and PEG for survivors
+    # Phase 2: Earnings CAGR + PEG + scoring
     phase2_pass = []
     for m in phase1_pass:
         ticker = m["ticker"]
@@ -297,33 +229,29 @@ def screen_universe(tickers, market_label, filters=None):
         m["earnings_cagr"] = cagr
         m["earnings_cagr_years"] = cagr_years
 
-
         # Compute PEG
         pe = m.get("forward_pe") or m.get("trailing_pe")
         if pe and pe > 0 and cagr > 0:
-            # Cap CAGR at 50% for PEG computation to avoid
-            # backward-looking supercycles distorting the ratio
-            cagr_for_peg = cagr
-            peg = pe / (cagr_for_peg * 100)
+            peg = pe / (cagr * 100)
             m["peg_ratio"] = round(peg, 2)
         else:
             m["peg_ratio"] = None
 
-        # Hard filter: PEG
         if m["peg_ratio"] is None or m["peg_ratio"] > filters["max_peg"]:
             print(f"FAIL PEG ({m.get('peg_ratio')})")
             time.sleep(0.5)
             continue
 
-        # Compute composite score
-        m["qglp_score"] = compute_score(m)
-        print(f"PASS (CAGR={cagr:.1%}, PEG={m['peg_ratio']:.2f}, Score={m['qglp_score']})")
+        # Score using shared function
+        m["qglp_score"] = compute_qglp_score(m)
+        print(f"PASS (CAGR={cagr:.1%}, PEG={m['peg_ratio']:.2f}, "
+              f"Score={m['qglp_score']})")
         phase2_pass.append(m)
         time.sleep(0.5)
 
     print(f"\nPhase 2 survivors: {len(phase2_pass)} / {len(phase1_pass)}")
 
-    # Sort by composite score, take top 10
+    # Sort by score, take top 10
     phase2_pass.sort(key=lambda x: x["qglp_score"], reverse=True)
     top = phase2_pass[:10]
 
@@ -334,6 +262,7 @@ def screen_universe(tickers, market_label, filters=None):
               f"ROE: {m['roe']:.1%} | CAGR: {m['earnings_cagr']:.1%}")
 
     return top
+
 
 # ══════════════════════════════════════════════════════════════
 # OUTPUT
@@ -346,35 +275,37 @@ def save_results(us_picks, india_picks):
         "filters": FILTERS,
         "us_picks": [
             {
-                "ticker":        m["ticker"],
-                "name":          m["name"],
-                "sector":        m["sector"],
-                "price":         m.get("price"),
-                "market_cap":    m.get("market_cap"),
-                "peg_ratio":     m.get("peg_ratio"),
-                "roe":           round(m.get("roe", 0), 4),
-                "earnings_cagr": round(m.get("earnings_cagr", 0), 4),
+                "ticker":             m["ticker"],
+                "name":               m["name"],
+                "sector":             m["sector"],
+                "price":              m.get("price"),
+                "market_cap":         m.get("market_cap"),
+                "peg_ratio":          m.get("peg_ratio"),
+                "roe":                round(m.get("roe", 0), 4),
+                "earnings_cagr":      round(m.get("earnings_cagr", 0), 4),
                 "earnings_cagr_years": m.get("earnings_cagr_years", 0),
-                "fcf_yield":     round(m.get("fcf_yield", 0), 4) if m.get("fcf_yield") else None,
-                "debt_equity":   round(m.get("debt_equity", 0), 3),
-                "qglp_score":    m.get("qglp_score"),
+                "fcf_yield":          (round(m.get("fcf_yield", 0), 4)
+                                       if m.get("fcf_yield") else None),
+                "debt_equity":        round(m.get("debt_equity", 0), 3),
+                "qglp_score":         m.get("qglp_score"),
             }
             for m in us_picks
         ],
         "india_picks": [
             {
-                "ticker":        m["ticker"],
-                "name":          m["name"],
-                "sector":        m["sector"],
-                "price":         m.get("price"),
-                "market_cap":    m.get("market_cap"),
-                "peg_ratio":     m.get("peg_ratio"),
-                "roe":           round(m.get("roe", 0), 4),
-                "earnings_cagr": round(m.get("earnings_cagr", 0), 4),
+                "ticker":             m["ticker"],
+                "name":               m["name"],
+                "sector":             m["sector"],
+                "price":              m.get("price"),
+                "market_cap":         m.get("market_cap"),
+                "peg_ratio":          m.get("peg_ratio"),
+                "roe":                round(m.get("roe", 0), 4),
+                "earnings_cagr":      round(m.get("earnings_cagr", 0), 4),
                 "earnings_cagr_years": m.get("earnings_cagr_years", 0),
-                "fcf_yield":     round(m.get("fcf_yield", 0), 4) if m.get("fcf_yield") else None,
-                "debt_equity":   round(m.get("debt_equity", 0), 3),
-                "qglp_score":    m.get("qglp_score"),
+                "fcf_yield":          (round(m.get("fcf_yield", 0), 4)
+                                       if m.get("fcf_yield") else None),
+                "debt_equity":        round(m.get("debt_equity", 0), 3),
+                "qglp_score":         m.get("qglp_score"),
             }
             for m in india_picks
         ],
@@ -386,41 +317,11 @@ def save_results(us_picks, india_picks):
     print(f"\nSaved to {OUTPUT_FILE}")
 
     # Push to GitHub
-    if GITHUB_TOKEN and GITHUB_REPO:
-        try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{OUTPUT_FILE}"
-            headers = {
-                "Authorization": f"Bearer {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Content-Type": "application/json",
-            }
-
-            # Get current SHA if file exists
-            sha = None
-            try:
-                req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=8) as resp:
-                    sha = json.loads(resp.read().decode()).get("sha")
-            except urllib.error.HTTPError:
-                pass
-
-            payload = {
-                "message": f"screener: update {datetime.now().strftime('%Y-%m-%d')}",
-                "content": base64.b64encode(
-                    json.dumps(results, indent=2, default=str).encode()
-                ).decode(),
-            }
-            if sha:
-                payload["sha"] = sha
-
-            data = json.dumps(payload).encode()
-            req = urllib.request.Request(url, data=data, headers=headers, method="PUT")
-            with urllib.request.urlopen(req, timeout=10):
-                pass
-            print("Pushed to GitHub successfully.")
-        except Exception as e:
-            print(f"GitHub push failed: {e}")
+    ok, err = push_screener_results(results)
+    if ok:
+        print("Pushed to GitHub successfully.")
+    elif err:
+        print(f"GitHub push failed: {err}")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -429,7 +330,8 @@ def save_results(us_picks, india_picks):
 
 def main():
     print(f"PickR QGLP Screener — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"Filters: {FILTERS}")
+    print(f"Filters US: {FILTERS}")
+    print(f"Filters India: {FILTERS_INDIA}")
 
     us_picks    = screen_universe(SP500_TOP_100, "US (S&P 100)", FILTERS)
     india_picks = screen_universe(NIFTY_50, "India (Nifty 50)", FILTERS_INDIA)
