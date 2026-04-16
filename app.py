@@ -800,7 +800,25 @@ st.markdown('''<div class="hero">
 # QGLP Top Picks
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_screener_results():
-    return load_screener_results_raw()
+    from config import GITHUB_TOKEN, GITHUB_REPO
+    import urllib.request, json, base64
+    
+    if GITHUB_TOKEN and GITHUB_REPO:
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/screener_results.json"
+            headers = {
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+                return json.loads(base64.b64decode(data["content"]).decode())
+        except Exception:
+            pass
+    return None
 
 def render_picks_table(picks, market_label, select_key):
     if not picks: return
