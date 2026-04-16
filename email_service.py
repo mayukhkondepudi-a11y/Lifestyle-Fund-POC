@@ -3,8 +3,7 @@ import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from config import GMAIL_SENDER, GMAIL_APP_PASS, RESEND_API_KEY
-
+import config
 
 def send_email(to_email, subject, html_body):
     if RESEND_API_KEY:

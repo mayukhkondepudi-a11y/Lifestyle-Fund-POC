@@ -798,32 +798,9 @@ st.markdown('''<div class="hero">
 </div>''', unsafe_allow_html=True)
 
 # QGLP Top Picks
-screener_data = load_screener_results()
-
-# ── DEBUG: Remove after fixing ──
-from config import GITHUB_TOKEN, GITHUB_REPO
-st.sidebar.write(f"TOKEN: {'SET' if GITHUB_TOKEN else 'EMPTY'}")
-st.sidebar.write(f"REPO: {GITHUB_REPO or 'EMPTY'}")
-
-# Test the GitHub API call directly
-import urllib.request, json, base64
-if GITHUB_TOKEN and GITHUB_REPO:
-    try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/screener_results.json"
-        headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-            st.sidebar.write(f"GH API: OK, sha={data.get('sha', 'none')[:8]}")
-    except Exception as e:
-        st.sidebar.write(f"GH API ERROR: {str(e)[:200]}")
-else:
-    st.sidebar.write("GH: skipped, no token or repo")
-
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_screener_results():
+    return load_screener_results_raw()
 
 def render_picks_table(picks, market_label, select_key):
     if not picks: return
