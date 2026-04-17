@@ -19,8 +19,6 @@ from compute import calc, compute_scenario_math
 import ai
 import fmp_api
 
-st.sidebar.write("SIDEBAR TEST")
-
 # ── Session State ─────────────────────────────────────────────
 for key, default in [
     ("report_count", 147), ("recent", []), ("cached_report", None),
