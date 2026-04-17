@@ -473,7 +473,7 @@ name, username, authenticated = render_auth()
 if not authenticated:
     st.stop()
 
-# ── User badge in header area ──
+# ── User badge in header ──
 st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
     display:flex;align-items:center;gap:0.6rem;">
     <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
@@ -481,8 +481,7 @@ st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
     <div style="width:24px;height:24px;border-radius:50%;
         background:linear-gradient(135deg,#8b1a1a,#c03030);
         display:flex;align-items:center;justify-content:center;
-        font-size:0.6rem;font-weight:800;color:#fff;
-        cursor:default;">
+        font-size:0.6rem;font-weight:800;color:#fff;">
         {name[0].upper() if name else "U"}</div>
 </div>''', unsafe_allow_html=True)
 
