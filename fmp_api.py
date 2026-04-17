@@ -646,7 +646,6 @@ def get_current_metrics(ticker):
 
     return {}
 
-
 # ══════════════════════════════════════════════════════════════
 # PEERS (placeholder - FMP free tier doesn't support)
 # ══════════════════════════════════════════════════════════════

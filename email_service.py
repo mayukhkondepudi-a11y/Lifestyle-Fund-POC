@@ -20,21 +20,20 @@ def send_email(to_email, subject, html_body):
             return True, None
         except Exception as e:
             print(f"  Resend failed: {e}, trying Gmail...")
-    if not GMAIL_SENDER or not GMAIL_APP_PASS:
+    if not config.config.GMAIL_SENDER or not config.GMAIL_APP_PASS:
         return False, "No email provider configured."
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"]    = f"PickR Alerts <{GMAIL_SENDER}>"
+        msg["From"]    = f"PickR Alerts <{config.GMAIL_SENDER}>"
         msg["To"]      = to_email
         msg.attach(MIMEText(html_body, "html"))
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(GMAIL_SENDER, GMAIL_APP_PASS.replace(" ", "").strip())
-            server.sendmail(GMAIL_SENDER, to_email, msg.as_string())
+            server.login(config.GMAIL_SENDER, config.GMAIL_APP_PASS.replace(" ", "").strip())
+            server.sendmail(config.GMAIL_SENDER, to_email, msg.as_string())
         return True, None
     except Exception as e:
         return False, str(e)
-
 
 def email_confirmation(to_email, ticker, company_name, recommendation,
                        target_price, entry_price):
