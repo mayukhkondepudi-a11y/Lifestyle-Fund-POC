@@ -20,8 +20,9 @@ from email_service import send_email, email_confirmation
 from compute import calc, compute_scenario_math
 import ai
 import fmp_api
-
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="expanded")
+
+st.sidebar.write("SIDEBAR TEST")
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [
