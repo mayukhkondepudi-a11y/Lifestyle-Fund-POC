@@ -290,6 +290,16 @@ if not authenticated:
 
 render_sidebar(username, name)
 
+# DEBUG: Remove after fixing
+st.sidebar.write(f"DEBUG: username={username}")
+try:
+    from report_store import load_user_index
+    idx = load_user_index(username)
+    st.sidebar.write(f"DEBUG: index={idx}")
+except Exception as e:
+    st.sidebar.write(f"DEBUG: error={e}")
+
+
 # Report history in sidebar
 with st.sidebar:
     st.markdown('<div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;'
