@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 
-st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
                     RESEND_API_KEY)
@@ -349,6 +349,29 @@ st.markdown("""
         transform:none !important;
         box-shadow:none !important;
     }
+            
+    /* ── SIDEBAR TOGGLE HINT ── */
+    [data-testid="stSidebar"][aria-expanded="false"] ~ div [data-testid="stAppViewContainer"]::before {
+        content: "< Reports";
+        position: fixed;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%) rotate(-90deg);
+        transform-origin: left center;
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255,255,255,0.15);
+        padding: 0.3rem 0.8rem;
+        z-index: 50;
+        pointer-events: none;
+    }
+    
+    /* Sidebar header */
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 0.5rem !important;
+    }
 
     /* ── TABS (Scenario Analysis) ── */
     .stTabs [data-baseweb="tab-list"] {
@@ -448,56 +471,78 @@ name, username, authenticated = render_auth()
 if not authenticated:
     st.stop()
 
-# Sidebar
-with st.sidebar:
-    st.markdown(f'''<div style="padding:0.8rem 0 0.6rem;
-        border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="font-size:0.9rem;color:#fff;font-weight:700;">{name}</div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);
-            margin-top:0.1rem;">@{username}</div>
-    </div>''', unsafe_allow_html=True)
+# ── Top bar: user info + sign out ──
+st.markdown(f'''<div style="display:flex;justify-content:space-between;align-items:center;
+    padding:0.5rem 0.8rem;margin:-0.5rem 0 0.5rem;
+    border-bottom:1px solid rgba(255,255,255,0.04);">
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+        <div style="width:28px;height:28px;border-radius:50%;
+            background:linear-gradient(135deg,#8b1a1a,#c03030);
+            display:flex;align-items:center;justify-content:center;
+            font-size:0.7rem;font-weight:800;color:#fff;">
+            {name[0].upper() if name else "U"}</div>
+        <span style="font-size:0.82rem;color:rgba(255,255,255,0.6);font-weight:500;">
+            {name}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+        <span style="font-size:0.7rem;color:rgba(255,255,255,0.25);font-weight:500;">
+            @{username}</span>
+    </div>
+</div>''', unsafe_allow_html=True)
 
-    if st.button("Sign out", key="logout_btn", use_container_width=True):
+# Sign out button (small, top area)
+top_l, top_m, top_r = st.columns([8, 1, 1])
+with top_r:
+    if st.button("Sign out", key="logout_btn"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
-    st.markdown('<div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;'
-                'letter-spacing:0.14em;color:rgba(255,255,255,0.18);'
-                'margin:1.5rem 0 0.6rem;">Report History</div>',
-                unsafe_allow_html=True)
+# ── Sidebar: Report History only ──
+with st.sidebar:
+    st.markdown('''<div style="padding:1rem 0.5rem 0.8rem;
+        border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:1.1rem;font-weight:900;color:#fff;margin-bottom:0.2rem;">
+            Pick<span style="color:#c03030;">R</span></div>
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+            letter-spacing:0.14em;color:rgba(255,255,255,0.25);">
+            Report History</div>
+    </div>''', unsafe_allow_html=True)
 
     try:
         from report_store import load_user_index, load_report as load_saved_report
         past_reports = load_user_index(username)
         if past_reports:
-            for r in reversed(past_reports[-15:]):
+            for r in reversed(past_reports[-20:]):
                 rec = r.get("recommendation", "")
                 ret = r.get("expected_return")
                 rec_color = ("#4ade80" if rec == "BUY"
                              else ("#f87171" if rec == "PASS" else "#fbbf24"))
                 ret_str = f"{ret*100:+.0f}%" if ret else ""
-                company = r.get("company_name", r["ticker"])[:20]
+                company = r.get("company_name", r["ticker"])[:22]
                 rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
 
-                st.markdown(f'''<div style="display:flex;justify-content:space-between;
-                    align-items:center;padding:0.35rem 0;
+                st.markdown(f'''<div style="padding:0.6rem 0.3rem;
                     border-bottom:1px solid rgba(255,255,255,0.03);">
-                    <div>
-                        <div style="font-size:0.82rem;color:#fff;font-weight:600;">
-                            {r["ticker"]}</div>
-                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);">
-                            {company} / {r["date"]}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                        <div>
+                            <div style="font-size:0.88rem;color:#fff;font-weight:700;">
+                                {r["ticker"]}</div>
+                            <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);
+                                margin-top:0.1rem;">{company}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:{rec_color};font-size:0.72rem;
+                                font-weight:800;">{rec}</div>
+                            <div style="font-size:0.65rem;
+                                color:rgba(255,255,255,0.3);">{ret_str}</div>
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="color:{rec_color};font-size:0.7rem;
-                            font-weight:700;">{rec}</div>
-                        <div style="font-size:0.62rem;
-                            color:rgba(255,255,255,0.25);">{ret_str}</div>
-                    </div>
+                    <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);
+                        margin-top:0.2rem;">{r.get("date","")}</div>
                 </div>''', unsafe_allow_html=True)
 
-                if st.button(f"Load", key=f"load_{rid}",
+                if st.button(f"Load report", key=f"load_{rid}",
                              use_container_width=True):
                     report_data = load_saved_report(username, rid)
                     if report_data:
@@ -514,13 +559,16 @@ with st.sidebar:
                     else:
                         st.toast("Could not load report")
         else:
-            st.markdown('<div style="font-size:0.8rem;color:rgba(255,255,255,0.2);'
-                        'font-style:italic;">No reports yet.</div>',
-                        unsafe_allow_html=True)
+            st.markdown('''<div style="text-align:center;padding:2rem 1rem;">
+                <div style="font-size:0.85rem;color:rgba(255,255,255,0.25);
+                    font-style:italic;line-height:1.6;">
+                    No reports yet.<br>Generate your first analysis
+                    and it will appear here.</div>
+            </div>''', unsafe_allow_html=True)
     except Exception:
-        st.markdown('<div style="font-size:0.72rem;color:rgba(255,255,255,0.15);">'
-                    'History unavailable</div>', unsafe_allow_html=True)
-
+        st.markdown('<div style="font-size:0.75rem;color:rgba(255,255,255,0.15);'
+                    'padding:1rem;">History unavailable</div>',
+                    unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
 # ══════════════════════════════════════════════════════════════
