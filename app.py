@@ -1198,15 +1198,18 @@ if should_generate and ticker:
             rec = a.get("recommendation", "WATCH")
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
-    st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
-        # Save report to user history
+        st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
+    
+    # DEBUG
+    st.sidebar.write(f"DEBUG: about to save. username={username}, authenticated={authenticated}")
+    
+    # Save report to user history
     try:
         from report_store import save_report
         rid = save_report(username, ticker, m, a)
         st.sidebar.write(f"DEBUG: saved report {rid}")
     except Exception as e:
         st.sidebar.error(f"Report save failed: {e}")
-
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
