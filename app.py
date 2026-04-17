@@ -41,7 +41,7 @@ st.markdown("""
     html, body, .stApp { background:#0c0c0c !important; color:#e8e8e8 !important; font-family:'Inter',sans-serif !important; font-size:16px !important; }
     .block-container { padding-top:0 !important; max-width:1200px !important; }
     .stApp > div, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"] { background:#0c0c0c !important; }
-    #MainMenu, footer, header { visibility:hidden !important; }
+#MainMenu, footer { visibility:hidden !important; }
     .hero { padding:4rem 2rem 1.5rem; text-align:center; }
     .hero h1 { font-size:4.2rem; font-weight:900; letter-spacing:-0.03em; margin:0; }
     .hero h1 .pick { background: linear-gradient(180deg, #ffffff 0%, #ffffff 35%, #e0e0e0 55%, #c8c8c8 75%, #e8e8e8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(255,255,255,0.08)); }
