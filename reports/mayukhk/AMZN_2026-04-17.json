@@ -1,0 +1,739 @@
+{
+  "ticker": "AMZN",
+  "date": "2026-04-17",
+  "timestamp": "2026-04-17 07:18",
+  "company_name": "Amazon.com, Inc.",
+  "recommendation": "PASS",
+  "conviction": "High",
+  "expected_value": 215.36,
+  "expected_return": -0.1375,
+  "risk_adjusted_score": -0.71,
+  "metrics": {
+    "company_name": "Amazon.com, Inc.",
+    "sector": "Consumer Cyclical",
+    "industry": "Internet Retail",
+    "country": "United States",
+    "currency": "USD",
+    "current_price": 249.7,
+    "market_cap": 2685336551424,
+    "enterprise_value": 2736027860992,
+    "trailing_pe": 34.82566,
+    "forward_pe": 26.57,
+    "peg_ratio": null,
+    "price_to_sales": 3.7456362,
+    "ev_to_ebitda": 18.775,
+    "gross_margin": 0.50286,
+    "operating_margin": 0.10533,
+    "profit_margin": 0.108339995,
+    "roe": 0.22286,
+    "roa": 0.06928,
+    "trailing_eps": 7.17,
+    "forward_eps": 9.39843,
+    "earnings_growth": 0.05,
+    "total_revenue": 716923994112,
+    "revenue_growth": 0.136,
+    "free_cashflow": 23793125376,
+    "operating_cashflow": 139514003456,
+    "total_cash": 123028996096,
+    "total_debt": 178546999296,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.383,
+    "week_52_high": 258.6,
+    "week_52_low": 165.29,
+    "ma_50": 213.8926,
+    "ma_200": 225.434,
+    "insider_pct": 0.089449994,
+    "institution_pct": 0.67091006,
+    "shares_outstanding": 10754251799,
+    "fcf_yield": 0.008860388603202382,
+    "debt_to_equity": 0.372,
+    "current_ratio": 1.05,
+    "revenue_cagr": 0.1173,
+    "revenue_cagr_years": 3,
+    "net_income_cagr": null,
+    "ni_cagr_years": 0,
+    "eps_cagr": null,
+    "eps_cagr_years": 0,
+    "price_5y_return": 46.91,
+    "price_5y_high": 249.7,
+    "price_5y_low": 84.0
+  },
+  "analysis": {
+    "recommendation": "PASS",
+    "conviction": "High",
+    "investment_thesis": "We recommend PASS on Amazon at $249.70 with high conviction. The stock is trading at its 5-year high and the forward P/E of 26.6x embeds roughly 26-27% earnings growth, yet our base case projects only 8.4% EPS growth to $7.77, implying approximately 13% downside. The expected return across probability-weighted scenarios is negative 13.8% with only a 33% chance of positive return and an unfavorable upside-to-downside ratio of 0.32. While Amazon remains one of the highest-quality businesses globally with genuine AI tailwinds, the current price leaves no margin of safety and demands near-flawless execution across every segment to justify the valuation.",
+    "business_overview": "Amazon.com is the world's largest online retailer and cloud infrastructure provider, generating approximately $717 billion in trailing twelve-month revenue across five principal segments. The company operates a consumer-facing e-commerce marketplace in North America and internationally, a cloud computing platform (Amazon Web Services), a rapidly growing digital advertising business, and a portfolio of subscription services anchored by Prime membership. The business model is built on a flywheel: low prices attract customers, which attracts third-party sellers, which expands selection, which drives more traffic, which enables advertising monetization and Prime subscriptions. AWS operates as a structurally separate profit engine, contributing disproportionate operating income relative to its 16.4% revenue share.\n\nAmazon makes money through a combination of first-party retail sales, third-party marketplace commissions and fulfillment fees, cloud computing consumption charges, advertising placements within its retail and streaming properties, and recurring subscription revenue from over 200 million Prime members globally. The retail segments are high-revenue but lower-margin businesses, while AWS and Advertising are the primary profit contributors. This mix shift toward higher-margin segments is the central narrative driving the stock's re-rating over the past two years.",
+    "revenue_architecture": "North America E-Commerce is the largest segment at $387.7 billion, representing 54.1% of total revenue and growing at 12% year-over-year. This segment includes first-party retail sales, third-party seller services, and fulfillment revenue. At a 38% gross margin, it is a volume business where profitability depends on fulfillment efficiency and advertising attach rates. The segment is mature but still benefits from share gains in grocery (Amazon Fresh, Whole Foods) and same-day delivery expansion.\n\nInternational E-Commerce contributes $143.2 billion or 20% of revenue, growing at 10% with a lower 28% gross margin reflecting the cost of building logistics infrastructure in emerging markets like India, Brazil, and the Middle East. This segment has historically been a drag on profitability but is showing improving unit economics in mature European markets like the UK and Germany. AWS generates $117.4 billion at a 62% gross margin, growing 19% year-over-year. The $180 billion-plus contract backlog provides multi-year revenue visibility, though the pace of consumption against those contracts depends on enterprise IT spending cycles and AI workload adoption.\n\nAdvertising Services is the fastest-growing segment at $56.6 billion, up 22% year-over-year with a 58% gross margin. This is predominantly sponsored product ads within the retail marketplace, supplemented by the nascent Prime Video ad-supported tier launched in early 2024. Subscription Services and Other rounds out the portfolio at roughly $12 billion, growing 14% and carrying a 45% gross margin. This segment is driven by Prime membership renewals, Kindle Unlimited, and Audible. The critical observation is that the two highest-margin segments, AWS and Advertising, together represent only about 24% of revenue but are growing fastest, creating a natural margin expansion dynamic if the mix shift continues.",
+    "growth_drivers": "The most consequential growth driver is the adoption of generative AI workloads on AWS. Amazon has invested heavily in custom silicon, specifically the Trainium2 and Inferentia2 chips, and in managed AI services like Bedrock and SageMaker. Enterprise customers are increasingly running training and inference workloads on AWS infrastructure, and this could add $15-20 billion in incremental revenue over the next twelve months above baseline cloud growth. The $180 billion-plus backlog, while not guaranteeing margin, provides a floor for revenue visibility. The key question is whether AWS can capture a proportionate share of AI infrastructure spend versus Microsoft Azure, which benefits from its OpenAI partnership, and Google Cloud Platform, which leverages its proprietary TPU chips and Gemini models.\n\nThe second structural driver is the monetization of Prime Video through advertising. With an estimated 200 million-plus monthly active viewers globally, the ad-supported tier launched in early 2024 opens a connected TV advertising revenue stream where CPMs (cost per thousand impressions) are significantly higher than display ads. This could contribute $8-12 billion in incremental high-margin revenue as brand advertisers shift budgets from linear television to streaming. Amazon's unique advantage is its ability to close the loop between ad exposure and purchase behavior, offering attribution data that no other streaming platform can match.\n\nThe third driver is fulfillment cost optimization. Amazon's shift to regionalized fulfillment networks in North America, combined with robotics deployment through its Sequoia sortation system and Sparrow robotic picking arms, is reducing delivery distances and per-unit costs. This does not generate incremental revenue but could improve North America retail operating margins by 100-150 basis points, which on a $387.7 billion revenue base translates to meaningful EPS uplift. This is a 70% probability event in our framework and represents the most reliable of the three tailwinds.",
+    "margin_analysis": "Amazon's consolidated operating margin stands at 10.5%, a significant improvement from the low single digits just two years ago, driven by the mix shift toward AWS and Advertising plus fulfillment efficiency gains. In our bull case, operating margins expand to 12.5% as AWS mix shifts toward higher-margin AI workloads, fulfillment optimization delivers its full potential, and advertising revenue scales at near-zero incremental cost. This would produce EPS of $9.35 on $852 billion in revenue. The base case assumes more modest expansion to 11.2%, reflecting partial realization of these efficiencies offset by tariff-related cost absorption on imported goods and competitive pricing pressure in cloud computing. This yields EPS of only $7.77, well below the $9.40 forward consensus.\n\nThe bear case is where margin analysis becomes critical. If tariffs escalate broadly, AWS faces aggressive price competition from Azure and Google Cloud, and regulatory compliance costs mount across multiple jurisdictions, operating margins could compress to 8.5%, producing EPS of just $5.21 on $700 billion in revenue. The spread between bull and bear EPS is $4.14, or nearly 80% of base case earnings, underscoring how sensitive Amazon's profitability is to the interplay between revenue mix and cost pressures. The company's 50.3% gross margin provides a buffer, but the gap between gross and operating margin reflects the enormous fixed cost base in fulfillment, technology infrastructure, and content spending.",
+    "financial_health": "Amazon's balance sheet is strong but not fortress-like. The company holds $123 billion in cash against $178.5 billion in total debt, yielding a debt-to-equity ratio of 0.37, well within our 1.0x threshold. Operating cash flow of $139.5 billion is robust, but free cash flow of $23.8 billion is modest relative to the $2.69 trillion market cap, producing an FCF yield of only 0.89%. The gap between operating and free cash flow reflects Amazon's enormous capital expenditure program, currently running above $100 billion annually, directed primarily at AWS data center expansion, AI chip procurement, and fulfillment infrastructure. The current ratio of 1.05 is adequate but thin, typical for a company that manages working capital aggressively through payables leverage with suppliers.\n\nAmazon pays no dividend and has a zero payout ratio, directing all capital toward reinvestment and periodic share repurchases. The company authorized a $10 billion buyback program, though at current valuations the capital allocation discipline question is whether management should be more aggressive on returns to shareholders rather than continuing to invest at the current pace. Insider ownership at 8.9%, predominantly held by founder Jeff Bezos, provides alignment but Bezos has been a consistent seller in recent years. There are no significant goodwill or intangible asset concerns relative to the asset base.",
+    "competitive_position": "Amazon possesses multiple durable competitive advantages. In e-commerce, the combination of Prime membership lock-in, unmatched logistics infrastructure with over 1,000 fulfillment and delivery stations in North America alone, and the third-party marketplace flywheel creates barriers to entry that no competitor has replicated at scale. Walmart is the closest domestic competitor and has narrowed the gap in grocery and same-day delivery, but its marketplace and advertising businesses remain a fraction of Amazon's. Shopify enables independent merchants but does not compete directly for consumer traffic. In international markets, Amazon faces localized competition from Mercado Libre in Latin America, Flipkart (Walmart-owned) in India, and various players in Southeast Asia, but its infrastructure investments provide a structural cost advantage over time.\n\nIn cloud computing, AWS holds approximately 31% market share versus Microsoft Azure at roughly 25% and Google Cloud at approximately 11%. The moat here is the breadth of services (over 200), the ecosystem of certified partners, and the switching costs embedded in enterprise workloads. However, the AI era introduces uncertainty: Microsoft's deep integration with OpenAI gives Azure a differentiated positioning for enterprises building on GPT-based models, and Google's vertically integrated AI stack (TPUs plus Gemini) is compelling for AI-native workloads. AWS's response through Bedrock, which offers model choice including Anthropic's Claude, and custom silicon is credible but the competitive dynamics are more fluid than in traditional cloud. In advertising, Amazon's first-party purchase data creates an attribution advantage that Google and Meta cannot match for product-related advertising, making this moat particularly durable.",
+    "headwind_narrative": "The most significant near-term headwind is the escalation of US tariffs on Chinese imports and the potential broadening to goods from other countries. Amazon's retail segments depend heavily on imported consumer electronics, apparel, and home goods, both for first-party inventory and for the millions of third-party sellers on its marketplace. We estimate a 60% probability that tariffs remain elevated or expand, which in our base case would reduce revenue by $9 billion and compress EPS by $0.45 as Amazon absorbs some cost increases to remain price-competitive. In the bear case, the impact doubles to $18 billion in lost revenue and $0.90 in EPS as consumer demand weakens across discretionary categories. This is not a theoretical risk; it is the single largest quantifiable drag on near-term earnings.\n\nThe second headwind is competitive pricing pressure on AWS from Microsoft Azure and Google Cloud Platform, both of which are aggressively pricing AI inference and general compute workloads to gain share. We assign a 50% probability to meaningful pricing pressure, which could compress AWS operating margins by 100-200 basis points and reduce revenue by $3-6 billion depending on severity. The $180 billion backlog provides revenue visibility but not margin protection, as contracts can be renegotiated on pricing. The third headwind is the FTC antitrust lawsuit filed in September 2023, which alleges anticompetitive marketplace practices. While we assign only a 30% probability to material remedies, the tail risk is significant: court-ordered changes to seller fee structures or Buy Box algorithms could reduce marketplace take rates by 50-150 basis points, impacting up to $8 billion in revenue and $0.45 in EPS in the bear case. The combination of these three headwinds, if they all materialize at full severity, would be devastating to the investment case.",
+    "tailwind_narrative": "The most powerful tailwind is the acceleration of generative AI workloads on AWS. Enterprise customers are moving beyond experimentation into production deployment of AI applications, driving incremental cloud spend on training and inference infrastructure. AWS's Bedrock platform, which provides access to foundation models from Anthropic, Meta, Mistral, and others, combined with custom Trainium2 and Inferentia2 chips that offer cost advantages over Nvidia GPUs for inference workloads, positions Amazon to capture a meaningful share of what could be a $100 billion-plus annual AI infrastructure market. We assign a 65% probability to this tailwind materializing at scale, with a base case impact of $10 billion in incremental revenue and $0.58 in EPS. In the bull case, this could reach $18 billion and $1.05 in EPS.\n\nThe Prime Video advertising ramp and fulfillment cost optimization provide additional support. Prime Video's 200 million-plus monthly active viewer base represents one of the largest connected TV audiences globally, and the shift to an ad-supported default tier in early 2024 is creating a new high-margin revenue stream. We estimate a 55% probability of meaningful scale, contributing $5 billion in base case revenue and $0.27 in EPS. Fulfillment optimization through regionalization and robotics is the most probable tailwind at 70%, delivering $0.40 in base case EPS uplift with no incremental revenue, purely through cost reduction on the existing North America retail base. Together, these three tailwinds could add $1.25 in EPS in the base case and $2.24 in the bull case, but they must overcome the combined headwind drag of $0.72 in the base case to deliver net earnings growth.",
+    "market_pricing_commentary": "The market is pricing Amazon at a forward P/E of 26.6x against forward consensus EPS of approximately $9.40, implying roughly 26-27% earnings growth over the trailing EPS of $7.17. This embedded growth expectation assumes that all three major tailwinds, AI-driven AWS acceleration, advertising ramp, and fulfillment optimization, materialize substantially while headwinds remain contained. Our base case projects EPS of only $7.77, representing 8.4% growth, which means the stock would need to trade at a P/E of 32.1x just to sustain the current price on our base earnings estimate. That multiple is difficult to justify for a company growing earnings at single digits. Even our bull case EPS of $9.35 requires a 32x multiple to reach $299, which is only 20% above the current price. The gap between what the market assumes and what our analysis shows is approximately 13% on the base case, suggesting the stock has run ahead of fundamentals at $249.70.",
+    "scenario_commentary": "In the bull case, which we assign a 33% probability, Amazon delivers $852 billion in revenue with 12.5% operating margins and EPS of $9.35, producing a price target of $299.15 at a 32x P/E. This requires generative AI workloads to add $18 billion in incremental AWS revenue, Prime Video advertising to scale to $10 billion, fulfillment optimization to deliver its full 150 basis point margin improvement, and tariff impacts to remain minimal at $2 billion. All segments must execute at or above the high end of their growth trajectories simultaneously, and the macro environment must remain supportive of consumer spending and enterprise IT budgets. This is a plausible but demanding scenario.\n\nThe base case at 36% probability produces $788 billion in revenue, 11.2% operating margins, and EPS of $7.77, yielding a price target of $217.48 at a 28x P/E, representing 12.9% downside from the current price. This scenario reflects partial realization of AI and advertising tailwinds, moderate tariff headwinds of $9 billion, and some AWS pricing pressure. It is the most likely single outcome and it produces a meaningful loss from the current entry point. The base case is not pessimistic; it simply reflects the reality that not every growth initiative will scale on schedule and that macro headwinds are real.\n\nThe bear case at 31% probability is severe: $700 billion in revenue, 8.5% operating margins, and EPS of $5.21, producing a price target of $124.97 at a 24x P/E, representing 50% downside. This scenario requires a confluence of negative events: full tariff escalation compressing retail margins and reducing consumer demand by $18 billion, aggressive AWS price competition from Azure and Google Cloud cutting $6 billion in revenue, and FTC-mandated changes to marketplace practices reducing take rates. While no single event is highly probable, the correlation between a weak macro environment and multiple headwinds materializing simultaneously is meaningful. The asymmetry is stark: the bull case offers 20% upside while the bear case threatens 50% downside, producing the unfavorable 0.32 upside-to-downside ratio.",
+    "conclusion": "Amazon remains an exceptional business with durable competitive advantages in e-commerce, cloud computing, and digital advertising, but at $249.70, the stock prices in a level of earnings growth that our analysis does not support. The expected return of negative 13.8% with only a 33% probability of positive return and a 0.32 upside-to-downside ratio does not meet our investment criteria. The single variable that all scenarios hinge on is the pace and profitability of AI workload adoption on AWS, which determines whether Amazon can deliver the earnings acceleration the market has already priced in. The most important upcoming catalysts are the Q2 2025 earnings report, where AWS growth rates and margin trends will either validate or challenge the embedded expectations, and any developments in the FTC antitrust case. We would revisit this name on a pullback to the $200-215 range, where the risk-reward becomes more balanced with our base case valuation.",
+    "model_used": "claude-opus-4-6",
+    "segments": [
+      {
+        "name": "North America E-Commerce",
+        "current_revenue": 387700000000,
+        "pct_of_total": 0.541,
+        "gross_margin": 0.38,
+        "yoy_growth": 0.12,
+        "primary_driver": "Consumer spending growth, Prime membership penetration, and advertising monetization within the North America retail platform.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "International E-Commerce",
+        "current_revenue": 143200000000,
+        "pct_of_total": 0.2,
+        "gross_margin": 0.28,
+        "yoy_growth": 0.1,
+        "primary_driver": "Expansion in emerging markets including India, Brazil, and Middle East, plus improving unit economics in mature European markets.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Amazon Web Services (AWS)",
+        "current_revenue": 117400000000,
+        "pct_of_total": 0.164,
+        "gross_margin": 0.62,
+        "yoy_growth": 0.19,
+        "primary_driver": "Enterprise cloud migration, generative AI workload adoption on Bedrock and custom Trainium/Inferentia chips, and long-term contract backlog exceeding $180B.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Advertising Services",
+        "current_revenue": 56620000000,
+        "pct_of_total": 0.079,
+        "gross_margin": 0.58,
+        "yoy_growth": 0.22,
+        "primary_driver": "Sponsored product ads, Prime Video ad-supported tier launched in early 2024, and expansion of demand-side platform capabilities for off-Amazon inventory.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Subscription Services and Other",
+        "current_revenue": 12003994112,
+        "pct_of_total": 0.017,
+        "gross_margin": 0.45,
+        "yoy_growth": 0.14,
+        "primary_driver": "Prime membership renewals, Kindle Unlimited, Audible, and other digital subscription revenue streams.",
+        "trajectory": "stable"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": 0.0,
+      "top_5_customers_pct": 0.0,
+      "geographic_split": {
+        "US": 0.6,
+        "Europe": 0.22,
+        "Asia_Pacific": 0.1,
+        "Rest_of_World": 0.08
+      },
+      "critical_dependencies": [
+        "AWS relies on continued enterprise cloud migration and AI workload growth; any slowdown in IT spending directly impacts the highest-margin segment.",
+        "Third-party seller ecosystem generates approximately 60% of units sold on the marketplace; seller attrition or regulatory changes to marketplace liability could disrupt GMV.",
+        "Advertising revenue depends on sustained e-commerce traffic and engagement; a decline in consumer visits would reduce ad impressions and pricing power.",
+        "Fulfillment network of 1,000+ facilities globally is capital-intensive and operationally complex; labor cost inflation or unionization could pressure margins."
+      ],
+      "relationships_at_risk": [
+        "FTC ongoing antitrust scrutiny of marketplace practices and potential remedies could force structural changes to Buy Box algorithms and seller fee structures within 12 months.",
+        "EU Digital Markets Act enforcement could require interoperability changes and restrict self-preferencing of Amazon private label products in European markets.",
+        "US-China trade tensions and tariff escalation could raise costs on imported goods sold by Amazon and third-party sellers, pressuring consumer demand."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "US Tariff Escalation on Consumer Goods",
+        "description": "Elevated tariffs on Chinese imports and potential broadening to other countries raise landed costs for Amazon first-party inventory and third-party seller goods. This compresses retail margins and could reduce consumer demand for discretionary categories. Amazon's North America and International segments are most exposed given reliance on imported consumer electronics, apparel, and home goods.",
+        "probability": 0.6,
+        "revenue_at_risk": 18000000000,
+        "bull_impact": {
+          "revenue": -2000000000,
+          "eps": -0.1
+        },
+        "base_impact": {
+          "revenue": -9000000000,
+          "eps": -0.45
+        },
+        "bear_impact": {
+          "revenue": -18000000000,
+          "eps": -0.9
+        }
+      },
+      {
+        "name": "AWS Competitive Pricing Pressure",
+        "description": "Microsoft Azure and Google Cloud Platform continue aggressive pricing on AI inference and general compute workloads. AWS faces pressure to match pricing, particularly on commodity compute and storage, which could compress AWS operating margins by 100-200 basis points. The $180B+ backlog provides revenue visibility but not margin protection.",
+        "probability": 0.5,
+        "revenue_at_risk": 6000000000,
+        "bull_impact": {
+          "revenue": -500000000,
+          "eps": -0.03
+        },
+        "base_impact": {
+          "revenue": -3000000000,
+          "eps": -0.17
+        },
+        "bear_impact": {
+          "revenue": -6000000000,
+          "eps": -0.35
+        }
+      },
+      {
+        "name": "FTC Antitrust Remedies",
+        "description": "The FTC lawsuit filed in September 2023 alleging anticompetitive marketplace practices could result in consent decrees or court-ordered changes to seller fee structures, Buy Box algorithms, or Prime eligibility requirements. Remedies could reduce take rates by 50-150 basis points on third-party seller services, impacting both marketplace revenue and advertising attach rates.",
+        "probability": 0.3,
+        "revenue_at_risk": 8000000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -2000000000,
+          "eps": -0.1
+        },
+        "bear_impact": {
+          "revenue": -8000000000,
+          "eps": -0.45
+        }
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "Generative AI Workload Acceleration on AWS",
+        "description": "Enterprise adoption of generative AI is driving incremental cloud spend on training and inference workloads. AWS Bedrock, SageMaker, and custom silicon (Trainium2, Inferentia2) position Amazon to capture disproportionate share of AI infrastructure spend. AI-related AWS revenue could add $15-20B incrementally over the next 12 months above baseline cloud growth.",
+        "probability": 0.65,
+        "revenue_opportunity": 18000000000,
+        "bull_impact": {
+          "revenue": 18000000000,
+          "eps": 1.05
+        },
+        "base_impact": {
+          "revenue": 10000000000,
+          "eps": 0.58
+        },
+        "bear_impact": {
+          "revenue": 2000000000,
+          "eps": 0.1
+        }
+      },
+      {
+        "name": "Prime Video Advertising Ramp",
+        "description": "The ad-supported Prime Video tier launched in early 2024 is scaling rapidly with an estimated 200M+ monthly active viewers globally. Advertising CPMs on connected TV are significantly higher than display ads. This could add $8-12B in incremental high-margin advertising revenue as brand advertisers shift budgets to streaming.",
+        "probability": 0.55,
+        "revenue_opportunity": 10000000000,
+        "bull_impact": {
+          "revenue": 10000000000,
+          "eps": 0.54
+        },
+        "base_impact": {
+          "revenue": 5000000000,
+          "eps": 0.27
+        },
+        "bear_impact": {
+          "revenue": 1000000000,
+          "eps": 0.05
+        }
+      },
+      {
+        "name": "Fulfillment Cost Optimization via Regionalization",
+        "description": "Amazon's shift to regionalized fulfillment networks in North America is reducing delivery distances and costs per unit. Combined with robotics deployment (Sequoia, Sparrow systems) in fulfillment centers, this could improve North America retail operating margins by 100-150 basis points, translating to significant EPS uplift on the largest revenue segment.",
+        "probability": 0.7,
+        "revenue_opportunity": 0,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.65
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": 0.4
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.1
+        }
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "Enterprise AI Infrastructure Spend",
+        "measures": "The pace at which enterprises deploy generative AI workloads on public cloud, directly driving AWS revenue growth and margin mix.",
+        "bull_outcome": {
+          "description": "AI infrastructure spend accelerates beyond expectations as enterprises move from proof-of-concept to production deployments. AWS AI revenue grows 40%+ and captures share from Azure due to custom silicon cost advantages.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "AI workload growth continues at a strong but measured pace. AWS AI revenue grows 25-30% as enterprises adopt gradually and split workloads across multiple cloud providers.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "AI spending disappoints as enterprises face ROI scrutiny and budget constraints. AWS AI revenue growth decelerates to 15% and overall AWS growth slows to low teens.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "US Consumer Spending Resilience",
+        "measures": "The trajectory of US consumer discretionary spending, which directly impacts North America e-commerce GMV and advertising revenue.",
+        "bull_outcome": {
+          "description": "Consumer confidence remains strong, unemployment stays below 4.5%, and real wage growth supports continued e-commerce spending growth of 10%+ in North America.",
+          "probability": 0.25
+        },
+        "base_outcome": {
+          "description": "Consumer spending grows modestly at 3-5% nominal, with some trade-down behavior benefiting Amazon's value proposition but limiting discretionary category growth.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Recession or significant consumer pullback reduces e-commerce spending growth to flat or negative, with particular weakness in discretionary categories and advertising budgets.",
+          "probability": 0.25
+        }
+      },
+      {
+        "name": "Regulatory and Trade Policy Environment",
+        "measures": "The severity of antitrust enforcement actions and trade policy changes affecting Amazon's marketplace model and cross-border supply chain.",
+        "bull_outcome": {
+          "description": "FTC case settles with minimal structural remedies. Tariff situation stabilizes or de-escalates. EU DMA enforcement is manageable with minor compliance costs.",
+          "probability": 0.25
+        },
+        "base_outcome": {
+          "description": "FTC case continues with moderate uncertainty. Tariffs remain elevated but do not escalate further. EU DMA requires some operational changes but no fundamental business model disruption.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "FTC wins significant remedies forcing marketplace restructuring. Tariffs escalate broadly. EU DMA enforcement restricts private label and self-preferencing, reducing European marketplace profitability.",
+          "probability": 0.25
+        }
+      },
+      {
+        "name": "Digital Advertising Market Growth",
+        "measures": "The overall growth rate of digital advertising spend and Amazon's ability to capture share, particularly in connected TV and retail media.",
+        "bull_outcome": {
+          "description": "Digital ad market grows 15%+ and Amazon captures disproportionate share via Prime Video ads and retail media expansion. Amazon ad revenue grows 25%+.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Digital ad market grows 10-12% and Amazon maintains its growth premium. Amazon ad revenue grows 18-20%.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Ad market growth slows to mid-single digits amid economic weakness. Amazon ad revenue growth decelerates to 10-12% as brand budgets are cut.",
+          "probability": 0.2
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "North America E-Commerce",
+            "projected_revenue": 430000000000,
+            "growth_rate": 0.109,
+            "rationale": "Strong consumer spending, Prime membership growth, and continued share gains from brick-and-mortar retail drive above-trend growth."
+          },
+          {
+            "name": "International E-Commerce",
+            "projected_revenue": 163000000000,
+            "growth_rate": 0.138,
+            "rationale": "Accelerating growth in India and Middle East, improving profitability in Europe, and favorable FX tailwinds support strong international expansion."
+          },
+          {
+            "name": "Amazon Web Services (AWS)",
+            "projected_revenue": 147000000000,
+            "growth_rate": 0.252,
+            "rationale": "AI workload acceleration drives AWS growth above 25% as enterprises move generative AI to production and custom silicon gains traction."
+          },
+          {
+            "name": "Advertising Services",
+            "projected_revenue": 73000000000,
+            "growth_rate": 0.289,
+            "rationale": "Prime Video ad tier scales rapidly, retail media network expands, and strong consumer traffic supports premium CPMs."
+          },
+          {
+            "name": "Subscription Services and Other",
+            "projected_revenue": 13500000000,
+            "growth_rate": 0.125,
+            "rationale": "Prime membership price stability and modest subscriber growth in international markets."
+          }
+        ],
+        "total_headwind_revenue": -2500000000,
+        "total_headwind_eps": -0.13,
+        "total_tailwind_revenue": 28000000000,
+        "total_tailwind_eps": 2.24,
+        "total_revenue": 852000000000,
+        "operating_margin": 0.125,
+        "margin_rationale": "Operating leverage from AWS mix shift toward higher-margin AI workloads, fulfillment cost optimization, and advertising revenue scaling at near-zero incremental cost.",
+        "net_margin": 0.118,
+        "tax_rate": 0.13,
+        "projected_eps": 9.35,
+        "pe_multiple": 32,
+        "pe_rationale": "Premium to forward PE of 26.6x justified by 25%+ AWS growth and accelerating advertising, comparable to Microsoft at 32x during peak cloud growth periods.",
+        "price_target": 299.2,
+        "narrative": "In the bull case, generative AI workloads drive AWS growth above 25%, Prime Video advertising scales faster than expected, and fulfillment regionalization delivers meaningful margin expansion. Consumer spending remains resilient and regulatory headwinds are contained. Amazon demonstrates it can grow revenue at 19% while expanding operating margins toward 12.5%."
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "North America E-Commerce",
+            "projected_revenue": 414000000000,
+            "growth_rate": 0.068,
+            "rationale": "Moderate consumer spending growth with some tariff-driven price increases dampening volume, partially offset by continued share gains."
+          },
+          {
+            "name": "International E-Commerce",
+            "projected_revenue": 155000000000,
+            "growth_rate": 0.082,
+            "rationale": "Steady growth in emerging markets offset by FX headwinds and EU regulatory compliance costs."
+          },
+          {
+            "name": "Amazon Web Services (AWS)",
+            "projected_revenue": 138000000000,
+            "growth_rate": 0.175,
+            "rationale": "Solid cloud migration and AI adoption at measured pace, with some pricing pressure from Azure and GCP competition."
+          },
+          {
+            "name": "Advertising Services",
+            "projected_revenue": 67000000000,
+            "growth_rate": 0.183,
+            "rationale": "Prime Video ads contribute incrementally, retail media grows steadily, but overall ad market growth moderates."
+          },
+          {
+            "name": "Subscription Services and Other",
+            "projected_revenue": 13000000000,
+            "growth_rate": 0.083,
+            "rationale": "Stable Prime renewals with modest international subscriber additions."
+          }
+        ],
+        "total_headwind_revenue": -14000000000,
+        "total_headwind_eps": -0.72,
+        "total_tailwind_revenue": 15000000000,
+        "total_tailwind_eps": 1.25,
+        "total_revenue": 788000000000,
+        "operating_margin": 0.112,
+        "margin_rationale": "Modest margin expansion from AWS mix and fulfillment efficiency gains, partially offset by tariff-related cost absorption and competitive pricing pressure.",
+        "net_margin": 0.106,
+        "tax_rate": 0.13,
+        "projected_eps": 7.77,
+        "pe_multiple": 28,
+        "pe_rationale": "Slight premium to sector average reflecting durable competitive position and diversified growth profile, in line with Amazon's 3-year average forward PE of approximately 28-30x.",
+        "price_target": 217.56,
+        "narrative": "In the base case, Amazon delivers solid but unspectacular growth of approximately 10% revenue with modest margin expansion. AWS grows at high teens driven by steady cloud migration and moderate AI adoption. Tariff headwinds partially offset by advertising growth and fulfillment efficiency. The stock is modestly overvalued at current levels on base case assumptions."
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "North America E-Commerce",
+            "projected_revenue": 390000000000,
+            "growth_rate": 0.006,
+            "rationale": "Consumer recession, elevated tariffs, and FTC remedies compress GMV growth to near-zero with margin pressure from cost absorption."
+          },
+          {
+            "name": "International E-Commerce",
+            "projected_revenue": 141000000000,
+            "growth_rate": -0.015,
+            "rationale": "FX headwinds, EU DMA enforcement costs, and global consumer weakness cause international revenue to contract slightly."
+          },
+          {
+            "name": "Amazon Web Services (AWS)",
+            "projected_revenue": 127000000000,
+            "growth_rate": 0.082,
+            "rationale": "Enterprise IT budget cuts and AI spending disappointment slow AWS growth to low single-digit quarterly run rates, with pricing pressure compressing margins."
+          },
+          {
+            "name": "Advertising Services",
+            "projected_revenue": 59000000000,
+            "growth_rate": 0.042,
+            "rationale": "Advertising budgets are cut in recessionary environment, Prime Video ad ramp disappoints, and FTC remedies reduce marketplace ad inventory."
+          },
+          {
+            "name": "Subscription Services and Other",
+            "projected_revenue": 12000000000,
+            "growth_rate": -0.0003,
+            "rationale": "Prime churn increases as consumers cut subscriptions in economic downturn."
+          }
+        ],
+        "total_headwind_revenue": -32000000000,
+        "total_headwind_eps": -1.7,
+        "total_tailwind_revenue": 3000000000,
+        "total_tailwind_eps": 0.25,
+        "total_revenue": 700000000000,
+        "operating_margin": 0.085,
+        "margin_rationale": "Margin compression from tariff cost absorption, AWS pricing pressure, deleverage on slower revenue growth, and regulatory compliance costs across multiple jurisdictions.",
+        "net_margin": 0.08,
+        "tax_rate": 0.13,
+        "projected_eps": 5.21,
+        "pe_multiple": 24,
+        "pe_rationale": "De-rating to 24x reflects slowing growth and margin compression, comparable to Amazon's trough multiple during the 2022 growth deceleration period.",
+        "price_target": 125.04,
+        "narrative": "In the bear case, a consumer recession combines with tariff escalation and regulatory headwinds to stall e-commerce growth. AWS growth disappoints as AI spending faces ROI scrutiny and enterprises cut IT budgets. FTC remedies force marketplace restructuring. Operating margins compress as Amazon absorbs costs to maintain market share, and the stock de-rates significantly."
+      }
+    },
+    "catalysts": [
+      {
+        "date": "Late April 2026",
+        "event": "Amazon Q1 2026 Earnings Report",
+        "positive_signal": "AWS revenue growth above 20% with expanding operating margins, North America e-commerce operating margin above 6%, and advertising revenue growth above 20%.",
+        "negative_signal": "AWS growth below 17%, margin compression in any segment, or management commentary indicating tariff-driven demand weakness."
+      },
+      {
+        "date": "June 2026",
+        "event": "AWS re:Inforce and AI Product Announcements",
+        "positive_signal": "Announcement of major enterprise AI contract wins, Trainium3 chip availability, and expanded Bedrock model partnerships indicating accelerating AI adoption.",
+        "negative_signal": "Lack of meaningful new AI customer announcements or delays in custom silicon roadmap."
+      },
+      {
+        "date": "July 2026",
+        "event": "Amazon Q2 2026 Earnings and Prime Day Results",
+        "positive_signal": "Record Prime Day GMV, North America revenue growth above 8%, and full-year guidance raise reflecting confidence in consumer demand.",
+        "negative_signal": "Prime Day GMV growth below 5%, downward guidance revision, or commentary about consumer trade-down accelerating."
+      }
+    ],
+    "peer_tickers": [],
+    "market_expectations": {
+      "implied_growth_rate": 0.265,
+      "basis": "Forward PE of 26.6x implies the market is pricing approximately 26-27% earnings growth using PEG of 1.0 as the benchmark, consistent with forward EPS of $9.40 representing 31% growth over trailing EPS of $7.17.",
+      "vs_base_case": "overvalued",
+      "commentary": "The market is pricing in approximately 26-27% earnings growth. Our base case projects EPS of $7.77, representing only 8.4% growth over trailing EPS of $7.17. This implies the stock is overvalued on base case assumptions by approximately 13%, as the current price of $249.70 embeds expectations for margin expansion and AI-driven AWS acceleration that may only partially materialize. The bull case at $299.20 requires exceptional execution across all segments and favorable macro conditions."
+    },
+    "sensitivity": {
+      "dominant_driver": "Enterprise AI Infrastructure Spend",
+      "current_bull_probability": 0.3,
+      "ev_if_bull_plus_10": 234.5,
+      "ev_if_bull_minus_10": 210.8,
+      "interpretation": "A 10 percentage point increase in the probability of the bull outcome for AI infrastructure spend raises the expected value by approximately $12 per share, reflecting the outsized impact of AWS margin and revenue on consolidated EPS. Conversely, a 10 point decrease reduces expected value by a similar magnitude, underscoring that the investment thesis is heavily dependent on AI workload monetization."
+    },
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.3286,
+          "segment_builds": [
+            {
+              "name": "North America E-Commerce",
+              "projected_revenue": 430000000000,
+              "growth_rate": 0.109,
+              "rationale": "Strong consumer spending, Prime membership growth, and continued share gains from brick-and-mortar retail drive above-trend growth."
+            },
+            {
+              "name": "International E-Commerce",
+              "projected_revenue": 163000000000,
+              "growth_rate": 0.138,
+              "rationale": "Accelerating growth in India and Middle East, improving profitability in Europe, and favorable FX tailwinds support strong international expansion."
+            },
+            {
+              "name": "Amazon Web Services (AWS)",
+              "projected_revenue": 147000000000,
+              "growth_rate": 0.252,
+              "rationale": "AI workload acceleration drives AWS growth above 25% as enterprises move generative AI to production and custom silicon gains traction."
+            },
+            {
+              "name": "Advertising Services",
+              "projected_revenue": 73000000000,
+              "growth_rate": 0.289,
+              "rationale": "Prime Video ad tier scales rapidly, retail media network expands, and strong consumer traffic supports premium CPMs."
+            },
+            {
+              "name": "Subscription Services and Other",
+              "projected_revenue": 13500000000,
+              "growth_rate": 0.125,
+              "rationale": "Prime membership price stability and modest subscriber growth in international markets."
+            }
+          ],
+          "segment_revenue_total": 826500000000.0,
+          "total_headwind_revenue": -2500000000.0,
+          "total_headwind_eps": -0.13,
+          "total_tailwind_revenue": 28000000000.0,
+          "total_tailwind_eps": 2.24,
+          "total_revenue": 852000000000.0,
+          "revenue_growth": 0.1884,
+          "operating_margin": 0.125,
+          "net_margin": 0.118,
+          "margin_rationale": "Operating leverage from AWS mix shift toward higher-margin AI workloads, fulfillment cost optimization, and advertising revenue scaling at near-zero incremental cost.",
+          "projected_eps": 9.35,
+          "llm_eps": 9.35,
+          "eps_flag": null,
+          "pe_multiple": 32.0,
+          "pe_rationale": "Premium to forward PE of 26.6x justified by 25%+ AWS growth and accelerating advertising, comparable to Microsoft at 32x during peak cloud growth periods.",
+          "price_target": 299.15,
+          "implied_return": 0.198,
+          "breakeven_pe": 26.71,
+          "fcf_yield_at_target": 0.0088,
+          "narrative": "In the bull case, generative AI workloads drive AWS growth above 25%, Prime Video advertising scales faster than expected, and fulfillment regionalization delivers meaningful margin expansion. Consumer spending remains resilient and regulatory headwinds are contained. Amazon demonstrates it can grow revenue at 19% while expanding operating margins toward 12.5%."
+        },
+        "base": {
+          "probability": 0.3584,
+          "segment_builds": [
+            {
+              "name": "North America E-Commerce",
+              "projected_revenue": 414000000000,
+              "growth_rate": 0.068,
+              "rationale": "Moderate consumer spending growth with some tariff-driven price increases dampening volume, partially offset by continued share gains."
+            },
+            {
+              "name": "International E-Commerce",
+              "projected_revenue": 155000000000,
+              "growth_rate": 0.082,
+              "rationale": "Steady growth in emerging markets offset by FX headwinds and EU regulatory compliance costs."
+            },
+            {
+              "name": "Amazon Web Services (AWS)",
+              "projected_revenue": 138000000000,
+              "growth_rate": 0.175,
+              "rationale": "Solid cloud migration and AI adoption at measured pace, with some pricing pressure from Azure and GCP competition."
+            },
+            {
+              "name": "Advertising Services",
+              "projected_revenue": 67000000000,
+              "growth_rate": 0.183,
+              "rationale": "Prime Video ads contribute incrementally, retail media grows steadily, but overall ad market growth moderates."
+            },
+            {
+              "name": "Subscription Services and Other",
+              "projected_revenue": 13000000000,
+              "growth_rate": 0.083,
+              "rationale": "Stable Prime renewals with modest international subscriber additions."
+            }
+          ],
+          "segment_revenue_total": 787000000000.0,
+          "total_headwind_revenue": -14000000000.0,
+          "total_headwind_eps": -0.72,
+          "total_tailwind_revenue": 15000000000.0,
+          "total_tailwind_eps": 1.25,
+          "total_revenue": 788000000000.0,
+          "revenue_growth": 0.0991,
+          "operating_margin": 0.112,
+          "net_margin": 0.106,
+          "margin_rationale": "Modest margin expansion from AWS mix and fulfillment efficiency gains, partially offset by tariff-related cost absorption and competitive pricing pressure.",
+          "projected_eps": 7.77,
+          "llm_eps": 7.77,
+          "eps_flag": null,
+          "pe_multiple": 28.0,
+          "pe_rationale": "Slight premium to sector average reflecting durable competitive position and diversified growth profile, in line with Amazon's 3-year average forward PE of approximately 28-30x.",
+          "price_target": 217.48,
+          "implied_return": -0.1291,
+          "breakeven_pe": 32.15,
+          "fcf_yield_at_target": 0.0112,
+          "narrative": "In the base case, Amazon delivers solid but unspectacular growth of approximately 10% revenue with modest margin expansion. AWS grows at high teens driven by steady cloud migration and moderate AI adoption. Tariff headwinds partially offset by advertising growth and fulfillment efficiency. The stock is modestly overvalued at current levels on base case assumptions."
+        },
+        "bear": {
+          "probability": 0.313,
+          "segment_builds": [
+            {
+              "name": "North America E-Commerce",
+              "projected_revenue": 390000000000,
+              "growth_rate": 0.006,
+              "rationale": "Consumer recession, elevated tariffs, and FTC remedies compress GMV growth to near-zero with margin pressure from cost absorption."
+            },
+            {
+              "name": "International E-Commerce",
+              "projected_revenue": 141000000000,
+              "growth_rate": -0.015,
+              "rationale": "FX headwinds, EU DMA enforcement costs, and global consumer weakness cause international revenue to contract slightly."
+            },
+            {
+              "name": "Amazon Web Services (AWS)",
+              "projected_revenue": 127000000000,
+              "growth_rate": 0.082,
+              "rationale": "Enterprise IT budget cuts and AI spending disappointment slow AWS growth to low single-digit quarterly run rates, with pricing pressure compressing margins."
+            },
+            {
+              "name": "Advertising Services",
+              "projected_revenue": 59000000000,
+              "growth_rate": 0.042,
+              "rationale": "Advertising budgets are cut in recessionary environment, Prime Video ad ramp disappoints, and FTC remedies reduce marketplace ad inventory."
+            },
+            {
+              "name": "Subscription Services and Other",
+              "projected_revenue": 12000000000,
+              "growth_rate": -0.0003,
+              "rationale": "Prime churn increases as consumers cut subscriptions in economic downturn."
+            }
+          ],
+          "segment_revenue_total": 729000000000.0,
+          "total_headwind_revenue": -32000000000.0,
+          "total_headwind_eps": -1.7,
+          "total_tailwind_revenue": 3000000000.0,
+          "total_tailwind_eps": 0.25,
+          "total_revenue": 700000000000.0,
+          "revenue_growth": -0.0236,
+          "operating_margin": 0.085,
+          "net_margin": 0.08,
+          "margin_rationale": "Margin compression from tariff cost absorption, AWS pricing pressure, deleverage on slower revenue growth, and regulatory compliance costs across multiple jurisdictions.",
+          "projected_eps": 5.21,
+          "llm_eps": 5.21,
+          "eps_flag": null,
+          "pe_multiple": 24.0,
+          "pe_rationale": "De-rating to 24x reflects slowing growth and margin compression, comparable to Amazon's trough multiple during the 2022 growth deceleration period.",
+          "price_target": 124.97,
+          "implied_return": -0.4995,
+          "breakeven_pe": 47.95,
+          "fcf_yield_at_target": 0.0173,
+          "narrative": "In the bear case, a consumer recession combines with tariff escalation and regulatory headwinds to stall e-commerce growth. AWS growth disappoints as AI spending faces ROI scrutiny and enterprises cut IT budgets. FTC remedies force marketplace restructuring. Operating margins compress as Amazon absorbs costs to maintain market share, and the stock de-rates significantly."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.3286,
+        "base": 0.3584,
+        "bear": 0.313,
+        "method": "geometric_mean_probability",
+        "driver_detail": [
+          {
+            "name": "Enterprise AI Infrastructure Spend",
+            "bull_p": 0.3,
+            "base_p": 0.5,
+            "bear_p": 0.2
+          },
+          {
+            "name": "US Consumer Spending Resilience",
+            "bull_p": 0.25,
+            "base_p": 0.5,
+            "bear_p": 0.25
+          },
+          {
+            "name": "Regulatory and Trade Policy Environment",
+            "bull_p": 0.25,
+            "base_p": 0.5,
+            "bear_p": 0.25
+          },
+          {
+            "name": "Digital Advertising Market Growth",
+            "bull_p": 0.3,
+            "base_p": 0.5,
+            "bear_p": 0.2
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.2739,
+          "bear": 0.2236
+        },
+        "correlation_multipliers": {
+          "bull": 1.2,
+          "bear": 1.4
+        }
+      },
+      "expected_value": 215.36,
+      "expected_return": -0.1375,
+      "std_dev": 0.2793,
+      "risk_adjusted_score": -0.71,
+      "upside_downside_ratio": 0.32,
+      "prob_positive_return": 0.3286,
+      "max_drawdown_prob": 0.313,
+      "max_drawdown_magnitude": -0.4995,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 26.57,
+      "trailing_eps_used": 7.17,
+      "fcf_margin_used": 0.0332,
+      "market_expectations": {
+        "implied_growth_rate": 0.265,
+        "basis": "Forward PE of 26.6x implies the market is pricing approximately 26-27% earnings growth using PEG of 1.0 as the benchmark, consistent with forward EPS of $9.40 representing 31% growth over trailing EPS of $7.17.",
+        "vs_base_case": "overvalued",
+        "commentary": "The market is pricing in approximately 26-27% earnings growth. Our base case projects EPS of $7.77, representing only 8.4% growth over trailing EPS of $7.17. This implies the stock is overvalued on base case assumptions by approximately 13%, as the current price of $249.70 embeds expectations for margin expansion and AI-driven AWS acceleration that may only partially materialize. The bull case at $299.20 requires exceptional execution across all segments and favorable macro conditions."
+      },
+      "sensitivity": {
+        "dominant_driver": "Enterprise AI Infrastructure Spend",
+        "current_bull_probability": 0.3,
+        "ev_if_bull_plus_10": 234.5,
+        "ev_if_bull_minus_10": 210.8,
+        "interpretation": "A 10 percentage point increase in the probability of the bull outcome for AI infrastructure spend raises the expected value by approximately $12 per share, reflecting the outsized impact of AWS margin and revenue on consolidated EPS. Conversely, a 10 point decrease reduces expected value by a similar magnitude, underscoring that the investment thesis is heavily dependent on AI workload monetization."
+      }
+    }
+  }
+}
