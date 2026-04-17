@@ -281,84 +281,23 @@ st.markdown("""
 # AUTHENTICATION
 # ══════════════════════════════════════════════════════════════
 
-from auth import render_auth, render_sidebar
+from auth import render_auth
 
 name, username, authenticated = render_auth()
 
 if not authenticated:
     st.stop()
 
-render_sidebar(username, name)
+# Sidebar - direct, no function call
+st.sidebar.markdown(f"**{name}** (@{username})")
+st.sidebar.write("---")
+st.sidebar.write("DEBUG: Sidebar is working")
 
-# DEBUG: Remove after fixing
-st.sidebar.write(f"DEBUG: username={username}")
-try:
-    from report_store import load_user_index
-    idx = load_user_index(username)
-    st.sidebar.write(f"DEBUG: index={idx}")
-except Exception as e:
-    st.sidebar.write(f"DEBUG: error={e}")
-
-
-# Report history in sidebar
-with st.sidebar:
-    st.markdown('<div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;'
-                'letter-spacing:0.14em;color:rgba(255,255,255,0.18);'
-                'margin:1.5rem 0 0.6rem;">Report History</div>',
-                unsafe_allow_html=True)
-    try:
-        from report_store import load_user_index, load_report as load_saved_report
-        past_reports = load_user_index(username)
-        if past_reports:
-            for r in reversed(past_reports[-15:]):
-                rec = r.get("recommendation", "")
-                ret = r.get("expected_return")
-                rec_color = ("#4ade80" if rec == "BUY"
-                             else ("#f87171" if rec == "PASS" else "#fbbf24"))
-                ret_str = f"{ret*100:+.0f}%" if ret else ""
-                company = r.get("company_name", r["ticker"])[:20]
-                rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
-
-                st.markdown(f'''<div style="display:flex;justify-content:space-between;
-                    align-items:center;padding:0.35rem 0;
-                    border-bottom:1px solid rgba(255,255,255,0.03);">
-                    <div>
-                        <div style="font-size:0.82rem;color:#fff;font-weight:600;">
-                            {r["ticker"]}</div>
-                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);">
-                            {company} / {r["date"]}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="color:{rec_color};font-size:0.7rem;
-                            font-weight:700;">{rec}</div>
-                        <div style="font-size:0.62rem;
-                            color:rgba(255,255,255,0.25);">{ret_str}</div>
-                    </div>
-                </div>''', unsafe_allow_html=True)
-
-                if st.button(f"Load", key=f"load_{rid}",
-                             use_container_width=True):
-                    report_data = load_saved_report(username, rid)
-                    if report_data:
-                        st.session_state.cached_report = {
-                            "ticker": report_data["ticker"],
-                            "metrics": report_data["metrics"],
-                            "analysis": report_data["analysis"],
-                            "data": {"hist": None, "info": {},
-                                     "inc": None, "qinc": None,
-                                     "bs": None, "cf": None,
-                                     "news": []},
-                        }
-                        st.rerun()
-                    else:
-                        st.toast("Could not load report")
-        else:
-            st.markdown('<div style="font-size:0.8rem;color:rgba(255,255,255,0.2);'
-                        'font-style:italic;">No reports yet.</div>',
-                        unsafe_allow_html=True)
-    except Exception as e:
-        st.markdown(f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.15);">'
-                    f'History unavailable</div>', unsafe_allow_html=True)
+if st.sidebar.button("Sign out"):
+    for key in ["authenticated", "username", "user_name", "user_email", "cached_report"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
