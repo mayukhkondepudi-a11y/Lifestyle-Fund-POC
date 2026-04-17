@@ -1,14 +1,12 @@
-"""PickR — Streamlit UI and rendering."""
+"""PickR - Streamlit UI and rendering."""
 import streamlit as st
-# ── DEBUG: Remove after fixing ──
-from config import GITHUB_TOKEN, GITHUB_REPO
-st.sidebar.write(f"TOKEN: {'SET' if GITHUB_TOKEN else 'EMPTY'}")
-st.sidebar.write(f"REPO: {GITHUB_REPO or 'EMPTY'}")
 import streamlit.components.v1 as components
 import pandas as pd
 import json
 import os
 from datetime import datetime
+
+st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="expanded")
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
                     RESEND_API_KEY)
@@ -20,7 +18,6 @@ from email_service import send_email, email_confirmation
 from compute import calc, compute_scenario_math
 import ai
 import fmp_api
-st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="expanded")
 
 st.sidebar.write("SIDEBAR TEST")
 
