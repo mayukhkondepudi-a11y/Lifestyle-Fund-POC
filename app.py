@@ -164,6 +164,60 @@ st.markdown("""
     [data-testid="stVegaLiteChart"] { background:rgba(255,255,255,0.02) !important; border:1px solid rgba(255,255,255,0.04) !important; border-radius:6px !important; }
     .stWarning, .stError, .stInfo { background:#1a1a1a !important; color:#e8e8e8 !important; }
     .stNumberInput > div > div > input { background:#1a1a1a !important; border:1px solid rgba(255,255,255,0.1) !important; border-radius:6px !important; color:#fff !important; }
+            
+                /* ── POLISH LAYER ── */
+    .stApp { transition: all 0.2s ease; }
+    .sec { margin: 3rem 0 1.2rem; padding-bottom:0.6rem; }
+    
+    .driver-card, .scenario-card, .params-card, .thesis-card {
+        transition: all 0.2s ease;
+    }
+    .driver-card:hover, .scenario-card:hover, .params-card:hover, .thesis-card:hover {
+        border-color: rgba(255,255,255,0.12);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .pt tbody tr { transition: background 0.15s ease; }
+    .pt tbody tr:hover { background: rgba(255,255,255,0.03); }
+    
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .hero { animation: fadeInUp 0.6s ease-out; }
+    .rpt-card { animation: fadeInUp 0.4s ease-out; }
+    .rec-bar { animation: fadeInUp 0.5s ease-out; }
+    .ev-bar { animation: fadeInUp 0.5s ease-out; }
+    
+    .hero::after {
+        content: ''; position: absolute; bottom: 0; left: 50%;
+        transform: translateX(-50%); width: 60px; height: 2px;
+        background: linear-gradient(90deg, transparent, #8b1a1a, transparent);
+    }
+    .hero { position: relative; }
+    
+    .rec-bar {
+        background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+        border-radius: 8px;
+    }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0c0c0c; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+    
+    .exec-summary {
+        border-left-width: 3px;
+        background: linear-gradient(135deg, rgba(224,48,48,0.06) 0%, rgba(34,34,34,1) 100%);
+    }
+    
+    .ev-bar {
+        background: linear-gradient(180deg, rgba(20,20,20,1) 0%, rgba(26,26,26,1) 100%);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    
+    .stButton > button { transition: all 0.25s ease !important; }
+    .stButton > button:active { transform: scale(0.97) !important; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -359,6 +413,31 @@ def render(ticker, m, a, data):
     ev       = sm.get("expected_value", 0)
     exp_ret  = sm.get("expected_return", 0)
     prob_pos = sm.get("prob_positive_return", 0)
+
+        # Sticky nav
+    st.markdown(f'''<div style="position:sticky;top:0;z-index:100;
+        background:rgba(26,26,26,0.92);backdrop-filter:blur(12px);
+        border-bottom:1px solid rgba(255,255,255,0.06);
+        padding:0.6rem 1.5rem;margin:0 -2.5rem 1rem;
+        display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <span style="font-weight:900;color:#fff;font-size:0.95rem;">
+                Pick<span style="color:#c03030;">R</span></span>
+            <span style="color:rgba(255,255,255,0.5);font-size:0.85rem;font-weight:600;">
+                {strip_html(company)}</span>
+            <span style="color:rgba(255,255,255,0.25);font-size:0.8rem;">{ticker}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:2rem;">
+            <span style="font-size:0.85rem;color:rgba(255,255,255,0.5);font-weight:600;">
+                {sym}{safe_float(m.get("current_price")):,.2f}</span>
+            <span style="font-size:0.85rem;font-weight:800;
+                color:{'#4ade80' if rec=='BUY' else ('#f87171' if rec=='PASS' else '#fbbf24')};">
+                {rec}</span>
+            <span style="font-size:0.85rem;font-weight:700;
+                color:{'#4ade80' if exp_ret > 0 else '#f87171'};">
+                {exp_ret*100:+.1f}% EV</span>
+        </div>
+    </div>''', unsafe_allow_html=True)
 
     st.markdown(f'''<div class="rec-bar">
         <div class="rb-item"><div class="rb-label">Recommendation</div><div class="rb-val {rc}">{rec}</div></div>
@@ -607,31 +686,98 @@ def render(ticker, m, a, data):
         st.markdown(f'<div class="prose">{strip_html(a["scenario_commentary"])}</div>', unsafe_allow_html=True)
 
     scenarios = sm.get("scenarios", {})
-    for sname, slabel, scolor, stag in [
-        ("bull", "Bull Case", "#4ade80", "What goes right"),
-        ("base", "Base Case", "#fbbf24", "Most likely path"),
-        ("bear", "Bear Case", "#f87171", "What goes wrong"),
-    ]:
+    
+    bull_s = scenarios.get("bull", {})
+    base_s = scenarios.get("base", {})
+    bear_s = scenarios.get("bear", {})
+    
+    bull_label = f"Bull ({bull_s.get('probability',0)*100:.0f}%) / {sym}{bull_s.get('price_target',0):,.0f}" if bull_s else "Bull"
+    base_label = f"Base ({base_s.get('probability',0)*100:.0f}%) / {sym}{base_s.get('price_target',0):,.0f}" if base_s else "Base"
+    bear_label = f"Bear ({bear_s.get('probability',0)*100:.0f}%) / {sym}{bear_s.get('price_target',0):,.0f}" if bear_s else "Bear"
+    
+    bull_tab, base_tab, bear_tab = st.tabs([
+        f":green[{bull_label}]",
+        f":orange[{base_label}]",
+        f":red[{bear_label}]",
+    ])
+    
+    tab_configs = [
+        (bull_tab, "bull", "Bull Case", "#4ade80", "What goes right"),
+        (base_tab, "base", "Base Case", "#fbbf24", "Most likely path"),
+        (bear_tab, "bear", "Bear Case", "#f87171", "What goes wrong"),
+    ]
+    
+    for tab, sname, slabel, scolor, stag in tab_configs:
         s = scenarios.get(sname, {})
-        if not s: continue
-        prob = s.get("probability", 0)*100; pt = s.get("price_target", 0)
-        ret = s.get("implied_return", 0)*100; eps = s.get("projected_eps", 0)
-        pe = s.get("pe_multiple", 0); bpe = s.get("breakeven_pe")
-        op_m = s.get("operating_margin", 0); rev_g = s.get("revenue_growth", 0)
-        total_rev = s.get("total_revenue", 0); fcf_y = s.get("fcf_yield_at_target")
-        narrative = strip_html(s.get("narrative", "")); pe_rat = strip_html(s.get("pe_rationale", ""))
-        margin_rat = strip_html(s.get("margin_rationale", "")); eps_flag = s.get("eps_flag")
-        hw_rev = s.get("total_headwind_revenue", 0); hw_eps = s.get("total_headwind_eps", 0)
-        tw_rev = s.get("total_tailwind_revenue", 0); tw_eps = s.get("total_tailwind_eps", 0)
+        if not s:
+            continue
+        with tab:
+            prob = s.get("probability", 0)*100; pt = s.get("price_target", 0)
+            ret = s.get("implied_return", 0)*100; eps = s.get("projected_eps", 0)
+            pe = s.get("pe_multiple", 0); bpe = s.get("breakeven_pe")
+            op_m = s.get("operating_margin", 0); rev_g = s.get("revenue_growth", 0)
+            total_rev = s.get("total_revenue", 0); fcf_y = s.get("fcf_yield_at_target")
+            narrative = strip_html(s.get("narrative", "")); pe_rat = strip_html(s.get("pe_rationale", ""))
+            margin_rat = strip_html(s.get("margin_rationale", "")); eps_flag = s.get("eps_flag")
+            hw_rev = s.get("total_headwind_revenue", 0); hw_eps = s.get("total_headwind_eps", 0)
+            tw_rev = s.get("total_tailwind_revenue", 0); tw_eps = s.get("total_tailwind_eps", 0)
 
-        st.markdown(f'''<div class="scenario-card" style="border-left:3px solid {scolor};">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem;">
-            <div><span style="font-weight:800;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.1em;color:{scolor};">{slabel}</span>
-            <span style="color:rgba(255,255,255,0.35);font-size:0.8rem;font-weight:600;margin-left:0.6rem;">{prob:.0f}% probability</span>
-            <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;font-style:italic;">{stag}</div></div>
-            <div style="text-align:right;"><div style="font-size:1.4rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
-            <div style="font-size:0.88rem;font-weight:700;color:{scolor};margin-top:0.1rem;">{ret:+.1f}%</div></div></div></div>''', unsafe_allow_html=True)
+            # Price target hero
+            st.markdown(f'''<div style="text-align:center;padding:1.5rem 0 1rem;">
+                <div style="font-size:2.2rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
+                <div style="font-size:1.1rem;font-weight:700;color:{scolor};margin-top:0.3rem;">{ret:+.1f}% return</div>
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">{prob:.0f}% probability</div>
+            </div>''', unsafe_allow_html=True)
 
+            # Key metrics row
+            m1, m2, m3, m4 = st.columns(4)
+            with m1: st.metric("Revenue", fmt_c(total_rev, cur))
+            with m2: st.metric("EPS", f"{sym}{eps:.2f}")
+            with m3: st.metric("P/E Multiple", f"{pe:.1f}x")
+            with m4: st.metric("Op. Margin", f"{op_m*100:.1f}%")
+
+            # Segment builds
+            seg_builds = s.get("segment_builds", [])
+            if seg_builds:
+                st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
+                for seg in seg_builds:
+                    sr = safe_float(seg.get("projected_revenue")); sg = safe_float(seg.get("growth_rate"))
+                    pct_of_total = (sr / total_rev * 100) if total_rev > 0 else 0
+                    bar_width = max(2, min(100, pct_of_total))
+                    st.markdown(f'''<div style="margin:0.3rem 0;">
+                        <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">
+                            <span style="color:rgba(255,255,255,0.6);">{strip_html(seg.get("name",""))}</span>
+                            <span style="color:#fff;font-weight:600;">{fmt_c(sr, cur)}
+                                <span style="color:{scolor};font-size:0.75rem;margin-left:0.3rem;">{sg*100:+.0f}%</span></span>
+                        </div>
+                        <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+                            <div style="width:{bar_width}%;height:100%;background:{scolor};opacity:0.4;border-radius:2px;"></div>
+                        </div>
+                    </div>''', unsafe_allow_html=True)
+
+            # Headwind/tailwind summary
+            if hw_rev != 0 or tw_rev != 0:
+                parts = []
+                if hw_rev != 0: parts.append(f'<span style="color:#f87171;">Headwinds: {fmt_c(hw_rev, cur)} / {sym}{hw_eps:+.2f} EPS</span>')
+                if tw_rev != 0: parts.append(f'<span style="color:#4ade80;">Tailwinds: {fmt_c(tw_rev, cur)} / {sym}{tw_eps:+.2f} EPS</span>')
+                st.markdown(f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.4);margin:1rem 0 0.5rem;padding:0.6rem 0;border-top:1px solid rgba(255,255,255,0.06);">{" &nbsp;&nbsp;|&nbsp;&nbsp; ".join(parts)}</div>', unsafe_allow_html=True)
+
+            # Narrative
+            if narrative:
+                st.markdown(f'<div style="font-size:0.92rem;color:rgba(255,255,255,0.6);line-height:1.8;font-style:italic;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
+
+            # Rationale details
+            with st.expander("Valuation & margin rationale"):
+                if margin_rat:
+                    st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:0.5rem;"><strong style="color:rgba(255,255,255,0.7);">Margin:</strong> {margin_rat}</div>', unsafe_allow_html=True)
+                if pe_rat:
+                    st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;"><strong style="color:rgba(255,255,255,0.7);">Valuation:</strong> {pe_rat}</div>', unsafe_allow_html=True)
+                if bpe:
+                    st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:0.5rem;">Breakeven P/E: <strong style="color:#fff;">{bpe:.1f}x</strong></div>', unsafe_allow_html=True)
+                if fcf_y:
+                    st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);">FCF Yield at target: <strong style="color:#fff;">{fcf_y*100:.1f}%</strong></div>', unsafe_allow_html=True)
+                if eps_flag:
+                    st.markdown(f'<div style="font-size:0.82rem;color:#fbbf24;margin-top:0.5rem;font-style:italic;">{strip_html(eps_flag)}</div>', unsafe_allow_html=True)
         # Stats
         stats_parts = [
             f"Revenue: <strong>{fmt_c(total_rev, cur)}</strong> ({rev_g*100:+.1f}%)",
