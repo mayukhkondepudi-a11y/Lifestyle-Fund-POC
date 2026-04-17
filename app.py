@@ -21,7 +21,7 @@ from compute import calc, compute_scenario_math
 import ai
 import fmp_api
 
-st.set_page_config(page_title="PickR", page_icon="P", layout="wide")
+st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="expanded")
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [
