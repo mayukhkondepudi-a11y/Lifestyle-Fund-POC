@@ -1202,9 +1202,11 @@ if should_generate and ticker:
         # Save report to user history
     try:
         from report_store import save_report
-        save_report(username, ticker, m, a)
+        rid = save_report(username, ticker, m, a)
+        st.sidebar.write(f"DEBUG: saved report {rid}")
     except Exception as e:
-        print(f"Report save failed (non-blocking): {e}")
+        st.sidebar.error(f"Report save failed: {e}")
+
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
