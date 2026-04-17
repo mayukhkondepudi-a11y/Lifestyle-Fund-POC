@@ -457,6 +457,8 @@ st.markdown("""
         .rpt-head h2 { font-size:1.3rem !important; }
         .pt { display:block !important; overflow-x:auto !important; }
     }
+            
+            
 </style>
 """, unsafe_allow_html=True)
 
@@ -471,36 +473,22 @@ name, username, authenticated = render_auth()
 if not authenticated:
     st.stop()
 
-# ── Top bar: user info + sign out ──
-st.markdown(f'''<div style="display:flex;justify-content:space-between;align-items:center;
-    padding:0.5rem 0.8rem;margin:-0.5rem 0 0.5rem;
-    border-bottom:1px solid rgba(255,255,255,0.04);">
-    <div style="display:flex;align-items:center;gap:0.8rem;">
-        <div style="width:28px;height:28px;border-radius:50%;
-            background:linear-gradient(135deg,#8b1a1a,#c03030);
-            display:flex;align-items:center;justify-content:center;
-            font-size:0.7rem;font-weight:800;color:#fff;">
-            {name[0].upper() if name else "U"}</div>
-        <span style="font-size:0.82rem;color:rgba(255,255,255,0.6);font-weight:500;">
-            {name}</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:1rem;">
-        <span style="font-size:0.7rem;color:rgba(255,255,255,0.25);font-weight:500;">
-            @{username}</span>
-    </div>
+# ── User badge in header area ──
+st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
+    display:flex;align-items:center;gap:0.6rem;">
+    <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
+        {name}</span>
+    <div style="width:24px;height:24px;border-radius:50%;
+        background:linear-gradient(135deg,#8b1a1a,#c03030);
+        display:flex;align-items:center;justify-content:center;
+        font-size:0.6rem;font-weight:800;color:#fff;
+        cursor:default;">
+        {name[0].upper() if name else "U"}</div>
 </div>''', unsafe_allow_html=True)
 
-# Sign out button (small, top area)
-top_l, top_m, top_r = st.columns([8, 1, 1])
-with top_r:
-    if st.button("Sign out", key="logout_btn"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
-
-# ── Sidebar: Report History only ──
+# Sign out in sidebar top
 with st.sidebar:
-    st.markdown('''<div style="padding:1rem 0.5rem 0.8rem;
+    st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
         border-bottom:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:1.1rem;font-weight:900;color:#fff;margin-bottom:0.2rem;">
             Pick<span style="color:#c03030;">R</span></div>
@@ -508,6 +496,13 @@ with st.sidebar:
             letter-spacing:0.14em;color:rgba(255,255,255,0.25);">
             Report History</div>
     </div>''', unsafe_allow_html=True)
+
+    if st.button("Sign out", key="logout_btn", use_container_width=True):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
+
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
     try:
         from report_store import load_user_index, load_report as load_saved_report
