@@ -286,16 +286,78 @@ name, username, authenticated = render_auth()
 if not authenticated:
     st.stop()
 
-# Sidebar - direct, no function call
-st.sidebar.markdown(f"**{name}** (@{username})")
-st.sidebar.write("---")
-st.sidebar.write("DEBUG: Sidebar is working")
+# Sidebar
+with st.sidebar:
+    st.markdown(f'''<div style="padding:0.8rem 0 0.6rem;
+        border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:0.9rem;color:#fff;font-weight:700;">{name}</div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);
+            margin-top:0.1rem;">@{username}</div>
+    </div>''', unsafe_allow_html=True)
 
-if st.sidebar.button("Sign out"):
-    for key in ["authenticated", "username", "user_name", "user_email", "cached_report"]:
-        if key in st.session_state:
+    if st.button("Sign out", key="logout_btn", use_container_width=True):
+        for key in list(st.session_state.keys()):
             del st.session_state[key]
-    st.rerun()
+        st.rerun()
+
+    st.markdown('<div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;'
+                'letter-spacing:0.14em;color:rgba(255,255,255,0.18);'
+                'margin:1.5rem 0 0.6rem;">Report History</div>',
+                unsafe_allow_html=True)
+
+    try:
+        from report_store import load_user_index, load_report as load_saved_report
+        past_reports = load_user_index(username)
+        if past_reports:
+            for r in reversed(past_reports[-15:]):
+                rec = r.get("recommendation", "")
+                ret = r.get("expected_return")
+                rec_color = ("#4ade80" if rec == "BUY"
+                             else ("#f87171" if rec == "PASS" else "#fbbf24"))
+                ret_str = f"{ret*100:+.0f}%" if ret else ""
+                company = r.get("company_name", r["ticker"])[:20]
+                rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
+
+                st.markdown(f'''<div style="display:flex;justify-content:space-between;
+                    align-items:center;padding:0.35rem 0;
+                    border-bottom:1px solid rgba(255,255,255,0.03);">
+                    <div>
+                        <div style="font-size:0.82rem;color:#fff;font-weight:600;">
+                            {r["ticker"]}</div>
+                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);">
+                            {company} / {r["date"]}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="color:{rec_color};font-size:0.7rem;
+                            font-weight:700;">{rec}</div>
+                        <div style="font-size:0.62rem;
+                            color:rgba(255,255,255,0.25);">{ret_str}</div>
+                    </div>
+                </div>''', unsafe_allow_html=True)
+
+                if st.button(f"Load", key=f"load_{rid}",
+                             use_container_width=True):
+                    report_data = load_saved_report(username, rid)
+                    if report_data:
+                        st.session_state.cached_report = {
+                            "ticker": report_data["ticker"],
+                            "metrics": report_data["metrics"],
+                            "analysis": report_data["analysis"],
+                            "data": {"hist": None, "info": {},
+                                     "inc": None, "qinc": None,
+                                     "bs": None, "cf": None,
+                                     "news": []},
+                        }
+                        st.rerun()
+                    else:
+                        st.toast("Could not load report")
+        else:
+            st.markdown('<div style="font-size:0.8rem;color:rgba(255,255,255,0.2);'
+                        'font-style:italic;">No reports yet.</div>',
+                        unsafe_allow_html=True)
+    except Exception:
+        st.markdown('<div style="font-size:0.72rem;color:rgba(255,255,255,0.15);">'
+                    'History unavailable</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
@@ -1199,17 +1261,6 @@ if should_generate and ticker:
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
         st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
-    
-    # DEBUG
-    st.sidebar.write(f"DEBUG: about to save. username={username}, authenticated={authenticated}")
-    
-    # Save report to user history
-    try:
-        from report_store import save_report
-        rid = save_report(username, ticker, m, a)
-        st.sidebar.write(f"DEBUG: saved report {rid}")
-    except Exception as e:
-        st.sidebar.error(f"Report save failed: {e}")
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
@@ -1217,7 +1268,20 @@ if should_generate and ticker:
 
 if st.session_state.cached_report:
     cached = st.session_state.cached_report
-    c_ticker = cached["ticker"]; c_m = cached["metrics"]; c_a = cached["analysis"]; c_data = cached["data"]
+    c_ticker = cached["ticker"]
+    c_m = cached["metrics"]
+    c_a = cached["analysis"]
+    c_data = cached["data"]
+
+    # Save report once (only on first render after generation)
+    save_key = f"saved_{c_ticker}_{c_a.get('recommendation','')}"
+    if save_key not in st.session_state:
+        try:
+            from report_store import save_report
+            save_report(username, c_ticker, c_m, c_a)
+            st.session_state[save_key] = True
+        except Exception as e:
+            print(f"Report save failed: {e}")
 
     with report_area:
         render(c_ticker, c_m, c_a, c_data)
