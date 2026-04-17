@@ -162,9 +162,14 @@ def render_auth():
                             "password_hash": _hash_password(reg_pass),
                         }
                         if _save_users(users, sha):
-                            st.success("Account created! Switch to Sign In.")
+                            st.session_state["authenticated"] = True
+                            st.session_state["username"] = username
+                            st.session_state["user_name"] = reg_name.strip()
+                            st.session_state["user_email"] = reg_email.strip()
+                            st.rerun()
                         else:
                             st.error("Could not save account. Try again.")
+
 
     # Not authenticated
     return None, None, False

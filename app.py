@@ -217,6 +217,62 @@ st.markdown("""
     
     .stButton > button { transition: all 0.25s ease !important; }
     .stButton > button:active { transform: scale(0.97) !important; }
+            
+        /* ── MOBILE RESPONSIVE ── */
+    @media (max-width: 768px) {
+        .hero h1 { font-size: 2.8rem !important; }
+        .hero .desc { font-size: 0.88rem; padding: 0 1rem; }
+        .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
+        .rpt-card { padding: 1.2rem 1rem !important; }
+        .rec-bar { gap: 1.2rem !important; flex-wrap: wrap !important; padding: 1rem 0.5rem !important; }
+        .rb-val { font-size: 1.2rem !important; }
+        .rb-label { font-size: 0.58rem !important; }
+        .ev-bar { gap: 1.2rem !important; flex-wrap: wrap !important; padding: 1rem !important; }
+        .ev-val { font-size: 1rem !important; }
+        .stats-row { gap: 1.5rem !important; flex-wrap: wrap !important; }
+        .sr-num { font-size: 1.2rem !important; }
+        .pt { font-size: 0.75rem !important; }
+        .pt th { font-size: 0.55rem !important; padding: 0.4rem !important; }
+        .pt td { padding: 0.4rem !important; }
+        .prose { font-size: 0.9rem !important; }
+        .sec { font-size: 0.68rem !important; margin: 2rem 0 0.8rem !important; }
+        .exec-summary { padding: 1rem !important; font-size: 0.9rem !important; }
+        .rpt-head h2 { font-size: 1.6rem !important; }
+        .rpt-head .meta { font-size: 0.72rem !important; }
+        .range-bar-labels { font-size: 0.7rem !important; }
+        .thesis-grid { grid-template-columns: 1fr !important; }
+        .hiw-grid { flex-direction: column !important; align-items: center !important; }
+        .params-row { font-size: 0.8rem !important; }
+        .driver-card { padding: 0.8rem !important; }
+        .scenario-card { padding: 0.8rem 1rem !important; }
+        .plain-callout { padding: 0.7rem 0.9rem !important; font-size: 0.82rem !important; }
+        .prob-math-row { font-size: 0.75rem !important; }
+        .prob-math-chip { padding: 0.2rem 0.4rem !important; font-size: 0.72rem !important; }
+        .track-box { padding: 1rem 1.2rem !important; }
+        .foot-card { padding: 1rem !important; }
+        .foot-disclaimer { font-size: 0.7rem !important; }
+        
+        /* Concentration grid single column on mobile */
+        div[style*="grid-template-columns:1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+        }
+        
+        /* Sticky header compact on mobile */
+        div[style*="position:sticky"] {
+            padding: 0.4rem 0.8rem !important;
+            font-size: 0.8rem !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .hero h1 { font-size: 2.2rem !important; }
+        .rec-bar { gap: 0.8rem !important; }
+        .rb-val { font-size: 1rem !important; }
+        .ev-bar { gap: 0.8rem !important; }
+        .ev-val { font-size: 0.9rem !important; }
+        .rpt-head h2 { font-size: 1.3rem !important; }
+        .pt { display: block !important; overflow-x: auto !important; }
+    }
 
 </style>
 """, unsafe_allow_html=True)
