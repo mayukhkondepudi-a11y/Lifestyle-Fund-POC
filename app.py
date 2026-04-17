@@ -1297,10 +1297,18 @@ except Exception as e:
 
 if screener_data:
     last_updated = screener_data.get("last_updated", "")
-    st.markdown(f'''<div style="padding:1.5rem 0 0.5rem;"><div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <div style="font-size:0.9rem;font-weight:900;text-transform:uppercase;letter-spacing:0.18em;color:rgba(255,255,255,0.18);">QGLP Top Picks</div>
-        <div style="font-size:0.9rem;color:rgba(255,255,255,0.15);">Updated {last_updated}</div></div></div>''', unsafe_allow_html=True)
-    st.markdown('<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);text-align:center;margin-bottom:1.2rem;">Select any ticker from the tables below to generate a full report, or search for a stock below the tables.</div>', unsafe_allow_html=True)
+    st.markdown(f'''<div style="padding:2rem 0 0.8rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <div style="font-size:0.85rem;font-weight:900;text-transform:uppercase;
+                letter-spacing:0.16em;color:rgba(255,255,255,0.7);">
+                QGLP Top Picks</div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,0.35);font-weight:500;">
+                Updated {last_updated}</div>
+        </div>
+        <div style="height:2px;background:linear-gradient(90deg,#8b1a1a,transparent);
+            margin-top:0.6rem;border-radius:1px;"></div>
+    </div>''', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.9rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:1.5rem;line-height:1.7;">Select any ticker from the tables below to generate a full report, or search for a stock below.</div>', unsafe_allow_html=True)
     render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
     render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
 
