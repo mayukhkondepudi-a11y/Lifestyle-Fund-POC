@@ -93,9 +93,19 @@ def render_auth():
             AI Assisted Equity Research</div>
     </div>''', unsafe_allow_html=True)
 
+        # ── Explainer for new visitors ──
+    st.markdown('''<div style="text-align:center;max-width:600px;margin:0 auto;padding:0 1rem 1.5rem;">
+        <p style="font-size:1.05rem;color:#ccc;line-height:1.6;margin:0;">
+            What if you could analyze any stock the way a hedge fund does, in under 2 minutes?
+            PickR combines <strong style="color:#fff;">24 verified financial metrics</strong> with
+            <strong style="color:#fff;">AI-driven scenario analysis</strong> to give you a
+            probability-weighted view of where a stock could go.
+        </p>
+    </div>''', unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        login_tab, register_tab = st.tabs(["Sign In", "Create Account"])
+        login_tab, register_tab, guest_tab = st.tabs(["Sign In", "Create Account", "Continue as Guest"])
 
         with login_tab:
             st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -169,6 +179,35 @@ def render_auth():
                             st.rerun()
                         else:
                             st.error("Could not save account. Try again.")
+
+        with guest_tab:
+            st.markdown(
+                '<p style="color:#aaa;font-size:0.95rem;">'
+                'No account needed. Pick an alias and start analyzing stocks instantly.'
+                '</p>',
+                unsafe_allow_html=True
+            )
+            guest_alias = st.text_input(
+                "Choose a guest alias",
+                key="guest_alias_input",
+                placeholder="e.g. CuriousInvestor",
+                max_chars=20
+            )
+
+            if st.button("Enter as Guest", key="guest_btn", type="primary", use_container_width=True):
+                alias = guest_alias.strip()
+                if not alias:
+                    st.error("Please enter an alias to continue.")
+                elif len(alias) < 2:
+                    st.error("Alias must be at least 2 characters.")
+                else:
+                    st.session_state["authenticated"] = True
+                    st.session_state["username"] = f"guest_{alias.lower().replace(' ', '_')}"
+                    st.session_state["user_name"] = alias
+                    st.session_state["user_email"] = ""
+                    st.session_state["is_guest"] = True
+                    st.rerun()
+
 
 
     # Not authenticated

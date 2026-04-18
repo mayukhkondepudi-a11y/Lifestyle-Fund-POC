@@ -474,15 +474,20 @@ if not authenticated:
     st.stop()
 
 # ── User badge in header ──
+is_guest = st.session_state.get("is_guest", False)
+badge_label = f"Guest: {name}" if is_guest else name
+badge_color_start = "#444" if is_guest else "#8b1a1a"
+badge_color_end = "#666" if is_guest else "#c03030"
+
 st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
     display:flex;align-items:center;gap:0.6rem;">
     <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
-        {name}</span>
+        {badge_label}</span>
     <div style="width:24px;height:24px;border-radius:50%;
-        background:linear-gradient(135deg,#8b1a1a,#c03030);
+        background:linear-gradient(135deg,{badge_color_start},{badge_color_end});
         display:flex;align-items:center;justify-content:center;
         font-size:0.6rem;font-weight:800;color:#fff;">
-        {name[0].upper() if name else "U"}</div>
+        {name[0].upper() if name else "G"}</div>
 </div>''', unsafe_allow_html=True)
 
 # Sign out in sidebar top
@@ -740,14 +745,18 @@ def render(ticker, m, a, data):
 
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
-    # Masthead
+    # ══════════════════════════════════════════════════════════════
+    # 1. MASTHEAD
+    # ══════════════════════════════════════════════════════════════
     st.markdown(f'''<div class="rpt-head">
         <h2>{strip_html(company)}</h2>
         <div class="meta">{ticker} &nbsp;/&nbsp; {m.get("sector","")} &nbsp;/&nbsp;
         {m.get("industry","")} &nbsp;/&nbsp; {cur} &nbsp;/&nbsp; {date}</div>
     </div>''', unsafe_allow_html=True)
 
-    # Recommendation Bar
+    # ══════════════════════════════════════════════════════════════
+    # 2. STICKY NAVIGATION BAR
+    # ══════════════════════════════════════════════════════════════
     rec  = a.get("recommendation", "WATCH").upper()
     conv = a.get("conviction", "Medium")
     rc   = "buy" if rec == "BUY" else ("pass" if rec == "PASS" else "watch")
@@ -755,53 +764,100 @@ def render(ticker, m, a, data):
     exp_ret  = sm.get("expected_return", 0)
     prob_pos = sm.get("prob_positive_return", 0)
 
-        # Sticky nav
     st.markdown(f'''<div style="position:sticky;top:0;z-index:100;
         background:rgba(26,26,26,0.92);backdrop-filter:blur(12px);
         border-bottom:1px solid rgba(255,255,255,0.06);
         padding:0.6rem 1.5rem;margin:0 -2.5rem 1rem;
         display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;align-items:center;gap:1rem;">
-            <span style="font-weight:900;color:#fff;font-size:0.95rem;">
-                Pick<span style="color:#c03030;">R</span></span>
-            <span style="color:rgba(255,255,255,0.5);font-size:0.85rem;font-weight:600;">
-                {strip_html(company)}</span>
-            <span style="color:rgba(255,255,255,0.25);font-size:0.8rem;">{ticker}</span>
+        <div style="display:flex;align-items:center;gap:0.8rem;">
+            <span style="font-weight:800;font-size:1rem;color:#fff;">{strip_html(company)}</span>
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.4);">{ticker}</span>
+            <span style="font-size:0.9rem;color:#fff;font-weight:600;">{sym}{safe_float(m.get('current_price')):,.2f}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:2rem;">
-            <span style="font-size:0.85rem;color:rgba(255,255,255,0.5);font-weight:600;">
-                {sym}{safe_float(m.get("current_price")):,.2f}</span>
-            <span style="font-size:0.85rem;font-weight:800;
-                color:{'#4ade80' if rec=='BUY' else ('#f87171' if rec=='PASS' else '#fbbf24')};">
-                {rec}</span>
-            <span style="font-size:0.85rem;font-weight:700;
-                color:{'#4ade80' if exp_ret > 0 else '#f87171'};">
-                {exp_ret*100:+.1f}% EV</span>
+        <div style="display:flex;align-items:center;gap:1.2rem;">
+            <span class="rb-val {rc}" style="font-size:0.85rem;">{rec}</span>
+            <span style="font-size:0.85rem;color:rgba(255,255,255,0.5);">EV {sym}{ev:,.2f}</span>
         </div>
     </div>''', unsafe_allow_html=True)
 
+    # ══════════════════════════════════════════════════════════════
+    # 3. RECOMMENDATION BAR
+    # ══════════════════════════════════════════════════════════════
     st.markdown(f'''<div class="rec-bar">
-        <div class="rb-item"><div class="rb-label">Recommendation</div><div class="rb-val {rc}">{rec}</div></div>
-        <div class="rb-item"><div class="rb-label">Conviction</div><div class="rb-val {rc}">{conv}</div></div>
-        <div class="rb-item"><div class="rb-label">Expected Value</div><div class="rb-val {rc}">{sym}{ev:,.2f}</div></div>
-        <div class="rb-item"><div class="rb-label">Expected Return</div><div class="rb-val {rc}">{exp_ret*100:+.1f}%</div></div>
-        <div class="rb-item"><div class="rb-label">P(Positive)</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
+        <div class="rb-item"><div class="rb-label">Recommendation</div>
+            <div class="rb-val {rc}">{rec}</div></div>
+        <div class="rb-item"><div class="rb-label">Conviction</div>
+            <div class="rb-val {rc}">{conv}</div></div>
+        <div class="rb-item"><div class="rb-label">Expected Value</div>
+            <div class="rb-val {rc}">{sym}{ev:,.2f}</div></div>
+        <div class="rb-item"><div class="rb-label">Expected Return</div>
+            <div class="rb-val {rc}">{exp_ret*100:+.1f}%</div></div>
+        <div class="rb-item"><div class="rb-label">Chance of Gain</div>
+            <div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
     </div>''', unsafe_allow_html=True)
 
-    # Investment Thesis
+    # ══════════════════════════════════════════════════════════════
+    # 4. INVESTMENT THESIS
+    # ══════════════════════════════════════════════════════════════
     if a.get("investment_thesis"):
         st.markdown(f'<div class="exec-summary">{strip_html(a["investment_thesis"])}</div>',
                     unsafe_allow_html=True)
 
-    # Override warning
+    # ══════════════════════════════════════════════════════════════
+    # 5. OVERRIDE WARNING
+    # ══════════════════════════════════════════════════════════════
     if a.get("rec_override_reason"):
         st.markdown(
             f'<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);'
-            f'border-radius:6px;padding:0.8rem 1.2rem;font-size:0.85rem;color:#fbbf24;'
-            f'margin:0.8rem 0;line-height:1.5;">{strip_html(a["rec_override_reason"])}</div>',
+            f'border-radius:8px;padding:1rem 1.2rem;margin:0.8rem 0;font-size:0.88rem;'
+            f'color:#fbbf24;line-height:1.6;">{strip_html(a["rec_override_reason"])}</div>',
             unsafe_allow_html=True)
 
-    # 52-Week Range
+    # ══════════════════════════════════════════════════════════════
+    # 6. BUSINESS OVERVIEW (moved up from narrative loop)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("business_overview"):
+        st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["business_overview"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 7. KEY METRICS (3x6 grid)
+    # ══════════════════════════════════════════════════════════════
+    st.markdown('<div class="sec">Key Metrics <span class="vtag">Python-Verified</span></div>',
+                unsafe_allow_html=True)
+
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    with c1: st.metric("Market Cap", fmt_c(m.get("market_cap"), cur))
+    with c2: st.metric("Price", fmt_c(m.get("current_price"), cur))
+    with c3: st.metric("Trailing P/E", fmt_r(m.get("trailing_pe")))
+    with c4: st.metric("Forward P/E", fmt_r(m.get("forward_pe")))
+    with c5: st.metric("PEG", fmt_r(m.get("peg_ratio")))
+    with c6: st.metric("EV/EBITDA", fmt_r(m.get("ev_to_ebitda")))
+
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"), cur))
+    with c2: st.metric("Gross Margin", fmt_p(m.get("gross_margin")))
+    with c3: st.metric("Op. Margin", fmt_p(m.get("operating_margin")))
+    with c4: st.metric("Net Margin", fmt_p(m.get("profit_margin")))
+    with c5: st.metric("ROE", fmt_p(m.get("roe")))
+    with c6: st.metric("FCF Yield", fmt_p(m.get("fcf_yield")))
+
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    with c1: st.metric("Rev Growth", fmt_p(m.get("revenue_growth")))
+    rev_cagr_yrs = m.get("revenue_cagr_years", 0)
+    with c2: st.metric(f"Rev CAGR ({rev_cagr_yrs}Y)" if rev_cagr_yrs else "Rev CAGR",
+                       fmt_p(m.get("revenue_cagr")))
+    with c3: st.metric("Debt/Equity", fmt_r(m.get("debt_to_equity")))
+    with c4: st.metric("Current Ratio", fmt_r(m.get("current_ratio")))
+    with c5: st.metric("Beta", fmt_r(m.get("beta")))
+    with c6:
+        r5 = m.get("price_5y_return")
+        st.metric("5Y Return", f"{r5}%" if r5 else "-")
+
+    # ══════════════════════════════════════════════════════════════
+    # 8. 52-WEEK RANGE
+    # ══════════════════════════════════════════════════════════════
     w52h = m.get("week_52_high"); w52l = m.get("week_52_low"); cp = m.get("current_price")
     if w52h and w52l and cp:
         try:
@@ -819,51 +875,31 @@ def render(ticker, m, a, data):
         except Exception:
             pass
 
-    # 5-Year Price History
+    # ══════════════════════════════════════════════════════════════
+    # 9. 5-YEAR PRICE HISTORY
+    # ══════════════════════════════════════════════════════════════
     h = data.get("hist")
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
         cd = h[["Close"]].copy(); cd.columns = ["Price"]
         st.line_chart(cd, height=250, color="#8b1a1a")
 
-    # Key Metrics
-    st.markdown('<div class="sec">Key Metrics <span class="vtag">Python-Verified</span></div>', unsafe_allow_html=True)
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Market Cap", fmt_c(m.get("market_cap"), cur))
-    with c2: st.metric("Price", fmt_c(m.get("current_price"), cur))
-    with c3: st.metric("Trailing P/E", fmt_r(m.get("trailing_pe")))
-    with c4: st.metric("Forward P/E", fmt_r(m.get("forward_pe")))
-    with c5: st.metric("PEG", fmt_r(m.get("peg_ratio")))
-    with c6: st.metric("EV/EBITDA", fmt_r(m.get("ev_to_ebitda")))
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"), cur))
-    with c2: st.metric("Gross Margin", fmt_p(m.get("gross_margin")))
-    with c3: st.metric("Op. Margin", fmt_p(m.get("operating_margin")))
-    with c4: st.metric("Net Margin", fmt_p(m.get("profit_margin")))
-    with c5: st.metric("ROE", fmt_p(m.get("roe")))
-    with c6: st.metric("FCF Yield", fmt_p(m.get("fcf_yield")))
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
-    with c1: st.metric("Rev Growth", fmt_p(m.get("revenue_growth")))
-    rev_cagr_yrs = m.get("revenue_cagr_years", 0)
-    with c2: st.metric(f"Rev CAGR ({rev_cagr_yrs}Y)" if rev_cagr_yrs else "Rev CAGR", fmt_p(m.get("revenue_cagr")))
-    with c3: st.metric("Debt/Equity", fmt_r(m.get("debt_to_equity")))
-    with c4: st.metric("Current Ratio", fmt_r(m.get("current_ratio")))
-    with c5: st.metric("Beta", fmt_r(m.get("beta")))
-    with c6:
-        r5 = m.get("price_5y_return")
-        st.metric("5Y Return", f"{r5}%" if r5 else "-")
-
-    # Revenue & Earnings Trend
+    # ══════════════════════════════════════════════════════════════
+    # 10. REVENUE & EARNINGS TREND
+    # ══════════════════════════════════════════════════════════════
     rh = m.get("revenue_history", {}); nh = m.get("net_income_history", {})
     if rh or nh:
-        st.markdown('<div class="sec">Revenue &amp; Earnings Trend (Billions)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">Revenue &amp; Earnings Trend (Billions)</div>',
+                    unsafe_allow_html=True)
         cc1, cc2 = st.columns(2)
         with cc1:
             if rh: st.bar_chart(pd.DataFrame({"Revenue": rh}), height=200, color="#8b1a1a")
         with cc2:
             if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#d4443a")
 
-    # Revenue Segmentation
+    # ══════════════════════════════════════════════════════════════
+    # 11. REVENUE SEGMENTATION
+    # ══════════════════════════════════════════════════════════════
     segments = a.get("segments", [])
     if segments:
         st.markdown('<div class="sec">Revenue Segmentation</div>', unsafe_allow_html=True)
@@ -871,15 +907,22 @@ def render(ticker, m, a, data):
         seg_rows = ""
         for seg in segments:
             traj = strip_html(seg.get("trajectory", ""))
-            tc = "#4ade80" if traj == "accelerating" else ("#f87171" if traj == "decelerating" else "#fbbf24")
-            seg_rows += f'''<tr><td><strong>{strip_html(seg.get("name",""))}</strong></td>
-                <td>{fmt_c(seg.get("current_revenue"), cur)}</td><td>{fmt_p(seg.get("pct_of_total"))}</td>
-                <td>{fmt_p(seg.get("gross_margin"))}</td><td>{fmt_p(seg.get("yoy_growth"))}</td>
-                <td style="color:{tc};font-weight:600;text-transform:uppercase;font-size:0.78rem;">{traj}</td>
-                <td style="font-size:0.82rem;color:rgba(255,255,255,0.5);">{strip_html(seg.get("primary_driver",""))}</td></tr>'''
+            traj_lower = traj.lower()
+            tcolor = "#4ade80" if "accel" in traj_lower else ("#f87171" if "decel" in traj_lower else "#fbbf24")
+            seg_rows += f'<tr><td style="font-weight:600;">{strip_html(seg.get("name",""))}</td><td>{fmt_c(seg.get("current_revenue"), cur)}</td><td>{fmt_p(seg.get("pct_of_total"))}</td><td>{fmt_p(seg.get("gross_margin"))}</td><td>{fmt_p(seg.get("yoy_growth"))}</td><td style="color:{tcolor};">{traj}</td><td style="color:rgba(255,255,255,0.5);font-size:0.85rem;">{strip_html(seg.get("primary_driver",""))}</td></tr>'
         st.markdown(f'<table class="pt"><thead>{seg_header}</thead><tbody>{seg_rows}</tbody></table>', unsafe_allow_html=True)
 
-    # Concentration & Dependencies
+    # ══════════════════════════════════════════════════════════════
+    # 12. REVENUE ARCHITECTURE (narrative)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("revenue_architecture"):
+        st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["revenue_architecture"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 13. CONCENTRATION & DEPENDENCIES
+    # ══════════════════════════════════════════════════════════════
     conc = a.get("concentration", {})
     if conc:
         st.markdown('<div class="sec">Concentration &amp; Dependencies</div>', unsafe_allow_html=True)
@@ -904,20 +947,34 @@ def render(ticker, m, a, data):
             risk_items = "".join(f'<div style="padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.88rem;color:rgba(255,255,255,0.55);">{strip_html(r)}</div>' for r in at_risk)
             st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:6px;padding:0.8rem 1.2rem;margin-top:0.8rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">Relationships At Risk</div>{risk_items}</div>', unsafe_allow_html=True)
 
-    # Narrative sections
-    for section_id, section_title in [
-        ("business_overview", "Business Overview"),
-        ("revenue_architecture", "Revenue Architecture"),
-        ("growth_drivers", "Growth Drivers &amp; Competitive Moats"),
-        ("margin_analysis", "Margin Analysis"),
-        ("financial_health", "Financial Health"),
-        ("competitive_position", "Competitive Position"),
-    ]:
-        if a.get(section_id):
-            st.markdown(f'<div class="sec">{section_title}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="prose">{strip_html(a[section_id])}</div>', unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════════════════
+    # 14. GROWTH DRIVERS & COMPETITIVE MOATS (narrative)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("growth_drivers"):
+        st.markdown('<div class="sec">Growth Drivers &amp; Competitive Moats</div>',
+                    unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["growth_drivers"])}</div>',
+                    unsafe_allow_html=True)
 
-    # Peer Comparison
+    # ══════════════════════════════════════════════════════════════
+    # 15. MARGIN ANALYSIS (narrative)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("margin_analysis"):
+        st.markdown('<div class="sec">Margin Analysis</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["margin_analysis"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 16. FINANCIAL HEALTH (narrative)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("financial_health"):
+        st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["financial_health"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 17. PEER COMPARISON
+    # ══════════════════════════════════════════════════════════════
     sector = m.get("sector", "")
     llm_peers = a.get("peer_tickers", [])
     if sector in SECTOR_PEERS or llm_peers:
@@ -938,116 +995,200 @@ def render(ticker, m, a, data):
             tr_p = "".join("<tr>" + "".join(f"<td>{pr.get(hd, '-')}</td>" for hd in hds) + "</tr>" for pr in peers)
             st.markdown(f'<table class="pt"><thead><tr>{th}</tr></thead><tbody>{tr_c}{tr_p}</tbody></table>', unsafe_allow_html=True)
 
-    # Headwinds & Tailwinds
+    # ══════════════════════════════════════════════════════════════
+    # 18. COMPETITIVE POSITION (narrative, moved after peers)
+    # ══════════════════════════════════════════════════════════════
+    if a.get("competitive_position"):
+        st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["competitive_position"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 19. WHAT COULD GO WRONG & WHAT COULD GO RIGHT (headwinds/tailwinds)
+    # ══════════════════════════════════════════════════════════════
     headwinds = a.get("headwinds", [])
     tailwinds = a.get("tailwinds", [])
     if headwinds or tailwinds:
-        st.markdown('<div class="sec">Headwinds &amp; Tailwinds <span class="vtag">Quantified</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">What Could Go Wrong &amp; What Could Go Right '
+                    '<span class="vtag">Quantified</span></div>', unsafe_allow_html=True)
+
         if a.get("headwind_narrative"):
-            st.markdown(f'<div class="prose">{strip_html(a["headwind_narrative"])}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="prose">{strip_html(a["headwind_narrative"])}</div>',
+                        unsafe_allow_html=True)
+
         if headwinds:
             hw_header = "<tr><th>Headwind</th><th>Prob.</th><th>Revenue at Risk</th><th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>"
-            hw_rows = ""
-            for hw in headwinds:
-                bi = hw.get("bull_impact", {}); bai = hw.get("base_impact", {}); bei = hw.get("bear_impact", {})
-                hw_rows += f'''<tr><td><strong>{strip_html(hw.get("name",""))}</strong><br><span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">{strip_html(hw.get("description",""))[:120]}</span></td>
-                    <td>{safe_float(hw.get("probability"))*100:.0f}%</td>
-                    <td style="color:#f87171;">{fmt_c(hw.get("revenue_at_risk"), cur)}</td>
-                    <td style="font-size:0.82rem;">{fmt_c(bi.get("revenue"), cur)}<br><span style="color:rgba(255,255,255,0.4);">{sym}{safe_float(bi.get("eps")):+.2f} EPS</span></td>
-                    <td style="font-size:0.82rem;">{fmt_c(bai.get("revenue"), cur)}<br><span style="color:rgba(255,255,255,0.4);">{sym}{safe_float(bai.get("eps")):+.2f} EPS</span></td>
-                    <td style="font-size:0.82rem;color:#f87171;">{fmt_c(bei.get("revenue"), cur)}<br><span>{sym}{safe_float(bei.get("eps")):+.2f} EPS</span></td></tr>'''
+            hw_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(hw.get("name",""))}</td><td>{fmt_p(hw.get("probability"))}</td><td>{fmt_c(hw.get("revenue_at_risk"), cur)}</td><td>{sym}{safe_float(hw.get("bull_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(hw.get("base_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(hw.get("bear_eps_impact",0)):+.2f}</td></tr>' for hw in headwinds)
             st.markdown(f'<table class="pt"><thead>{hw_header}</thead><tbody>{hw_rows}</tbody></table>', unsafe_allow_html=True)
+
         if a.get("tailwind_narrative"):
-            st.markdown(f'<div class="prose" style="margin-top:1rem;">{strip_html(a["tailwind_narrative"])}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="prose" style="margin-top:1rem;">{strip_html(a["tailwind_narrative"])}</div>',
+                        unsafe_allow_html=True)
+
         if tailwinds:
             tw_header = "<tr><th>Tailwind</th><th>Prob.</th><th>Revenue Opportunity</th><th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>"
-            tw_rows = ""
-            for tw in tailwinds:
-                bi = tw.get("bull_impact", {}); bai = tw.get("base_impact", {}); bei = tw.get("bear_impact", {})
-                tw_rows += f'''<tr><td><strong>{strip_html(tw.get("name",""))}</strong><br><span style="color:rgba(255,255,255,0.4);font-size:0.78rem;">{strip_html(tw.get("description",""))[:120]}</span></td>
-                    <td>{safe_float(tw.get("probability"))*100:.0f}%</td>
-                    <td style="color:#4ade80;">{fmt_c(tw.get("revenue_opportunity"), cur)}</td>
-                    <td style="font-size:0.82rem;color:#4ade80;">{fmt_c(bi.get("revenue"), cur)}<br><span>{sym}{safe_float(bi.get("eps")):+.2f} EPS</span></td>
-                    <td style="font-size:0.82rem;">{fmt_c(bai.get("revenue"), cur)}<br><span style="color:rgba(255,255,255,0.4);">{sym}{safe_float(bai.get("eps")):+.2f} EPS</span></td>
-                    <td style="font-size:0.82rem;">{fmt_c(bei.get("revenue"), cur)}<br><span style="color:rgba(255,255,255,0.4);">{sym}{safe_float(bei.get("eps")):+.2f} EPS</span></td></tr>'''
+            tw_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(tw.get("name",""))}</td><td>{fmt_p(tw.get("probability"))}</td><td>{fmt_c(tw.get("revenue_opportunity"), cur)}</td><td>{sym}{safe_float(tw.get("bull_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(tw.get("base_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(tw.get("bear_eps_impact",0)):+.2f}</td></tr>' for tw in tailwinds)
             st.markdown(f'<table class="pt"><thead>{tw_header}</thead><tbody>{tw_rows}</tbody></table>', unsafe_allow_html=True)
 
-    # Macro Drivers
+    # ══════════════════════════════════════════════════════════════
+    # 20. KEY FACTORS THAT DRIVE THIS STOCK (macro drivers)
+    # ══════════════════════════════════════════════════════════════
     macro_drivers = a.get("macro_drivers", [])
     if macro_drivers:
-        st.markdown('<div class="sec">What Drives the Outcome <span class="vtag">Bottom-Up Probability</span></div>', unsafe_allow_html=True)
-        st.markdown('''<div class="plain-callout"><div class="plain-callout-label">How this works</div>
-            Instead of guessing scenario probabilities, we identify the specific events that determine this company's outcome.
-            Each event gets an independent probability. The math computes final scenario probabilities from these inputs.</div>''', unsafe_allow_html=True)
-        for d in macro_drivers:
-            dname = strip_html(d.get("name", ""))
-            dmeasures = strip_html(d.get("measures", ""))
-            bull_p = safe_float(d.get("bull_outcome", {}).get("probability"))
-            base_p = safe_float(d.get("base_outcome", {}).get("probability"))
-            bear_p = safe_float(d.get("bear_outcome", {}).get("probability"))
-            bull_n = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
-            base_n = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
-            bear_n = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
-            bw = max(2, min(100, round(bull_p*100))); basew = max(2, min(100, round(base_p*100))); bearw = max(2, min(100, round(bear_p*100)))
-            st.markdown(f'''<div class="driver-card"><div class="driver-card-name">{dname}</div><div class="driver-card-desc">{dmeasures}</div>
-                <div style="margin:0.3rem 0;">
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;"><div style="width:100px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:{bw}%;height:100%;background:#4ade80;border-radius:3px;"></div></div><span style="font-size:0.75rem;color:#4ade80;font-weight:700;min-width:35px;">{bull_p*100:.0f}%</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.4);">{bull_n}</span></div>
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;"><div style="width:100px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:{basew}%;height:100%;background:#fbbf24;border-radius:3px;"></div></div><span style="font-size:0.75rem;color:#fbbf24;font-weight:700;min-width:35px;">{base_p*100:.0f}%</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.4);">{base_n}</span></div>
-                <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:100px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;"><div style="width:{bearw}%;height:100%;background:#f87171;border-radius:3px;"></div></div><span style="font-size:0.75rem;color:#f87171;font-weight:700;min-width:35px;">{bear_p*100:.0f}%</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.4);">{bear_n}</span></div>
-                </div></div>''', unsafe_allow_html=True)
+        st.markdown('<div class="sec">Key Factors That Drive This Stock '
+                    '<span class="vtag">Factor-by-Factor Analysis</span></div>',
+                    unsafe_allow_html=True)
 
-        # Probability math explainer
+        st.markdown('''<div class="plain-callout">
+            <div class="plain-callout-label">How this works</div>
+            We identified the most important factors that will determine where this stock goes.
+            For each factor, we assessed three possible outcomes: optimistic (green),
+            neutral (yellow), and pessimistic (red). The percentages show how likely
+            each outcome is. These individual assessments are then combined to produce
+            the overall scenario probabilities you'll see in the next section.
+        </div>''', unsafe_allow_html=True)
+
+        for d in macro_drivers:
+            dname    = strip_html(d.get("name", ""))
+            dmeasures = strip_html(d.get("measures", ""))
+            bull_p   = safe_float(d.get("bull_outcome", {}).get("probability"))
+            base_p   = safe_float(d.get("base_outcome", {}).get("probability"))
+            bear_p   = safe_float(d.get("bear_outcome", {}).get("probability"))
+            bull_n   = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
+            base_n   = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
+            bear_n   = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
+
+            bw    = max(2, min(100, round(bull_p*100)))
+            basew = max(2, min(100, round(base_p*100)))
+            bearw = max(2, min(100, round(bear_p*100)))
+
+            st.markdown(f'''<div class="driver-card">
+                <div class="driver-card-name">{dname}</div>
+                <div class="driver-card-desc">{dmeasures}</div>
+                <div style="margin:0.3rem 0;">
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
+                        <div style="width:{bw}%;height:6px;background:#22703a;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#4ade80;min-width:2.5rem;">{bull_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{bull_n}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
+                        <div style="width:{basew}%;height:6px;background:#92681a;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#fbbf24;min-width:2.5rem;">{base_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{base_n}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
+                        <div style="width:{bearw}%;height:6px;background:#8b2020;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#f87171;min-width:2.5rem;">{bear_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{bear_n}</span>
+                    </div>
+                </div>
+            </div>''', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 21. HOW WE WEIGHTED THE SCENARIOS (probability - reimagined)
+    # ══════════════════════════════════════════════════════════════
+    fb  = prob_out.get("bull", 0)
+    fba = prob_out.get("base", 0)
+    fbe = prob_out.get("bear", 0)
+
+    if fb or fba or fbe:
+        st.markdown('<div class="sec">How We Weighted the Scenarios</div>',
+                    unsafe_allow_html=True)
+
+        n_drivers = len(macro_drivers)
+        st.markdown(f'''<div class="plain-callout">
+            <div class="plain-callout-label">From factors to scenario weights</div>
+            We analyzed <strong>{n_drivers} key factor{"s" if n_drivers != 1 else ""}</strong>
+            above. Each factor had its own optimistic, neutral, and pessimistic
+            probabilities. We combined all of them to arrive at the overall
+            likelihood of each scenario playing out. Here is the result:
+        </div>''', unsafe_allow_html=True)
+
+        bull_pct = f"{fb*100:.0f}"
+        base_pct = f"{fba*100:.0f}"
+        bear_pct = f"{fbe*100:.0f}"
+
+        st.markdown(f'''<div style="margin:1.2rem 0 0.8rem;">
+            <div style="display:flex;height:38px;border-radius:8px;overflow:hidden;
+                 border:1px solid rgba(255,255,255,0.08);">
+                <div style="width:{bull_pct}%;background:#22703a;display:flex;
+                     align-items:center;justify-content:center;
+                     font-weight:700;font-size:0.85rem;color:#fff;">
+                    Bull {bull_pct}%</div>
+                <div style="width:{base_pct}%;background:#92681a;display:flex;
+                     align-items:center;justify-content:center;
+                     font-weight:700;font-size:0.85rem;color:#fff;">
+                    Base {base_pct}%</div>
+                <div style="width:{bear_pct}%;background:#8b2020;display:flex;
+                     align-items:center;justify-content:center;
+                     font-weight:700;font-size:0.85rem;color:#fff;">
+                    Bear {bear_pct}%</div>
+            </div>
+            <div style="margin-top:0.7rem;font-size:0.9rem;color:rgba(255,255,255,0.6);
+                 line-height:1.6;">
+                There is a <strong style="color:#4ade80;">{bull_pct}% chance</strong>
+                things go better than expected,
+                a <strong style="color:#fbbf24;">{base_pct}% chance</strong>
+                they play out roughly as the market expects, and
+                a <strong style="color:#f87171;">{bear_pct}% chance</strong>
+                of a worse-than-expected outcome. These weights are used to calculate the
+                expected value and return you see in the scenarios below.
+            </div>
+        </div>''', unsafe_allow_html=True)
+
         if prob_out.get("method") == "geometric_mean_probability":
             raw_bull  = prob_out.get("raw_geometric", {}).get("bull", 0)
             raw_bear  = prob_out.get("raw_geometric", {}).get("bear", 0)
             bull_mult = prob_out.get("correlation_multipliers", {}).get("bull", 1.2)
             bear_mult = prob_out.get("correlation_multipliers", {}).get("bear", 1.4)
-            fb = prob_out.get("bull", 0); fba = prob_out.get("base", 0); fbe = prob_out.get("bear", 0)
-            st.markdown(f'''<div class="prob-explainer"><strong>How the final probabilities were computed:</strong><br><br>
-                Geometric mean of each driver's bull/bear probabilities, with clustering adjustment:
-                <strong>{bull_mult:.1f}x</strong> bull tail, <strong>{bear_mult:.1f}x</strong> bear tail
-                (downside scenarios correlate more tightly in practice).
-                <div class="prob-math-row" style="margin-top:0.8rem;">
-                <span style="color:rgba(255,255,255,0.4);font-size:0.82rem;">Geometric mean:</span>
-                <span class="prob-math-chip bull">Bull {raw_bull*100:.1f}%</span>
-                <span class="prob-math-chip bear">Bear {raw_bear*100:.1f}%</span>
-                <span class="prob-math-arrow">after clustering</span>
-                <span class="prob-math-chip bull">Bull {fb*100:.1f}%</span>
-                <span class="prob-math-chip base">Base {fba*100:.1f}%</span>
-                <span class="prob-math-chip bear">Bear {fbe*100:.1f}%</span></div></div>''', unsafe_allow_html=True)
 
-    # Market Pricing Commentary
-    if a.get("market_pricing_commentary"):
-        st.markdown('<div class="sec">Valuation vs Expectations</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["market_pricing_commentary"])}</div>', unsafe_allow_html=True)
+            with st.expander("Methodology details"):
+                st.markdown(f'''<div style="font-size:0.85rem;color:rgba(255,255,255,0.55);
+                    line-height:1.7;">
+                    <strong>Step 1:</strong> For each of the {n_drivers} factors above,
+                    we took the bull and bear probabilities.<br>
+                    <strong>Step 2:</strong> We computed the geometric mean across all factors
+                    (raw bull: {raw_bull*100:.1f}%, raw bear: {raw_bear*100:.1f}%).<br>
+                    <strong>Step 3:</strong> We applied a clustering adjustment because in
+                    real markets, bad outcomes tend to happen together more than good ones do
+                    (bull x{bull_mult:.1f}, bear x{bear_mult:.1f}).<br>
+                    <strong>Step 4:</strong> The base case probability is whatever remains
+                    after bull and bear are determined. All three are normalized to sum to 100%.<br>
+                    <strong>Result:</strong>
+                    <span style="color:#4ade80;">Bull {fb*100:.1f}%</span> /
+                    <span style="color:#fbbf24;">Base {fba*100:.1f}%</span> /
+                    <span style="color:#f87171;">Bear {fbe*100:.1f}%</span>
+                </div>''', unsafe_allow_html=True)
 
-    # Scenario Analysis
+    # ══════════════════════════════════════════════════════════════
+    # 22. SCENARIO ANALYSIS TABS
+    # ══════════════════════════════════════════════════════════════
     st.markdown('<div class="sec">Scenario Analysis <span class="vtag">Segment-Level Builds</span></div>', unsafe_allow_html=True)
     if a.get("scenario_commentary"):
         st.markdown(f'<div class="prose">{strip_html(a["scenario_commentary"])}</div>', unsafe_allow_html=True)
 
     scenarios = sm.get("scenarios", {})
-    
+
     bull_s = scenarios.get("bull", {})
     base_s = scenarios.get("base", {})
     bear_s = scenarios.get("bear", {})
-    
+
     bull_label = f"Bull ({bull_s.get('probability',0)*100:.0f}%) / {sym}{bull_s.get('price_target',0):,.0f}" if bull_s else "Bull"
     base_label = f"Base ({base_s.get('probability',0)*100:.0f}%) / {sym}{base_s.get('price_target',0):,.0f}" if base_s else "Base"
     bear_label = f"Bear ({bear_s.get('probability',0)*100:.0f}%) / {sym}{bear_s.get('price_target',0):,.0f}" if bear_s else "Bear"
-    
+
     bull_tab, base_tab, bear_tab = st.tabs([
         f":green[{bull_label}]",
         f":orange[{base_label}]",
         f":red[{bear_label}]",
     ])
-    
+
     tab_configs = [
         (bull_tab, "bull", "Bull Case", "#4ade80", "What goes right"),
         (base_tab, "base", "Base Case", "#fbbf24", "Most likely path"),
         (bear_tab, "bear", "Bear Case", "#f87171", "What goes wrong"),
     ]
-    
+
     for tab, sname, slabel, scolor, stag in tab_configs:
         s = scenarios.get(sname, {})
         if not s:
@@ -1119,7 +1260,8 @@ def render(ticker, m, a, data):
                     st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);">FCF Yield at target: <strong style="color:#fff;">{fcf_y*100:.1f}%</strong></div>', unsafe_allow_html=True)
                 if eps_flag:
                     st.markdown(f'<div style="font-size:0.82rem;color:#fbbf24;margin-top:0.5rem;font-style:italic;">{strip_html(eps_flag)}</div>', unsafe_allow_html=True)
-        # Stats
+
+        # Stats line (outside tab, inside for loop)
         stats_parts = [
             f"Revenue: <strong>{fmt_c(total_rev, cur)}</strong> ({rev_g*100:+.1f}%)",
             f"EPS: <strong>{sym}{eps:.2f}</strong>", f"P/E: <strong>{pe:.1f}x</strong>",
@@ -1130,7 +1272,7 @@ def render(ticker, m, a, data):
         stats_html = " &nbsp;/&nbsp; ".join(f'<span style="font-size:0.8rem;color:rgba(255,255,255,0.4);">{p}</span>' for p in stats_parts)
         st.markdown(f'<div style="padding:0.4rem 0 0.6rem;">{stats_html}</div>', unsafe_allow_html=True)
 
-        # Segment builds
+        # Segment builds (outside tab)
         seg_builds = s.get("segment_builds", [])
         if seg_builds:
             seg_lines = []
@@ -1152,60 +1294,125 @@ def render(ticker, m, a, data):
             st.markdown(f'<div style="font-size:0.75rem;color:#fbbf24;margin-top:0.4rem;font-style:italic;">{strip_html(eps_flag)}</div>', unsafe_allow_html=True)
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
 
-    # Expected Value Bar
-    ras = sm.get("risk_adjusted_score", 0); ud_ratio = sm.get("upside_downside_ratio", 0)
-    mdd = sm.get("max_drawdown_magnitude", 0)*100; mdd_prob = sm.get("max_drawdown_prob", 0)*100
-    rfr = sm.get("risk_free_rate", 0.06)*100; std_dev = sm.get("std_dev", 0)*100
-    ras_color = "#4ade80" if ras > 1.0 else ("#fbbf24" if ras > 0.3 else "#f87171")
-    ret_color = "positive" if exp_ret > 0.05 else ("neutral" if exp_ret > 0 else "negative")
+    # ══════════════════════════════════════════════════════════════
+    # 23. VALUATION VS EXPECTATIONS
+    # ══════════════════════════════════════════════════════════════
+    if a.get("market_pricing_commentary"):
+        st.markdown('<div class="sec">Valuation vs Expectations</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{strip_html(a["market_pricing_commentary"])}</div>',
+                    unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 24. THE BOTTOM LINE (expected value bar - relabeled)
+    # ══════════════════════════════════════════════════════════════
+    ras      = sm.get("risk_adjusted_score", 0)
+    ud_ratio = sm.get("upside_downside_ratio", 0)
+    mdd      = sm.get("max_drawdown_magnitude", 0)*100
+    mdd_prob = sm.get("max_drawdown_prob", 0)*100
+    rfr      = sm.get("risk_free_rate", 0.06)*100
+    std_dev  = sm.get("std_dev", 0)*100
+
+    ras_color  = "#4ade80" if ras > 1.0 else ("#fbbf24" if ras > 0.3 else "#f87171")
+    ret_color  = "positive" if exp_ret > 0.05 else ("neutral" if exp_ret > 0 else "negative")
     ud_display = "inf" if ud_ratio == float("inf") else f"{ud_ratio:.2f}x"
-    ud_color = "#4ade80" if ud_ratio > 1.5 or ud_ratio == float("inf") else ("#fbbf24" if ud_ratio > 1.0 else "#f87171")
+    ud_color   = "#4ade80" if ud_ratio > 1.5 or ud_ratio == float("inf") \
+                 else ("#fbbf24" if ud_ratio > 1.0 else "#f87171")
+
+    st.markdown('<div class="sec">The Bottom Line</div>', unsafe_allow_html=True)
 
     st.markdown(f'''<div class="ev-bar">
-        <div class="ev-item"><div class="ev-label">Expected Value</div><div class="ev-val">{sym}{ev:,.2f}</div></div>
-        <div class="ev-item"><div class="ev-label">Expected Return</div><div class="ev-val {ret_color}">{exp_ret*100:+.1f}%</div></div>
-        <div class="ev-item"><div class="ev-label">Std. Deviation</div><div class="ev-val">{std_dev:.1f}%</div></div>
-        <div class="ev-item"><div class="ev-label">Risk-Adjusted Score</div><div class="ev-val" style="color:{ras_color};">{ras:.2f}</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">vs {rfr:.0f}% risk-free</div></div>
-        <div class="ev-item"><div class="ev-label">Up/Down Capture</div><div class="ev-val" style="color:{ud_color};">{ud_display}</div></div>
-        <div class="ev-item"><div class="ev-label">Max Drawdown</div><div class="ev-val" style="color:#f87171;">{mdd:.1f}%</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">{mdd_prob:.0f}% probability</div></div>
+        <div class="ev-item">
+            <div class="ev-label">Expected Value</div>
+            <div class="ev-val">{sym}{ev:,.2f}</div>
+        </div>
+        <div class="ev-item">
+            <div class="ev-label">Expected Return</div>
+            <div class="ev-val {ret_color}">{exp_ret*100:+.1f}%</div>
+        </div>
+        <div class="ev-item">
+            <div class="ev-label">Volatility</div>
+            <div class="ev-val">{std_dev:.1f}%</div>
+        </div>
+        <div class="ev-item">
+            <div class="ev-label">Risk-Adjusted Return</div>
+            <div class="ev-val" style="color:{ras_color};">{ras:.2f}</div>
+            <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);">
+                above a safe {rfr:.0f}% return</div>
+        </div>
+        <div class="ev-item">
+            <div class="ev-label">Upside vs Downside</div>
+            <div class="ev-val" style="color:{ud_color};">{ud_display}</div>
+        </div>
+        <div class="ev-item">
+            <div class="ev-label">Worst Case Drop</div>
+            <div class="ev-val" style="color:#f87171;">{mdd:.1f}%</div>
+            <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);">
+                {mdd_prob:.0f}% chance of this</div>
+        </div>
     </div>''', unsafe_allow_html=True)
 
-    # Sensitivity Analysis
+    # ══════════════════════════════════════════════════════════════
+    # 25. WHAT IF? (sensitivity analysis)
+    # ══════════════════════════════════════════════════════════════
     sensitivity = sm.get("sensitivity", {})
     if sensitivity and sensitivity.get("dominant_driver"):
         driver_name = strip_html(sensitivity.get("dominant_driver", ""))
-        current_p = safe_float(sensitivity.get("current_bull_probability"))*100
-        ev_plus = safe_float(sensitivity.get("ev_if_bull_plus_10"))
-        ev_minus = safe_float(sensitivity.get("ev_if_bull_minus_10"))
-        interp = strip_html(sensitivity.get("interpretation", ""))
-        st.markdown('<div class="sec">Sensitivity Analysis <span class="vtag">Dominant Driver</span></div>', unsafe_allow_html=True)
-        st.markdown(f'''<div style="background:#141414;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
-            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">What happens to the expected value if we change the bull probability on <strong style="color:#fff;">{driver_name}</strong>?</div>
-            <div style="display:flex;justify-content:center;gap:2.5rem;">
-            <div style="text-align:center;"><div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.3rem;">Bull Prob -10pp ({current_p - 10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div></div>
-            <div style="text-align:center;"><div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:0.3rem;">Current ({current_p:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div></div>
-            <div style="text-align:center;"><div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#4ade80;margin-bottom:0.3rem;">Bull Prob +10pp ({current_p + 10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div></div></div>
-            <div style="font-size:0.85rem;color:rgba(255,255,255,0.45);text-align:center;margin-top:1rem;line-height:1.6;font-style:italic;">{interp}</div></div>''', unsafe_allow_html=True)
+        current_p   = safe_float(sensitivity.get("current_bull_probability"))*100
+        ev_plus     = safe_float(sensitivity.get("ev_if_bull_plus_10"))
+        ev_minus    = safe_float(sensitivity.get("ev_if_bull_minus_10"))
+        interp      = strip_html(sensitivity.get("interpretation", ""))
 
-    # Catalyst Calendar
+        st.markdown('<div class="sec">What If? '
+                    '<span class="vtag">Sensitivity Check</span></div>',
+                    unsafe_allow_html=True)
+
+        st.markdown(f'''<div style="background:#141414;border:1px solid rgba(255,255,255,0.06);
+            border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
+                What happens to the expected value if we change the bull probability on
+                <strong style="color:#fff;">{driver_name}</strong>?
+            </div>
+            <div style="display:flex;justify-content:center;gap:2.5rem;">
+                <div style="text-align:center;">
+                    <div style="font-size:0.82rem;color:#f87171;font-weight:600;">Bull Prob -10pp ({current_p - 10:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);font-weight:600;">Current ({current_p:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.82rem;color:#4ade80;font-weight:600;">Bull Prob +10pp ({current_p + 10:.0f}%)</div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div>
+                </div>
+            </div>
+            <div style="text-align:center;font-size:0.85rem;font-style:italic;color:rgba(255,255,255,0.4);margin-top:1rem;">{interp}</div>
+        </div>''', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # 26. WHAT TO WATCH (catalyst calendar)
+    # ══════════════════════════════════════════════════════════════
     catalysts = a.get("catalysts", [])
     if catalysts:
-        st.markdown('<div class="sec">Catalyst Calendar</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">What to Watch</div>', unsafe_allow_html=True)
         cat_header = "<tr><th>Date</th><th>Event</th><th style='color:#4ade80;'>Positive Signal</th><th style='color:#f87171;'>Negative Signal</th></tr>"
         cat_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(c.get("date",""))}</td><td>{strip_html(c.get("event",""))}</td><td style="color:#4ade80;">{strip_html(c.get("positive_signal", c.get("bull_signal","")))}</td><td style="color:#f87171;">{strip_html(c.get("negative_signal", c.get("bear_signal","")))}</td></tr>' for c in catalysts)
         st.markdown(f'<table class="pt"><thead>{cat_header}</thead><tbody>{cat_rows}</tbody></table>', unsafe_allow_html=True)
 
-    # Conclusion
+    # ══════════════════════════════════════════════════════════════
+    # 27. CONCLUSION
+    # ══════════════════════════════════════════════════════════════
     if a.get("conclusion"):
         st.markdown('<div class="sec">Conclusion</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="prose">{strip_html(a["conclusion"])}</div>', unsafe_allow_html=True)
 
-    # Report footer
+    # ══════════════════════════════════════════════════════════════
+    # 28. FOOTER
+    # ══════════════════════════════════════════════════════════════
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")} &nbsp;/&nbsp;
         Math computed in Python (segment-level) &nbsp;/&nbsp; Report #{st.session_state.report_count}</div>''', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-
 
 # ══════════════════════════════════════════════════════════════
 # RENDER — TRACK BOX
@@ -1441,36 +1648,115 @@ if should_generate and ticker:
 
     with status_area:
         with st.status(f"Analyzing {ticker}...", expanded=True) as status:
-            st.write(f"Fetching data for **{ticker}**...")
+
+            # ── Upfront time estimate ──
+            st.markdown(
+                "⏱️ **This analysis may take up to 2 minutes.** "
+                "We're computing 24 financial metrics and running "
+                "AI-driven scenario analysis across bull, base, and bear cases."
+            )
+
+            # ── Step 1/6: Data Fetch ──
+            st.write("📡 **Step 1 of 6** — Fetching financial data...")
             st.caption("Pulling real-time price, fundamentals, financials, and 5-year history")
-            try: sd = fetch(ticker)
-            except Exception as e: st.error(f"Failed to fetch data: {e}"); st.stop()
+            try:
+                sd = fetch(ticker)
+            except Exception as e:
+                st.error(f"Failed to fetch data: {e}"); st.stop()
             info = sd.get("info", {})
             if isinstance(info, dict) and info.get("error"):
                 st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
             company_name = info.get("shortName", info.get("longName", ticker))
             data_source = info.get('_source', 'yfinance')
-            st.write(f"Loaded **{company_name}** (via {data_source})")
+            st.write(f"✅ Loaded **{company_name}** (via {data_source})")
 
-            st.write("Computing 24 verified financial metrics...")
+            # ── Step 2/6: Metrics ──
+            status.update(label=f"Analyzing {ticker}... (Step 2 of 6)")
+            st.write("📊 **Step 2 of 6** — Computing 24 verified financial metrics...")
             st.caption("Revenue CAGR, margins, ROE/ROA, FCF yield, valuation ratios, debt metrics")
             m = calc(sd)
-            if "error" in m: st.error(m["error"]); st.stop()
+            if "error" in m:
+                st.error(m["error"]); st.stop()
+            st.write("✅ Metrics computed")
 
-            st.write("Pass 1: Getting structured assumptions from AI...")
-            st.caption("Macro drivers, scenario assumptions, headwinds, tailwinds, risks, catalysts")
-
-            st.write("Computing scenario math and getting narrative from AI...")
-            st.caption("Price targets, probabilities, expected value, then writing report consistent with math")
-
-            a = run_analysis(ticker, m)
-            if isinstance(a, dict) and a.get("error"):
-                status.update(label="Analysis failed", state="error")
-                for d in a.get("details", []): st.code(d)
+            # ── Step 3/6: AI Pass 1 ──
+            status.update(label=f"Analyzing {ticker}... (Step 3 of 6)")
+            st.write("🧠 **Step 3 of 6** — AI is building scenario assumptions...")
+            st.caption("Identifying macro drivers, headwinds, tailwinds, revenue segments, and catalysts")
+            metrics_json_str = json.dumps(
+                {k: v for k, v in m.items() if k not in ["description", "news"]},
+                sort_keys=True, default=str)
+            pass1 = _cached_pass1(ticker, metrics_json_str)
+            if isinstance(pass1, dict) and pass1.get("error"):
+                status.update(label="Analysis failed (Pass 1)", state="error")
+                for d in pass1.get("details", []):
+                    st.code(d)
                 st.stop()
+            st.write("✅ Assumptions locked in")
 
+            # ── Step 4/6: Scenario Math ──
+            status.update(label=f"Analyzing {ticker}... (Step 4 of 6)")
+            st.write("🔢 **Step 4 of 6** — Running probability math...")
+            st.caption("Computing price targets, scenario probabilities, and expected values")
+            scenario_math = compute_scenario_math(m, pass1)
+            st.write("✅ Scenarios computed")
+
+            # ── Step 5/6: AI Pass 2 ──
+            status.update(label=f"Analyzing {ticker}... (Step 5 of 6)")
+            st.write("✍️ **Step 5 of 6** — AI is writing the final analysis...")
+            st.caption("Drafting narrative consistent with the computed numbers")
+            math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
+            pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
+            pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str)
+            if isinstance(pass2, dict) and pass2.get("error"):
+                status.update(label="Analysis failed (Pass 2)", state="error")
+                for d in pass2.get("details", []):
+                    st.code(d)
+                st.stop()
+            st.write("✅ Narrative complete")
+
+            # ── Step 6/6: Merge & Finalize ──
+            status.update(label=f"Analyzing {ticker}... (Step 6 of 6)")
+            st.write("🔗 **Step 6 of 6** — Finalizing report...")
+            st.caption("Merging data, checking consistency, packaging results")
+
+            final = {}
+            for key in ["recommendation", "conviction", "investment_thesis",
+                        "business_overview", "revenue_architecture", "growth_drivers",
+                        "margin_analysis", "financial_health", "competitive_position",
+                        "headwind_narrative", "tailwind_narrative",
+                        "market_pricing_commentary", "scenario_commentary",
+                        "conclusion", "model_used"]:
+                final[key] = pass2.get(key, "")
+
+            for key in ["segments", "concentration", "headwinds", "tailwinds",
+                        "macro_drivers", "scenarios", "catalysts", "peer_tickers",
+                        "market_expectations", "sensitivity"]:
+                final[key] = pass1.get(key, {} if key in ["concentration",
+                             "market_expectations", "sensitivity"] else [])
+
+            final["scenario_math"] = scenario_math
+
+            # Consistency override
+            exp_ret  = scenario_math.get("expected_return", 0)
+            prob_pos = scenario_math.get("prob_positive_return", 0)
+            rec      = final["recommendation"].upper()
+            if rec == "BUY" and exp_ret < -0.20 and prob_pos < 0.25:
+                final["recommendation"] = "PASS"
+                final["conviction"] = "High"
+                final["rec_override_reason"] = (
+                    f"Override: LLM recommended BUY despite expected return of "
+                    f"{exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return.")
+            elif rec == "PASS" and exp_ret > 0.20 and prob_pos > 0.70:
+                final["recommendation"] = "BUY"
+                final["conviction"] = "Medium"
+                final["rec_override_reason"] = (
+                    f"Override: LLM recommended PASS despite expected return of "
+                    f"{exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return.")
+
+            a = final
             rec = a.get("recommendation", "WATCH")
-            status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
+            status.update(label=f"✅ Analysis complete: {company_name} / {rec}", state="complete")
 
         st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
 
@@ -1487,7 +1773,8 @@ if st.session_state.cached_report:
 
     # Save report once (only on first render after generation)
     save_key = f"saved_{c_ticker}_{c_a.get('recommendation','')}"
-    if save_key not in st.session_state:
+    is_guest = st.session_state.get("is_guest", False)
+    if save_key not in st.session_state and not is_guest:
         try:
             from report_store import save_report
             save_report(username, c_ticker, c_m, c_a)
