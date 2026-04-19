@@ -9,15 +9,6 @@
     "expected_return": -0.1375
   },
   {
-    "report_id": "AVGO_2026-04-19",
-    "ticker": "AVGO",
-    "company_name": "Broadcom Inc.",
-    "date": "2026-04-19",
-    "timestamp": "2026-04-19 12:01",
-    "recommendation": "PASS",
-    "expected_return": -0.592
-  },
-  {
     "report_id": "AMZN_2026-04-19",
     "ticker": "AMZN",
     "company_name": "Amazon.com, Inc.",
@@ -25,5 +16,14 @@
     "timestamp": "2026-04-19 12:04",
     "recommendation": "PASS",
     "expected_return": -0.1375
+  },
+  {
+    "report_id": "AVGO_2026-04-19",
+    "ticker": "AVGO",
+    "company_name": "Broadcom Inc.",
+    "date": "2026-04-19",
+    "timestamp": "2026-04-19 12:36",
+    "recommendation": "PASS",
+    "expected_return": -0.6111
   }
 ]
