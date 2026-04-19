@@ -402,6 +402,28 @@ def compute_scenario_probabilities(llm_output):
         "correlation_multipliers": {"bull": BULL_BOOST, "bear": BEAR_BOOST},
     }
 
+def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin, tax_rate=0.21):
+    """
+    Stamp bull/base/bear EPS impacts onto the top-level headwind/tailwind items.
+    These are read directly from llm_output by app.py, so we must modify them in-place.
+    """
+    hw_items = llm_output.get("headwinds", [])
+    tw_items = llm_output.get("tailwinds", [])
+
+    for items in [hw_items, tw_items]:
+        for item in items:
+            rev = safe_float(item.get("revenue_at_risk") or item.get("revenue_opportunity") or 0)
+            if rev == 0 or shares == 0 or op_margin == 0:
+                item["bull_eps_impact"] = 0.0
+                item["base_eps_impact"] = 0.0
+                item["bear_eps_impact"] = 0.0
+                continue
+            # Scale by each scenario's margin assumption
+            for sname in ["bull", "base", "bear"]:
+                s = scenario_results.get(sname, {})
+                s_margin = s.get("operating_margin", op_margin)
+                eps = round((rev * s_margin * (1 - tax_rate)) / shares, 2)
+                item[f"{sname}_eps_impact"] = eps
 
 # ══════════════════════════════════════════════════════════════
 # SCENARIO MATH ENGINE
@@ -785,6 +807,8 @@ def compute_scenario_math(metrics, llm_output):
                         if r["price_target"] > current_price)
 
     bear = results.get("bear", {})
+    
+    stamp_headwind_tailwind_eps(llm_output, results, shares, operating_margin)
 
     return {
         "scenarios":              results,
