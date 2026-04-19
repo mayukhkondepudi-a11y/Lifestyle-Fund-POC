@@ -7,6 +7,35 @@ import os
 from datetime import datetime
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
+st.markdown(
+    '<div class="pickr-logo-sticky">'
+    '<svg width="20" height="20" viewBox="0 0 28 28" fill="none">'
+    '<rect width="28" height="28" rx="6" fill="#8b1a1a"/>'
+    '<rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>'
+    '<rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>'
+    '<rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>'
+    '<circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>'
+    '</svg>'
+    '<span class="wm-pick">Pick</span><span class="wm-accent">R</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="pickr-logo-sticky">'
+    '<svg width="22" height="22" viewBox="0 0 28 28" fill="none">'
+    '<rect width="28" height="28" rx="6" fill="#8b1a1a"/>'
+    '<rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>'
+    '<rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>'
+    '<rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>'
+    '<circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>'
+    '</svg>'
+    '<span class="wordmark">'
+    '<span class="pick">Pick</span><span class="accent">R</span>'
+    '</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
                     RESEND_API_KEY)
@@ -18,6 +47,7 @@ from email_service import send_email, email_confirmation
 from compute import calc, compute_scenario_math
 import ai
 import fmp_api
+from logos import get_logo_html, get_logo_and_name_html
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [
@@ -39,17 +69,46 @@ st.markdown("""
     
     /* ── BASE ── */
     html, body, .stApp { 
-        background:#0c0c0c !important; color:#e8e8e8 !important; 
+        background:#0c0b09 !important; color:#e8e8e8 !important; 
         font-family:'Inter',sans-serif !important; font-size:16px !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
     .block-container { padding-top:0 !important; max-width:1200px !important; }
-    .stApp > div, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"] { background:#0c0c0c !important; }
+    .stApp > div, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"] { background:#0c0b09 !important; }
     #MainMenu, footer { visibility:hidden !important; }
-
+ 
+                /* ── STICKY LOGO ── */
+    .pickr-logo-sticky {
+        position:fixed;
+        top:0.9rem;
+        left:1.2rem;
+        z-index:999;
+        display:flex;
+        align-items:center;
+        gap:0.4rem;
+        pointer-events:none;
+    }
+    .pickr-logo-sticky .wordmark {
+        font-size:1.1rem;
+        font-weight:900;
+        letter-spacing:-0.02em;
+        line-height:1;
+    }
+    .pickr-logo-sticky .pick {
+        background:linear-gradient(180deg,#fff 0%,#e0e0e0 100%);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+    }
+    .pickr-logo-sticky .accent {
+        background:linear-gradient(135deg,#a52525,#e04040 40%,#ff8a8a 60%,#a52525);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+    }
+            
     /* ── HERO ── */
-    .hero { padding:4rem 2rem 1.5rem; text-align:center; position:relative; animation:fadeInUp 0.6s ease-out; }
+        .hero { padding:4rem 2rem 1.5rem; text-align:center; position:relative; animation:fadeInUp 0.6s ease-out;
+        background:radial-gradient(ellipse 80% 40% at 50% 0%, rgba(139,26,26,0.07) 0%, transparent 70%); }
     .hero::after {
         content:''; position:absolute; bottom:0; left:50%;
         transform:translateX(-50%); width:60px; height:2px;
@@ -81,20 +140,20 @@ st.markdown("""
     .hiw-title { text-align:center; font-size:0.7rem; font-weight:700; text-transform:uppercase;
         letter-spacing:0.18em; color:rgba(255,255,255,0.25); margin-bottom:1.2rem; }
     .hiw-grid { display:flex; justify-content:center; gap:1.5rem; }
-    .hiw-card { background:#161616; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .hiw-card { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
         padding:1.3rem; text-align:center; flex:1; max-width:260px; }
     .hiw-step { font-size:0.6rem; font-weight:800; color:#8b1a1a; text-transform:uppercase;
         letter-spacing:0.16em; margin-bottom:0.4rem; }
     .hiw-title2 { font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:0.3rem; }
-    .hiw-desc { font-size:0.9rem; color:rgba(255,255,255,0.55); line-height:1.7; }
+    .hiw-desc { font-size:0.97rem; color:rgba(255,255,255,0.55); line-height:1.7; }
 
     /* ── QGLP THESIS ── */
-    .thesis-section { background:#161616; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .thesis-section { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
         padding:2rem; margin:1.5rem 0; }
     .thesis-title { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.16em;
         color:rgba(255,255,255,0.3); margin-bottom:1rem; }
     .thesis-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
-    .thesis-card { background:#1c1c1c; border-radius:6px; padding:1rem 1.2rem; transition:all 0.2s ease; }
+    .thesis-card { background:#1a1916; border-radius:6px; padding:1rem 1.2rem; transition:all 0.2s ease; }
     .thesis-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
     .thesis-card-letter { font-size:1.4rem; font-weight:800; color:#8b1a1a; margin-bottom:0.2rem; }
     .thesis-card-name { font-size:0.95rem; font-weight:700; color:#ffffff; margin-bottom:0.3rem; }
@@ -110,7 +169,7 @@ st.markdown("""
     .scoring-label { font-size:0.62rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
 
     /* ── PARAMS CARD ── */
-    .params-card { background:#161616; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .params-card { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
         padding:1.2rem 1.5rem; margin-bottom:1.5rem; }
     .params-row { display:flex; justify-content:space-between; padding:0.5rem 0;
         border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.9rem; }
@@ -119,10 +178,10 @@ st.markdown("""
     .params-val { color:rgba(255,255,255,0.95); font-weight:600; }
 
     /* ── REPORT CARD ── */
-    .rpt-card { background:#1c1c1c; border:1px solid rgba(255,255,255,0.08); border-radius:12px;
+    .rpt-card { background:#1a1916; border:1px solid rgba(255,255,255,0.08); border-radius:12px;border-top:1px solid rgba(224,48,48,0.12);
         padding:2rem 2.5rem; margin-top:1rem; animation:fadeInUp 0.4s ease-out; }
     .rpt-head h2 { font-size:2.4rem; font-weight:800; color:#ffffff; margin:0; letter-spacing:-0.02em; }
-    .rpt-head .meta { color:rgba(255,255,255,0.55); font-size:0.9rem; letter-spacing:0.04em;
+    .rpt-head .meta { color:rgba(255,255,255,0.55); font-size:0.97rem; letter-spacing:0.04em;
         margin-top:0.4rem; font-weight:500; }
 
     /* ── RECOMMENDATION BAR ── */
@@ -133,28 +192,30 @@ st.markdown("""
     .rb-item { text-align:center; }
     .rb-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em;
         color:rgba(255,255,255,0.6); margin-bottom:0.3rem; }
-    .rb-val { font-size:1.6rem; font-weight:800; }
+    .rb-val { font-size:1.8rem; font-weight:800; }
     .rb-val.buy { color:#4ade80; }
     .rb-val.watch { color:#fbbf24; }
     .rb-val.pass { color:#f87171; }
 
     /* ── EXECUTIVE SUMMARY ── */
     .exec-summary { 
-        background:linear-gradient(135deg, rgba(224,48,48,0.08) 0%, rgba(34,34,34,1) 100%);
+        background:linear-gradient(135deg, rgba(139,26,26,0.15) 0%, rgba(26,25,22,1) 100%);
         border-left:3px solid #e03030; border-radius:0 8px 8px 0;
         padding:1.4rem 1.8rem; margin:1.2rem 0; font-size:1.05rem; line-height:2;
         color:rgba(255,255,255,0.82); font-style:italic; }
 
     /* ── SECTION HEADERS ── */
-    .sec { font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
+    .sec { font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
         color:rgba(255,255,255,0.85); margin:3rem 0 1.2rem; padding-bottom:0.6rem;
         border-bottom:2px solid #e03030; display:block; }
 
     /* ── METRICS ── */
     [data-testid="stMetricLabel"] { font-size:0.7rem !important; color:rgba(255,255,255,0.65) !important;
         text-transform:uppercase !important; letter-spacing:0.06em !important; font-weight:700 !important; }
-    [data-testid="stMetricValue"] { font-size:1.3rem !important; font-weight:700 !important;
-        color:rgba(255,255,255,0.95) !important; }
+        [data-testid="stMetricValue"] { font-size:1.3rem !important; font-weight:700 !important;
+        color:rgba(255,255,255,0.95) !important;
+        font-feature-settings:"tnum","ss01" !important;
+        letter-spacing:0.01em !important; }
     [data-testid="stMetricDelta"] { display:none !important; }
 
     /* ── 52-WEEK RANGE BAR ── */
@@ -167,7 +228,7 @@ st.markdown("""
         top:-2.5px; transform:translateX(-50%); box-shadow:0 0 8px rgba(224,48,48,0.8); }
 
     /* ── PROSE / BODY TEXT ── */
-    .prose { font-size:1.02rem; line-height:2.05; color:rgba(255,255,255,0.78); padding:0.3rem 0 0.8rem; }
+    .prose { font-size:1.08rem; line-height:2.05; color:rgba(255,255,255,0.78); padding:0.3rem 0 0.8rem; }
 
     /* ── RISK ROWS ── */
     .risk-row { padding:0.75rem 0; border-bottom:1px solid rgba(255,255,255,0.07);
@@ -184,7 +245,7 @@ st.markdown("""
     .cb-bear .cb-title { color:#f87171; }
 
     /* ── TABLES ── */
-    .pt { width:100%; border-collapse:collapse; font-size:0.9rem; }
+    .pt { width:100%; border-collapse:collapse; font-size:0.97rem; }
     .pt th { text-align:left; font-size:0.67rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.08em; color:rgba(255,255,255,0.7); padding:0.7rem 0.85rem;
         border-bottom:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); }
@@ -203,16 +264,44 @@ st.markdown("""
     .div { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:1rem 0; }
 
     /* ── TRACK BOX ── */
-    .track-box { background:#1c1c1c; border:1px solid rgba(224,48,48,0.3); border-radius:8px;
+    .track-box { background:#1a1916; border:1px solid rgba(224,48,48,0.3); border-radius:8px;
         padding:1.5rem 2rem; margin-top:1.5rem; }
     .track-box-title { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
         color:#e03030; margin-bottom:0.6rem; }
     .track-success { background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3);
         border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#4ade80; margin-top:0.8rem; }
-    .track-note { font-size:0.78rem; color:rgba(255,255,255,0.45); margin-top:0.6rem; line-height:1.6; }
+    .track-note { font-size:0.85rem; color:rgba(255,255,255,0.45); margin-top:0.6rem; line-height:1.6; }
+
+        /* ── STICKY LOGO ── */
+    .pickr-logo-sticky {
+        position:fixed;
+        top:0.85rem;
+        left:1.2rem;
+        z-index:9999;
+        display:flex;
+        align-items:center;
+        gap:0.45rem;
+        pointer-events:none;
+    }
+    .pickr-logo-sticky .wm-pick {
+        background:linear-gradient(180deg,#fff 0%,#e0e0e0 100%);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+        font-size:1.05rem;
+        font-weight:900;
+        letter-spacing:-0.02em;
+    }
+    .pickr-logo-sticky .wm-accent {
+        background:linear-gradient(135deg,#a52525,#e04040 40%,#ff8a8a 60%,#a52525);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+        font-size:1.05rem;
+        font-weight:900;
+        letter-spacing:-0.02em;
+    }        
 
     /* ── FOOTER ── */
-    .foot-card { background:#1c1c1c; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
+    .foot-card { background:#1a1916; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
         padding:1.5rem 2rem; margin-top:2rem; text-align:center; }
     .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.8); }
     .foot-email { font-size:0.85rem; color:rgba(255,255,255,0.5); margin-top:0.2rem; }
@@ -221,21 +310,21 @@ st.markdown("""
     .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.25); margin-top:0.8rem; }
 
     /* ── DRIVER CARDS ── */
-    .driver-card { background:#161616; border:1px solid rgba(255,255,255,0.06);
+    .driver-card { background:#131210; border:1px solid rgba(255,255,255,0.06);
         border-radius:8px; padding:1rem 1.2rem; margin:0.5rem 0; transition:all 0.2s ease; }
     .driver-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
     .driver-card-name { font-weight:700; color:#fff; font-size:0.98rem; margin-bottom:0.3rem; }
-    .driver-card-desc { font-size:0.85rem; color:rgba(255,255,255,0.5); margin-bottom:0.8rem; line-height:1.7; }
+    .driver-card-desc { font-size:0.92rem; color:rgba(255,255,255,0.5); margin-bottom:0.8rem; line-height:1.7; }
 
     /* ── HEADWIND / TAILWIND CARDS ── */
     .hw-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin:0.8rem 0 1.2rem; }
-    .hw-card { background:#161616; border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:1rem 1.2rem; }
-    .tw-card { background:#161616; border:1px solid rgba(74,222,128,0.2); border-radius:8px; padding:1rem 1.2rem; }
+    .hw-card { background:#131210; border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:1rem 1.2rem; }
+    .tw-card { background:#131210; border:1px solid rgba(74,222,128,0.2); border-radius:8px; padding:1rem 1.2rem; }
     .hw-card-title { font-size:0.78rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.1em; color:#f87171; margin-bottom:0.3rem; }
     .tw-card-title { font-size:0.78rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.1em; color:#4ade80; margin-bottom:0.3rem; }
-    .hw-card-desc { font-size:0.88rem; color:rgba(255,255,255,0.55); line-height:1.65; margin-bottom:0.6rem; }
+    .hw-card-desc { font-size:0.95rem; color:rgba(255,255,255,0.55); line-height:1.65; margin-bottom:0.6rem; }
     .hw-prob-badge { display:inline-block; font-size:0.65rem; font-weight:700;
         text-transform:uppercase; letter-spacing:0.08em; padding:0.15rem 0.4rem;
         border-radius:3px; background:rgba(248,113,113,0.15); color:#f87171;
@@ -246,7 +335,7 @@ st.markdown("""
         border:1px solid rgba(74,222,128,0.25); margin-bottom:0.4rem; }
 
     /* ── SCENARIO CARDS ── */
-    .scenario-card { background:#1c1c1c; border-radius:8px; padding:1.2rem 1.5rem; margin:0.8rem 0;
+    .scenario-card { background:#1a1916; border-radius:8px; padding:1.2rem 1.5rem; margin:0.8rem 0;
         transition:all 0.2s ease; }
     .scenario-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
 
@@ -271,7 +360,7 @@ st.markdown("""
         letter-spacing:0.14em; color:#d44040; margin-bottom:0.4rem; }
 
     /* ── PROBABILITY EXPLAINER ── */
-    .prob-explainer { background:#161616; border:1px solid rgba(255,255,255,0.08);
+    .prob-explainer { background:#131210; border:1px solid rgba(255,255,255,0.08);
         border-radius:8px; padding:1.4rem 1.6rem; margin:1rem 0; font-size:0.9rem;
         color:rgba(255,255,255,0.6); line-height:1.8; }
     .prob-explainer strong { color:rgba(255,255,255,0.95); }
@@ -298,7 +387,7 @@ st.markdown("""
         border:1px solid rgba(255,255,255,0.12) !important; border-radius:6px !important; color:#fff !important; }
 
     /* ── STATUS / ALERTS ── */
-    [data-testid="stStatusWidget"], .stAlert, .stStatus { background:#161616 !important;
+    [data-testid="stStatusWidget"], .stAlert, .stStatus { background:#131210 !important;
         border:1px solid rgba(255,255,255,0.08) !important; color:#e8e8e8 !important; border-radius:6px !important; }
     [data-testid="stStatusWidget"] p, [data-testid="stStatusWidget"] span,
     [data-testid="stStatusWidget"] div { color:#e8e8e8 !important; }
@@ -407,7 +496,7 @@ st.markdown("""
 
     /* ── SCROLLBAR ── */
     ::-webkit-scrollbar { width:6px; }
-    ::-webkit-scrollbar-track { background:#0c0c0c; }
+    ::-webkit-scrollbar-track { background:#0c0b09; }
     ::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:#555; }
 
@@ -494,11 +583,25 @@ st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
 with st.sidebar:
     st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
         border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="font-size:1.1rem;font-weight:900;color:#fff;margin-bottom:0.2rem;">
-            Pick<span style="color:#c03030;">R</span></div>
-        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.14em;color:rgba(255,255,255,0.25);">
-            Report History</div>
+                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+                aria-label="PickR logo" style="flex-shrink:0;">
+                <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
+                <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
+                <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
+                <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
+                <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
+            </svg>
+            <div>
+                <div style="font-size:1rem;font-weight:900;color:#fff;line-height:1;">
+                    Pick<span style="color:#c03030;">R</span></div>
+                <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;
+                    letter-spacing:0.15em;color:rgba(255,255,255,0.2);margin-top:0.15rem;">
+                    Equity Research</div>
+            </div>
+        </div>
+        <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+            letter-spacing:0.14em;color:rgba(255,255,255,0.2);">Report History</div>
     </div>''', unsafe_allow_html=True)
 
     if st.button("Sign out", key="logout_btn", use_container_width=True):
@@ -521,25 +624,43 @@ with st.sidebar:
                 company = r.get("company_name", r["ticker"])[:22]
                 rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
 
-                st.markdown(f'''<div style="padding:0.6rem 0.3rem;
-                    border-bottom:1px solid rgba(255,255,255,0.03);">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                        <div>
-                            <div style="font-size:0.88rem;color:#fff;font-weight:700;">
-                                {r["ticker"]}</div>
-                            <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);
-                                margin-top:0.1rem;">{company}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="color:{rec_color};font-size:0.72rem;
-                                font-weight:800;">{rec}</div>
-                            <div style="font-size:0.65rem;
-                                color:rgba(255,255,255,0.3);">{ret_str}</div>
-                        </div>
-                    </div>
-                    <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);
-                        margin-top:0.2rem;">{r.get("date","")}</div>
-                </div>''', unsafe_allow_html=True)
+                _rc_bg = {
+                    "BUY":  "rgba(74,222,128,0.08)",
+                    "PASS": "rgba(248,113,113,0.08)",
+                }.get(rec, "rgba(251,191,36,0.08)")
+                _rc_border = {
+                    "BUY":  "rgba(74,222,128,0.2)",
+                    "PASS": "rgba(248,113,113,0.2)",
+                }.get(rec, "rgba(251,191,36,0.2)")
+
+                st.markdown(
+                    f'<div style="background:{_rc_bg};border:1px solid {_rc_border};'
+                    f'border-radius:7px;padding:0.6rem 0.75rem;margin:0.35rem 0;">'
+
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'align-items:center;margin-bottom:0.25rem;">'
+                    f'<span style="font-size:0.88rem;color:#fff;font-weight:800;'
+                    f'letter-spacing:0.01em;">{r["ticker"].replace(".NS","").replace(".BO","")}</span>'
+                    f'<span style="font-size:0.68rem;font-weight:800;color:{rec_color};'
+                    f'background:rgba(0,0,0,0.25);padding:0.1rem 0.4rem;'
+                    f'border-radius:3px;letter-spacing:0.06em;">{rec}</span>'
+                    f'</div>'
+
+                    f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                    f'margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;'
+                    f'text-overflow:ellipsis;">{company}</div>'
+
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'align-items:center;">'
+                    f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">'
+                    f'{r.get("date","")}</span>'
+                    f'<span style="font-size:0.75rem;font-weight:700;color:{rec_color};">'
+                    f'{ret_str}</span>'
+                    f'</div>'
+
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
 
                 if st.button(f"Load report", key=f"load_{rid}",
                              use_container_width=True):
@@ -746,39 +867,147 @@ def render(ticker, m, a, data):
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════
-    # 1. MASTHEAD
+    # 1. MASTHEAD  (logo + company name)
     # ══════════════════════════════════════════════════════════════
-    st.markdown(f'''<div class="rpt-head">
-        <h2>{strip_html(company)}</h2>
-        <div class="meta">{ticker} &nbsp;/&nbsp; {m.get("sector","")} &nbsp;/&nbsp;
-        {m.get("industry","")} &nbsp;/&nbsp; {cur} &nbsp;/&nbsp; {date}</div>
-    </div>''', unsafe_allow_html=True)
+    _DOMAIN_MAP = {
+        "NVDA": "nvidia.com", "AAPL": "apple.com", "MSFT": "microsoft.com",
+        "AMZN": "amazon.com", "GOOGL": "google.com", "META": "meta.com",
+        "TSLA": "tesla.com", "NFLX": "netflix.com", "ADBE": "adobe.com",
+        "INTU": "intuit.com", "NOW": "servicenow.com", "PYPL": "paypal.com",
+        "AVGO": "broadcom.com", "PH": "parker.com",
+        "BHARTIARTL": "airtel.in", "DRREDDY": "drreddys.com",
+        "RELIANCE": "ril.com", "TCS": "tcs.com", "INFY": "infosys.com",
+    }
+    _tk_clean = ticker.replace(".NS","").replace(".BO","").replace(".L","")
+    _domain = _DOMAIN_MAP.get(_tk_clean, f"{_tk_clean.lower()}.com")
+    _ini = (company[:1] if company else ticker[:1]).upper()
+    _logo = (
+        f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
+        f'width="44" height="44" loading="lazy" '
+        f'style="border-radius:10px;object-fit:contain;background:#1e1d1a;padding:3px;'
+        f'border:1px solid rgba(255,255,255,0.1);flex-shrink:0;" '
+        f'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\';">'
+        f'<div style="display:none;width:44px;height:44px;border-radius:10px;'
+        f'background:linear-gradient(135deg,#8b1a1a,#c03030);'
+        f'align-items:center;justify-content:center;'
+        f'font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0;">{_ini}</div>'
+    )
+    _DOMAIN_MAP = {
+        "NVDA": "nvidia.com", "AAPL": "apple.com", "MSFT": "microsoft.com",
+        "AMZN": "amazon.com", "GOOGL": "google.com", "META": "meta.com",
+        "TSLA": "tesla.com", "NFLX": "netflix.com", "ADBE": "adobe.com",
+        "INTU": "intuit.com", "NOW": "servicenow.com", "PYPL": "paypal.com",
+        "AVGO": "broadcom.com", "PH": "parker.com",
+        "BHARTIARTL": "airtel.in", "DRREDDY": "drreddys.com",
+        "RELIANCE": "ril.com", "TCS": "tcs.com", "INFY": "infosys.com",
+    }
+    _tk_clean = ticker.replace(".NS","").replace(".BO","").replace(".L","")
+    _domain   = _DOMAIN_MAP.get(_tk_clean, f"{_tk_clean.lower()}.com")
+    _ini      = (company[:1] if company else ticker[:1]).upper()
+    _logo     = (
+        f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
+        f'width="44" height="44" loading="lazy" '
+        f'style="border-radius:10px;object-fit:contain;background:#1e1d1a;padding:3px;'
+        f'border:1px solid rgba(255,255,255,0.1);flex-shrink:0;" '
+        f'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\';">'
+        f'<div style="display:none;width:44px;height:44px;border-radius:10px;'
+        f'background:linear-gradient(135deg,#8b1a1a,#c03030);'
+        f'align-items:center;justify-content:center;'
+        f'font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0;">{_ini}</div>'
+    )
+    st.markdown(
+        f'<div class="rpt-head">'
+        f'<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.4rem;">'
+        f'{_logo}<h2 style="margin:0;">{strip_html(company)}</h2></div>'
+        f'<div class="meta">{ticker} &nbsp;/&nbsp; {m.get("sector","")} &nbsp;/&nbsp; '
+        f'{m.get("industry","")} &nbsp;/&nbsp; {cur} &nbsp;/&nbsp; {date}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
     # ══════════════════════════════════════════════════════════════
-    # 2. STICKY NAVIGATION BAR
+    # 2. STICKY NAVIGATION BAR  (with sparkline)
     # ══════════════════════════════════════════════════════════════
-    rec  = a.get("recommendation", "WATCH").upper()
-    conv = a.get("conviction", "Medium")
-    rc   = "buy" if rec == "BUY" else ("pass" if rec == "PASS" else "watch")
+    rec      = a.get("recommendation", "WATCH").upper()
+    conv     = a.get("conviction", "Medium")
+    rc       = "buy" if rec == "BUY" else ("pass" if rec == "PASS" else "watch")
     ev       = sm.get("expected_value", 0)
     exp_ret  = sm.get("expected_return", 0)
     prob_pos = sm.get("prob_positive_return", 0)
 
-    st.markdown(f'''<div style="position:sticky;top:0;z-index:100;
-        background:rgba(26,26,26,0.92);backdrop-filter:blur(12px);
-        border-bottom:1px solid rgba(255,255,255,0.06);
-        padding:0.6rem 1.5rem;margin:0 -2.5rem 1rem;
-        display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;align-items:center;gap:0.8rem;">
-            <span style="font-weight:800;font-size:1rem;color:#fff;">{strip_html(company)}</span>
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.4);">{ticker}</span>
-            <span style="font-size:0.9rem;color:#fff;font-weight:600;">{sym}{safe_float(m.get('current_price')):,.2f}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:1.2rem;">
-            <span class="rb-val {rc}" style="font-size:0.85rem;">{rec}</span>
-            <span style="font-size:0.85rem;color:rgba(255,255,255,0.5);">EV {sym}{ev:,.2f}</span>
-        </div>
-    </div>''', unsafe_allow_html=True)
+    try:
+        _price = float(m.get("current_price") or 0)
+    except (ValueError, TypeError):
+        _price = 0.0
+    _price_str = f"{sym}{_price:,.2f}" if _price else "—"
+
+    # Build sparkline SVG from price history
+    _spark = ""
+    try:
+        _hist = data.get("hist") if data else None
+        if _hist is not None and not _hist.empty:
+            _closes = _hist["Close"].dropna().tolist()
+            if len(_closes) >= 5:
+                _sample = _closes[::max(1, len(_closes) // 40)]
+                _mn, _mx = min(_sample), max(_sample)
+                _rng = (_mx - _mn) if _mx != _mn else 1
+                _pts = " ".join(
+                    f"{int(i / (len(_sample) - 1) * 118)},{int(26 - (_p - _mn) / _rng * 22)}"
+                    for i, _p in enumerate(_sample)
+                )
+                _sc = "#4ade80" if _sample[-1] >= _sample[0] else "#f87171"
+                _spark = (
+                    f'<svg width="120" height="30" viewBox="0 0 120 30" '
+                    f'style="opacity:0.6;flex-shrink:0;">'
+                    f'<polyline points="{_pts}" fill="none" stroke="{_sc}" '
+                    f'stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
+                    f'</svg>'
+                )
+    except Exception:
+        _spark = ""
+
+    _rec_color = {"buy": "#4ade80", "pass": "#f87171", "watch": "#fbbf24"}.get(rc, "#fff")
+
+    st.markdown(
+        f'<div style="position:sticky;top:0;z-index:100;'
+        f'background: rgba(15,14,12,0.97);backdrop-filter:blur(14px);'
+        f'-webkit-backdrop-filter:blur(14px);'
+        f'border-bottom:1px solid rgba(255,255,255,0.07);'
+        f'padding:0.55rem 1.5rem;margin:0 -2.5rem 1rem;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+
+        f'<div style="display:flex;align-items:center;gap:0.75rem;">'
+        f'<span style="font-weight:800;font-size:0.95rem;color:#fff;">{strip_html(company)}</span>'
+        f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.35);'
+        f'background:rgba(255,255,255,0.06);padding:0.1rem 0.45rem;'
+        f'border-radius:4px;font-weight:600;">{ticker}</span>'
+        f'<span style="font-size:0.92rem;color:#fff;font-weight:700;'
+        f'font-feature-settings:\"tnum\";letter-spacing:0.01em;">{_price_str}</span>'
+        f'{_spark}'
+        f'</div>'
+
+        f'<div style="display:flex;align-items:center;gap:1.5rem;">'
+        f'<div style="text-align:right;">'
+        f'<div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">Verdict</div>'
+        f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{rec}</div>'
+        f'</div>'
+        f'<div style="text-align:right;">'
+        f'<div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">Exp. Return</div>'
+        f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{exp_ret*100:+.1f}%</div>'
+        f'</div>'
+        f'<div style="text-align:right;">'
+        f'<div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">EV</div>'
+        f'<div style="font-size:0.97rem;font-weight:700;color:rgba(255,255,255,0.8);">{sym}{ev:,.2f}</div>'
+        f'</div>'
+        f'</div>'
+
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
     # ══════════════════════════════════════════════════════════════
     # 3. RECOMMENDATION BAR
@@ -1108,33 +1337,66 @@ def render(ticker, m, a, data):
         base_pct = f"{fba*100:.0f}"
         bear_pct = f"{fbe*100:.0f}"
 
-        st.markdown(f'''<div style="margin:1.2rem 0 0.8rem;">
-            <div style="display:flex;height:38px;border-radius:8px;overflow:hidden;
-                 border:1px solid rgba(255,255,255,0.08);">
-                <div style="width:{bull_pct}%;background:#22703a;display:flex;
-                     align-items:center;justify-content:center;
-                     font-weight:700;font-size:0.85rem;color:#fff;">
-                    Bull {bull_pct}%</div>
-                <div style="width:{base_pct}%;background:#92681a;display:flex;
-                     align-items:center;justify-content:center;
-                     font-weight:700;font-size:0.85rem;color:#fff;">
-                    Base {base_pct}%</div>
-                <div style="width:{bear_pct}%;background:#8b2020;display:flex;
-                     align-items:center;justify-content:center;
-                     font-weight:700;font-size:0.85rem;color:#fff;">
-                    Bear {bear_pct}%</div>
-            </div>
-            <div style="margin-top:0.7rem;font-size:0.9rem;color:rgba(255,255,255,0.6);
-                 line-height:1.6;">
-                There is a <strong style="color:#4ade80;">{bull_pct}% chance</strong>
-                things go better than expected,
-                a <strong style="color:#fbbf24;">{base_pct}% chance</strong>
-                they play out roughly as the market expects, and
-                a <strong style="color:#f87171;">{bear_pct}% chance</strong>
-                of a worse-than-expected outcome. These weights are used to calculate the
-                expected value and return you see in the scenarios below.
-            </div>
-        </div>''', unsafe_allow_html=True)
+        _bw  = max(2, min(96, round(fb  * 100)))
+        _baw = max(2, min(96, round(fba * 100)))
+        _bew = max(2, min(96, round(fbe * 100)))
+
+        st.markdown(
+            f'<div style="margin:1.2rem 0 1.4rem;">'
+
+            # ── Bull row ──
+            f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">'
+            f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:#4ade80;text-align:right;flex-shrink:0;">Bull</div>'
+            f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;">'
+            f'<div style="width:{_bw}%;height:100%;border-radius:4px;'
+            f'background:linear-gradient(90deg,#22703a,#4ade80);'
+            f'transition:width 0.6s cubic-bezier(0.16,1,0.3,1);"></div></div>'
+            f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#4ade80;'
+            f'text-align:right;font-feature-settings:"tnum";flex-shrink:0;">{bull_pct}%</div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);'
+            f'flex-shrink:0;line-height:1.4;">Better than expected</div>'
+            f'</div>'
+
+            # ── Base row ──
+            f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">'
+            f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:#fbbf24;text-align:right;flex-shrink:0;">Base</div>'
+            f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;">'
+            f'<div style="width:{_baw}%;height:100%;border-radius:4px;'
+            f'background:linear-gradient(90deg,#92681a,#fbbf24);'
+            f'transition:width 0.6s cubic-bezier(0.16,1,0.3,1);"></div></div>'
+            f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#fbbf24;'
+            f'text-align:right;font-feature-settings:"tnum";flex-shrink:0;">{base_pct}%</div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);'
+            f'flex-shrink:0;line-height:1.4;">Consensus plays out</div>'
+            f'</div>'
+
+            # ── Bear row ──
+            f'<div style="display:flex;align-items:center;gap:0.75rem;">'
+            f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:#f87171;text-align:right;flex-shrink:0;">Bear</div>'
+            f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;">'
+            f'<div style="width:{_bew}%;height:100%;border-radius:4px;'
+            f'background:linear-gradient(90deg,#8b2020,#f87171);'
+            f'transition:width 0.6s cubic-bezier(0.16,1,0.3,1);"></div></div>'
+            f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#f87171;'
+            f'text-align:right;font-feature-settings:"tnum";flex-shrink:0;">{bear_pct}%</div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);'
+            f'flex-shrink:0;line-height:1.4;">Worse than expected</div>'
+            f'</div>'
+
+            f'<div style="margin-top:0.9rem;font-size:0.88rem;color:rgba(255,255,255,0.55);'
+            f'line-height:1.7;">'
+            f'There is a <strong style="color:#4ade80;">{bull_pct}% chance</strong> things go '
+            f'better than expected, a <strong style="color:#fbbf24;">{base_pct}% chance</strong> '
+            f'they play out roughly as the market expects, and a '
+            f'<strong style="color:#f87171;">{bear_pct}% chance</strong> of a '
+            f'worse-than-expected outcome.'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
         if prob_out.get("method") == "geometric_mean_probability":
             raw_bull  = prob_out.get("raw_geometric", {}).get("bull", 0)
@@ -1485,11 +1747,74 @@ def render_track_box(ticker, m, a):
 # MAIN UI
 # ══════════════════════════════════════════════════════════════
 
-st.markdown('''<div class="hero">
-    <h1><span class="pick">Pick</span><span class="accent">R</span></h1>
-    <div class="tag">AI Assisted Equity Research</div>
-    <div class="desc">Equity analysis powered by the Quality Growth Longevity Price (QGLP) framework. Bottoms up EPS projections with quantified headwinds, probability assigned scenarios, and AI-assised insights.</div>
-</div>''', unsafe_allow_html=True)
+st.markdown(
+    '<div style="display:flex;justify-content:space-between;align-items:center;'
+    'padding:2rem 0 1.4rem;border-bottom:1px solid rgba(255,255,255,0.07);'
+    'margin-bottom:2rem;">'
+
+    # Left: logo + wordmark
+    '<div style="display:flex;align-items:center;gap:1.1rem;">'
+
+    # SVG logomark — stylised upward arrow / pick chart
+    '<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    '<rect width="48" height="48" rx="12" fill="url(#lg1)"/>'
+    '<defs><linearGradient id="lg1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0%" stop-color="#6b0f0f"/>'
+    '<stop offset="100%" stop-color="#c0392b"/>'
+    '</linearGradient></defs>'
+    # candlestick bars
+    '<rect x="11" y="14" width="5" height="22" rx="2.5" fill="white" opacity="0.25"/>'
+    '<rect x="11" y="22" width="5" height="14" rx="2.5" fill="white" opacity="0.9"/>'
+    '<rect x="21.5" y="18" width="5" height="18" rx="2.5" fill="white" opacity="0.25"/>'
+    '<rect x="21.5" y="26" width="5" height="10" rx="2.5" fill="white" opacity="0.75"/>'
+    '<rect x="32" y="10" width="5" height="26" rx="2.5" fill="white" opacity="0.25"/>'
+    '<rect x="32" y="10" width="5" height="16" rx="2.5" fill="white" opacity="0.95"/>'
+    # dot accent
+    '<circle cx="34.5" cy="8" r="3.5" fill="#ff6b6b"/>'
+    '</svg>'
+
+    '<div>'
+    '<div style="font-size:2rem;font-weight:900;letter-spacing:-0.03em;line-height:1;">'
+    '<span style="background:linear-gradient(170deg,#ffffff 0%,#cccccc 100%);'
+    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Pick</span>'
+    '<span style="background:linear-gradient(135deg,#c0392b 0%,#e74c3c 40%,#ff8a8a 60%,#c0392b 100%);'
+    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;">R</span>'
+    '</div>'
+    '<div style="font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:500;'
+    'margin-top:0.25rem;letter-spacing:0.06em;text-transform:uppercase;">'
+    'AI Assisted Equity Research</div>'
+    '</div>'
+    '</div>'
+
+    # Right: stats + tagline
+    '<div style="display:flex;align-items:center;gap:3rem;">'
+    '<div style="text-align:center;">'
+    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">24</div>'
+    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">Metrics</div>'
+    '</div>'
+    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
+    '<div style="text-align:center;">'
+    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">3</div>'
+    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">Scenarios</div>'
+    '</div>'
+    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
+    '<div style="text-align:center;">'
+    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">5Y</div>'
+    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">History</div>'
+    '</div>'
+    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
+    '<div style="font-size:0.8rem;color:rgba(255,255,255,0.32);max-width:200px;'
+    'line-height:1.8;text-align:right;">'
+    'QGLP &middot; Bottom-up EPS<br>Probability-weighted scenarios'
+    '</div>'
+    '</div>'
+
+    '</div>',
+    unsafe_allow_html=True
+)
 
 # QGLP Top Picks
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -1515,27 +1840,131 @@ def load_screener_results():
     return None
 
 def render_picks_table(picks, market_label, select_key):
-    if not picks: return
-    st.markdown(f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.25);margin:0.8rem 0 0.4rem;">{market_label}</div>', unsafe_allow_html=True)
-    header = "<tr><th>Ticker</th><th>Company</th><th>Score</th><th>PEG</th><th>ROE</th><th>Earnings CAGR</th><th>FCF Yield</th><th>D/E</th></tr>"
-    rows = ""
-    for pick in picks:
-        score = pick.get("qglp_score", 0)
-        sc = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#f87171")
-        roe = pick.get("roe", 0); cagr = pick.get("earnings_cagr", 0)
-        cagr_yrs = pick.get("earnings_cagr_years", 0); fcf = pick.get("fcf_yield")
-        de = pick.get("debt_equity", 0); peg = pick.get("peg_ratio", "-")
-        tk = pick.get("ticker", ""); name = pick.get("name", tk)
-        rows += f'<tr><td style="font-weight:700;color:#fff;">{tk.replace(".NS","")}</td><td style="color:rgba(255,255,255,0.55);font-size:0.82rem;">{name[:25]}</td><td style="color:{sc};font-weight:800;">{score}</td><td style="font-weight:600;">{peg}</td><td>{roe*100:.1f}%</td><td>{cagr*100:.1f}% <span style="font-size:0.6rem;color:rgba(255,255,255,0.2);">({cagr_yrs}Y)</span></td><td>{f"{fcf*100:.1f}%" if fcf else "-"}</td><td>{de:.2f}</td></tr>'
-    st.markdown(f'<table class="pt"><thead>{header}</thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
-    ticker_options = [""] + [p.get("ticker", "") for p in picks]
-    display_options = ["Select a ticker to analyze..."] + [f"{p.get('ticker','').replace('.NS','')} - {p.get('name','')[:25]}" for p in picks]
-    sel = st.selectbox("Analyze", display_options, label_visibility="collapsed", key=select_key)
+    if not picks:
+        return
+
+    st.markdown(
+        f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.14em;color:rgba(255,255,255,0.3);'
+        f'margin:1.2rem 0 0.5rem;padding-bottom:0.4rem;'
+        f'border-bottom:1px solid rgba(255,255,255,0.05);">{market_label}</div>',
+        unsafe_allow_html=True
+    )
+
+    rows_html = ""
+    for i, pick in enumerate(picks):
+        score    = pick.get("qglp_score", 0)
+        sc       = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#f87171")
+        sc_bg    = "rgba(74,222,128,0.12)" if score >= 85 else ("rgba(251,191,36,0.12)" if score >= 70 else "rgba(248,113,113,0.12)")
+        roe      = pick.get("roe", 0)
+        cagr     = pick.get("earnings_cagr", 0)
+        cagr_yrs = pick.get("earnings_cagr_years", 0)
+        fcf      = pick.get("fcf_yield")
+        de       = pick.get("debt_equity", 0)
+        peg      = pick.get("peg_ratio", 0)
+        tk       = pick.get("ticker", "")
+        name     = pick.get("name", tk)
+        price    = pick.get("price", 0)
+        sector   = pick.get("sector", "")
+        tk_clean = tk.replace(".NS", "").replace(".BO", "")
+        row_bg   = "rgba(255,255,255,0.015)" if i % 2 == 0 else "transparent"
+
+        # Logo
+        _tc = tk.replace(".NS","").replace(".BO","").replace(".L","").lower()
+        _ini = tk_clean[:1].upper()
+                # Try Logo.dev (free, reliable), fallback to initials
+        _DOMAIN_MAP = {
+            "NVDA": "nvidia.com", "AAPL": "apple.com", "MSFT": "microsoft.com",
+            "AMZN": "amazon.com", "GOOGL": "google.com", "META": "meta.com",
+            "TSLA": "tesla.com", "NFLX": "netflix.com", "ADBE": "adobe.com",
+            "INTU": "intuit.com", "NOW": "servicenow.com", "PYPL": "paypal.com",
+            "AVGO": "broadcom.com", "PH": "parker.com",
+            "BHARTIARTL": "airtel.in", "DRREDDY": "drreddys.com",
+            "RELIANCE": "ril.com", "TCS": "tcs.com", "INFY": "infosys.com",
+            "HDFCBANK": "hdfcbank.com", "ICICIBANK": "icicibank.com",
+            "WIPRO": "wipro.com", "HINDUNILVR": "hul.co.in",
+        }
+        _domain = _DOMAIN_MAP.get(tk_clean, f"{tk_clean.lower()}.com")
+        logo_cell = (
+            f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
+            f'width="28" height="28" loading="lazy" '
+            f'style="border-radius:7px;object-fit:contain;background:#1e1d1a;'
+            f'padding:2px;border:1px solid rgba(255,255,255,0.08);'
+            f'vertical-align:middle;display:inline-block;" '
+            f'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline-flex\';">'
+            f'<span style="display:none;width:28px;height:28px;border-radius:7px;'
+            f'background:#252320;border:1px solid rgba(255,255,255,0.1);'
+            f'align-items:center;justify-content:center;'
+            f'font-size:0.65rem;font-weight:800;color:rgba(255,255,255,0.6);'
+            f'vertical-align:middle;">{_ini}</span>'
+        )
+
+        rows_html += (
+            f'<tr style="background:{row_bg};border-bottom:1px solid rgba(255,255,255,0.04);">'
+            f'<td style="padding:0.6rem 0.5rem;width:36px;">{logo_cell}</td>'
+            f'<td style="padding:0.6rem 0.4rem;">'
+            f'<div style="font-size:0.95rem;font-weight:800;color:#fff;">{tk_clean}</div>'
+            f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.35);margin-top:0.05rem;">{name[:22]}</div>'
+            f'</td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:center;">'
+            f'<span style="font-size:0.85rem;font-weight:800;color:{sc};'
+            f'background:{sc_bg};padding:0.15rem 0.45rem;border-radius:4px;'
+            f'font-feature-settings:\'tnum\';">{score:.0f}</span>'
+            f'</td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
+            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{peg:.2f}</td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
+            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{roe*100:.0f}%</td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:right;font-size:0.82rem;'
+            f'font-weight:600;color:#4ade80;font-feature-settings:\'tnum\';">{cagr*100:.0f}%'
+            f'<span style="font-size:0.6rem;color:rgba(255,255,255,0.25);margin-left:0.2rem;">{cagr_yrs}Y</span></td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
+            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{f"{fcf*100:.1f}%" if fcf else "—"}</td>'
+            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
+            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{de:.2f}</td>'
+            f'</tr>'
+        )
+
+        header_html = (
+        f'<tr style="border-bottom:2px solid rgba(255,255,255,0.1);">'
+        f'<th style="padding:0.6rem 0.5rem;width:36px;"></th>'
+        f'<th style="padding:0.6rem 0.4rem;text-align:left;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">Company</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">Score</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">PEG</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">ROE</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">EPS CAGR</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">FCF</th>'
+        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">D/E</th>'
+        f'</tr>'
+    )
+
+    st.markdown(
+        f'<table style="width:100%;border-collapse:collapse;">'
+        f'<thead>{header_html}</thead>'
+        f'<tbody>{rows_html}</tbody>'
+        f'</table>',
+        unsafe_allow_html=True
+    )
+
+    ticker_options  = [""] + [p.get("ticker", "") for p in picks]
+    display_options = ["Select a ticker to analyze..."] + [
+        f"{p.get('ticker','').replace('.NS','').replace('.BO','')} — {p.get('name','')[:25]}"
+        for p in picks
+    ]
+    sel = st.selectbox("Analyze", display_options,
+                       label_visibility="collapsed", key=select_key)
     if sel and sel != "Select a ticker to analyze...":
-        idx = display_options.index(sel)
+        idx    = display_options.index(sel)
         chosen = ticker_options[idx]
         if chosen:
-            st.session_state["resolved"] = chosen
+            st.session_state["resolved"]      = chosen
             st.session_state["auto_generate"] = True
 
 screener_data = None
@@ -1544,73 +1973,84 @@ try:
 except Exception as e:
     st.error(f"Screener load error: {e}")
 
-if screener_data:
-    last_updated = screener_data.get("last_updated", "")
-    st.markdown(f'''<div style="padding:2rem 0 0.8rem;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <div style="font-size:0.85rem;font-weight:900;text-transform:uppercase;
-                letter-spacing:0.16em;color:rgba(255,255,255,0.7);">
-                QGLP Top Picks</div>
-            <div style="font-size:0.78rem;color:rgba(255,255,255,0.35);font-weight:500;">
-                Updated {last_updated}</div>
-        </div>
-        <div style="height:2px;background:linear-gradient(90deg,#8b1a1a,transparent);
-            margin-top:0.6rem;border-radius:1px;"></div>
-    </div>''', unsafe_allow_html=True)
-    st.markdown('<div style="font-size:0.9rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:1.5rem;line-height:1.7;">Select any ticker from the tables below to generate a full report, or search for a stock below.</div>', unsafe_allow_html=True)
-    render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
-    render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
-
-st.markdown(f'''<div class="stats-row">
-    <div class="sr-item"><span class="sr-num">24</span><span class="sr-lbl">Verified Metrics</span></div>
-    <div class="sr-item"><span class="sr-num">5</span><span class="sr-lbl">Revenue Segments</span></div>
-    <div class="sr-item"><span class="sr-num">5Y</span><span class="sr-lbl">Price History</span></div>
-</div>''', unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
+# ── SEARCH BAR — always at top ─────────────────────────────────────────────
 cl, cm, cr = st.columns([1, 2.5, 1])
 with cm:
     recent_list = st.session_state.recent[-6:]
-    l1, l2 = st.columns([3, 2])
-    with l1: st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Search by company name</div>', unsafe_allow_html=True)
-    with l2: st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Popular stocks</div>', unsafe_allow_html=True)
 
-    s_col1, s_col2 = st.columns([3, 2])
-    with s_col1:
-        sq = st.text_input("Search by name", placeholder="e.g. Apple, Reliance, Broadcom", label_visibility="collapsed", key="s1")
-        if sq and len(sq) >= 2:
+    st.markdown(
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.14em;color:rgba(255,255,255,0.3);margin-bottom:0.5rem;">'
+        'Search by company name or enter ticker directly</div>',
+        unsafe_allow_html=True
+    )
+    sq = st.text_input(
+        "Search", placeholder="e.g. Apple, Reliance, AVGO, AAPL, RELIANCE.NS",
+        label_visibility="collapsed", key="s1"
+    )
+
+    if sq and len(sq) >= 2:
+        if len(sq) <= 12 and " " not in sq:
+            st.session_state["resolved"] = sq.strip().upper()
+            st.markdown(
+                f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.4);'
+                f'padding:0.3rem 0 0.1rem;">Using ticker: '
+                f'<strong style="color:#fff;">{sq.strip().upper()}</strong></div>',
+                unsafe_allow_html=True
+            )
+        else:
             res = search_ticker(sq)
             if res:
                 opts = {f"{r['name']} ({r['symbol']})": r['symbol'] for r in res}
-                sel = st.selectbox("Pick result", opts.keys(), label_visibility="collapsed", key="s2")
-                if sel: st.session_state["resolved"] = opts[sel]
-            else: st.caption("No results. Try the ticker box below.")
-    with s_col2:
-        sp = st.selectbox("Popular", POPULAR.keys(), label_visibility="collapsed", key="s3")
-        if sp and POPULAR[sp]: st.session_state["resolved"] = POPULAR[sp]
+                sel = st.selectbox(
+                    "Pick result", opts.keys(),
+                    label_visibility="collapsed", key="s2"
+                )
+                if sel:
+                    st.session_state["resolved"] = opts[sel]
+            else:
+                st.caption("No results found. Try entering the ticker directly.")
 
-    tl1, tl2 = st.columns([3, 2])
-    with tl1: st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Enter ticker directly</div>', unsafe_allow_html=True)
-    with tl2:
-        if recent_list: st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Recent searches</div>', unsafe_allow_html=True)
+    pop_keys   = list(POPULAR.keys())
+    recent_rev = list(reversed(recent_list))
+    has_popular = bool(pop_keys)
+    has_recent  = bool(recent_rev)
 
-    t_col1, t_col2 = st.columns([3, 2])
-    with t_col1:
-        td = st.text_input("Enter ticker directly", placeholder="e.g. AVGO, AAPL, RELIANCE.NS", label_visibility="collapsed", key="s4")
-        if td: st.session_state["resolved"] = td.strip().upper()
-    with t_col2:
-        if recent_list:
-            sr = st.selectbox("Recent", ["-- recent --"] + list(reversed(recent_list)), label_visibility="collapsed", key="s_recent")
-            if sr and sr != "-- recent --": st.session_state["resolved"] = sr
-        else: st.markdown("<div style='height:2.3rem'></div>", unsafe_allow_html=True)
+    if has_popular and has_recent:
+        qc1, qc2 = st.columns([1, 1])
+        with qc1:
+            sp = st.selectbox("Popular", pop_keys,
+                            label_visibility="collapsed", key="s3")
+            if sp and POPULAR[sp]:
+                st.session_state["resolved"] = POPULAR[sp]
+        with qc2:
+            sr = st.selectbox("Recent", ["— recent —"] + recent_rev,
+                            label_visibility="collapsed", key="s_recent")
+            if sr and sr != "— recent —":
+                st.session_state["resolved"] = sr
+    elif has_popular:
+        sp = st.selectbox("Popular stocks", pop_keys,
+                        label_visibility="collapsed", key="s3")
+        if sp and POPULAR[sp]:
+            st.session_state["resolved"] = POPULAR[sp]
+    elif has_recent:
+        sr = st.selectbox("Recent searches", ["— recent —"] + recent_rev,
+                        label_visibility="collapsed", key="s_recent")
+        if sr and sr != "— recent —":
+            st.session_state["resolved"] = sr
 
     resolved_now = st.session_state.get("resolved")
     if resolved_now:
-        st.markdown(f'<div style="text-align:center;font-size:0.78rem;color:rgba(255,255,255,0.45);padding:0.4rem 0 0.1rem;font-weight:600;letter-spacing:0.04em;">Selected: <span style="color:#ffffff;">{resolved_now}</span></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="text-align:center;font-size:0.82rem;'
+            f'color:rgba(255,255,255,0.4);padding:0.5rem 0 0.1rem;'
+            f'font-weight:600;letter-spacing:0.04em;">'
+            f'Selected: <span style="color:#fff;">{resolved_now}</span></div>',
+            unsafe_allow_html=True
+        )
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
     go = st.button("Generate Report", type="primary")
-
 status_area = st.container()
 
 with st.expander("About the QGLP Framework", expanded=False):
@@ -1622,6 +2062,31 @@ with st.expander("About the QGLP Framework", expanded=False):
     </div></div>''', unsafe_allow_html=True)
 
 report_area = st.container()
+
+# ── QGLP TABLE — only shown when no report has been generated ──────────────
+report_already_run = st.session_state.get("resolved") and st.session_state.get("report_done", False)
+
+if screener_data and not report_already_run:
+    last_updated = screener_data.get("last_updated", "")
+    st.markdown(f'''<div style="padding:2rem 0 0.8rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <div style="font-size:0.9rem;font-weight:900;text-transform:uppercase;
+                letter-spacing:0.16em;color:rgba(255,255,255,0.7);">
+                QGLP Top Picks</div>
+            <div style="font-size:0.82rem;color:rgba(255,255,255,0.35);font-weight:500;">
+                Updated {last_updated}</div>
+        </div>
+        <div style="height:2px;background:linear-gradient(90deg,#8b1a1a,transparent);
+            margin-top:0.6rem;border-radius:1px;"></div>
+    </div>''', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="font-size:0.95rem;color:rgba(255,255,255,0.45);'
+        'text-align:center;margin-bottom:1.5rem;line-height:1.7;">'
+        'Select any ticker below or search above to generate a full report.</div>',
+        unsafe_allow_html=True
+    )
+    render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
+    render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
 
 # ══════════════════════════════════════════════════════════════
 # GENERATION LOGIC
@@ -1639,6 +2104,7 @@ elif go and not resolved:
     with status_area: st.warning("Select or enter a company first.")
 
 if should_generate and ticker:
+    st.session_state["report_done"] = True
     if ticker not in st.session_state.recent:
         st.session_state.recent.append(ticker)
     st.session_state.report_count += 1

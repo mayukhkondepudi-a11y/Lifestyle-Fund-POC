@@ -6,3 +6,4 @@ run_check.ps1
 .DS_Store
 *.pdf
 venv/
+venv/
