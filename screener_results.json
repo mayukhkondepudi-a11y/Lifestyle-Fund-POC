@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-18 11:53 UTC",
+  "last_updated": "2026-04-19 11:54 UTC",
   "filters": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -32,9 +32,9 @@
       "roe": 0.4849,
       "earnings_cagr": 0.3649,
       "earnings_cagr_years": 3,
-      "fcf_yield": 0.0643,
-      "debt_equity": 0.461,
-      "qglp_score": 91.6
+      "fcf_yield": 0.0633,
+      "debt_equity": 0.538,
+      "qglp_score": 90.8
     },
     {
       "ticker": "PYPL",
