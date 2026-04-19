@@ -420,6 +420,21 @@ def _sum_item_eps(items):
         total += val
     return total
 
+def _stamp_item_eps(items, scenario_key, shares, operating_margin, tax_rate, total_revenue):
+    """
+    Stamp bull_eps_impact / base_eps_impact / bear_eps_impact onto each
+    headwind/tailwind item so app.py can render them per-row in the table.
+    revenue_at_risk / revenue_opportunity → EPS impact via margin → net → per share.
+    """
+    for item in (items or []):
+        rev_field = (item.get("revenue_at_risk") or item.get("revenue_opportunity") or 0)
+        rev = safe_float(rev_field)
+        if rev == 0 or shares == 0 or operating_margin == 0:
+            item[f"{scenario_key}_eps_impact"] = 0.0
+            continue
+        eps_impact = round((rev * operating_margin * (1 - tax_rate)) / shares, 2)
+        item[f"{scenario_key}_eps_impact"] = eps_impact
+
 
 def _detect_gaap_suppression(python_eps, llm_eps, forward_eps, trailing_eps):
     """
@@ -645,6 +660,18 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
             implied_market_cap  = price_target * shares
             projected_fcf       = total_rev * fcf_margin
             fcf_yield_at_target = projected_fcf / implied_market_cap
+
+            fcf_yield_at_target = None
+        if fcf_margin > 0 and total_rev > 0 and price_target > 0 and shares > 0:
+            implied_market_cap  = price_target * shares
+            projected_fcf       = total_rev * fcf_margin
+            fcf_yield_at_target = projected_fcf / implied_market_cap
+
+        # Stamp per-item EPS impacts so app.py table rows are populated
+        _stamp_item_eps(hw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
+        _stamp_item_eps(tw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
+        s["headwinds"] = hw_items
+        s["tailwinds"] = tw_items
 
         return {
             "probability":            round(prob, 4),
