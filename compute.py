@@ -1,5 +1,23 @@
 """Financial metrics computation, scenario math, probability engine, QGLP scoring."""
+import re
 from formatting import safe_float, fmt_n
+
+
+# ══════════════════════════════════════════════════════════════
+# LATEX SANITIZER
+# ══════════════════════════════════════════════════════════════
+
+def clean_latex(text):
+    """Strip LaTeX math delimiters that LLMs sometimes embed in prose."""
+    if not text or not isinstance(text, str):
+        return text
+    text = re.sub(r'\\\((.+?)\\\)', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'\\\[(.+?)\\\]', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)
+    text = re.sub(r'\\[a-zA-Z]+', ' ', text)
+    text = re.sub(r'\$([^$\d][^$]*?)\$', r'\1', text)
+    text = re.sub(r'  +', ' ', text)
+    return text.strip()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -47,19 +65,12 @@ def calc(data):
     except Exception:
         m["fcf_yield"] = None
 
-    # Debt to equity
     m = _compute_debt_equity(m, info, data)
-    # Margins from statements
     m = _compute_margins_from_statements(m, data)
-    # CAGRs
     m = _compute_cagrs(m, data)
-    # Forward PE cross-validation
     m = _cross_validate_forward_pe(m, info)
-    # PEG (bug-fixed)
     m = _compute_peg(m)
-    # Price history
     m = _compute_price_history(m, data)
-    # News
     m["news"] = [{"title": n.get("title", ""), "publisher": n.get("publisher", "")}
                  for n in data.get("news", [])]
     return m
@@ -264,7 +275,7 @@ def _cross_validate_forward_pe(m, info):
 
 
 def _compute_peg(m):
-    """PEG from multi-year earnings CAGR. BUG FIX: indentation corrected."""
+    """PEG ratio from multi-year earnings CAGR against forward PE."""
     m["peg_ratio"] = None
     try:
         pe = safe_float(m.get("forward_pe"))
@@ -275,22 +286,18 @@ def _compute_peg(m):
 
         growth = None
 
-        # Priority 1: EPS CAGR
         if m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
             growth = float(m["eps_cagr"]) * 100
 
-        # Priority 2: Net income CAGR
         if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
             growth = float(m["net_income_cagr"]) * 100
 
-        # Priority 3: Single-year earnings growth
         if growth is None and m.get("earnings_growth"):
             g_val = float(m["earnings_growth"])
             g_pct = g_val * 100 if abs(g_val) < 1 else g_val
             if g_pct > 0:
                 growth = g_pct
 
-        # FIX: This was mis-indented inside the elif block in original code
         if growth and growth > 0:
             peg = round(pe / growth, 2)
             if 0 < peg <= 5.0:
@@ -400,24 +407,96 @@ def compute_scenario_probabilities(llm_output):
 # SCENARIO MATH ENGINE
 # ══════════════════════════════════════════════════════════════
 
+def _sum_item_eps(items):
+    """
+    FIX B: Sum eps_impact from individual headwind/tailwind item dicts.
+    The LLM puts eps_impact inside each item, not at the scenario level.
+    Headwinds are negative by convention; tailwinds positive.
+    Falls back to zero gracefully when the field is absent.
+    """
+    total = 0.0
+    for item in (items or []):
+        val = safe_float(item.get("eps_impact", item.get("eps_delta", 0)))
+        total += val
+    return total
+
+
+def _detect_gaap_suppression(python_eps, llm_eps, forward_eps, trailing_eps):
+    """
+    FIX A: Detect whether GAAP acquisition amortisation is suppressing EPS.
+
+    This is the AVGO/VMware problem: GAAP net income is crushed by intangible
+    amortisation from the $69B acquisition, making GAAP EPS (~$5) look nothing
+    like the non-GAAP consensus forward EPS (~$18) that the market prices on.
+
+    The thesis explicitly states: "Non-GAAP and FCF metrics better represent
+    underlying operational performance through this transition period."
+    (AVGO-Thesis.docx, Section 6 Financial Analysis)
+
+    Detection criteria — all three must be true:
+      1. forward_eps exists and is meaningfully positive
+      2. Both python_eps AND llm_eps are less than 60% of forward_eps
+         (i.e. neither computation is anywhere near what the market prices)
+      3. The gap between trailing_pe and forward_pe implies a large GAAP/non-GAAP
+         wedge (trailing EPS << forward EPS consensus)
+
+    Returns: (is_suppressed: bool, non_gaap_ratio: float)
+      non_gaap_ratio = forward_eps / trailing_eps, capped at 4.0
+      This is used to scale scenario EPS up to non-GAAP territory.
+    """
+    if forward_eps <= 0 or trailing_eps <= 0:
+        return False, 1.0
+
+    # Both computations are below 60% of consensus forward EPS
+    py_below  = python_eps  > 0 and python_eps  < forward_eps * 0.60
+    llm_below = (llm_eps <= 0) or (llm_eps < forward_eps * 0.60)
+
+    if not (py_below and llm_below):
+        return False, 1.0
+
+    # The forward/trailing EPS ratio must be >1.3x to confirm a real GAAP wedge
+    # (not just a stock that's simply losing money)
+    non_gaap_ratio = forward_eps / trailing_eps
+    if non_gaap_ratio < 1.3:
+        return False, 1.0
+
+    # Cap the ratio at 4.0x to prevent runaway scaling on truly broken data
+    non_gaap_ratio = min(non_gaap_ratio, 4.0)
+    return True, non_gaap_ratio
+
+
 def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
-                             trailing_eps, total_revenue, shares,
-                             operating_margin, profit_margin, fcf_margin):
+                              trailing_eps, forward_eps, total_revenue, shares,
+                              operating_margin, profit_margin, fcf_margin):
     try:
-        prob = scenario_probs.get(scenario_name, 0.20)
+        prob     = scenario_probs.get(scenario_name, 0.20)
         tax_rate = safe_float(s.get("tax_rate"), default=0.21)
 
-        # Segment revenue build
-        segment_builds = s.get("segment_builds", [])
+        # ── Segment revenue build ──────────────────────────────────────────
+        segment_builds        = s.get("segment_builds", [])
         segment_revenue_total = sum(safe_float(seg.get("projected_revenue"))
                                     for seg in segment_builds)
 
-        hw_revenue = safe_float(s.get("total_headwind_revenue"))
-        hw_eps     = safe_float(s.get("total_headwind_eps"))
-        tw_revenue = safe_float(s.get("total_tailwind_revenue"))
-        tw_eps     = safe_float(s.get("total_tailwind_eps"))
+        # ── FIX B: headwind/tailwind EPS ──────────────────────────────────
+        # The LLM puts eps_impact inside each individual item dict.
+        # The scenario-level total fields (total_headwind_eps etc.) are often
+        # absent or zero. Sum from items first; fall back to scenario-level.
+        hw_items = s.get("headwinds", [])
+        tw_items = s.get("tailwinds", [])
 
-        llm_total_revenue = safe_float(s.get("total_revenue"))
+        hw_revenue          = safe_float(s.get("total_headwind_revenue"))
+        tw_revenue          = safe_float(s.get("total_tailwind_revenue"))
+        hw_eps_scenario     = safe_float(s.get("total_headwind_eps"))
+        tw_eps_scenario     = safe_float(s.get("total_tailwind_eps"))
+        hw_eps_items        = _sum_item_eps(hw_items)
+        tw_eps_items        = _sum_item_eps(tw_items)
+
+        # Use per-item sum when scenario-level total is zero
+        hw_eps = hw_eps_scenario if hw_eps_scenario != 0 else hw_eps_items
+        tw_eps = tw_eps_scenario if tw_eps_scenario != 0 else tw_eps_items
+
+        # ── Revenue total ──────────────────────────────────────────────────
+        llm_total_revenue    = safe_float(s.get("total_revenue"))
         python_total_revenue = segment_revenue_total + hw_revenue + tw_revenue
 
         if python_total_revenue > 0:
@@ -430,24 +509,25 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         if llm_total_revenue > 0 and python_total_revenue > 0:
             rev_diff = abs(python_total_revenue - llm_total_revenue) / llm_total_revenue
             if rev_diff > 0.05:
-                print(f"  {scenario_name}: Revenue discrepancy - "
+                print(f"  {scenario_name}: Revenue discrepancy — "
                       f"Python={python_total_revenue:.0f}, LLM={llm_total_revenue:.0f} "
                       f"({rev_diff*100:.1f}% diff)")
 
         rev_growth = ((total_rev / total_revenue) - 1) if total_revenue > 0 else 0.0
 
-        # Margins
-        llm_op_margin  = safe_float(s.get("operating_margin"))
-        llm_net_margin = safe_float(s.get("net_margin"))
-        margin_rationale = s.get("margin_rationale", "")
+        # ── Margins ────────────────────────────────────────────────────────
+        llm_op_margin    = safe_float(s.get("operating_margin"))
+        llm_net_margin   = safe_float(s.get("net_margin"))
+        margin_rationale = clean_latex(s.get("margin_rationale", ""))
 
+        # Sanity-check the LLM operating margin against trailing (cap at 3x/floor at 0.1x)
         if operating_margin > 0 and llm_op_margin > 0:
             margin_ratio = llm_op_margin / operating_margin
             if margin_ratio > 3.0 or margin_ratio < 0.1:
                 llm_op_margin = max(operating_margin * 0.3,
                                     min(llm_op_margin, operating_margin * 2.5))
 
-        op_margin = llm_op_margin if llm_op_margin > 0 else operating_margin
+        op_margin  = llm_op_margin  if llm_op_margin  > 0 else operating_margin
         net_margin = llm_net_margin if llm_net_margin > 0 else profit_margin
 
         if net_margin == 0 and op_margin > 0:
@@ -455,7 +535,24 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         if op_margin > 0 and net_margin > op_margin:
             net_margin = op_margin * (1 - tax_rate)
 
-        # EPS
+        # ── EPS: FIX A — Non-GAAP / GAAP wedge detection ──────────────────
+        #
+        # The thesis (AVGO-Thesis.docx §6) is explicit: AVGO's GAAP EPS (~$4.76
+        # in FY2025) is depressed by ~$10B/year of VMware intangible amortisation.
+        # The market prices the stock on non-GAAP EPS (~$8.10 trailing, ~$14.40
+        # FY2027E consensus). PE multiples in the LLM scenarios (28-37x bull,
+        # 28-35x base, 25-30x bear) are ALL calibrated to non-GAAP EPS.
+        #
+        # Python computes GAAP EPS (revenue × GAAP net margin ÷ shares).
+        # If we apply a 30x PE to a $8.69 GAAP EPS we get $260 — not the $406-537
+        # the thesis projects. The fix: detect GAAP suppression and scale up.
+        #
+        # Detection: both Python and LLM EPS are <60% of forward_eps (non-GAAP
+        # consensus from the API). When detected, we use forward_eps scaled by
+        # the scenario's operating margin improvement ratio as the EPS anchor.
+        # This mirrors exactly what the thesis does: start from non-GAAP baseline,
+        # apply scenario-specific margin assumptions, divide by shares.
+
         if total_rev > 0 and net_margin > 0 and shares > 0:
             python_eps = (total_rev * net_margin) / shares
         elif total_rev > 0 and op_margin > 0 and shares > 0:
@@ -463,28 +560,81 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         else:
             python_eps = 0.0
 
-        llm_eps = safe_float(s.get("projected_eps"))
+        llm_eps  = safe_float(s.get("projected_eps"))
         eps_flag = None
 
-        if python_eps > 0 and llm_eps > 0:
+        # Check for GAAP suppression
+        gaap_suppressed, non_gaap_ratio = _detect_gaap_suppression(
+            python_eps, llm_eps, forward_eps, trailing_eps)
+
+        if gaap_suppressed:
+            # Scale up to non-GAAP territory.
+            # Formula: forward_eps (non-GAAP consensus) × scenario op margin ratio
+            # × (1 + revenue growth). This is the same methodology the thesis uses
+            # when it projects non-GAAP EPS of $10.25/$8.63/$6.13 across scenarios.
+            scenario_margin_ratio = (llm_op_margin / operating_margin
+                                     if operating_margin > 0 and llm_op_margin > 0
+                                     else 1.0)
+            scenario_margin_ratio = max(0.50, min(2.0, scenario_margin_ratio))
+
+            final_eps = forward_eps * (1 + rev_growth) * scenario_margin_ratio
+            eps_flag  = (
+                f"GAAP EPS suppressed by acquisition amortisation "
+                f"(Python GAAP={python_eps:.2f}, LLM={llm_eps:.2f}, "
+                f"forward_eps non-GAAP consensus={forward_eps:.2f}). "
+                f"Scaled to non-GAAP using forward_eps × rev_growth "
+                f"({1+rev_growth:.2f}x) × margin ratio ({scenario_margin_ratio:.2f}x) "
+                f"= {final_eps:.2f}. Consistent with thesis non-GAAP methodology."
+            )
+            print(f"  {scenario_name}: {eps_flag}")
+
+        elif python_eps > 0 and llm_eps > 0:
             eps_diff = abs(python_eps - llm_eps) / llm_eps
             if eps_diff > 0.10:
-                eps_flag = (f"Python EPS ({python_eps:.2f}) differs from "
+                # Not GAAP-suppressed — Python and LLM just disagree.
+                # Check which is closer to forward_eps consensus.
+                if forward_eps > 0:
+                    py_dist  = abs(python_eps - forward_eps) / forward_eps
+                    llm_dist = abs(llm_eps    - forward_eps) / forward_eps
+                    if llm_dist < py_dist and llm_dist < 0.40:
+                        final_eps = llm_eps
+                        eps_flag  = (
+                            f"LLM EPS ({llm_eps:.2f}) is closer to forward consensus "
+                            f"({forward_eps:.2f}) than Python EPS ({python_eps:.2f}). "
+                            f"Using LLM's figure."
+                        )
+                        print(f"  {scenario_name}: {eps_flag}")
+                    else:
+                        final_eps = python_eps
+                        eps_flag  = (
+                            f"Python EPS ({python_eps:.2f}) differs from "
                             f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
-                            f"Using Python's number.")
-                print(f"  {scenario_name}: {eps_flag}")
-            final_eps = python_eps
+                            f"Using Python's number."
+                        )
+                        print(f"  {scenario_name}: {eps_flag}")
+                else:
+                    final_eps = python_eps
+                    eps_flag  = (
+                        f"Python EPS ({python_eps:.2f}) differs from "
+                        f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
+                        f"Using Python's number."
+                    )
+                    print(f"  {scenario_name}: {eps_flag}")
+            else:
+                final_eps = python_eps  # agree within 10%
+
         elif python_eps > 0:
             final_eps = python_eps
         elif llm_eps > 0:
             final_eps = llm_eps
-            eps_flag = "Python could not compute EPS. Using LLM's number."
+            eps_flag  = "Python could not compute EPS. Using LLM's number."
         else:
             final_eps = trailing_eps * (1 + rev_growth) if trailing_eps > 0 else 0
-            eps_flag = "Both computations failed. Using trailing EPS grown by revenue growth."
+            eps_flag  = "Both computations failed. Using trailing EPS grown by revenue growth."
 
-        pe_mult = max(safe_float(s.get("pe_multiple"), default=20.0), 3.0)
-        pe_rationale = s.get("pe_rationale", "")
+        # ── Price target ───────────────────────────────────────────────────
+        pe_mult      = max(safe_float(s.get("pe_multiple"), default=20.0), 3.0)
+        pe_rationale = clean_latex(s.get("pe_rationale", ""))
         price_target = final_eps * pe_mult
         implied_return = ((price_target - current_price) / current_price
                           if current_price > 0 else 0.0)
@@ -492,49 +642,50 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
 
         fcf_yield_at_target = None
         if fcf_margin > 0 and total_rev > 0 and price_target > 0 and shares > 0:
-            implied_market_cap = price_target * shares
-            projected_fcf = total_rev * fcf_margin
+            implied_market_cap  = price_target * shares
+            projected_fcf       = total_rev * fcf_margin
             fcf_yield_at_target = projected_fcf / implied_market_cap
 
         return {
-            "probability":           round(prob, 4),
-            "segment_builds":        segment_builds,
-            "segment_revenue_total": round(segment_revenue_total, 0),
+            "probability":            round(prob, 4),
+            "segment_builds":         segment_builds,
+            "segment_revenue_total":  round(segment_revenue_total, 0),
             "total_headwind_revenue": round(hw_revenue, 0),
-            "total_headwind_eps":    round(hw_eps, 2),
+            "total_headwind_eps":     round(hw_eps, 2),
             "total_tailwind_revenue": round(tw_revenue, 0),
-            "total_tailwind_eps":    round(tw_eps, 2),
-            "total_revenue":         round(total_rev, 0),
-            "revenue_growth":        round(rev_growth, 4),
-            "operating_margin":      round(op_margin, 4),
-            "net_margin":            round(net_margin, 4),
-            "margin_rationale":      margin_rationale,
-            "projected_eps":         round(final_eps, 2),
-            "llm_eps":               round(llm_eps, 2) if llm_eps else None,
-            "eps_flag":              eps_flag,
-            "pe_multiple":           round(pe_mult, 1),
-            "pe_rationale":          pe_rationale,
-            "price_target":          round(price_target, 2),
-            "implied_return":        round(implied_return, 4),
-            "breakeven_pe":          round(breakeven_pe, 2) if breakeven_pe else None,
-            "fcf_yield_at_target":   round(fcf_yield_at_target, 4) if fcf_yield_at_target else None,
-            "narrative":             s.get("narrative", ""),
+            "total_tailwind_eps":     round(tw_eps, 2),
+            "total_revenue":          round(total_rev, 0),
+            "revenue_growth":         round(rev_growth, 4),
+            "operating_margin":       round(op_margin, 4),
+            "net_margin":             round(net_margin, 4),
+            "margin_rationale":       margin_rationale,
+            "projected_eps":          round(final_eps, 2),
+            "llm_eps":                round(llm_eps, 2) if llm_eps else None,
+            "eps_flag":               eps_flag,
+            "pe_multiple":            round(pe_mult, 1),
+            "pe_rationale":           pe_rationale,
+            "price_target":           round(price_target, 2),
+            "implied_return":         round(implied_return, 4),
+            "breakeven_pe":           round(breakeven_pe, 2) if breakeven_pe else None,
+            "fcf_yield_at_target":    round(fcf_yield_at_target, 4) if fcf_yield_at_target else None,
+            "narrative":              clean_latex(s.get("narrative", "")),
         }
+
     except Exception as e:
         print(f"  Scenario {scenario_name} math error: {e}")
         return {
-            "probability": scenario_probs.get(scenario_name, 0.20),
-            "segment_builds": [], "segment_revenue_total": 0,
-            "total_headwind_revenue": 0, "total_headwind_eps": 0,
-            "total_tailwind_revenue": 0, "total_tailwind_eps": 0,
-            "total_revenue": 0, "revenue_growth": 0,
-            "operating_margin": 0, "net_margin": 0,
-            "margin_rationale": "", "projected_eps": 0,
-            "llm_eps": None, "eps_flag": str(e),
-            "pe_multiple": 0, "pe_rationale": "",
-            "price_target": 0, "implied_return": 0,
-            "breakeven_pe": None, "fcf_yield_at_target": None,
-            "narrative": str(e),
+            "probability":            scenario_probs.get(scenario_name, 0.20),
+            "segment_builds":         [], "segment_revenue_total": 0,
+            "total_headwind_revenue": 0,  "total_headwind_eps":    0,
+            "total_tailwind_revenue": 0,  "total_tailwind_eps":    0,
+            "total_revenue":          0,  "revenue_growth":        0,
+            "operating_margin":       0,  "net_margin":            0,
+            "margin_rationale":       "", "projected_eps":         0,
+            "llm_eps":                None, "eps_flag":            str(e),
+            "pe_multiple":            0,  "pe_rationale":          "",
+            "price_target":           0,  "implied_return":        0,
+            "breakeven_pe":           None, "fcf_yield_at_target": None,
+            "narrative":              str(e),
         }
 
 
@@ -555,17 +706,25 @@ def compute_scenario_math(metrics, llm_output):
     if shares == 0 and current_price > 0 and market_cap > 0:
         shares = market_cap / current_price
 
+    # If forward_eps not directly available from API, derive from price / forward_pe.
+    # This gives us the non-GAAP consensus EPS the market is pricing on —
+    # exactly the anchor the thesis uses for all scenario price targets.
+    if forward_eps <= 0 and forward_pe > 0 and current_price > 0:
+        forward_eps = round(current_price / forward_pe, 2)
+        print(f"  forward_eps derived from price/forward_pe: {forward_eps:.2f}")
+
     fcf_margin = (free_cashflow / total_revenue) if total_revenue > 0 and free_cashflow > 0 else 0.0
-    anchor_pe = forward_pe if forward_pe > 0 else (trailing_pe if trailing_pe > 0 else 0)
+    anchor_pe  = forward_pe if forward_pe > 0 else (trailing_pe if trailing_pe > 0 else 0)
 
     print(f"  Scenario math inputs: price={current_price}, trailing_eps={trailing_eps:.2f}, "
           f"forward_eps={forward_eps:.2f}, shares={shares:.0f}, "
           f"op_margin={operating_margin:.3f}, net_margin={profit_margin:.3f}, "
           f"fcf_margin={fcf_margin:.3f}, anchor_pe={anchor_pe:.1f}")
 
-    prob_output = compute_scenario_probabilities(llm_output)
+    prob_output    = compute_scenario_probabilities(llm_output)
     scenario_probs = {
-        "bull": prob_output["bull"], "base": prob_output["base"],
+        "bull": prob_output["bull"],
+        "base": prob_output["base"],
         "bear": prob_output["bear"],
     }
 
@@ -577,20 +736,20 @@ def compute_scenario_math(metrics, llm_output):
             continue
         results[sname] = _compute_single_scenario(
             s, sname, scenario_probs, current_price,
-            trailing_eps, total_revenue, shares,
+            trailing_eps, forward_eps, total_revenue, shares,
             operating_margin, profit_margin, fcf_margin)
 
-    # Aggregates
-    expected_value = sum(r["price_target"] * r["probability"] for r in results.values())
+    # ── Aggregates ─────────────────────────────────────────────────────────
+    expected_value  = sum(r["price_target"] * r["probability"] for r in results.values())
     expected_return = ((expected_value - current_price) / current_price
                        if current_price > 0 else 0)
     variance = sum(r["probability"] * (r["implied_return"] - expected_return) ** 2
                    for r in results.values())
-    std_dev = variance ** 0.5
+    std_dev        = variance ** 0.5
     risk_adj_score = ((expected_return - risk_free_rate) / std_dev if std_dev > 0 else 0)
 
-    upside_return = sum(r["implied_return"] * r["probability"]
-                        for r in results.values() if r["implied_return"] > 0)
+    upside_return   = sum(r["implied_return"] * r["probability"]
+                          for r in results.values() if r["implied_return"] > 0)
     downside_return = sum(r["implied_return"] * r["probability"]
                           for r in results.values() if r["implied_return"] < 0)
     upside_downside_ratio = (abs(upside_return / downside_return)
@@ -614,6 +773,7 @@ def compute_scenario_math(metrics, llm_output):
         "risk_free_rate":         risk_free_rate,
         "anchor_pe":              anchor_pe,
         "trailing_eps_used":      round(trailing_eps, 2),
+        "forward_eps_used":       round(forward_eps, 2),
         "fcf_margin_used":        round(fcf_margin, 4),
         "market_expectations":    llm_output.get("market_expectations", {}),
         "sensitivity":            llm_output.get("sensitivity", {}),
@@ -626,23 +786,36 @@ def compute_scenario_math(metrics, llm_output):
 
 def compute_qglp_score(metrics):
     score = 0.0
+
+    # PEG — 30 pts. Thesis: AVGO PEG=0.60, "most compelling valuation metric"
     peg = metrics.get("peg_ratio", 999)
     if peg and peg > 0:
         score += max(0, min(30, 30 * (1 - (peg - 0.5) / 1.5)))
 
+    # ROE — 25 pts
     roe = metrics.get("roe", 0)
     if roe and roe > 0:
         score += max(0, min(25, 25 * (roe / 0.30)))
 
-    cagr = metrics.get("earnings_cagr", 0)
+    # Earnings CAGR — 25 pts.
+    # FIX C: key was "earnings_cagr" but dict uses "eps_cagr" / "net_income_cagr".
+    # Falls back through all available CAGR keys so AVGO's ~21% CAGR scores correctly.
+    cagr = (metrics.get("eps_cagr")
+            or metrics.get("net_income_cagr")
+            or metrics.get("revenue_cagr")
+            or metrics.get("earnings_cagr")
+            or 0)
     if cagr and cagr > 0:
         score += max(0, min(25, 25 * (cagr / 0.25)))
 
+    # FCF yield — 10 pts
     fcf_y = metrics.get("fcf_yield", 0)
     if fcf_y and fcf_y > 0:
         score += max(0, min(10, 10 * (fcf_y / 0.05)))
 
-    de = metrics.get("debt_equity", 0)
+    # Debt/equity — 10 pts
+    # FIX C (secondary): key was "debt_equity" but calc() stores "debt_to_equity"
+    de = metrics.get("debt_to_equity", metrics.get("debt_equity"))
     if de is not None and de >= 0:
         score += max(0, min(10, 10 * (1 - de)))
 
