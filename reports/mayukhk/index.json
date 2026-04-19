@@ -7,5 +7,14 @@
     "timestamp": "2026-04-17 10:18",
     "recommendation": "PASS",
     "expected_return": -0.1375
+  },
+  {
+    "report_id": "AVGO_2026-04-19",
+    "ticker": "AVGO",
+    "company_name": "Broadcom Inc.",
+    "date": "2026-04-19",
+    "timestamp": "2026-04-19 11:56",
+    "recommendation": "PASS",
+    "expected_return": -0.592
   }
 ]
