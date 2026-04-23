@@ -34,5 +34,14 @@
     "timestamp": "2026-04-22 14:24",
     "recommendation": "BUY",
     "expected_return": 0.2572
+  },
+  {
+    "report_id": "ADBE_2026-04-23",
+    "ticker": "ADBE",
+    "company_name": "Adobe Inc.",
+    "date": "2026-04-23",
+    "timestamp": "2026-04-23 05:50",
+    "recommendation": "BUY",
+    "expected_return": 0.2572
   }
 ]
