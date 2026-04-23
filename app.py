@@ -555,140 +555,179 @@ st.markdown("""
 # AUTHENTICATION
 # ══════════════════════════════════════════════════════════════
 
-from auth import render_auth
+from auth import render_auth_modal
 
-name, username, authenticated = render_auth()
+# ── Session-state defaults for auth ──
+for _k in ["authenticated", "username", "user_name", "user_email", "is_guest", "show_auth"]:
+    if _k not in st.session_state:
+        st.session_state[_k] = False if _k in ("authenticated","is_guest","show_auth") else ""
 
-if not authenticated:
+authenticated = st.session_state.get("authenticated", False)
+name     = st.session_state.get("user_name", "")
+username = st.session_state.get("username", "")
+
+# ── If show_auth is True, render auth screen and stop ──
+if st.session_state.get("show_auth"):
+    render_auth_modal()
     st.stop()
 
-# ── User badge in header ──
+# ── User badge / Sign In button in header ──
 is_guest = st.session_state.get("is_guest", False)
-badge_label = f"Guest: {name}" if is_guest else name
-badge_color_start = "#444" if is_guest else "#8b1a1a"
-badge_color_end = "#666" if is_guest else "#c03030"
 
-st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
-    display:flex;align-items:center;gap:0.6rem;">
-    <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
-        {badge_label}</span>
-    <div style="width:24px;height:24px;border-radius:50%;
-        background:linear-gradient(135deg,{badge_color_start},{badge_color_end});
-        display:flex;align-items:center;justify-content:center;
-        font-size:0.6rem;font-weight:800;color:#fff;">
-        {name[0].upper() if name else "G"}</div>
-</div>''', unsafe_allow_html=True)
-
-# Sign out in sidebar top
-with st.sidebar:
-    st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
-        border-bottom:1px solid rgba(255,255,255,0.06);">
-                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
-                aria-label="PickR logo" style="flex-shrink:0;">
-                <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
-                <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
-                <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
-                <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
-                <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
-            </svg>
-            <div>
-                <div style="font-size:1rem;font-weight:900;color:#fff;line-height:1;">
-                    Pick<span style="color:#c03030;">R</span></div>
-                <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;
-                    letter-spacing:0.15em;color:rgba(255,255,255,0.2);margin-top:0.15rem;">
-                    Equity Research</div>
-            </div>
-        </div>
-        <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.14em;color:rgba(255,255,255,0.2);">Report History</div>
+if authenticated:
+    badge_label = f"Guest: {name}" if is_guest else name
+    badge_color_start = "#444" if is_guest else "#8b1a1a"
+    badge_color_end = "#666" if is_guest else "#c03030"
+    st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
+        display:flex;align-items:center;gap:0.6rem;">
+        <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
+            {badge_label}</span>
+        <div style="width:24px;height:24px;border-radius:50%;
+            background:linear-gradient(135deg,{badge_color_start},{badge_color_end});
+            display:flex;align-items:center;justify-content:center;
+            font-size:0.6rem;font-weight:800;color:#fff;">
+            {name[0].upper() if name else "G"}</div>
     </div>''', unsafe_allow_html=True)
+else:
+    # Show Sign In / Sign Up button in top-right
+    st.markdown(
+        '''<div style="position:fixed;top:0.55rem;right:1.2rem;z-index:999;">
+        <a href="#" onclick="window.parent.document.querySelector('[data-testid=\"stButton\"] button').click();return false;"
+           style="display:none;"></a>
+        </div>''',
+        unsafe_allow_html=True
+    )
 
-    if st.button("Sign out", key="logout_btn", use_container_width=True):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
-
-    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
-
-    try:
-        from report_store import load_user_index, load_report as load_saved_report
-        past_reports = load_user_index(username)
-        if past_reports:
-            for r in reversed(past_reports[-20:]):
-                rec = r.get("recommendation", "")
-                ret = r.get("expected_return")
-                rec_color = ("#4ade80" if rec == "BUY"
-                             else ("#f87171" if rec == "PASS" else "#fbbf24"))
-                ret_str = f"{ret*100:+.0f}%" if ret else ""
-                company = r.get("company_name", r["ticker"])[:22]
-                rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
-
-                _rc_bg = {
-                    "BUY":  "rgba(74,222,128,0.08)",
-                    "PASS": "rgba(248,113,113,0.08)",
-                }.get(rec, "rgba(251,191,36,0.08)")
-                _rc_border = {
-                    "BUY":  "rgba(74,222,128,0.2)",
-                    "PASS": "rgba(248,113,113,0.2)",
-                }.get(rec, "rgba(251,191,36,0.2)")
-
-                st.markdown(
-                    f'<div style="background:{_rc_bg};border:1px solid {_rc_border};'
-                    f'border-radius:7px;padding:0.6rem 0.75rem;margin:0.35rem 0;">'
-
-                    f'<div style="display:flex;justify-content:space-between;'
-                    f'align-items:center;margin-bottom:0.25rem;">'
-                    f'<span style="font-size:0.88rem;color:#fff;font-weight:800;'
-                    f'letter-spacing:0.01em;">{r["ticker"].replace(".NS","").replace(".BO","")}</span>'
-                    f'<span style="font-size:0.68rem;font-weight:800;color:{rec_color};'
-                    f'background:rgba(0,0,0,0.25);padding:0.1rem 0.4rem;'
-                    f'border-radius:3px;letter-spacing:0.06em;">{rec}</span>'
-                    f'</div>'
-
-                    f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
-                    f'margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;'
-                    f'text-overflow:ellipsis;">{company}</div>'
-
-                    f'<div style="display:flex;justify-content:space-between;'
-                    f'align-items:center;">'
-                    f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">'
-                    f'{r.get("date","")}</span>'
-                    f'<span style="font-size:0.75rem;font-weight:700;color:{rec_color};">'
-                    f'{ret_str}</span>'
-                    f'</div>'
-
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-
-                if st.button(f"Load report", key=f"load_{rid}",
-                             use_container_width=True):
-                    report_data = load_saved_report(username, rid)
-                    if report_data:
-                        st.session_state.cached_report = {
-                            "ticker": report_data["ticker"],
-                            "metrics": report_data["metrics"],
-                            "analysis": report_data["analysis"],
-                            "data": {"hist": None, "info": {},
-                                     "inc": None, "qinc": None,
-                                     "bs": None, "cf": None,
-                                     "news": []},
-                        }
-                        st.rerun()
-                    else:
-                        st.toast("Could not load report")
-        else:
-            st.markdown('''<div style="text-align:center;padding:2rem 1rem;">
-                <div style="font-size:0.85rem;color:rgba(255,255,255,0.25);
-                    font-style:italic;line-height:1.6;">
-                    No reports yet.<br>Generate your first analysis
-                    and it will appear here.</div>
-            </div>''', unsafe_allow_html=True)
-    except Exception:
-        st.markdown('<div style="font-size:0.75rem;color:rgba(255,255,255,0.15);'
-                    'padding:1rem;">History unavailable</div>',
-                    unsafe_allow_html=True)
+if authenticated:
+    # Sign out in sidebar top (only shown when logged in)
+    with st.sidebar:
+        is_guest = st.session_state.get("is_guest", False)
+        if is_guest:
+            st.markdown("""
+            <div style="background:rgba(139,26,26,0.12);border:1px solid rgba(224,48,48,0.25);
+            border-radius:7px;padding:0.75rem 1rem;margin:0.5rem 0 0.8rem;text-align:center;">
+                <div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;
+                letter-spacing:0.12em;color:#e03030;margin-bottom:0.3rem;">Guest Mode</div>
+                <div style="font-size:0.78rem;color:rgba(255,255,255,0.5);
+                margin-bottom:0.6rem;line-height:1.5">
+                    1 free report · No history saved
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("🔑 Create Account / Sign In", key="sidebar_signin_cta", use_container_width=True):
+                # Clear guest session, go back to auth screen
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
+        st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
+            border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+                    aria-label="PickR logo" style="flex-shrink:0;">
+                    <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
+                    <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
+                    <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
+                    <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
+                    <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
+                </svg>
+                <div>
+                    <div style="font-size:1rem;font-weight:900;color:#fff;line-height:1;">
+                        Pick<span style="color:#c03030;">R</span></div>
+                    <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;
+                        letter-spacing:0.15em;color:rgba(255,255,255,0.2);margin-top:0.15rem;">
+                        Equity Research</div>
+                </div>
+            </div>
+            <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:0.14em;color:rgba(255,255,255,0.2);">Report History</div>
+        </div>''', unsafe_allow_html=True)
+    
+        if st.button("Sign out", key="logout_btn", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+    
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+    
+        try:
+            from report_store import load_user_index, load_report as load_saved_report
+            past_reports = load_user_index(username)
+            if past_reports:
+                for r in reversed(past_reports[-20:]):
+                    rec = r.get("recommendation", "")
+                    ret = r.get("expected_return")
+                    rec_color = ("#4ade80" if rec == "BUY"
+                                 else ("#f87171" if rec == "PASS" else "#fbbf24"))
+                    ret_str = f"{ret*100:+.0f}%" if ret else ""
+                    company = r.get("company_name", r["ticker"])[:22]
+                    rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
+    
+                    _rc_bg = {
+                        "BUY":  "rgba(74,222,128,0.08)",
+                        "PASS": "rgba(248,113,113,0.08)",
+                    }.get(rec, "rgba(251,191,36,0.08)")
+                    _rc_border = {
+                        "BUY":  "rgba(74,222,128,0.2)",
+                        "PASS": "rgba(248,113,113,0.2)",
+                    }.get(rec, "rgba(251,191,36,0.2)")
+    
+                    st.markdown(
+                        f'<div style="background:{_rc_bg};border:1px solid {_rc_border};'
+                        f'border-radius:7px;padding:0.6rem 0.75rem;margin:0.35rem 0;">'
+    
+                        f'<div style="display:flex;justify-content:space-between;'
+                        f'align-items:center;margin-bottom:0.25rem;">'
+                        f'<span style="font-size:0.88rem;color:#fff;font-weight:800;'
+                        f'letter-spacing:0.01em;">{r["ticker"].replace(".NS","").replace(".BO","")}</span>'
+                        f'<span style="font-size:0.68rem;font-weight:800;color:{rec_color};'
+                        f'background:rgba(0,0,0,0.25);padding:0.1rem 0.4rem;'
+                        f'border-radius:3px;letter-spacing:0.06em;">{rec}</span>'
+                        f'</div>'
+    
+                        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                        f'margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;'
+                        f'text-overflow:ellipsis;">{company}</div>'
+    
+                        f'<div style="display:flex;justify-content:space-between;'
+                        f'align-items:center;">'
+                        f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">'
+                        f'{r.get("date","")}</span>'
+                        f'<span style="font-size:0.75rem;font-weight:700;color:{rec_color};">'
+                        f'{ret_str}</span>'
+                        f'</div>'
+    
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+    
+                    if st.button(f"Load report", key=f"load_{rid}",
+                                 use_container_width=True):
+                        report_data = load_saved_report(username, rid)
+                        if report_data:
+                            st.session_state.cached_report = {
+                                "ticker": report_data["ticker"],
+                                "metrics": report_data["metrics"],
+                                "analysis": report_data["analysis"],
+                                "data": {"hist": None, "info": {},
+                                         "inc": None, "qinc": None,
+                                         "bs": None, "cf": None,
+                                         "news": []},
+                            }
+                            st.rerun()
+                        else:
+                            st.toast("Could not load report")
+            else:
+                st.markdown('''<div style="text-align:center;padding:2rem 1rem;">
+                    <div style="font-size:0.85rem;color:rgba(255,255,255,0.25);
+                        font-style:italic;line-height:1.6;">
+                        No reports yet.<br>Generate your first analysis
+                        and it will appear here.</div>
+                </div>''', unsafe_allow_html=True)
+        except Exception:
+            st.markdown('<div style="font-size:0.75rem;color:rgba(255,255,255,0.15);'
+                        'padding:1rem;">History unavailable</div>',
+                        unsafe_allow_html=True)
+    
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
 # ══════════════════════════════════════════════════════════════
@@ -1816,6 +1855,76 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# ── LIVE PEG < 1 TICKER TAPE ──────────────────────────────────────────────
+def render_peg_tape(screener_data):
+    """Render a scrolling ticker tape of stocks with PEG < 1 from screener data."""
+    if not screener_data:
+        return
+    
+    all_picks = screener_data.get("us_picks", []) + screener_data.get("india_picks", [])
+    peg_picks = [p for p in all_picks if isinstance(p.get("peg_ratio"), (int, float)) and 0 < p["peg_ratio"] < 1.0]
+    
+    if not peg_picks:
+        return
+    
+    # Build tape items — duplicate for seamless loop
+    tape_items = []
+    for p in peg_picks:
+        tk = p.get("ticker", "").replace(".NS","").replace(".BO","")
+        peg = p.get("peg_ratio", 0)
+        score = p.get("qglp_score", 0)
+        roe = p.get("roe", 0)
+        sc = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#e0e0e0")
+        tape_items.append((tk, peg, score, roe, sc))
+    
+    # Duplicate for infinite scroll
+    tape_items = tape_items * 4
+    
+    items_html = "".join(
+        f'''<span style="display:inline-flex;align-items:center;gap:0.5rem;
+            padding:0 1.2rem;border-right:1px solid rgba(255,255,255,0.06);white-space:nowrap;">
+            <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.03em;">{tk}</span>
+            <span style="font-size:0.65rem;font-weight:700;color:{sc};
+                background:rgba(255,255,255,0.05);padding:0.1rem 0.35rem;border-radius:3px;">
+                PEG {peg:.2f}</span>
+            <span style="font-size:0.65rem;color:rgba(255,255,255,0.35);">
+                ROE {roe*100:.0f}%</span>
+            <span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">
+                Score {score:.0f}</span>
+        </span>'''
+        for tk, peg, score, roe, sc in tape_items
+    )
+    
+    st.markdown(f'''
+    <div style="width:100%;overflow:hidden;background:rgba(10,9,7,0.95);
+        border-top:1px solid rgba(255,255,255,0.05);
+        border-bottom:1px solid rgba(255,255,255,0.05);
+        padding:0.45rem 0;margin:0 0 1.5rem;">
+        <div style="display:flex;align-items:center;gap:0;
+            animation:tape-scroll-main 40s linear infinite;width:max-content;">
+            {items_html}
+        </div>
+    </div>
+    <style>
+    @keyframes tape-scroll-main {{
+        0%   {{ transform: translateX(0); }}
+        100% {{ transform: translateX(-50%); }}
+    }}
+    div[style*="tape-scroll-main"]:hover {{
+        animation-play-state: paused;
+    }}
+    </style>
+    ''', unsafe_allow_html=True)
+    
+    st.markdown(
+        '''<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;
+        letter-spacing:0.14em;color:rgba(255,255,255,0.2);
+        text-align:center;margin:-1rem 0 1rem;">
+        ↑ QGLP-screened stocks with PEG &lt; 1.0 · hover to pause
+        </div>''',
+        unsafe_allow_html=True
+    )
+
 # QGLP Top Picks
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_screener_results():
@@ -1964,14 +2073,29 @@ def render_picks_table(picks, market_label, select_key):
         idx    = display_options.index(sel)
         chosen = ticker_options[idx]
         if chosen:
-            st.session_state["resolved"]      = chosen
-            st.session_state["auto_generate"] = True
+            st.session_state["resolved"] = chosen
+            if st.session_state.get("authenticated"):
+                st.session_state["auto_generate"] = True
+            else:
+                st.session_state["show_auth"] = True
+                st.rerun()
+
+# ── Sign in / Sign up button (top right, shown when not authenticated) ──
+if not authenticated:
+    _btn_col1, _btn_col2, _btn_col3 = st.columns([1, 1, 1])
+    with _btn_col3:
+        if st.button("Sign In / Sign Up →", key="header_signin_btn", use_container_width=True):
+            st.session_state["show_auth"] = True
+            st.rerun()
 
 screener_data = None
 try:
     screener_data = load_screener_results()
 except Exception as e:
     st.error(f"Screener load error: {e}")
+
+# ── LIVE PEG TAPE (render after screener data loaded) ──
+render_peg_tape(screener_data)
 
 # ── SEARCH BAR — always at top ─────────────────────────────────────────────
 cl, cm, cr = st.columns([1, 2.5, 1])
@@ -2051,6 +2175,46 @@ with cm:
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
     go = st.button("Generate Report", type="primary")
+    is_guest = st.session_state.get("is_guest", False)
+
+# ── If not authenticated and they clicked Generate, show auth ──
+if go and not st.session_state.get("authenticated"):
+    st.session_state["show_auth"] = True
+    st.rerun()
+
+report_count = st.session_state.get("report_count", 0)
+
+if authenticated:
+    if is_guest:
+        used = report_count
+        st.markdown(f"""
+        <div style="display:flex;align-items:center;justify-content:space-between;
+        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
+        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
+                Guest report: <strong style="color:#fff">{used}/1</strong> used
+            </span>
+            <span style="font-size:0.75rem;color:#e03030;font-weight:700;cursor:pointer;">
+                Create account → 3 reports
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        used = report_count
+        bar_color = "#4ade80" if used < 2 else "#fbbf24" if used < 3 else "#f87171"
+        st.markdown(f"""
+        <div style="display:flex;align-items:center;gap:0.8rem;
+        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
+        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
+                Reports used: <strong style="color:#fff">{used}/3</strong>
+            </span>
+            <div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;">
+                <div style="width:{min(used/3*100, 100):.0f}%;height:100%;
+                background:{bar_color};border-radius:2px;transition:width 0.4s ease;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 status_area = st.container()
 
 with st.expander("About the QGLP Framework", expanded=False):
@@ -2097,17 +2261,61 @@ ticker = None
 resolved = st.session_state.get("resolved", None)
 auto_gen = st.session_state.pop("auto_generate", False)
 
-if (go or auto_gen) and resolved:
+if (go or auto_gen) and resolved and st.session_state.get("authenticated"):
     ticker = resolved.strip().upper()
     should_generate = True
-elif go and not resolved:
+elif go and not resolved and st.session_state.get("authenticated"):
     with status_area: st.warning("Select or enter a company first.")
 
 if should_generate and ticker:
-    st.session_state["report_done"] = True
+    is_guest = st.session_state.get("is_guest", False)
+    report_count = st.session_state.get("report_count", 0)
+    GUEST_LIMIT = 1
+    USER_LIMIT = 3
+
+    if is_guest and report_count >= GUEST_LIMIT:
+        st.markdown("""
+        <div style="background:rgba(139,26,26,0.12);border:1px solid rgba(224,48,48,0.3);
+        border-radius:10px;padding:1.8rem 2rem;margin:1rem 0;text-align:center;">
+            <div style="font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:0.4rem">
+                You've used your free guest report
+            </div>
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.5);
+            line-height:1.7;margin-bottom:1rem;max-width:400px;margin-left:auto;margin-right:auto">
+                Create a free account to unlock
+                <strong style="color:#fff">3 reports</strong>, save your history,
+                and track stocks with price alerts.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Create a Free Account", type="primary", key="upgrade_cta"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+        st.stop()
+
+    elif not is_guest and report_count >= USER_LIMIT:
+        st.warning(
+            f"⚠️ You've used all {USER_LIMIT} free reports. "
+            "Paid tiers are coming soon — reach out to get early access."
+        )
+        st.stop()
+
+    # ── passed gate ──
+    # For guests: check + increment IP-based count in GitHub
+    if is_guest:
+        from auth import load_guest_counts, increment_guest_count
+        fp = st.session_state.get("guest_fingerprint", "unknown")
+        counts = load_guest_counts()
+        if counts.get(fp, 0) >= GUEST_LIMIT:
+            st.error("This device has already used its free guest report. Please create an account.")
+            st.stop()
+        increment_guest_count(fp)   # fire-and-forget, async-ish
+
     if ticker not in st.session_state.recent:
         st.session_state.recent.append(ticker)
     st.session_state.report_count += 1
+    # ... rest of generate flow unchanged
     st.session_state.cached_html = None
     st.session_state.generate_html = False
     st.session_state.html_just_generated = False
