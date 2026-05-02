@@ -38,7 +38,7 @@ PASS2_PROMPT  = _load_prompt("prompt_pass2.txt")
 # AI RUNNER (single canonical implementation)
 # ══════════════════════════════════════════════════════════════
 
-def run_ai(messages, max_tokens=4000, model="claude-opus-4-6",
+def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
            free_models=None):
     """Try Anthropic first, then fall back to OpenRouter free models."""
     if free_models is None:
@@ -55,7 +55,7 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-6",
                     user_msgs.append(m)
             r = _an_client.messages.create(
                 model=model, system=system_msg, messages=user_msgs,
-                max_tokens=max_tokens, temperature=0.3,
+                max_tokens=max_tokens,
             )
             text = r.content[0].text.strip()
             print(f"  AI response via {model} ({len(text)} chars)")
@@ -70,7 +70,6 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-6",
         try:
             r = _or_client.chat.completions.create(
                 model=fm, messages=messages, max_tokens=max_tokens,
-                temperature=0.3,
                 extra_headers={"HTTP-Referer": "https://pickr.streamlit.app",
                                 "X-Title": "PickR"},
             )
@@ -405,7 +404,7 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
 # ══════════════════════════════════════════════════════════════
 
 def thesis_check(ticker, company, original_metrics, original_thesis,
-                 current_metrics, model="claude-haiku-4-5-20251001",
+                 current_metrics, model="claude-opus-4-7",
                  free_models=None):
     messages = [
         {"role": "system", "content": (

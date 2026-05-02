@@ -7,35 +7,37 @@ import os
 from datetime import datetime
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
-st.markdown(
-    '<div class="pickr-logo-sticky">'
-    '<svg width="20" height="20" viewBox="0 0 28 28" fill="none">'
-    '<rect width="28" height="28" rx="6" fill="#8b1a1a"/>'
-    '<rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>'
-    '<rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>'
-    '<rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>'
-    '<circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>'
-    '</svg>'
-    '<span class="wm-pick">Pick</span><span class="wm-accent">R</span>'
-    '</div>',
-    unsafe_allow_html=True
-)
+# ── Hide Streamlit toolbar/ellipsis via JS (CSS alone is unreliable) ──
+import streamlit.components.v1 as _sc
+_sc.html("""
+<script>
+(function(){
+    function hide(){
+        var p = window.parent.document;
+        var sel = [
+            '[data-testid="stToolbar"]',
+            '[data-testid="stHeader"]',
+            'header',
+            '[data-testid="stDecoration"]',
+            '[data-testid="stToolbarActions"]',
+            'button[data-testid="baseButton-header"]'
+        ];
+        sel.forEach(function(s){
+            p.querySelectorAll(s).forEach(function(el){
+                el.style.setProperty('display','none','important');
+                el.style.setProperty('visibility','hidden','important');
+                el.style.setProperty('height','0','important');
+            });
+        });
+    }
+    hide();
+    setTimeout(hide, 300);
+    setTimeout(hide, 1000);
+})();
+</script>
+""", height=0, scrolling=False)
 
-st.markdown(
-    '<div class="pickr-logo-sticky">'
-    '<svg width="22" height="22" viewBox="0 0 28 28" fill="none">'
-    '<rect width="28" height="28" rx="6" fill="#8b1a1a"/>'
-    '<rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>'
-    '<rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>'
-    '<rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>'
-    '<circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>'
-    '</svg>'
-    '<span class="wordmark">'
-    '<span class="pick">Pick</span><span class="accent">R</span>'
-    '</span>'
-    '</div>',
-    unsafe_allow_html=True
-)
+
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
                     RESEND_API_KEY)
@@ -51,7 +53,7 @@ from logos import get_logo_html, get_logo_and_name_html
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [
-    ("report_count", 147), ("recent", []), ("cached_report", None),
+    ("report_count", 0), ("recent", []), ("cached_report", None),
     ("cached_html", None), ("trigger_ticker", None),
     ("generate_html", False), ("html_just_generated", False),
     ("track_success", None),
@@ -69,42 +71,53 @@ st.markdown("""
     
     /* ── BASE ── */
     html, body, .stApp { 
-        background:#0c0b09 !important; color:#e8e8e8 !important; 
-        font-family:'Inter',sans-serif !important; font-size:16px !important;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+    background: linear-gradient(180deg, #1a1714 0%, #221e19 100%) !important;
+
+    color: rgba(255,255,255,0.92) !important;
+
+    font-family:'Inter',sans-serif !important;
+    font-size:17px !important;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+    .block-container { padding-top:0 !important; max-width:1400px !important; padding-left:2rem !important; padding-right:2rem !important; background: transaprent !important; }
+    .stApp > div, 
+[data-testid="stAppViewContainer"] { 
+    background: transparent !important; 
+}
+    /* ── HIDE ALL STREAMLIT CHROME (nuclear) ── */
+    header, .stAppHeader, [data-testid="stHeader"],
+    [data-testid="stToolbar"], [data-testid="stToolbarActions"],
+    [data-testid="stToolbarActionButtonContainer"],
+    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+    [data-testid="stAppDeployButton"],
+    button[data-testid="baseButton-header"],
+    button[data-testid="baseButton-minimal"],
+    #MainMenu, #MainMenu > ul, footer, .reportview-container .main footer {
+        display:    none       !important;
+        visibility: hidden     !important;
+        height:     0px        !important;
+        max-height: 0px        !important;
+        overflow:   hidden     !important;
+        padding:    0          !important;
+        margin:     0          !important;
     }
-    .block-container { padding-top:0 !important; max-width:1200px !important; }
-    .stApp > div, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"] { background:#0c0b09 !important; }
-    #MainMenu, footer { visibility:hidden !important; }
+    /* sign-in button styled inline — see high-specificity rule after global button styles */
  
                 /* ── STICKY LOGO ── */
     .pickr-logo-sticky {
-        position:fixed;
-        top:0.9rem;
-        left:1.2rem;
-        z-index:999;
-        display:flex;
-        align-items:center;
-        gap:0.4rem;
-        pointer-events:none;
-    }
-    .pickr-logo-sticky .wordmark {
-        font-size:1.1rem;
-        font-weight:900;
-        letter-spacing:-0.02em;
-        line-height:1;
-    }
-    .pickr-logo-sticky .pick {
-        background:linear-gradient(180deg,#fff 0%,#e0e0e0 100%);
-        -webkit-background-clip:text;
-        -webkit-text-fill-color:transparent;
-    }
-    .pickr-logo-sticky .accent {
-        background:linear-gradient(135deg,#a52525,#e04040 40%,#ff8a8a 60%,#a52525);
-        -webkit-background-clip:text;
-        -webkit-text-fill-color:transparent;
-    }
+    top: 1.1rem;
+    left: 1.6rem;
+    transform: scale(1.25); /* clean upscale without breaking layout */
+            opacity: 0.95; /* slightly more presence */
+}
+
+.pickr-logo-sticky .wordmark {
+    font-size: 1.4rem;   /* was 1.1 */
+    font-weight: 900;
+    letter-spacing: -0.015em;
+}
             
     /* ── HERO ── */
         .hero { padding:4rem 2rem 1.5rem; text-align:center; position:relative; animation:fadeInUp 0.6s ease-out;
@@ -125,22 +138,27 @@ st.markdown("""
         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
         filter:drop-shadow(0 0 8px rgba(200,50,50,0.3));
     }
-    .hero .tag { font-size:1.1rem; color:rgba(255,255,255,0.5); margin-top:0.3rem; }
-    .hero .desc { font-size:1rem; color:rgba(255,255,255,0.45); max-width:620px; margin:1rem auto 0; line-height:1.8; }
+    .hero .tag { 
+    color:rgba(255,255,255,0.7);  /* was 0.5 */
+}
+
+.hero .desc { 
+    color:rgba(255,255,255,0.65); /* was 0.45 */
+}
 
     /* ── STATS ROW ── */
     .stats-row { display:flex; justify-content:center; gap:3rem; padding:1.3rem 0; margin-top:1.5rem;
         border-top:1px solid rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.05); }
     .sr-item { text-align:center; }
     .sr-num { font-size:1.6rem; font-weight:800; color:#fff; display:block; }
-    .sr-lbl { font-size:0.65rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.14em; font-weight:600; }
+    .sr-lbl { font-size:0.65rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.14em; font-weight:600; }
 
     /* ── HOW IT WORKS ── */
     .hiw { padding:2rem 0 1rem; }
     .hiw-title { text-align:center; font-size:0.7rem; font-weight:700; text-transform:uppercase;
-        letter-spacing:0.18em; color:rgba(255,255,255,0.25); margin-bottom:1.2rem; }
+        letter-spacing:0.18em; color:rgba(255,255,255,0.5); margin-bottom:1.2rem; }
     .hiw-grid { display:flex; justify-content:center; gap:1.5rem; }
-    .hiw-card { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .hiw-card { background: #1e2a26; border: 1px solid rgba(255,255,255,0.10); border-radius:8px;
         padding:1.3rem; text-align:center; flex:1; max-width:260px; }
     .hiw-step { font-size:0.6rem; font-weight:800; color:#8b1a1a; text-transform:uppercase;
         letter-spacing:0.16em; margin-bottom:0.4rem; }
@@ -148,12 +166,12 @@ st.markdown("""
     .hiw-desc { font-size:0.97rem; color:rgba(255,255,255,0.55); line-height:1.7; }
 
     /* ── QGLP THESIS ── */
-    .thesis-section { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .thesis-section { background:linear-gradient(135deg,rgba(35,20,15,0.85) 0%,rgba(25,16,12,0.95) 100%); border:1px solid rgba(139,80,50,0.2); border-radius:8px;
         padding:2rem; margin:1.5rem 0; }
     .thesis-title { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.16em;
-        color:rgba(255,255,255,0.3); margin-bottom:1rem; }
+        color:rgba(255,255,255,0.6); margin-bottom:1rem; }
     .thesis-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
-    .thesis-card { background:#1a1916; border-radius:6px; padding:1rem 1.2rem; transition:all 0.2s ease; }
+    .thesis-card { background:rgba(30,22,16,0.7); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:1rem 1.2rem; transition:all 0.2s ease; }
     .thesis-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
     .thesis-card-letter { font-size:1.4rem; font-weight:800; color:#8b1a1a; margin-bottom:0.2rem; }
     .thesis-card-name { font-size:0.95rem; font-weight:700; color:#ffffff; margin-bottom:0.3rem; }
@@ -169,7 +187,7 @@ st.markdown("""
     .scoring-label { font-size:0.62rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
 
     /* ── PARAMS CARD ── */
-    .params-card { background:#131210; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    .params-card { background:#171c19; border:1px solid rgba(255,255,255,0.06); border-radius:8px;
         padding:1.2rem 1.5rem; margin-bottom:1.5rem; }
     .params-row { display:flex; justify-content:space-between; padding:0.5rem 0;
         border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.9rem; }
@@ -178,7 +196,7 @@ st.markdown("""
     .params-val { color:rgba(255,255,255,0.95); font-weight:600; }
 
     /* ── REPORT CARD ── */
-    .rpt-card { background:#1a1916; border:1px solid rgba(255,255,255,0.08); border-radius:12px;border-top:1px solid rgba(224,48,48,0.12);
+        .rpt-card { background:#1d2320; border:1px solid rgba(255,255,255,0.08); border-radius:12px;border-top:1px solid rgba(74,222,128,0.12);
         padding:2rem 2.5rem; margin-top:1rem; animation:fadeInUp 0.4s ease-out; }
     .rpt-head h2 { font-size:2.4rem; font-weight:800; color:#ffffff; margin:0; letter-spacing:-0.02em; }
     .rpt-head .meta { color:rgba(255,255,255,0.55); font-size:0.97rem; letter-spacing:0.04em;
@@ -198,19 +216,21 @@ st.markdown("""
     .rb-val.pass { color:#f87171; }
 
     /* ── EXECUTIVE SUMMARY ── */
-    .exec-summary { 
-        background:linear-gradient(135deg, rgba(139,26,26,0.15) 0%, rgba(26,25,22,1) 100%);
-        border-left:3px solid #e03030; border-radius:0 8px 8px 0;
+        .exec-summary { 
+        background:linear-gradient(135deg, rgba(45,59,45,0.3) 0%, rgba(37,41,37,1) 100%);
+        border-left:3px solid rgba(74,222,128,0.4); border-radius:0 8px 8px 0;
         padding:1.4rem 1.8rem; margin:1.2rem 0; font-size:1.05rem; line-height:2;
         color:rgba(255,255,255,0.82); font-style:italic; }
 
     /* ── SECTION HEADERS ── */
-    .sec { font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
+        .sec { font-size:0.86rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
         color:rgba(255,255,255,0.85); margin:3rem 0 1.2rem; padding-bottom:0.6rem;
-        border-bottom:2px solid #e03030; display:block; }
+        border-bottom:2px solid rgba(255,255,255,0.12); display:block; }
 
     /* ── METRICS ── */
-    [data-testid="stMetricLabel"] { font-size:0.7rem !important; color:rgba(255,255,255,0.65) !important;
+    [data-testid="stMetricLabel"] { 
+    color:rgba(255,255,255,0.75) !important; /* was 0.65 */
+}
         text-transform:uppercase !important; letter-spacing:0.06em !important; font-weight:700 !important; }
         [data-testid="stMetricValue"] { font-size:1.3rem !important; font-weight:700 !important;
         color:rgba(255,255,255,0.95) !important;
@@ -228,7 +248,9 @@ st.markdown("""
         top:-2.5px; transform:translateX(-50%); box-shadow:0 0 8px rgba(224,48,48,0.8); }
 
     /* ── PROSE / BODY TEXT ── */
-    .prose { font-size:1.08rem; line-height:2.05; color:rgba(255,255,255,0.78); padding:0.3rem 0 0.8rem; }
+    .prose { 
+    color:rgba(255,255,255,0.88); /* was 0.78 */
+}
 
     /* ── RISK ROWS ── */
     .risk-row { padding:0.75rem 0; border-bottom:1px solid rgba(255,255,255,0.07);
@@ -248,12 +270,17 @@ st.markdown("""
     .pt { width:100%; border-collapse:collapse; font-size:0.97rem; }
     .pt th { text-align:left; font-size:0.67rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.08em; color:rgba(255,255,255,0.7); padding:0.7rem 0.85rem;
-        border-bottom:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.04); }
-    .pt td { padding:0.6rem 0.85rem; border-bottom:1px solid rgba(255,255,255,0.06);
-        color:rgba(255,255,255,0.75); }
+            border-bottom: 2px solid rgba(74, 222, 128, 0.25);
+    background: linear-gradient(135deg, rgba(139,26,26,0.45) 0%, rgba(40,22,18,0.95) 100%);
+  color: rgba(255,255,255,0.85) !important;
+}
+    .pt td { 
+    color:rgba(255,255,255,0.85); /* was 0.75 */}
     .pt tr.hl td { font-weight:700; color:#ffffff; background:rgba(224,48,48,0.12); }
-    .pt tbody tr { transition:background 0.15s ease; }
-    .pt tbody tr:hover { background:rgba(255,255,255,0.03); }
+            .pt tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
+.pt tbody tr:hover { background: rgba(255,255,255,0.05); }
+    .pt tbody tr:nth-child(odd)  { background: rgba(255,255,255,0.025); }
+.pt tbody tr:nth-child(even) { background: transparent; }
 
     /* ── VTAG ── */
     .vtag { display:inline-block; font-size:0.52rem; font-weight:700; text-transform:uppercase;
@@ -264,13 +291,13 @@ st.markdown("""
     .div { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:1rem 0; }
 
     /* ── TRACK BOX ── */
-    .track-box { background:#1a1916; border:1px solid rgba(224,48,48,0.3); border-radius:8px;
+    .track-box { background:#1d2320; border:1px solid rgba(224,48,48,0.3); border-radius:8px;
         padding:1.5rem 2rem; margin-top:1.5rem; }
     .track-box-title { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.16em;
         color:#e03030; margin-bottom:0.6rem; }
     .track-success { background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3);
         border-radius:6px; padding:0.8rem 1.2rem; font-size:0.9rem; color:#4ade80; margin-top:0.8rem; }
-    .track-note { font-size:0.85rem; color:rgba(255,255,255,0.45); margin-top:0.6rem; line-height:1.6; }
+    .track-note { font-size:0.85rem; color:var(--text-tertiary); margin-top:0.6rem; line-height:1.6; }
 
         /* ── STICKY LOGO ── */
     .pickr-logo-sticky {
@@ -301,16 +328,26 @@ st.markdown("""
     }        
 
     /* ── FOOTER ── */
-    .foot-card { background:#1a1916; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
+    .foot-card { background:#1d2320; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
         padding:1.5rem 2rem; margin-top:2rem; text-align:center; }
     .foot-name { font-size:1rem; font-weight:600; color:rgba(255,255,255,0.8); }
     .foot-email { font-size:0.85rem; color:rgba(255,255,255,0.5); margin-top:0.2rem; }
     .foot-disclaimer { font-size:0.8rem; color:rgba(255,255,255,0.4); margin-top:1rem;
         line-height:1.75; max-width:700px; margin-left:auto; margin-right:auto; }
-    .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.25); margin-top:0.8rem; }
+    .foot-copy { font-size:0.68rem; color:rgba(255,255,255,0.5); margin-top:0.8rem; }
+            /* FOOTER LINK */
+.foot-email a {
+  color: #e08070 !important;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(224,128,112,0.35);
+}
+.foot-email a:hover {
+  color: #ffb8a8 !important;
+  border-bottom-color: rgba(255,184,168,0.6);
+}
 
     /* ── DRIVER CARDS ── */
-    .driver-card { background:#131210; border:1px solid rgba(255,255,255,0.06);
+    .driver-card { background:#171c19; border:1px solid rgba(255,255,255,0.06);
         border-radius:8px; padding:1rem 1.2rem; margin:0.5rem 0; transition:all 0.2s ease; }
     .driver-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
     .driver-card-name { font-weight:700; color:#fff; font-size:0.98rem; margin-bottom:0.3rem; }
@@ -318,8 +355,8 @@ st.markdown("""
 
     /* ── HEADWIND / TAILWIND CARDS ── */
     .hw-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin:0.8rem 0 1.2rem; }
-    .hw-card { background:#131210; border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:1rem 1.2rem; }
-    .tw-card { background:#131210; border:1px solid rgba(74,222,128,0.2); border-radius:8px; padding:1rem 1.2rem; }
+    .hw-card { background:#171c19; border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:1rem 1.2rem; }
+    .tw-card { background:#171c19; border:1px solid rgba(74,222,128,0.2); border-radius:8px; padding:1rem 1.2rem; }
     .hw-card-title { font-size:0.78rem; font-weight:800; text-transform:uppercase;
         letter-spacing:0.1em; color:#f87171; margin-bottom:0.3rem; }
     .tw-card-title { font-size:0.78rem; font-weight:800; text-transform:uppercase;
@@ -335,7 +372,7 @@ st.markdown("""
         border:1px solid rgba(74,222,128,0.25); margin-bottom:0.4rem; }
 
     /* ── SCENARIO CARDS ── */
-    .scenario-card { background:#1a1916; border-radius:8px; padding:1.2rem 1.5rem; margin:0.8rem 0;
+    .scenario-card { background:#1d2320; border-radius:8px; padding:1.2rem 1.5rem; margin:0.8rem 0;
         transition:all 0.2s ease; }
     .scenario-card:hover { border-color:rgba(255,255,255,0.12); box-shadow:0 4px 20px rgba(0,0,0,0.3); }
 
@@ -360,7 +397,7 @@ st.markdown("""
         letter-spacing:0.14em; color:#d44040; margin-bottom:0.4rem; }
 
     /* ── PROBABILITY EXPLAINER ── */
-    .prob-explainer { background:#131210; border:1px solid rgba(255,255,255,0.08);
+    .prob-explainer { background:#171c19; border:1px solid rgba(255,255,255,0.08);
         border-radius:8px; padding:1.4rem 1.6rem; margin:1rem 0; font-size:0.9rem;
         color:rgba(255,255,255,0.6); line-height:1.8; }
     .prob-explainer strong { color:rgba(255,255,255,0.95); }
@@ -374,39 +411,55 @@ st.markdown("""
     .prob-math-arrow { color:rgba(255,255,255,0.35); font-size:0.9rem; }
 
     /* ── FORM INPUTS ── */
-    .stTextInput > div > div > input { background:#1a1a1a !important; border:1px solid rgba(255,255,255,0.12) !important;
+    .stTextInput > div > div > input { 
+    background:#141816 !important;
+    border:1px solid rgba(255,255,255,0.18) !important;
+}
         border-radius:6px !important; color:#fff !important; font-size:1rem !important;
         padding:0.6rem 1rem !important; caret-color:#fff !important; }
     .stTextInput > div > div > input:focus { border-color:#8b1a1a !important; box-shadow:0 0 0 2px rgba(139,26,26,0.2) !important; }
-    .stTextInput > div > div > input::placeholder { color:rgba(255,255,255,0.3) !important; }
-    .stSelectbox > div > div { background:#1a1a1a !important; border:1px solid rgba(255,255,255,0.12) !important;
+    .stTextInput > div > div > input::placeholder { color:rgba(255,255,255,0.6) !important; }
+    .stSelectbox > div > div { background:#121615 !important; border:1px solid rgba(255,255,255,0.12) !important;
         border-radius:6px !important; color:#fff !important; }
     .stSelectbox > div > div > div { color:#fff !important; }
     .stSelectbox svg { fill:rgba(255,255,255,0.5) !important; }
-    .stNumberInput > div > div > input { background:#1a1a1a !important;
+    .stNumberInput > div > div > input { background:#121615 !important;
         border:1px solid rgba(255,255,255,0.12) !important; border-radius:6px !important; color:#fff !important; }
 
     /* ── STATUS / ALERTS ── */
-    [data-testid="stStatusWidget"], .stAlert, .stStatus { background:#131210 !important;
+    [data-testid="stStatusWidget"], .stAlert, .stStatus { background:#151a18 !important;
         border:1px solid rgba(255,255,255,0.08) !important; color:#e8e8e8 !important; border-radius:6px !important; }
     [data-testid="stStatusWidget"] p, [data-testid="stStatusWidget"] span,
     [data-testid="stStatusWidget"] div { color:#e8e8e8 !important; }
-    .stWarning, .stError, .stInfo { background:#1a1a1a !important; color:#e8e8e8 !important; }
+    .stWarning, .stError, .stInfo { background:#121615 !important; color:#e8e8e8 !important; }
 
     /* ── BUTTONS ── */
-    .stButton > button { background:linear-gradient(160deg,#7a1818,#a52525 30%,#c03030 50%,#a52525 70%,#7a1818) !important;
-        color:#fff !important; border:none !important; border-radius:6px !important; font-size:0.9rem !important;
-        font-weight:700 !important; letter-spacing:0.08em !important; text-transform:uppercase !important;
-        padding:0.7rem 2rem !important; transition:all 0.25s ease !important;
-        box-shadow:0 2px 8px rgba(139,26,26,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important; }
-    .stButton > button:hover { background:linear-gradient(160deg,#8b1a1a,#c03030 30%,#d44040 50%,#c03030 70%,#8b1a1a) !important;
-        transform:translateY(-1px) !important; box-shadow:0 6px 20px rgba(139,26,26,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important; }
-    .stButton > button:active { transform:scale(0.97) !important; }
-    .stDownloadButton > button { background:transparent !important; color:rgba(255,255,255,0.55) !important;
-        border:1px solid rgba(139,26,26,0.35) !important; border-radius:6px !important;
-        font-size:0.78rem !important; font-weight:600 !important; letter-spacing:0.08em !important;
-        text-transform:uppercase !important; box-shadow:none !important; }
-    .stDownloadButton > button:hover { border-color:#8b1a1a !important; color:#fff !important; box-shadow:none !important; }
+        .stButton > button {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+
+    padding: 0.55rem 1.4rem !important;
+
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.stButton > button:hover {
+    background: rgba(255,255,255,0.08) !important;
+    border-color: rgba(255,255,255,0.2) !important;
+    color: #fff !important;
+}
+
+.stButton > button:active {
+    transform: scale(0.98) !important;
+}
 
     /* ── CHARTS ── */
     [data-testid="stVegaLiteChart"] { background:rgba(255,255,255,0.02) !important;
@@ -496,7 +549,7 @@ st.markdown("""
 
     /* ── SCROLLBAR ── */
     ::-webkit-scrollbar { width:6px; }
-    ::-webkit-scrollbar-track { background:#0c0b09; }
+    ::-webkit-scrollbar-track { background:#0c0f0d; }
     ::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:#555; }
 
@@ -517,7 +570,8 @@ st.markdown("""
         .pt th { font-size:0.55rem !important; padding:0.4rem !important; }
         .pt td { padding:0.4rem !important; }
         .prose { font-size:0.9rem !important; }
-        .sec { font-size:0.68rem !important; margin:2rem 0 0.8rem !important; }
+        .sec { 
+    color:rgba(255,255,255,0.95); /* was 0.85 */}
         .exec-summary { padding:1rem !important; font-size:0.9rem !important; }
         .rpt-head h2 { font-size:1.6rem !important; }
         .rpt-head .meta { font-size:0.72rem !important; }
@@ -555,21 +609,38 @@ st.markdown("""
 # AUTHENTICATION
 # ══════════════════════════════════════════════════════════════
 
-from auth import render_auth_modal
+from auth import render_auth_modal   # remove the '#' at the start
+
+...
 
 # ── Session-state defaults for auth ──
 for _k in ["authenticated", "username", "user_name", "user_email", "is_guest", "show_auth"]:
     if _k not in st.session_state:
         st.session_state[_k] = False if _k in ("authenticated","is_guest","show_auth") else ""
+# Force main page on very first load
+if "initialized" not in st.session_state:
+    st.session_state["show_auth"] = False
+    st.session_state["initialized"] = True
+
+# ── Route to auth ONLY when user explicitly asked ──
+if st.session_state.get("show_auth"):
+    render_auth_modal()
+    st.stop()
+
+# ── Sign-in via URL query param (set by HTML link onclick) ──
+if st.query_params.get("_si") == "1":
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    st.session_state["show_auth"] = True
+    st.rerun()
 
 authenticated = st.session_state.get("authenticated", False)
 name     = st.session_state.get("user_name", "")
 username = st.session_state.get("username", "")
 
-# ── If show_auth is True, render auth screen and stop ──
-if st.session_state.get("show_auth"):
-    render_auth_modal()
-    st.stop()
+
 
 # ── User badge / Sign In button in header ──
 is_guest = st.session_state.get("is_guest", False)
@@ -578,7 +649,11 @@ if authenticated:
     badge_label = f"Guest: {name}" if is_guest else name
     badge_color_start = "#444" if is_guest else "#8b1a1a"
     badge_color_end = "#666" if is_guest else "#c03030"
-    st.markdown(f'''<div style="position:fixed;top:0.45rem;right:4.5rem;z-index:999;
+    st.markdown(f'''<div style="
+    position:absolute;
+    top:0.6rem;
+    right:2rem;
+    z-index:10;
         display:flex;align-items:center;gap:0.6rem;">
         <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">
             {badge_label}</span>
@@ -588,15 +663,6 @@ if authenticated:
             font-size:0.6rem;font-weight:800;color:#fff;">
             {name[0].upper() if name else "G"}</div>
     </div>''', unsafe_allow_html=True)
-else:
-    # Show Sign In / Sign Up button in top-right
-    st.markdown(
-        '''<div style="position:fixed;top:0.55rem;right:1.2rem;z-index:999;">
-        <a href="#" onclick="window.parent.document.querySelector('[data-testid=\"stButton\"] button').click();return false;"
-           style="display:none;"></a>
-        </div>''',
-        unsafe_allow_html=True
-    )
 
 if authenticated:
     # Sign out in sidebar top (only shown when logged in)
@@ -614,11 +680,10 @@ if authenticated:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("🔑 Create Account / Sign In", key="sidebar_signin_cta", use_container_width=True):
                 # Clear guest session, go back to auth screen
-                for key in list(st.session_state.keys()):
+            for key in list(st.session_state.keys()):
                     del st.session_state[key]
-                st.rerun()
+            st.rerun()
         st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
             border-bottom:1px solid rgba(255,255,255,0.06);">
                     <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
@@ -684,13 +749,13 @@ if authenticated:
                         f'border-radius:3px;letter-spacing:0.06em;">{rec}</span>'
                         f'</div>'
     
-                        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);'
+                        f'<div style="font-size:0.72rem;color:var(--text-tertiary);'
                         f'margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;'
                         f'text-overflow:ellipsis;">{company}</div>'
     
                         f'<div style="display:flex;justify-content:space-between;'
                         f'align-items:center;">'
-                        f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">'
+                        f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.5);">'
                         f'{r.get("date","")}</span>'
                         f'<span style="font-size:0.75rem;font-weight:700;color:{rec_color};">'
                         f'{ret_str}</span>'
@@ -718,7 +783,7 @@ if authenticated:
                             st.toast("Could not load report")
             else:
                 st.markdown('''<div style="text-align:center;padding:2rem 1rem;">
-                    <div style="font-size:0.85rem;color:rgba(255,255,255,0.25);
+                    <div style="font-size:0.85rem;color:rgba(255,255,255,0.5);
                         font-style:italic;line-height:1.6;">
                         No reports yet.<br>Generate your first analysis
                         and it will appear here.</div>
@@ -1150,7 +1215,7 @@ def render(ticker, m, a, data):
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
         cd = h[["Close"]].copy(); cd.columns = ["Price"]
-        st.line_chart(cd, height=250, color="#8b1a1a")
+        st.line_chart(cd, height=250, color="#4ade80")
 
     # ══════════════════════════════════════════════════════════════
     # 10. REVENUE & EARNINGS TREND
@@ -1161,9 +1226,9 @@ def render(ticker, m, a, data):
                     unsafe_allow_html=True)
         cc1, cc2 = st.columns(2)
         with cc1:
-            if rh: st.bar_chart(pd.DataFrame({"Revenue": rh}), height=200, color="#8b1a1a")
+            if rh: st.bar_chart(pd.DataFrame({"Revenue": rh}), height=200, color="#4ade80")
         with cc2:
-            if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#d4443a")
+            if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#81c784")
 
     # ══════════════════════════════════════════════════════════════
     # 11. REVENUE SEGMENTATION
@@ -1509,7 +1574,7 @@ def render(ticker, m, a, data):
             st.markdown(f'''<div style="text-align:center;padding:1.5rem 0 1rem;">
                 <div style="font-size:2.2rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
                 <div style="font-size:1.1rem;font-weight:700;color:{scolor};margin-top:0.3rem;">{ret:+.1f}% return</div>
-                <div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">{prob:.0f}% probability</div>
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);margin-top:0.2rem;">{prob:.0f}% probability</div>
             </div>''', unsafe_allow_html=True)
 
             # Key metrics row
@@ -1522,7 +1587,7 @@ def render(ticker, m, a, data):
             # Segment builds
             seg_builds = s.get("segment_builds", [])
             if seg_builds:
-                st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
+                st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
                 for seg in seg_builds:
                     sr = safe_float(seg.get("projected_revenue")); sg = safe_float(seg.get("growth_rate"))
                     pct_of_total = (sr / total_rev * 100) if total_rev > 0 else 0
@@ -1580,7 +1645,7 @@ def render(ticker, m, a, data):
             for seg in seg_builds:
                 sr = safe_float(seg.get("projected_revenue")); sg = safe_float(seg.get("growth_rate"))
                 seg_lines.append(f'<div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-size:0.82rem;"><span style="color:rgba(255,255,255,0.55);">{strip_html(seg.get("name",""))}</span><span style="color:#fff;font-weight:600;">{fmt_c(sr, cur)}<span style="color:{scolor};font-size:0.75rem;margin-left:0.4rem;">{sg*100:+.0f}%</span></span></div>')
-            st.markdown(f'<div style="border-top:1px solid rgba(255,255,255,0.06);padding:0.6rem 0;margin:0.3rem 0;"><div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:0.4rem;">Segment Revenue Builds</div>{"".join(seg_lines)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="border-top:1px solid rgba(255,255,255,0.06);padding:0.6rem 0;margin:0.3rem 0;"><div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin-bottom:0.4rem;">Segment Revenue Builds</div>{"".join(seg_lines)}</div>', unsafe_allow_html=True)
 
         if hw_rev != 0 or tw_rev != 0:
             parts = []
@@ -1589,8 +1654,8 @@ def render(ticker, m, a, data):
             st.markdown(f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin:0.3rem 0;">{" &nbsp;|&nbsp; ".join(parts)}</div>', unsafe_allow_html=True)
 
         st.markdown(f'<div style="font-size:0.9rem;color:rgba(255,255,255,0.6);line-height:1.7;font-style:italic;margin:0.4rem 0;">{narrative}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Margin: {margin_rat}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.3);margin-top:0.2rem;">Valuation: {pe_rat}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.6);margin-top:0.3rem;">Margin: {margin_rat}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size:0.76rem;color:rgba(255,255,255,0.6);margin-top:0.2rem;">Valuation: {pe_rat}</div>', unsafe_allow_html=True)
         if eps_flag:
             st.markdown(f'<div style="font-size:0.75rem;color:#fbbf24;margin-top:0.4rem;font-style:italic;">{strip_html(eps_flag)}</div>', unsafe_allow_html=True)
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
@@ -1637,7 +1702,7 @@ def render(ticker, m, a, data):
         <div class="ev-item">
             <div class="ev-label">Risk-Adjusted Return</div>
             <div class="ev-val" style="color:{ras_color};">{ras:.2f}</div>
-            <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);">
+            <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">
                 above a safe {rfr:.0f}% return</div>
         </div>
         <div class="ev-item">
@@ -1647,7 +1712,7 @@ def render(ticker, m, a, data):
         <div class="ev-item">
             <div class="ev-label">Worst Case Drop</div>
             <div class="ev-val" style="color:#f87171;">{mdd:.1f}%</div>
-            <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);">
+            <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">
                 {mdd_prob:.0f}% chance of this</div>
         </div>
     </div>''', unsafe_allow_html=True)
@@ -1739,7 +1804,7 @@ def render_track_box(ticker, m, a):
 
     rec_color = "#22c55e" if rec == "BUY" else "#f5c542"
     st.markdown(f'''<div class="track-box"><div class="track-box-title">Track this stock</div>
-        <p style="color:rgba(255,255,255,0.45);font-size:0.9rem;line-height:1.65;margin:0 0 1rem;">
+        <p style="color:var(--text-tertiary);font-size:0.9rem;line-height:1.65;margin:0 0 1rem;">
         Get an email when <strong style="color:#fff;">{strip_html(company)}</strong> hits your
         target price, with a live AI thesis check at that moment.
         Thesis target: <strong style="color:{rec_color};">{sym}{suggested_target:,.2f}</strong></p></div>''', unsafe_allow_html=True)
@@ -1786,74 +1851,43 @@ def render_track_box(ticker, m, a):
 # MAIN UI
 # ══════════════════════════════════════════════════════════════
 
-st.markdown(
-    '<div style="display:flex;justify-content:space-between;align-items:center;'
-    'padding:2rem 0 1.4rem;border-bottom:1px solid rgba(255,255,255,0.07);'
-    'margin-bottom:2rem;">'
+# ========== HEADER: LOGO + METRICS + INLINE SIGN IN ==========
+header_left, header_right = st.columns([2.5, 1.5])
 
-    # Left: logo + wordmark
-    '<div style="display:flex;align-items:center;gap:1.1rem;">'
+with header_left:
+    st.markdown(
+        '<div style="display:flex;align-items:center;gap:0.7rem;">'
+        '<span style="font-size:2.3rem;font-weight:900;letter-spacing:-0.025em;color:#fff;">'
+        'Pick<span style="color:#e74c3c;">R</span></span>'
+        '<span style="font-size:0.9rem;color:rgba(255,255,255,0.55);font-weight:500;">'
+        'QGLP equity research</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-    # SVG logomark — stylised upward arrow / pick chart
-    '<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    '<rect width="48" height="48" rx="12" fill="url(#lg1)"/>'
-    '<defs><linearGradient id="lg1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">'
-    '<stop offset="0%" stop-color="#6b0f0f"/>'
-    '<stop offset="100%" stop-color="#c0392b"/>'
-    '</linearGradient></defs>'
-    # candlestick bars
-    '<rect x="11" y="14" width="5" height="22" rx="2.5" fill="white" opacity="0.25"/>'
-    '<rect x="11" y="22" width="5" height="14" rx="2.5" fill="white" opacity="0.9"/>'
-    '<rect x="21.5" y="18" width="5" height="18" rx="2.5" fill="white" opacity="0.25"/>'
-    '<rect x="21.5" y="26" width="5" height="10" rx="2.5" fill="white" opacity="0.75"/>'
-    '<rect x="32" y="10" width="5" height="26" rx="2.5" fill="white" opacity="0.25"/>'
-    '<rect x="32" y="10" width="5" height="16" rx="2.5" fill="white" opacity="0.95"/>'
-    # dot accent
-    '<circle cx="34.5" cy="8" r="3.5" fill="#ff6b6b"/>'
-    '</svg>'
-
-    '<div>'
-    '<div style="font-size:2rem;font-weight:900;letter-spacing:-0.03em;line-height:1;">'
-    '<span style="background:linear-gradient(170deg,#ffffff 0%,#cccccc 100%);'
-    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Pick</span>'
-    '<span style="background:linear-gradient(135deg,#c0392b 0%,#e74c3c 40%,#ff8a8a 60%,#c0392b 100%);'
-    '-webkit-background-clip:text;-webkit-text-fill-color:transparent;">R</span>'
-    '</div>'
-    '<div style="font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:500;'
-    'margin-top:0.25rem;letter-spacing:0.06em;text-transform:uppercase;">'
-    'AI Assisted Equity Research</div>'
-    '</div>'
-    '</div>'
-
-    # Right: stats + tagline
-    '<div style="display:flex;align-items:center;gap:3rem;">'
-    '<div style="text-align:center;">'
-    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">24</div>'
-    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
-    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">Metrics</div>'
-    '</div>'
-    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
-    '<div style="text-align:center;">'
-    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">3</div>'
-    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
-    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">Scenarios</div>'
-    '</div>'
-    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
-    '<div style="text-align:center;">'
-    '<div style="font-size:1.4rem;font-weight:800;color:#fff;letter-spacing:-0.02em;">5Y</div>'
-    '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;'
-    'letter-spacing:0.12em;color:rgba(255,255,255,0.3);margin-top:0.2rem;">History</div>'
-    '</div>'
-    '<div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>'
-    '<div style="font-size:0.8rem;color:rgba(255,255,255,0.32);max-width:200px;'
-    'line-height:1.8;text-align:right;">'
-    'QGLP &middot; Bottom-up EPS<br>Probability-weighted scenarios'
-    '</div>'
-    '</div>'
-
-    '</div>',
-    unsafe_allow_html=True
-)
+with header_right:
+    _metrics = '24 Metrics · 3 Scenarios · 5yr Data'
+    metrics = "24 Metrics · 3 Scenarios · 5yr Data"
+if not st.session_state.get("authenticated"):
+    st.markdown(
+        f"""<div style="display:flex;align-items:center;
+        justify-content:flex-end;gap:1.2rem;height:2.4rem">
+        <span style="font-size:0.78rem;font-weight:600;
+        text-transform:uppercase;letter-spacing:0.14em;
+        color:rgba(255,255,255,0.7)">{metrics}</span>
+        </div>""",
+        unsafe_allow_html=True)
+    if st.button("Sign in", key="elegantsignin"):
+        st.session_state.show_auth = True
+        st.rerun()
+else:
+    st.markdown(
+        f"""<div style="text-align:right;height:2.4rem;display:flex;
+        align-items:center;justify-content:flex-end">
+        <span style="font-size:0.78rem;font-weight:600;
+        text-transform:uppercase;letter-spacing:0.14em;
+        color:rgba(255,255,255,0.7)">{metrics}</span></div>""",
+        unsafe_allow_html=True)
 
 # ── LIVE PEG < 1 TICKER TAPE ──────────────────────────────────────────────
 def render_peg_tape(screener_data):
@@ -1862,7 +1896,14 @@ def render_peg_tape(screener_data):
         return
     
     all_picks = screener_data.get("us_picks", []) + screener_data.get("india_picks", [])
-    peg_picks = [p for p in all_picks if isinstance(p.get("peg_ratio"), (int, float)) and 0 < p["peg_ratio"] < 1.0]
+    peg_picks = []
+    for p in all_picks:
+     try:
+        peg_val = float(p.get("peg_ratio") or 0)
+        if 0 < peg_val < 1.0:
+            peg_picks.append(p)
+     except (TypeError, ValueError):
+        continue
     
     if not peg_picks:
         return
@@ -1870,39 +1911,41 @@ def render_peg_tape(screener_data):
     # Build tape items — duplicate for seamless loop
     tape_items = []
     for p in peg_picks:
-        tk = p.get("ticker", "").replace(".NS","").replace(".BO","")
-        peg = p.get("peg_ratio", 0)
-        score = p.get("qglp_score", 0)
-        roe = p.get("roe", 0)
-        sc = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#e0e0e0")
-        tape_items.append((tk, peg, score, roe, sc))
+     tk      = p.get("ticker", "").replace(".NS","").replace(".BO","")
+    peg     = p.get("peg_ratio", 0)
+    score   = p.get("qglp_score", 0)
+    roe     = p.get("roe", 0)
+    epscagr = p.get("earnings_cagr", 0)
+    sc      = "#4ade80" if score >= 85 else "#fbbf24" if score >= 70 else "#e0e0e0"
+    tape_items.append((tk, peg, score, roe, sc, epscagr))
     
     # Duplicate for infinite scroll
     tape_items = tape_items * 4
     
     items_html = "".join(
-        f'''<span style="display:inline-flex;align-items:center;gap:0.5rem;
-            padding:0 1.2rem;border-right:1px solid rgba(255,255,255,0.06);white-space:nowrap;">
-            <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.03em;">{tk}</span>
-            <span style="font-size:0.65rem;font-weight:700;color:{sc};
-                background:rgba(255,255,255,0.05);padding:0.1rem 0.35rem;border-radius:3px;">
-                PEG {peg:.2f}</span>
-            <span style="font-size:0.65rem;color:rgba(255,255,255,0.35);">
-                ROE {roe*100:.0f}%</span>
-            <span style="font-size:0.65rem;color:rgba(255,255,255,0.25);">
-                Score {score:.0f}</span>
-        </span>'''
-        for tk, peg, score, roe, sc in tape_items
+        f"""<span style="display:inline-flex;align-items:center;gap:0.5rem;
+  padding:0 1.2rem;border-right:1px solid rgba(255,255,255,0.06);white-space:nowrap">
+  <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.03em">{tk}</span>
+  <span style="font-size:0.65rem;font-weight:700;color:{sc};
+    background:rgba(255,255,255,0.05);padding:0.1rem 0.35rem;border-radius:3px">PEG {peg:.2f}</span>
+  <span style="font-size:0.65rem;color:rgba(255,255,255,0.5)">EPS {epscagr*100:.0f}%</span>
+</span>"""
+        for tk, peg, score, roe, sc, epscagr in tape_items
     )
     
     st.markdown(f'''
-    <div style="width:100%;overflow:hidden;background:rgba(10,9,7,0.95);
-        border-top:1px solid rgba(255,255,255,0.05);
-        border-bottom:1px solid rgba(255,255,255,0.05);
-        padding:0.45rem 0;margin:0 0 1.5rem;">
-        <div style="display:flex;align-items:center;gap:0;
-            animation:tape-scroll-main 40s linear infinite;width:max-content;">
-            {items_html}
+    <div class="tape-outer" style="width:100%;overflow:hidden;background:rgba(20,24,20,0.95);
+        border-top:1px solid rgba(255,255,255,0.06);
+        border-bottom:1px solid rgba(255,255,255,0.06);
+        padding:0.5rem 0;margin:0 0 1rem;display:flex;align-items:center;">
+        <div style="font-size:0.75rem;font-weight:800;color:rgba(255,255,255,0.4);
+            padding:0 1rem;white-space:nowrap;flex-shrink:0;
+            text-transform:uppercase;letter-spacing:0.08em;">PEG &lt;1</div>
+        <div style="overflow:hidden;flex:1;">
+            <div class="tape-scroll" style="display:flex;align-items:center;
+                animation:tape-scroll-main 40s linear infinite;width:max-content;">
+                {items_html}
+            </div>
         </div>
     </div>
     <style>
@@ -1910,8 +1953,8 @@ def render_peg_tape(screener_data):
         0%   {{ transform: translateX(0); }}
         100% {{ transform: translateX(-50%); }}
     }}
-    div[style*="tape-scroll-main"]:hover {{
-        animation-play-state: paused;
+    .tape-outer:hover .tape-scroll {{
+        animation-play-state: paused !important;
     }}
     </style>
     ''', unsafe_allow_html=True)
@@ -1954,7 +1997,7 @@ def render_picks_table(picks, market_label, select_key):
 
     st.markdown(
         f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.14em;color:rgba(255,255,255,0.3);'
+        f'letter-spacing:0.14em;color:rgba(255,255,255,0.6);'
         f'margin:1.2rem 0 0.5rem;padding-bottom:0.4rem;'
         f'border-bottom:1px solid rgba(255,255,255,0.05);">{market_label}</div>',
         unsafe_allow_html=True
@@ -1970,7 +2013,7 @@ def render_picks_table(picks, market_label, select_key):
         cagr_yrs = pick.get("earnings_cagr_years", 0)
         fcf      = pick.get("fcf_yield")
         de       = pick.get("debt_equity", 0)
-        peg      = pick.get("peg_ratio", 0)
+        peg = float(pick.get("peg_ratio") or 0)
         tk       = pick.get("ticker", "")
         name     = pick.get("name", tk)
         price    = pick.get("price", 0)
@@ -2008,49 +2051,78 @@ def render_picks_table(picks, market_label, select_key):
             f'vertical-align:middle;">{_ini}</span>'
         )
 
+                # Signal logic
+        if score >= 85:
+            signal = "Buy"
+            signal_color = "#4ade80"
+        elif score >= 70:
+            signal = "Watch"
+            signal_color = "#fbbf24"
+        else:
+            signal = "Pass"
+            signal_color = "#f87171"
+
+        sc = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#f87171")
+
+                # Logo
+        _tc = tk.replace(".NS","").replace(".BO","").replace(".L","").lower()
+        _ini = tk_clean[:1].upper()
+        _DOMAIN_MAP = {
+            "NVDA": "nvidia.com", "AAPL": "apple.com", "MSFT": "microsoft.com",
+            "AMZN": "amazon.com", "GOOGL": "google.com", "META": "meta.com",
+            "TSLA": "tesla.com", "NFLX": "netflix.com", "ADBE": "adobe.com",
+            "AVGO": "broadcom.com", "BHARTIARTL": "airtel.in", "DRREDDY": "drreddys.com",
+            "RELIANCE": "ril.com", "TCS": "tcs.com", "INFY": "infosys.com",
+            "HDFCBANK": "hdfcbank.com", "ICICIBANK": "icicibank.com",
+            "WIPRO": "wipro.com", "HINDUNILVR": "hul.co.in",
+        }
+        _domain = _DOMAIN_MAP.get(tk_clean, f"{tk_clean.lower()}.com")
+        logo_html = (
+            f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
+            f'width="22" height="22" loading="lazy" '
+            f'style="border-radius:5px;object-fit:contain;background:#171c19;'
+            f'padding:1px;border:1px solid rgba(255,255,255,0.08);'
+            f'vertical-align:middle;margin-right:0.5rem;" '
+            f'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline-flex\';">'
+            f'<span style="display:none;width:22px;height:22px;border-radius:5px;'
+            f'background:#1d2320;border:1px solid rgba(255,255,255,0.1);'
+            f'align-items:center;justify-content:center;'
+            f'font-size:0.55rem;font-weight:800;color:rgba(255,255,255,0.5);'
+            f'vertical-align:middle;margin-right:0.5rem;">{_ini}</span>'
+        )
+
+        sc = "#4ade80" if score >= 85 else ("#fbbf24" if score >= 70 else "#f87171")
+
         rows_html += (
-            f'<tr style="background:{row_bg};border-bottom:1px solid rgba(255,255,255,0.04);">'
-            f'<td style="padding:0.6rem 0.5rem;width:36px;">{logo_cell}</td>'
-            f'<td style="padding:0.6rem 0.4rem;">'
-            f'<div style="font-size:0.95rem;font-weight:800;color:#fff;">{tk_clean}</div>'
-            f'<div style="font-size:0.75rem;color:rgba(255,255,255,0.35);margin-top:0.05rem;">{name[:22]}</div>'
+            f'<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">'
+            f'<td style="padding:0.7rem 0.5rem;font-size:0.95rem;">'
+            f'{logo_html}'
+            f'<strong style="color:#fff;font-weight:800;">{tk_clean}</strong>'
+            f'<span style="color:rgba(255,255,255,0.4);margin-left:0.5rem;">{name[:20]}</span>'
             f'</td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:center;">'
-            f'<span style="font-size:0.85rem;font-weight:800;color:{sc};'
-            f'background:{sc_bg};padding:0.15rem 0.45rem;border-radius:4px;'
-            f'font-feature-settings:\'tnum\';">{score:.0f}</span>'
-            f'</td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
-            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{peg:.2f}</td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
-            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{roe*100:.0f}%</td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:right;font-size:0.82rem;'
-            f'font-weight:600;color:#4ade80;font-feature-settings:\'tnum\';">{cagr*100:.0f}%'
-            f'<span style="font-size:0.6rem;color:rgba(255,255,255,0.25);margin-left:0.2rem;">{cagr_yrs}Y</span></td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
-            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{f"{fcf*100:.1f}%" if fcf else "—"}</td>'
-            f'<td style="padding:0.6rem 0.6rem;text-align:center;font-size:0.88rem;'
-            f'font-weight:600;color:rgba(255,255,255,0.8);font-feature-settings:\'tnum\';">{de:.2f}</td>'
+            f'<td style="padding:0.7rem 0.5rem;text-align:center;'
+            f'font-weight:800;color:{sc};font-size:0.95rem;">{score:.0f}</td>'
+            f'<td style="padding:0.7rem 0.5rem;text-align:center;'
+            f'font-size:0.95rem;color:rgba(255,255,255,0.7);">{peg:.2f}</td>'
+            f'<td style="padding:0.7rem 0.5rem;text-align:center;'
+            f'font-size:0.95rem;color:rgba(255,255,255,0.7);">{roe*100:.0f}%</td>'
+            f'<td style="padding:0.7rem 0.5rem;text-align:center;'
+            f'font-size:0.95rem;color:#4ade80;font-weight:600;">+{cagr*100:.0f}%</td>'
             f'</tr>'
         )
 
         header_html = (
-        f'<tr style="border-bottom:2px solid rgba(255,255,255,0.1);">'
-        f'<th style="padding:0.6rem 0.5rem;width:36px;"></th>'
-        f'<th style="padding:0.6rem 0.4rem;text-align:left;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">Company</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">Score</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">PEG</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">ROE</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">EPS CAGR</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">FCF</th>'
-        f'<th style="padding:0.6rem 0.6rem;text-align:center;font-size:0.72rem;font-weight:700;'
-        f'text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.7);">D/E</th>'
+        f'<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">'
+        f'<th style="padding:0.6rem 0.5rem;text-align:left;font-size:0.7rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">Company</th>'
+        f'<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">Sc.</th>'
+        f'<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">PEG</th>'
+        f'<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">ROE</th>'
+        f'<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">CAGR</th>'
         f'</tr>'
     )
 
@@ -2080,14 +2152,6 @@ def render_picks_table(picks, market_label, select_key):
                 st.session_state["show_auth"] = True
                 st.rerun()
 
-# ── Sign in / Sign up button (top right, shown when not authenticated) ──
-if not authenticated:
-    _btn_col1, _btn_col2, _btn_col3 = st.columns([1, 1, 1])
-    with _btn_col3:
-        if st.button("Sign In / Sign Up →", key="header_signin_btn", use_container_width=True):
-            st.session_state["show_auth"] = True
-            st.rerun()
-
 screener_data = None
 try:
     screener_data = load_screener_results()
@@ -2098,13 +2162,28 @@ except Exception as e:
 render_peg_tape(screener_data)
 
 # ── SEARCH BAR — always at top ─────────────────────────────────────────────
-cl, cm, cr = st.columns([1, 2.5, 1])
-with cm:
+# ── TWO-COLUMN LANDING LAYOUT ──────────────────────────────────
+left_col, right_col = st.columns([2.2, 1], gap="large")
+
+with left_col:
     recent_list = st.session_state.recent[-6:]
+    # Hero
+    st.markdown(
+        'div style="padding:1.5rem 1.4rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem"'
+        '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.6rem;'
+        'line-height:1.25;letter-spacing:-0.02em;">'
+        'Generate a <span style="color:#c03030">report</span> on any listed company.</h1>'
+        '<p style="font-size:1.05rem;color:var(--text-tertiary);line-height:1.8;'
+        'max-width:620px;margin:0;">'
+        'Scores it on 24 metrics across Quality, Growth, Longevity and Price. '
+        'Three probability-weighted scenarios. Instant.</p>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown(
         '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
-        'letter-spacing:0.14em;color:rgba(255,255,255,0.3);margin-bottom:0.5rem;">'
+        'letter-spacing:0.14em;color:rgba(255,255,255,0.6);margin-bottom:0.5rem;">'
         'Search by company name or enter ticker directly</div>',
         unsafe_allow_html=True
     )
@@ -2112,6 +2191,17 @@ with cm:
         "Search", placeholder="e.g. Apple, Reliance, AVGO, AAPL, RELIANCE.NS",
         label_visibility="collapsed", key="s1"
     )
+        
+    st.markdown(
+        '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.3rem;">'
+        'Try: &nbsp;<strong style="color:rgba(255,255,255,0.6);">NVDA</strong>'
+        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">AAPL</strong>'
+        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">RELIANCE.NS</strong>'
+        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">AVGO</strong>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
 
     if sq and len(sq) >= 2:
         if len(sq) <= 12 and " " not in sq:
@@ -2177,57 +2267,7 @@ with cm:
     go = st.button("Generate Report", type="primary")
     is_guest = st.session_state.get("is_guest", False)
 
-# ── If not authenticated and they clicked Generate, show auth ──
-if go and not st.session_state.get("authenticated"):
-    st.session_state["show_auth"] = True
-    st.rerun()
-
-report_count = st.session_state.get("report_count", 0)
-
-if authenticated:
-    if is_guest:
-        used = report_count
-        st.markdown(f"""
-        <div style="display:flex;align-items:center;justify-content:space-between;
-        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
-        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
-                Guest report: <strong style="color:#fff">{used}/1</strong> used
-            </span>
-            <span style="font-size:0.75rem;color:#e03030;font-weight:700;cursor:pointer;">
-                Create account → 3 reports
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        used = report_count
-        bar_color = "#4ade80" if used < 2 else "#fbbf24" if used < 3 else "#f87171"
-        st.markdown(f"""
-        <div style="display:flex;align-items:center;gap:0.8rem;
-        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
-        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
-            <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
-                Reports used: <strong style="color:#fff">{used}/3</strong>
-            </span>
-            <div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;">
-                <div style="width:{min(used/3*100, 100):.0f}%;height:100%;
-                background:{bar_color};border-radius:2px;transition:width 0.4s ease;"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-status_area = st.container()
-
-with st.expander("About the QGLP Framework", expanded=False):
-    st.markdown('''<div class="thesis-section" style="margin:0;"><div class="thesis-title">Quality-Growth-Longevity-Price</div><div class="thesis-grid">
-        <div class="thesis-card"><div class="thesis-card-letter">Q</div><div class="thesis-card-name">Quality</div><div class="thesis-card-desc">Durable moats, ROE/ROCE above 15%, strong FCF, clean management. Debt/Equity below 1.0.</div></div>
-        <div class="thesis-card"><div class="thesis-card-letter">G</div><div class="thesis-card-name">Growth</div><div class="thesis-card-desc">Earnings CAGR above 12%. Revenue and EPS trajectory assessed by segment. TAM expanding at 2x+ GDP.</div></div>
-        <div class="thesis-card"><div class="thesis-card-letter">L</div><div class="thesis-card-name">Longevity</div><div class="thesis-card-desc">Competitive advantages persist 5+ years. Market share stability, succession depth, regulatory durability.</div></div>
-        <div class="thesis-card"><div class="thesis-card-letter">P</div><div class="thesis-card-name">Price</div><div class="thesis-card-desc">PEG below 1.2x is target. Below 1.0x is exceptional. Above 1.4x requires documented rationale.</div></div>
-    </div></div>''', unsafe_allow_html=True)
-
-report_area = st.container()
-
-# ── QGLP TABLE — only shown when no report has been generated ──────────────
+    # ── QGLP TABLE — only shown when no report has been generated ──────────────
 report_already_run = st.session_state.get("resolved") and st.session_state.get("report_done", False)
 
 if screener_data and not report_already_run:
@@ -2244,13 +2284,101 @@ if screener_data and not report_already_run:
             margin-top:0.6rem;border-radius:1px;"></div>
     </div>''', unsafe_allow_html=True)
     st.markdown(
-        '<div style="font-size:0.95rem;color:rgba(255,255,255,0.45);'
+        '<div style="font-size:0.95rem;color:var(--text-tertiary);'
         'text-align:center;margin-bottom:1.5rem;line-height:1.7;">'
         'Select any ticker below or search above to generate a full report.</div>',
         unsafe_allow_html=True
     )
     render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
     render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
+
+    with right_col:
+     st.markdown(f"""
+        <div style="padding:1.5rem 0 0">
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:1rem;">'
+        'How It Scores</div>'
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">Q &middot; Quality</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'ROE &gt;15%, FCF positive, D/E &lt;1</div></div>'
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">G &middot; Growth</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'EPS CAGR &gt;12%, TAM 2&times; GDP</div></div>'
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">L &middot; Longevity</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'Moat durability 5+ years</div></div>'
+        '<div style="margin-bottom:1.5rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">P &middot; Price</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'PEG &lt;1.2&times; is the target</div></div>'
+        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;'
+        'margin-bottom:1.5rem;">'
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
+        'Score Bands</div>'
+        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#4ade80;">85 &ndash; 100</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Strong buy</span></div>'
+        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#fbbf24;">70 &ndash; 84</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Watch</span></div>'
+        '<div style="display:flex;justify-content:space-between;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#f87171;">&lt; 70</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Pass</span></div>'
+        '</div>'
+        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;">'
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
+        'Account</div>'
+        '<div style="font-size:0.92rem;color:rgba(255,255,255,0.5);line-height:1.7;">'
+        '3 full reports free. Screener browsing always free, no login needed.</div>'
+        '</div>'
+        '</div>',
+        """,unsafe_allow_html=True)
+
+# ── If not authenticated and they clicked Generate, show auth ──
+if go and not st.session_state.get("authenticated"):
+    st.session_state["show_auth"] = True
+    st.rerun()
+
+report_count = st.session_state.get("report_count", 0)
+
+if authenticated:
+    if is_guest:
+        used = report_count
+        st.markdown(f"""
+        <div style="display:flex;align-items:center;justify-content:space-between;
+        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
+        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
+            <span style="font-size:0.8rem;color:var(--text-tertiary);">
+                Guest report: <strong style="color:#fff">{used}/1</strong> used
+            </span>
+            <span style="font-size:0.75rem;color:#e03030;font-weight:700;cursor:pointer;">
+                Create account → 3 reports
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        used = report_count
+        bar_color = "#4ade80" if used < 2 else "#fbbf24" if used < 3 else "#f87171"
+        st.markdown(f"""
+        <div style="display:flex;align-items:center;gap:0.8rem;
+        background:rgba(20,19,16,0.9);border:1px solid rgba(255,255,255,0.07);
+        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
+            <span style="font-size:0.8rem;color:var(--text-tertiary);">
+                Reports used: <strong style="color:#fff">{used}/3</strong>
+            </span>
+            <div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;">
+                <div style="width:{min(used/3*100, 100):.0f}%;height:100%;
+                background:{bar_color};border-radius:2px;transition:width 0.4s ease;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+status_area = st.container()
+report_area = st.container()
 
 # ══════════════════════════════════════════════════════════════
 # GENERATION LOGIC
@@ -2315,7 +2443,15 @@ if should_generate and ticker:
     if ticker not in st.session_state.recent:
         st.session_state.recent.append(ticker)
     st.session_state.report_count += 1
-    # ... rest of generate flow unchanged
+if not is_guest:
+    try:
+        from auth import load_users, save_users
+        users, sha = load_users()
+        if username in users:
+            users[username]["report_count"] = st.session_state.report_count
+            save_users(users, sha)
+    except Exception as e:
+        print(f"Could not persist report count: {e}")
     st.session_state.cached_html = None
     st.session_state.generate_html = False
     st.session_state.html_just_generated = False
@@ -2505,16 +2641,32 @@ if st.session_state.cached_report:
             st.download_button("Download (JSON)", json.dumps(export_data, indent=2, default=str), f"PickR_{c_ticker}.json", "application/json")
 
 # Footer
-st.markdown(f'''<div class="foot-card">
-    <div class="foot-name">Mayukh Kondepudi</div>
-    <div class="foot-email">mayukhkondepudi@gmail.com</div>
-    <div class="foot-disclaimer">
-        PickR is an AI-assisted equity research tool for educational and informational purposes only.
-        It does not constitute financial advice, investment recommendations, or an offer to buy or sell securities.
-        All financial data is sourced from Yahoo Finance or FMP as fallback and may be delayed. AI-assisted analysis
-        is based on publicly available information and should not be relied upon as the sole basis for investment decisions.
-        Past performance does not guarantee future results. Always consult a qualified financial advisor
-        before making investment decisions.
-    </div>
-    <div class="foot-copy">2025 PickR. All rights reserved.</div>
-</div>''', unsafe_allow_html=True)
+st.markdown("""
+<div style="margin-top:2.5rem;padding:1.5rem 2rem;border-top:1px solid rgba(255,255,255,0.06);
+  border-radius:0 0 8px 8px;background:rgba(255,255,255,0.015);text-align:center">
+  <div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-bottom:0.6rem">
+    <svg width="16" height="16" viewBox="0 0 28 28" fill="none" style="flex-shrink:0">
+      <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
+      <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
+      <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
+      <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
+      <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
+    </svg>
+    <span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.06em">
+      Built by <span style="color:#e08070">Mayukh Kondepudi</span>
+      &nbsp;&middot;&nbsp;
+      <a href="mailto:mayukhkondepudi@gmail.com"
+         style="color:#e08070;text-decoration:none;border-bottom:1px solid rgba(224,128,112,0.35)">
+        mayukhkondepudi@gmail.com</a>
+    </span>
+  </div>
+  <div style="font-size:0.7rem;color:rgba(255,255,255,0.25);line-height:1.75;max-width:680px;margin:0 auto">
+    PickR is an independent research tool for <strong style="color:rgba(255,255,255,0.4)">educational purposes only</strong>.
+    Nothing on this platform constitutes financial advice, a solicitation, or a recommendation to buy or sell any security.
+    All analysis is generated algorithmically and may contain errors. Always do your own due diligence before investing.
+  </div>
+  <div style="margin-top:0.6rem;font-size:0.62rem;color:rgba(255,255,255,0.15);letter-spacing:0.06em">
+    &copy; 2026 PickR &nbsp;&middot;&nbsp; All rights reserved
+  </div>
+</div>
+""", unsafe_allow_html=True)

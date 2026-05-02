@@ -2,6 +2,7 @@
   "mayukhk": {
     "name": "Mayukh Kondepudi",
     "email": "mayukh.kondepudi@gmail.com",
-    "password_hash": "$2b$12$ceq/1hJgTPBM0ciGldBWouxEbr6CE3kmlULX0/keVwGabo2cVHTUi"
+    "password_hash": "$2b$12$ceq/1hJgTPBM0ciGldBWouxEbr6CE3kmlULX0/keVwGabo2cVHTUi",
+    "report_count": 1
   }
 }

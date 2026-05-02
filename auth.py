@@ -5,7 +5,21 @@ import urllib.request
 import urllib.error
 import bcrypt
 import streamlit as st
-import hashlib
+import json, hashlib, os
+
+USERS_FILE = "users.json"
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return {}, ""
+    with open(USERS_FILE, "r") as f:
+        raw = f.read()
+    sha = hashlib.sha256(raw.encode()).hexdigest()
+    return json.loads(raw), sha
+
+def save_users(users, sha):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=2)
 
 def _gh_headers():
     import config
@@ -192,6 +206,7 @@ def render_auth_modal():
                     st.session_state["username"]  = login_user.lower().strip()
                     st.session_state["user_name"] = user["name"]
                     st.session_state["user_email"] = user["email"]
+                    st.session_state.report_count = user.get("report_count", 0)
                     st.session_state["show_auth"] = False
                     st.rerun()
                 else:
