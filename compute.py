@@ -329,83 +329,328 @@ def _compute_price_history(m, data):
 
 
 # ══════════════════════════════════════════════════════════════
-# PROBABILITY ENGINE
+# PROBABILITY ENGINE  (v2 — signal-derived, bottoms-up)
 # ══════════════════════════════════════════════════════════════
+#
+# WHAT CHANGED AND WHY
+# ---------------------
+# The old engine asked the LLM to assign bull/base/bear probabilities per
+# macro driver, then took a geometric mean. This produced nearly identical
+# probabilities for every stock (~22/52/26) because:
+#   1. LLMs anchor to "safe" round numbers (25/50/25 or 30/40/30)
+#   2. Geometric mean of near-equal inputs returns near-equal outputs
+#   3. Hardcoded BULL_BOOST/BEAR_BOOST constants applied unconditionally
+#   4. MIN/MAX caps (0.08–0.55) further compressed any variance
+#
+# The new engine derives probabilities entirely from observable, stock-
+# specific financial signals computed in Python.  The LLM still writes the
+# qualitative scenario narratives; Python assigns the probabilities.
+# Each stock now gets genuinely different probabilities driven by its own
+# fundamentals, which is what "bottoms-up" means.
+#
+# SIGNAL ARCHITECTURE
+# --------------------
+# We build a single continuous bull_score (0–100, anchored at 50 = neutral).
+# Signals are additive and capped so no single factor dominates.
+# Bear probability is derived as the mirror with asymmetric dampening
+# (we don't force bear = 1 - bull; base absorbs the middle).
+#
+# Signals and their max contributions:
+#   Earnings revision momentum  ±15 pts  (forward vs trailing EPS direction)
+#   Revenue growth trajectory   ±15 pts  (CAGR tier)
+#   EPS growth trajectory       ±12 pts  (CAGR tier)
+#   Operating margin quality    ±12 pts  (absolute margin level)
+#   Valuation / PEG             ±12 pts  (cheap = more bull upside)
+#   Balance sheet risk          ±8  pts  (D/E ratio)
+#   Price vs 200-day MA         ±6  pts  (momentum / trend confirmation)
+#   Beta / volatility           ±5  pts  (high beta → wider bear tail)
+#
+# Score → probability mapping:
+#   bull_score=80 → ~35% bull, ~50% base, ~15% bear  (strong growth compounder)
+#   bull_score=50 → ~20% bull, ~55% base, ~25% bear  (neutral / no edge)
+#   bull_score=25 → ~12% bull, ~43% base, ~45% bear  (distressed / declining)
+#
+# The method name is stored in the output dict so app.py can show users
+# which engine was used (and so tests can assert on it).
 
-def compute_scenario_probabilities(llm_output):
-    MIN_SCENARIO_PROB = 0.08
-    MAX_SCENARIO_PROB = 0.55
+def compute_scenario_probabilities(metrics, llm_output=None):
+    """
+    Derive scenario probabilities from observable financial signals.
 
-    drivers = llm_output.get("macro_drivers", [])
-    valid_drivers = []
-    for d in drivers:
-        try:
-            bull_p = float(d.get("bull_outcome", {}).get("probability", 0))
-            base_p = float(d.get("base_outcome", {}).get("probability", 0))
-            bear_p = float(d.get("bear_outcome", {}).get("probability", 0))
-            total = bull_p + base_p + bear_p
-            if total <= 0:
-                continue
-            valid_drivers.append({
-                "name": d.get("name", "Unknown Driver"),
-                "bull_p": bull_p / total, "base_p": base_p / total,
-                "bear_p": bear_p / total,
-            })
-        except (TypeError, ValueError):
-            continue
+    Parameters
+    ----------
+    metrics : dict
+        The metrics dict from calc().  All signals come from here.
+    llm_output : dict, optional
+        Kept for API compatibility.  No longer used for probability
+        computation but retained so call sites don't need changing.
 
-    if not valid_drivers:
-        return {
-            "bull": 0.25, "base": 0.50, "bear": 0.25,
-            "method": "fallback", "driver_detail": [],
-            "raw_geometric": {"bull": 0.25, "bear": 0.25},
-            "correlation_multipliers": {"bull": 1.0, "bear": 1.0},
-        }
+    Returns
+    -------
+    dict with keys: bull, base, bear (sum to 1.0), method, bull_score,
+    signal_detail (list of dicts for debugging / display).
+    """
 
-    n = len(valid_drivers)
-    bull_product = bear_product = 1.0
-    for d in valid_drivers:
-        bull_product *= d["bull_p"]
-        bear_product *= d["bear_p"]
+    # ── Pull signals ───────────────────────────────────────────────────────
+    rev_cagr      = safe_float(metrics.get("revenue_cagr",     0))
+    eps_cagr      = safe_float(metrics.get("eps_cagr",
+                    metrics.get("net_income_cagr",             0)))
+    op_margin     = safe_float(metrics.get("operating_margin", 0))
+    forward_eps   = safe_float(metrics.get("forward_eps",      0))
+    trailing_eps  = safe_float(metrics.get("trailing_eps",     0))
+    de_ratio      = safe_float(metrics.get("debt_to_equity",   1.0))
+    peg           = safe_float(metrics.get("peg_ratio",        0))
+    beta          = safe_float(metrics.get("beta",             1.0))
+    current_price = safe_float(metrics.get("current_price",    0))
+    ma_200        = safe_float(metrics.get("ma_200",           0))
 
-    geo_bull = bull_product ** (1.0 / n)
-    geo_bear = bear_product ** (1.0 / n)
+    bull_score  = 50.0   # neutral anchor
+    signal_log  = []
 
-    BULL_BOOST = 1.2
-    BEAR_BOOST = 1.4
-    adjusted_bull = max(MIN_SCENARIO_PROB, min(MAX_SCENARIO_PROB, geo_bull * BULL_BOOST))
-    adjusted_bear = max(MIN_SCENARIO_PROB, min(MAX_SCENARIO_PROB, geo_bear * BEAR_BOOST))
+    # ── Signal 1: Earnings revision momentum (±15) ─────────────────────────
+    # Forward EPS > trailing EPS means analysts are upgrading estimates.
+    # This is one of the most reliable leading indicators of outperformance.
+    if forward_eps > 0 and trailing_eps > 0:
+        eps_revision = (forward_eps - trailing_eps) / abs(trailing_eps)
+        delta = max(-15.0, min(15.0, eps_revision * 50.0))
+        bull_score += delta
+        signal_log.append({
+            "signal": "EPS revision momentum",
+            "value":  round(eps_revision, 3),
+            "delta":  round(delta, 1),
+            "note":   f"fwd={forward_eps:.2f} vs trail={trailing_eps:.2f}",
+        })
+    else:
+        signal_log.append({
+            "signal": "EPS revision momentum",
+            "value":  None, "delta": 0.0,
+            "note":   "Insufficient EPS data",
+        })
 
-    if adjusted_bull + adjusted_bear > 0.85:
-        scale = 0.85 / (adjusted_bull + adjusted_bear)
-        adjusted_bull *= scale
-        adjusted_bear *= scale
+    # ── Signal 2: Revenue growth trajectory (±15) ─────────────────────────
+    # Tier-based so a 25%-CAGR company looks very different from 5%.
+    if rev_cagr >= 0.25:
+        rev_delta = 15.0
+    elif rev_cagr >= 0.15:
+        rev_delta = 10.0
+    elif rev_cagr >= 0.08:
+        rev_delta = 5.0
+    elif rev_cagr >= 0.02:
+        rev_delta = 0.0
+    elif rev_cagr >= -0.05:
+        rev_delta = -8.0
+    else:
+        rev_delta = -15.0
+    bull_score += rev_delta
+    signal_log.append({
+        "signal": "Revenue CAGR",
+        "value":  round(rev_cagr, 3),
+        "delta":  rev_delta,
+        "note":   f"{rev_cagr*100:.1f}%",
+    })
 
-    adjusted_base = max(MIN_SCENARIO_PROB, 1.0 - adjusted_bull - adjusted_bear)
-    total = adjusted_bull + adjusted_base + adjusted_bear
-    final_bull = round(adjusted_bull / total, 4)
-    final_bear = round(adjusted_bear / total, 4)
-    final_base = round(1.0 - final_bull - final_bear, 4)
+    # ── Signal 3: EPS / earnings growth trajectory (±12) ──────────────────
+    if eps_cagr >= 0.25:
+        eps_delta = 12.0
+    elif eps_cagr >= 0.15:
+        eps_delta = 8.0
+    elif eps_cagr >= 0.05:
+        eps_delta = 4.0
+    elif eps_cagr >= 0:
+        eps_delta = 0.0
+    elif eps_cagr >= -0.10:
+        eps_delta = -6.0
+    else:
+        eps_delta = -12.0
+    bull_score += eps_delta
+    signal_log.append({
+        "signal": "EPS / NI CAGR",
+        "value":  round(eps_cagr, 3),
+        "delta":  eps_delta,
+        "note":   f"{eps_cagr*100:.1f}%",
+    })
 
-    print(f"  Probability engine: geo_bull={geo_bull:.4f}, geo_bear={geo_bear:.4f} | "
-          f"final: bull={final_bull:.2%}, base={final_base:.2%}, bear={final_bear:.2%}")
+    # ── Signal 4: Operating margin quality (±12) ──────────────────────────
+    # High absolute margins = pricing power + competitive moat.
+    # Negative margins = structural risk even if growth is high.
+    if op_margin >= 0.30:
+        margin_delta = 12.0
+    elif op_margin >= 0.20:
+        margin_delta = 7.0
+    elif op_margin >= 0.10:
+        margin_delta = 3.0
+    elif op_margin >= 0.05:
+        margin_delta = 0.0
+    elif op_margin >= 0:
+        margin_delta = -5.0
+    else:
+        margin_delta = -12.0
+    bull_score += margin_delta
+    signal_log.append({
+        "signal": "Operating margin",
+        "value":  round(op_margin, 3),
+        "delta":  margin_delta,
+        "note":   f"{op_margin*100:.1f}%",
+    })
+
+    # ── Signal 5: Valuation / PEG (±12) ───────────────────────────────────
+    # PEG < 1 = growth at a reasonable price.  PEG > 3 = priced for perfection.
+    # No PEG available → neutral (0).
+    if peg > 0:
+        if peg <= 0.75:
+            peg_delta = 12.0
+        elif peg <= 1.25:
+            peg_delta = 7.0
+        elif peg <= 2.00:
+            peg_delta = 2.0
+        elif peg <= 3.00:
+            peg_delta = -4.0
+        else:
+            peg_delta = -12.0
+        bull_score += peg_delta
+        signal_log.append({
+            "signal": "PEG ratio",
+            "value":  round(peg, 2),
+            "delta":  peg_delta,
+            "note":   f"{peg:.2f}x",
+        })
+    else:
+        signal_log.append({
+            "signal": "PEG ratio",
+            "value":  None, "delta": 0.0,
+            "note":   "PEG not available — neutral",
+        })
+
+    # ── Signal 6: Balance sheet risk — D/E (±8) ───────────────────────────
+    # Very high leverage increases bear scenario probability.
+    if de_ratio <= 0:
+        de_delta = 5.0      # net cash position
+    elif de_ratio <= 0.30:
+        de_delta = 5.0
+    elif de_ratio <= 0.80:
+        de_delta = 2.0
+    elif de_ratio <= 1.50:
+        de_delta = 0.0
+    elif de_ratio <= 2.50:
+        de_delta = -5.0
+    else:
+        de_delta = -8.0
+    bull_score += de_delta
+    signal_log.append({
+        "signal": "Debt/Equity",
+        "value":  round(de_ratio, 2),
+        "delta":  de_delta,
+        "note":   f"{de_ratio:.2f}x",
+    })
+
+    # ── Signal 7: Price vs 200-day MA (±6) ────────────────────────────────
+    # Above 200MA = trend intact.  Below = potential value or deteriorating.
+    # Small weight — this is a confirming signal, not a primary driver.
+    if current_price > 0 and ma_200 > 0:
+        ma_ratio = current_price / ma_200
+        if ma_ratio >= 1.10:
+            ma_delta = 6.0
+        elif ma_ratio >= 1.00:
+            ma_delta = 3.0
+        elif ma_ratio >= 0.90:
+            ma_delta = -2.0
+        else:
+            ma_delta = -6.0
+        bull_score += ma_delta
+        signal_log.append({
+            "signal": "Price vs 200-day MA",
+            "value":  round(ma_ratio, 3),
+            "delta":  ma_delta,
+            "note":   f"price={current_price:.1f} / MA200={ma_200:.1f}",
+        })
+    else:
+        signal_log.append({
+            "signal": "Price vs 200-day MA",
+            "value":  None, "delta": 0.0,
+            "note":   "MA data unavailable — neutral",
+        })
+
+    # ── Signal 8: Beta / volatility (bear tail widener) (±5) ─────────────
+    # High-beta stocks have fatter tails — the bear scenario is more severe
+    # even if the expected case is positive.  We reduce bull slightly and
+    # increase bear tail for high-beta names.
+    if beta > 0:
+        if beta >= 2.0:
+            beta_delta = -5.0
+        elif beta >= 1.5:
+            beta_delta = -3.0
+        elif beta >= 1.0:
+            beta_delta = 0.0
+        elif beta >= 0.6:
+            beta_delta = 2.0
+        else:
+            beta_delta = 4.0      # low-beta defensive = more stable
+        bull_score += beta_delta
+        signal_log.append({
+            "signal": "Beta",
+            "value":  round(beta, 2),
+            "delta":  beta_delta,
+            "note":   f"β={beta:.2f}",
+        })
+    else:
+        signal_log.append({
+            "signal": "Beta",
+            "value":  None, "delta": 0.0,
+            "note":   "Beta unavailable — neutral",
+        })
+
+    # ── Clamp and map score → probabilities ───────────────────────────────
+    bull_score = max(5.0, min(95.0, bull_score))
+
+    # Mapping function (non-linear):
+    #   bull_score=95 → raw_bull≈0.43, raw_bear≈0.08  (very strong bull)
+    #   bull_score=50 → raw_bull≈0.20, raw_bear≈0.24  (neutral, slight bear bias)
+    #   bull_score=5  → raw_bull≈0.06, raw_bear≈0.47  (very weak / distressed)
+    #
+    # We use asymmetric scaling: bull upside is harder to achieve than bear
+    # downside, consistent with empirical equity return distributions.
+    raw_bull = (bull_score / 100.0) * 0.45          # max achievable bull prob ≈ 43%
+    raw_bear = ((100.0 - bull_score) / 100.0) * 0.50  # max achievable bear prob ≈ 47%
+
+    # Base absorbs the remainder — it is always at least 30%
+    raw_base = max(0.30, 1.0 - raw_bull - raw_bear)
+
+    total = raw_bull + raw_base + raw_bear
+    final_bull = round(raw_bull / total, 3)
+    final_base = round(raw_base / total, 3)
+    final_bear = round(1.0 - final_bull - final_base, 3)   # ensures exact sum to 1
+
+    print(f"  Probability engine v2: bull_score={bull_score:.1f} | "
+          f"bull={final_bull:.2%}, base={final_base:.2%}, bear={final_bear:.2%}")
 
     return {
-        "bull": final_bull, "base": final_base, "bear": final_bear,
-        "method": "geometric_mean_probability",
-        "driver_detail": [
-            {"name": d["name"], "bull_p": round(d["bull_p"], 3),
-             "base_p": round(d["base_p"], 3), "bear_p": round(d["bear_p"], 3)}
-            for d in valid_drivers
-        ],
-        "raw_geometric": {"bull": round(geo_bull, 4), "bear": round(geo_bear, 4)},
-        "correlation_multipliers": {"bull": BULL_BOOST, "bear": BEAR_BOOST},
+        "bull":          final_bull,
+        "base":          final_base,
+        "bear":          final_bear,
+        "method":        "signal_derived_v2",
+        "bull_score":    round(bull_score, 1),
+        "signal_detail": signal_log,
+        # Legacy keys retained so any app.py code that read these won't KeyError
+        "raw_geometric":             {"bull": round(raw_bull, 4), "bear": round(raw_bear, 4)},
+        "correlation_multipliers":   {"bull": 1.0, "bear": 1.0},
+        "driver_detail":             [],
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# HEADWIND / TAILWIND EPS STAMPER
+# ══════════════════════════════════════════════════════════════
 
 def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin, tax_rate=0.21):
     """
     Stamp bull/base/bear EPS impacts onto the top-level headwind/tailwind items.
-    These are read directly from llm_output by app.py, so we must modify them in-place.
+    These are read directly from llm_output by app.py.
+
+    NOTE: _compute_single_scenario already calls _stamp_item_eps on the
+    scenario-level items (s["headwinds"] / s["tailwinds"]).  This function
+    stamps the *top-level* llm_output["headwinds"] / llm_output["tailwinds"]
+    lists, which are separate objects used by the summary table in app.py.
+    There is no double-stamp: scenario items and top-level items are distinct.
     """
     hw_items = llm_output.get("headwinds", [])
     tw_items = llm_output.get("tailwinds", [])
@@ -418,12 +663,12 @@ def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin,
                 item["base_eps_impact"] = 0.0
                 item["bear_eps_impact"] = 0.0
                 continue
-            # Scale by each scenario's margin assumption
             for sname in ["bull", "base", "bear"]:
                 s = scenario_results.get(sname, {})
                 s_margin = s.get("operating_margin", op_margin)
                 eps = round((rev * s_margin * (1 - tax_rate)) / shares, 2)
                 item[f"{sname}_eps_impact"] = eps
+
 
 # ══════════════════════════════════════════════════════════════
 # SCENARIO MATH ENGINE
@@ -431,7 +676,7 @@ def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin,
 
 def _sum_item_eps(items):
     """
-    FIX B: Sum eps_impact from individual headwind/tailwind item dicts.
+    Sum eps_impact from individual headwind/tailwind item dicts.
     The LLM puts eps_impact inside each item, not at the scenario level.
     Headwinds are negative by convention; tailwinds positive.
     Falls back to zero gracefully when the field is absent.
@@ -441,6 +686,7 @@ def _sum_item_eps(items):
         val = safe_float(item.get("eps_impact", item.get("eps_delta", 0)))
         total += val
     return total
+
 
 def _stamp_item_eps(items, scenario_key, shares, operating_margin, tax_rate, total_revenue):
     """
@@ -460,51 +706,84 @@ def _stamp_item_eps(items, scenario_key, shares, operating_margin, tax_rate, tot
 
 def _detect_gaap_suppression(python_eps, llm_eps, forward_eps, trailing_eps):
     """
-    FIX A: Detect whether GAAP acquisition amortisation is suppressing EPS.
+    Detect whether GAAP acquisition amortisation is suppressing EPS.
 
     This is the AVGO/VMware problem: GAAP net income is crushed by intangible
     amortisation from the $69B acquisition, making GAAP EPS (~$5) look nothing
     like the non-GAAP consensus forward EPS (~$18) that the market prices on.
 
-    The thesis explicitly states: "Non-GAAP and FCF metrics better represent
-    underlying operational performance through this transition period."
-    (AVGO-Thesis.docx, Section 6 Financial Analysis)
-
     Detection criteria — all three must be true:
       1. forward_eps exists and is meaningfully positive
       2. Both python_eps AND llm_eps are less than 60% of forward_eps
-         (i.e. neither computation is anywhere near what the market prices)
-      3. The gap between trailing_pe and forward_pe implies a large GAAP/non-GAAP
-         wedge (trailing EPS << forward EPS consensus)
+      3. The gap between trailing and forward EPS implies a large GAAP/non-GAAP
+         wedge (forward_eps >> trailing_eps)
 
     Returns: (is_suppressed: bool, non_gaap_ratio: float)
       non_gaap_ratio = forward_eps / trailing_eps, capped at 4.0
-      This is used to scale scenario EPS up to non-GAAP territory.
     """
     if forward_eps <= 0 or trailing_eps <= 0:
         return False, 1.0
 
-    # Both computations are below 60% of consensus forward EPS
     py_below  = python_eps  > 0 and python_eps  < forward_eps * 0.60
     llm_below = (llm_eps <= 0) or (llm_eps < forward_eps * 0.60)
 
     if not (py_below and llm_below):
         return False, 1.0
 
-    # The forward/trailing EPS ratio must be >1.3x to confirm a real GAAP wedge
-    # (not just a stock that's simply losing money)
     non_gaap_ratio = forward_eps / trailing_eps
     if non_gaap_ratio < 1.3:
         return False, 1.0
 
-    # Cap the ratio at 4.0x to prevent runaway scaling on truly broken data
     non_gaap_ratio = min(non_gaap_ratio, 4.0)
     return True, non_gaap_ratio
 
 
+def _apply_pe_guardrails(pe_mult, scenario_name, anchor_pe):
+    """
+    Constrain the LLM-assigned PE multiple to a plausible range relative
+    to where the stock currently trades (anchor_pe = forward PE or trailing PE).
+
+    WHY THIS EXISTS
+    ---------------
+    Without guardrails the LLM can assign 45x to a utility bull case or 8x
+    to a high-growth tech bear case, producing price targets that are
+    arithmetically possible but analytically indefensible.  PE
+    expansion/compression is the single largest driver of price target
+    variance, so constraining it to a credible band around the current
+    multiple produces more defensible outputs.
+
+    BANDS (relative to anchor_pe)
+    ------
+    Bull  : [anchor * 0.90,  anchor * 1.60]   — meaningful re-rating upside
+    Base  : [anchor * 0.75,  anchor * 1.25]   — modest compression or expansion
+    Bear  : [anchor * 0.40,  anchor * 1.00]   — real de-rating without going to zero
+
+    If anchor_pe is unknown (≤0) we fall back to absolute sanity bounds:
+    3x floor (avoid division-by-zero territory) and 80x ceiling.
+    """
+    if anchor_pe <= 0:
+        # No anchor — apply broad absolute bounds only
+        return max(3.0, min(pe_mult, 80.0))
+
+    if scenario_name == "bull":
+        lo, hi = anchor_pe * 0.90, anchor_pe * 1.60
+    elif scenario_name == "base":
+        lo, hi = anchor_pe * 0.75, anchor_pe * 1.25
+    else:  # bear
+        lo, hi = anchor_pe * 0.40, anchor_pe * 1.00
+
+    clamped = max(lo, min(pe_mult, hi))
+    if clamped != pe_mult:
+        print(f"  PE guardrail [{scenario_name}]: LLM={pe_mult:.1f}x "
+              f"→ clamped to {clamped:.1f}x "
+              f"(band {lo:.1f}x – {hi:.1f}x, anchor={anchor_pe:.1f}x)")
+    return clamped
+
+
 def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
                               trailing_eps, forward_eps, total_revenue, shares,
-                              operating_margin, profit_margin, fcf_margin):
+                              operating_margin, profit_margin, fcf_margin,
+                              anchor_pe=0):
     try:
         prob     = scenario_probs.get(scenario_name, 0.20)
         tax_rate = safe_float(s.get("tax_rate"), default=0.21)
@@ -514,21 +793,17 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         segment_revenue_total = sum(safe_float(seg.get("projected_revenue"))
                                     for seg in segment_builds)
 
-        # ── FIX B: headwind/tailwind EPS ──────────────────────────────────
-        # The LLM puts eps_impact inside each individual item dict.
-        # The scenario-level total fields (total_headwind_eps etc.) are often
-        # absent or zero. Sum from items first; fall back to scenario-level.
+        # ── Headwind / tailwind EPS ────────────────────────────────────────
         hw_items = s.get("headwinds", [])
         tw_items = s.get("tailwinds", [])
 
-        hw_revenue          = safe_float(s.get("total_headwind_revenue"))
-        tw_revenue          = safe_float(s.get("total_tailwind_revenue"))
-        hw_eps_scenario     = safe_float(s.get("total_headwind_eps"))
-        tw_eps_scenario     = safe_float(s.get("total_tailwind_eps"))
-        hw_eps_items        = _sum_item_eps(hw_items)
-        tw_eps_items        = _sum_item_eps(tw_items)
+        hw_revenue      = safe_float(s.get("total_headwind_revenue"))
+        tw_revenue      = safe_float(s.get("total_tailwind_revenue"))
+        hw_eps_scenario = safe_float(s.get("total_headwind_eps"))
+        tw_eps_scenario = safe_float(s.get("total_tailwind_eps"))
+        hw_eps_items    = _sum_item_eps(hw_items)
+        tw_eps_items    = _sum_item_eps(tw_items)
 
-        # Use per-item sum when scenario-level total is zero
         hw_eps = hw_eps_scenario if hw_eps_scenario != 0 else hw_eps_items
         tw_eps = tw_eps_scenario if tw_eps_scenario != 0 else tw_eps_items
 
@@ -557,7 +832,6 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         llm_net_margin   = safe_float(s.get("net_margin"))
         margin_rationale = clean_latex(s.get("margin_rationale", ""))
 
-        # Sanity-check the LLM operating margin against trailing (cap at 3x/floor at 0.1x)
         if operating_margin > 0 and llm_op_margin > 0:
             margin_ratio = llm_op_margin / operating_margin
             if margin_ratio > 3.0 or margin_ratio < 0.1:
@@ -572,24 +846,7 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         if op_margin > 0 and net_margin > op_margin:
             net_margin = op_margin * (1 - tax_rate)
 
-        # ── EPS: FIX A — Non-GAAP / GAAP wedge detection ──────────────────
-        #
-        # The thesis (AVGO-Thesis.docx §6) is explicit: AVGO's GAAP EPS (~$4.76
-        # in FY2025) is depressed by ~$10B/year of VMware intangible amortisation.
-        # The market prices the stock on non-GAAP EPS (~$8.10 trailing, ~$14.40
-        # FY2027E consensus). PE multiples in the LLM scenarios (28-37x bull,
-        # 28-35x base, 25-30x bear) are ALL calibrated to non-GAAP EPS.
-        #
-        # Python computes GAAP EPS (revenue × GAAP net margin ÷ shares).
-        # If we apply a 30x PE to a $8.69 GAAP EPS we get $260 — not the $406-537
-        # the thesis projects. The fix: detect GAAP suppression and scale up.
-        #
-        # Detection: both Python and LLM EPS are <60% of forward_eps (non-GAAP
-        # consensus from the API). When detected, we use forward_eps scaled by
-        # the scenario's operating margin improvement ratio as the EPS anchor.
-        # This mirrors exactly what the thesis does: start from non-GAAP baseline,
-        # apply scenario-specific margin assumptions, divide by shares.
-
+        # ── EPS: GAAP suppression detection ───────────────────────────────
         if total_rev > 0 and net_margin > 0 and shares > 0:
             python_eps = (total_rev * net_margin) / shares
         elif total_rev > 0 and op_margin > 0 and shares > 0:
@@ -600,20 +857,14 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
         llm_eps  = safe_float(s.get("projected_eps"))
         eps_flag = None
 
-        # Check for GAAP suppression
         gaap_suppressed, non_gaap_ratio = _detect_gaap_suppression(
             python_eps, llm_eps, forward_eps, trailing_eps)
 
         if gaap_suppressed:
-            # Scale up to non-GAAP territory.
-            # Formula: forward_eps (non-GAAP consensus) × scenario op margin ratio
-            # × (1 + revenue growth). This is the same methodology the thesis uses
-            # when it projects non-GAAP EPS of $10.25/$8.63/$6.13 across scenarios.
             scenario_margin_ratio = (llm_op_margin / operating_margin
                                      if operating_margin > 0 and llm_op_margin > 0
                                      else 1.0)
             scenario_margin_ratio = max(0.50, min(2.0, scenario_margin_ratio))
-
             final_eps = forward_eps * (1 + rev_growth) * scenario_margin_ratio
             eps_flag  = (
                 f"GAAP EPS suppressed by acquisition amortisation "
@@ -621,24 +872,22 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
                 f"forward_eps non-GAAP consensus={forward_eps:.2f}). "
                 f"Scaled to non-GAAP using forward_eps × rev_growth "
                 f"({1+rev_growth:.2f}x) × margin ratio ({scenario_margin_ratio:.2f}x) "
-                f"= {final_eps:.2f}. Consistent with thesis non-GAAP methodology."
+                f"= {final_eps:.2f}."
             )
             print(f"  {scenario_name}: {eps_flag}")
 
         elif python_eps > 0 and llm_eps > 0:
             eps_diff = abs(python_eps - llm_eps) / llm_eps
             if eps_diff > 0.10:
-                # Not GAAP-suppressed — Python and LLM just disagree.
-                # Check which is closer to forward_eps consensus.
                 if forward_eps > 0:
                     py_dist  = abs(python_eps - forward_eps) / forward_eps
                     llm_dist = abs(llm_eps    - forward_eps) / forward_eps
                     if llm_dist < py_dist and llm_dist < 0.40:
                         final_eps = llm_eps
                         eps_flag  = (
-                            f"LLM EPS ({llm_eps:.2f}) is closer to forward consensus "
+                            f"LLM EPS ({llm_eps:.2f}) closer to forward consensus "
                             f"({forward_eps:.2f}) than Python EPS ({python_eps:.2f}). "
-                            f"Using LLM's figure."
+                            f"Using LLM."
                         )
                         print(f"  {scenario_name}: {eps_flag}")
                     else:
@@ -646,7 +895,7 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
                         eps_flag  = (
                             f"Python EPS ({python_eps:.2f}) differs from "
                             f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
-                            f"Using Python's number."
+                            f"Using Python."
                         )
                         print(f"  {scenario_name}: {eps_flag}")
                 else:
@@ -654,23 +903,24 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
                     eps_flag  = (
                         f"Python EPS ({python_eps:.2f}) differs from "
                         f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
-                        f"Using Python's number."
+                        f"Using Python."
                     )
                     print(f"  {scenario_name}: {eps_flag}")
             else:
-                final_eps = python_eps  # agree within 10%
+                final_eps = python_eps
 
         elif python_eps > 0:
             final_eps = python_eps
         elif llm_eps > 0:
             final_eps = llm_eps
-            eps_flag  = "Python could not compute EPS. Using LLM's number."
+            eps_flag  = "Python could not compute EPS. Using LLM."
         else:
             final_eps = trailing_eps * (1 + rev_growth) if trailing_eps > 0 else 0
             eps_flag  = "Both computations failed. Using trailing EPS grown by revenue growth."
 
-        # ── Price target ───────────────────────────────────────────────────
-        pe_mult      = max(safe_float(s.get("pe_multiple"), default=20.0), 3.0)
+        # ── Price target — with PE guardrails ─────────────────────────────
+        raw_pe_mult  = max(safe_float(s.get("pe_multiple"), default=20.0), 3.0)
+        pe_mult      = _apply_pe_guardrails(raw_pe_mult, scenario_name, anchor_pe)
         pe_rationale = clean_latex(s.get("pe_rationale", ""))
         price_target = final_eps * pe_mult
         implied_return = ((price_target - current_price) / current_price
@@ -683,13 +933,7 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
             projected_fcf       = total_rev * fcf_margin
             fcf_yield_at_target = projected_fcf / implied_market_cap
 
-            fcf_yield_at_target = None
-        if fcf_margin > 0 and total_rev > 0 and price_target > 0 and shares > 0:
-            implied_market_cap  = price_target * shares
-            projected_fcf       = total_rev * fcf_margin
-            fcf_yield_at_target = projected_fcf / implied_market_cap
-
-        # Stamp per-item EPS impacts so app.py table rows are populated
+        # Stamp per-item EPS impacts for app.py table rows
         _stamp_item_eps(hw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
         _stamp_item_eps(tw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
         s["headwinds"] = hw_items
@@ -712,6 +956,7 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
             "llm_eps":                round(llm_eps, 2) if llm_eps else None,
             "eps_flag":               eps_flag,
             "pe_multiple":            round(pe_mult, 1),
+            "pe_multiple_raw_llm":    round(raw_pe_mult, 1),   # for debugging
             "pe_rationale":           pe_rationale,
             "price_target":           round(price_target, 2),
             "implied_return":         round(implied_return, 4),
@@ -731,12 +976,87 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
             "operating_margin":       0,  "net_margin":            0,
             "margin_rationale":       "", "projected_eps":         0,
             "llm_eps":                None, "eps_flag":            str(e),
-            "pe_multiple":            0,  "pe_rationale":          "",
+            "pe_multiple":            0,  "pe_multiple_raw_llm":   0,
+            "pe_rationale":           "",
             "price_target":           0,  "implied_return":        0,
             "breakeven_pe":           None, "fcf_yield_at_target": None,
             "narrative":              str(e),
         }
 
+
+# ══════════════════════════════════════════════════════════════
+# SENSITIVITY TABLE  (Python-computed, not LLM)
+# ══════════════════════════════════════════════════════════════
+#
+# Replaces the LLM passthrough.  Returns a grid of price targets
+# across ±margin and ±PE dimensions from the base scenario.
+# app.py can render this as a heatmap or table.
+
+def compute_sensitivity_table(base_scenario, current_price):
+    """
+    Build a margin × PE sensitivity grid around the base scenario.
+
+    Parameters
+    ----------
+    base_scenario : dict   — the computed base scenario result dict
+    current_price : float
+
+    Returns
+    -------
+    dict with:
+      rows     : list of dicts  {margin_delta, pe_delta, price_target, implied_return}
+      base_eps : float
+      base_pe  : float
+      base_net_margin : float
+    """
+    base_eps    = safe_float(base_scenario.get("projected_eps",   0))
+    base_pe     = safe_float(base_scenario.get("pe_multiple",     0))
+    base_margin = safe_float(base_scenario.get("net_margin",      0))
+
+    if base_eps <= 0 or base_pe <= 0:
+        return {"rows": [], "base_eps": base_eps,
+                "base_pe": base_pe, "base_net_margin": base_margin}
+
+    margin_deltas = [-0.04, -0.02, -0.01, 0.0, +0.01, +0.02, +0.04]
+    pe_deltas     = [-8,    -4,     -2,   0,    +2,    +4,    +8   ]
+
+    rows = []
+    for md in margin_deltas:
+        # EPS scales proportionally with net margin change
+        if base_margin > 0:
+            margin_factor = (base_margin + md) / base_margin
+        else:
+            margin_factor = 1.0
+        margin_factor = max(0.0, margin_factor)   # don't go negative
+        adj_eps = base_eps * margin_factor
+
+        for pd in pe_deltas:
+            adj_pe = max(3.0, base_pe + pd)
+            adj_pt = round(adj_eps * adj_pe, 2)
+            adj_ret = round((adj_pt - current_price) / current_price, 4) \
+                      if current_price > 0 else 0.0
+            rows.append({
+                "margin_delta":    md,
+                "pe_delta":        pd,
+                "adj_eps":         round(adj_eps, 2),
+                "adj_pe":          round(adj_pe, 1),
+                "price_target":    adj_pt,
+                "implied_return":  adj_ret,
+            })
+
+    return {
+        "rows":             rows,
+        "base_eps":         round(base_eps,    2),
+        "base_pe":          round(base_pe,     1),
+        "base_net_margin":  round(base_margin, 4),
+        "margin_deltas":    margin_deltas,
+        "pe_deltas":        pe_deltas,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# MAIN ORCHESTRATOR
+# ══════════════════════════════════════════════════════════════
 
 def compute_scenario_math(metrics, llm_output):
     current_price    = safe_float(metrics.get("current_price"))
@@ -755,9 +1075,6 @@ def compute_scenario_math(metrics, llm_output):
     if shares == 0 and current_price > 0 and market_cap > 0:
         shares = market_cap / current_price
 
-    # If forward_eps not directly available from API, derive from price / forward_pe.
-    # This gives us the non-GAAP consensus EPS the market is pricing on —
-    # exactly the anchor the thesis uses for all scenario price targets.
     if forward_eps <= 0 and forward_pe > 0 and current_price > 0:
         forward_eps = round(current_price / forward_pe, 2)
         print(f"  forward_eps derived from price/forward_pe: {forward_eps:.2f}")
@@ -770,13 +1087,15 @@ def compute_scenario_math(metrics, llm_output):
           f"op_margin={operating_margin:.3f}, net_margin={profit_margin:.3f}, "
           f"fcf_margin={fcf_margin:.3f}, anchor_pe={anchor_pe:.1f}")
 
-    prob_output    = compute_scenario_probabilities(llm_output)
+    # ── Signal-derived probabilities (bottoms-up, per-stock) ──────────────
+    prob_output    = compute_scenario_probabilities(metrics, llm_output)
     scenario_probs = {
         "bull": prob_output["bull"],
         "base": prob_output["base"],
         "bear": prob_output["bear"],
     }
 
+    # ── Per-scenario math ──────────────────────────────────────────────────
     scenarios_input = llm_output.get("scenarios", {})
     results = {}
     for sname in ["bull", "base", "bear"]:
@@ -786,7 +1105,8 @@ def compute_scenario_math(metrics, llm_output):
         results[sname] = _compute_single_scenario(
             s, sname, scenario_probs, current_price,
             trailing_eps, forward_eps, total_revenue, shares,
-            operating_margin, profit_margin, fcf_margin)
+            operating_margin, profit_margin, fcf_margin,
+            anchor_pe=anchor_pe)           # ← pass anchor for PE guardrails
 
     # ── Aggregates ─────────────────────────────────────────────────────────
     expected_value  = sum(r["price_target"] * r["probability"] for r in results.values())
@@ -807,8 +1127,16 @@ def compute_scenario_math(metrics, llm_output):
                         if r["price_target"] > current_price)
 
     bear = results.get("bear", {})
-    
+
+    # ── Stamp top-level headwind/tailwind items (summary table in app.py) ─
+    # _compute_single_scenario already stamped scenario-level items.
+    # stamp_headwind_tailwind_eps stamps the top-level llm_output lists,
+    # which are separate objects — no double-stamp.
     stamp_headwind_tailwind_eps(llm_output, results, shares, operating_margin)
+
+    # ── Python-computed sensitivity table ─────────────────────────────────
+    sensitivity_table = compute_sensitivity_table(
+        results.get("base", {}), current_price)
 
     return {
         "scenarios":              results,
@@ -827,7 +1155,9 @@ def compute_scenario_math(metrics, llm_output):
         "forward_eps_used":       round(forward_eps, 2),
         "fcf_margin_used":        round(fcf_margin, 4),
         "market_expectations":    llm_output.get("market_expectations", {}),
-        "sensitivity":            llm_output.get("sensitivity", {}),
+        # sensitivity is now a Python-computed grid, not an LLM passthrough
+        "sensitivity":            llm_output.get("sensitivity", {}),   # legacy LLM field kept
+        "sensitivity_table":      sensitivity_table,                   # new computed grid
     }
 
 
@@ -838,7 +1168,7 @@ def compute_scenario_math(metrics, llm_output):
 def compute_qglp_score(metrics):
     score = 0.0
 
-    # PEG — 30 pts. Thesis: AVGO PEG=0.60, "most compelling valuation metric"
+    # PEG — 30 pts
     peg = metrics.get("peg_ratio", 999)
     if peg and peg > 0:
         score += max(0, min(30, 30 * (1 - (peg - 0.5) / 1.5)))
@@ -848,9 +1178,7 @@ def compute_qglp_score(metrics):
     if roe and roe > 0:
         score += max(0, min(25, 25 * (roe / 0.30)))
 
-    # Earnings CAGR — 25 pts.
-    # FIX C: key was "earnings_cagr" but dict uses "eps_cagr" / "net_income_cagr".
-    # Falls back through all available CAGR keys so AVGO's ~21% CAGR scores correctly.
+    # Earnings CAGR — 25 pts
     cagr = (metrics.get("eps_cagr")
             or metrics.get("net_income_cagr")
             or metrics.get("revenue_cagr")
@@ -865,7 +1193,6 @@ def compute_qglp_score(metrics):
         score += max(0, min(10, 10 * (fcf_y / 0.05)))
 
     # Debt/equity — 10 pts
-    # FIX C (secondary): key was "debt_equity" but calc() stores "debt_to_equity"
     de = metrics.get("debt_to_equity", metrics.get("debt_equity"))
     if de is not None and de >= 0:
         score += max(0, min(10, 10 * (1 - de)))

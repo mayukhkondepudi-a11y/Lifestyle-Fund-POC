@@ -340,9 +340,13 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
     """
     Full orchestration:
     1. Pass 1 (assumptions) -> 2. Python math -> 3. Pass 2 (narrative) -> 4. Merge
-    
+
     pass1_fn / pass2_fn allow app.py to inject @st.cache_data-wrapped versions.
     Falls back to uncached run_pass1 / run_pass2 if not provided.
+
+    NOTE: compute_scenario_math now receives both `m` (metrics) and
+    `pass1` (llm_output).  The probability engine derives scenario
+    probabilities from the metrics signals, not from LLM driver estimates.
     """
     _pass1 = pass1_fn or (lambda t, m_dict: run_pass1(t, m_dict))
     _pass2 = pass2_fn or (lambda t, m_dict, sm, p1: run_pass2(t, m_dict, sm, p1))
@@ -352,7 +356,8 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
     if isinstance(pass1, dict) and pass1.get("error"):
         return pass1
 
-    # Python math
+    # Python math  — m (metrics) is passed through so the probability
+    # engine can read financial signals directly.
     scenario_math = compute_scenario_math(m, pass1)
 
     # Pass 2

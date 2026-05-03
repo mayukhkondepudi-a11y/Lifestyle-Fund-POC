@@ -62,7 +62,8 @@ for key, default in [
     ("report_count", 0), ("recent", []), ("cached_report", None),
     ("cached_html", None), ("trigger_ticker", None),
     ("generate_html", False), ("html_just_generated", False),
-    ("track_success", None),
+    ("track_success", None), ("_generating", False),
+    ("_scroll_to_report", False),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -1494,23 +1495,25 @@ def render_picks_table(picks, market_label, select_key):
         unsafe_allow_html=True
     )
 
-    ticker_options  = [""] + [p.get("ticker", "") for p in picks]
-    display_options = ["Select a ticker to analyze..."] + [
-        f"{p.get('ticker','').replace('.NS','').replace('.BO','')} — {p.get('name','')[:25]}"
-        for p in picks
-    ]
-    sel = st.selectbox("Analyze", display_options, label_visibility="collapsed", key=select_key)
-    if sel and sel != "Select a ticker to analyze...":
-        idx    = display_options.index(sel)
-        chosen = ticker_options[idx]
-        if chosen:
-            st.session_state["resolved"] = chosen
-            if st.session_state.get("authenticated"):
-                st.session_state["auto_generate"] = True
-                st.rerun()
-            else:
-                st.session_state["show_auth"] = True
-                st.rerun()
+    # Per-row analyze buttons — one button per pick, no redundant dropdown
+    btn_cols = st.columns(len(picks))
+    for i, (pick, col) in enumerate(zip(picks, btn_cols)):
+        tk       = pick.get("ticker", "")
+        tk_clean = tk.replace(".NS","").replace(".BO","")
+        is_selected = st.session_state.get("resolved") == tk
+        label = f"✓ {tk_clean}" if is_selected else tk_clean
+        with col:
+            if st.button(label, key=f"{select_key}_btn_{i}",
+                         type="primary" if is_selected else "secondary",
+                         use_container_width=True):
+                st.session_state["resolved"] = tk
+                st.session_state["resolved_source"] = "picks_table"
+                if st.session_state.get("authenticated"):
+                    st.session_state["auto_generate"] = True
+                    st.rerun()
+                else:
+                    st.session_state["show_auth"] = True
+                    st.rerun()
 
 # ── Load screener data ──
 screener_data = None
@@ -1550,19 +1553,41 @@ with left_col:
         "Search", placeholder="e.g. Apple, Reliance, AVGO, AAPL, RELIANCE.NS",
         label_visibility="collapsed", key="s1"
     )
-    st.markdown(
-        '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.3rem;">'
-        'Try: &nbsp;<strong style="color:rgba(255,255,255,0.6);">NVDA</strong>'
-        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">AAPL</strong>'
-        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">RELIANCE.NS</strong>'
-        ' &nbsp;<strong style="color:rgba(255,255,255,0.6);">AVGO</strong>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+    # "Try:" quick-pick pills — clicking sets the ticker via query param
+    st.markdown("""
+    <div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <span>Try:</span>
+        <a href="?_qt=NVDA" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
+           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">NVDA</a>
+        <a href="?_qt=AAPL" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
+           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">AAPL</a>
+        <a href="?_qt=RELIANCE.NS" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
+           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">RELIANCE.NS</a>
+        <a href="?_qt=AVGO" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
+           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">AVGO</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Handle ?_qt= quick-ticker param set by the pills above
+    _qt = st.query_params.get("_qt", "")
+    if _qt:
+        try: st.query_params.clear()
+        except Exception: pass
+        st.session_state["resolved"] = _qt.strip().upper()
+        st.session_state["resolved_source"] = "quickticker"
+        if st.session_state.get("authenticated"):
+            st.session_state["auto_generate"] = True
+        st.rerun()
 
     if sq and len(sq) >= 2:
+        # Text input is active — it owns `resolved`; ignore quick-pick selectors
         if len(sq) <= 12 and " " not in sq:
             st.session_state["resolved"] = sq.strip().upper()
+            st.session_state.pop("resolved_source", None)
             st.markdown(
                 f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.4);padding:0.3rem 0 0.1rem;">'
                 f'Using ticker: <strong style="color:#fff;">{sq.strip().upper()}</strong></div>',
@@ -1572,91 +1597,127 @@ with left_col:
             res = search_ticker(sq)
             if res:
                 opts = {f"{r['name']} ({r['symbol']})": r['symbol'] for r in res}
-                sel = st.selectbox("Pick result", opts.keys(), label_visibility="collapsed", key="s2")
-                if sel:
-                    st.session_state["resolved"] = opts[sel]
+                sel2 = st.selectbox("Pick result", opts.keys(), label_visibility="collapsed", key="s2")
+                if sel2:
+                    st.session_state["resolved"] = opts[sel2]
+                    st.session_state["resolved_source"] = "search"
             else:
                 st.caption("No results found. Try entering the ticker directly.")
+    else:
+        # No active text search — show quick-pick selectors.
+        # Each uses a "— …" placeholder as index 0 so nothing fires on first render.
+        pop_keys   = list(POPULAR.keys())
+        recent_rev = list(reversed(st.session_state.recent[-6:]))
 
-    pop_keys   = list(POPULAR.keys())
-    recent_rev = list(reversed(st.session_state.recent[-6:]))
-    if pop_keys and recent_rev:
-        qc1, qc2 = st.columns([1, 1])
-        with qc1:
-            sp = st.selectbox("Popular", pop_keys, label_visibility="collapsed", key="s3")
-            if sp and POPULAR[sp]:
+        if pop_keys and recent_rev:
+            qc1, qc2 = st.columns([1, 1])
+            with qc1:
+                sp = st.selectbox("Popular", ["— popular —"] + pop_keys,
+                                  label_visibility="collapsed", key="s3")
+                if sp and sp != "— popular —" and POPULAR.get(sp):
+                    st.session_state["resolved"] = POPULAR[sp]
+                    st.session_state["resolved_source"] = "popular"
+            with qc2:
+                sr = st.selectbox("Recent", ["— recent —"] + recent_rev,
+                                  label_visibility="collapsed", key="s_recent")
+                if sr and sr != "— recent —":
+                    st.session_state["resolved"] = sr
+                    st.session_state["resolved_source"] = "recent"
+        elif pop_keys:
+            sp = st.selectbox("Popular stocks", ["— popular —"] + pop_keys,
+                              label_visibility="collapsed", key="s3")
+            if sp and sp != "— popular —" and POPULAR.get(sp):
                 st.session_state["resolved"] = POPULAR[sp]
-        with qc2:
-            sr = st.selectbox("Recent", ["— recent —"] + recent_rev, label_visibility="collapsed", key="s_recent")
+                st.session_state["resolved_source"] = "popular"
+        elif recent_rev:
+            sr = st.selectbox("Recent searches", ["— recent —"] + recent_rev,
+                              label_visibility="collapsed", key="s_recent")
             if sr and sr != "— recent —":
                 st.session_state["resolved"] = sr
-    elif pop_keys:
-        sp = st.selectbox("Popular stocks", pop_keys, label_visibility="collapsed", key="s3")
-        if sp and POPULAR[sp]:
-            st.session_state["resolved"] = POPULAR[sp]
-    elif recent_rev:
-        sr = st.selectbox("Recent searches", ["— recent —"] + recent_rev, label_visibility="collapsed", key="s_recent")
-        if sr and sr != "— recent —":
-            st.session_state["resolved"] = sr
+                st.session_state["resolved_source"] = "recent"
 
     resolved_now = st.session_state.get("resolved")
     if resolved_now:
         st.markdown(
-            f'<div style="text-align:center;font-size:0.82rem;color:rgba(255,255,255,0.4);'
-            f'padding:0.5rem 0 0.1rem;font-weight:600;letter-spacing:0.04em;">'
-            f'Selected: <span style="color:#fff;">{resolved_now}</span></div>',
+            f'<div style="display:inline-flex;align-items:center;gap:0.5rem;'
+            f'background:rgba(139,26,26,0.15);border:1px solid rgba(192,48,48,0.35);'
+            f'border-radius:6px;padding:0.4rem 0.8rem;margin:0.5rem 0;">'
+            f'<span style="font-size:0.72rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.08em;">Selected</span>'
+            f'<span style="font-size:0.95rem;font-weight:800;color:#fff;">'
+            f'{resolved_now.replace(".NS","").replace(".BO","")}</span>'
+            f'</div>',
             unsafe_allow_html=True
         )
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
-    go = st.button("Generate Report", type="primary")
+
+    # Disable the button if a generation is already in flight
+    _generating = st.session_state.get("_generating", False)
+    go = st.button(
+        "⟳ Generating…" if _generating else "Generate Report",
+        type="primary",
+        disabled=_generating or not resolved_now,
+        key="generate_btn"
+    )
+    if go:
+        st.session_state["_generating"] = True
 
 # ── Right column — How It Scores (fixed: proper HTML, not string literals) ──
-with right_col:
-    st.markdown("""
-    <div style="padding:1.5rem 0 0">
-        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:1rem;">How It Scores</div>
-        <div style="margin-bottom:1.2rem;">
-            <div style="font-size:1rem;font-weight:800;color:#fff;">Q · Quality</div>
-            <div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">ROE >15%, FCF positive, D/E <1</div>
-        </div>
-        <div style="margin-bottom:1.2rem;">
-            <div style="font-size:1rem;font-weight:800;color:#fff;">G · Growth</div>
-            <div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">EPS CAGR >12%, TAM 2× GDP</div>
-        </div>
-        <div style="margin-bottom:1.2rem;">
-            <div style="font-size:1rem;font-weight:800;color:#fff;">L · Longevity</div>
-            <div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">Moat durability 5+ years</div>
-        </div>
-        <div style="margin-bottom:1.5rem;">
-            <div style="font-size:1rem;font-weight:800;color:#fff;">P · Price</div>
-            <div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">PEG <1.2× is the target</div>
-        </div>
-        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;margin-bottom:1.5rem;">
-            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-                letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">Score Bands</div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
-                <span style="font-size:0.95rem;font-weight:700;color:#4ade80;">85 – 100</span>
-                <span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Strong buy</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
-                <span style="font-size:0.95rem;font-weight:700;color:#fbbf24;">70 – 84</span>
-                <span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Watch</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;">
-                <span style="font-size:0.95rem;font-weight:700;color:#f87171;">< 70</span>
-                <span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Pass</span>
-            </div>
-        </div>
-        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;">
-            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-                letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">Account</div>
-            <div style="font-size:0.92rem;color:rgba(255,255,255,0.5);line-height:1.7;">
-                3 full reports free. Screener browsing always free, no login needed.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    with right_col:
+     st.markdown(
+        '<div style="padding:1.5rem 0 0;">'
+
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:1rem;">'
+        'How It Scores</div>'
+
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">Q &middot; Quality</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'ROE &gt;15%, FCF positive, D/E &lt;1</div></div>'
+
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">G &middot; Growth</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'EPS CAGR &gt;12%, TAM 2&times; GDP</div></div>'
+
+        '<div style="margin-bottom:1.2rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">L &middot; Longevity</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'Moat durability 5+ years</div></div>'
+
+        '<div style="margin-bottom:1.5rem;">'
+        '<div style="font-size:1rem;font-weight:800;color:#fff;">P &middot; Price</div>'
+        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
+        'PEG &lt;1.2&times; is the target</div></div>'
+
+        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;'
+        'margin-bottom:1.5rem;">'
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
+        'Score Bands</div>'
+        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#4ade80;">85 &ndash; 100</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Strong buy</span></div>'
+        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#fbbf24;">70 &ndash; 84</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Watch</span></div>'
+        '<div style="display:flex;justify-content:space-between;">'
+        '<span style="font-size:0.95rem;font-weight:700;color:#f87171;">&lt; 70</span>'
+        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Pass</span></div>'
+        '</div>'
+
+        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;">'
+        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
+        'Account</div>'
+        '<div style="font-size:0.92rem;color:rgba(255,255,255,0.5);line-height:1.7;">'
+        '3 full reports free. Screener browsing always free, no login needed.</div>'
+        '</div>'
+
+        '</div>',
+        unsafe_allow_html=True
+    )
 
 # ── QGLP Top Picks table ──────────────────────────────────────
 report_already_run = bool(st.session_state.get("cached_report"))
@@ -1685,6 +1746,7 @@ if go and not st.session_state.get("authenticated"):
 report_count = st.session_state.get("report_count", 0)
 if authenticated:
     if is_guest:
+        # Always show guest limit — they need to know they only get 1
         st.markdown(f"""
         <div style="display:flex;align-items:center;justify-content:space-between;
         background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.07);
@@ -1694,16 +1756,19 @@ if authenticated:
             <span style="font-size:0.75rem;color:#e03030;font-weight:700;">Create account → 3 reports</span>
         </div>
         """, unsafe_allow_html=True)
-    else:
+    elif report_count > 0:
+        # Only show the bar once they've actually used a report
+        bar_pct   = min(report_count / 3 * 100, 100)
         bar_color = "#4ade80" if report_count < 2 else "#fbbf24" if report_count < 3 else "#f87171"
+        limit_msg = " &nbsp;·&nbsp; <span style='color:#f87171;'>Limit reached — paid tiers coming soon</span>" if report_count >= 3 else ""
         st.markdown(f"""
         <div style="display:flex;align-items:center;gap:0.8rem;
         background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.07);
         border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
             <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
-                Reports used: <strong style="color:#fff">{report_count}/3</strong></span>
+                Reports: <strong style="color:#fff">{report_count}/3</strong>{limit_msg}</span>
             <div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;">
-                <div style="width:{min(report_count/3*100,100):.0f}%;height:100%;background:{bar_color};border-radius:2px;"></div>
+                <div style="width:{bar_pct:.0f}%;height:100%;background:{bar_color};border-radius:2px;"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1724,6 +1789,9 @@ auto_gen        = st.session_state.pop("auto_generate", False)
 if (go or auto_gen) and resolved and st.session_state.get("authenticated"):
     ticker          = resolved.strip().upper()
     should_generate = True
+    # Clear so a page refresh or back-button doesn't re-trigger the same report
+    st.session_state.pop("resolved", None)
+    st.session_state.pop("resolved_source", None)
 elif go and not resolved and st.session_state.get("authenticated"):
     with status_area:
         st.warning("Select or enter a company first.")
@@ -1731,6 +1799,19 @@ elif go and not resolved and st.session_state.get("authenticated"):
 if should_generate and ticker:   # ← every subsequent block lives inside here
     GUEST_LIMIT = 1
     USER_LIMIT  = 3
+
+    # For signed-in users: re-fetch the authoritative count from GitHub
+    # so opening a second tab can't bypass the cap.
+    if not is_guest:
+        try:
+            from auth import load_users_github
+            _u, _ = load_users_github()
+            if username in _u:
+                # Sync session state with the persisted value
+                st.session_state.report_count = _u[username].get("report_count", 0)
+                report_count = st.session_state.report_count
+        except Exception:
+            pass  # fall back to session-state value if GitHub unreachable
 
     if is_guest and report_count >= GUEST_LIMIT:
         st.markdown("""
@@ -1768,14 +1849,15 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
         st.session_state.recent.append(ticker)
     st.session_state.report_count += 1
 
-    # Persist count for signed-in users
+    # Persist count for signed-in users — always write to GitHub so it
+    # survives Streamlit restarts (local save_users() does NOT persist).
     if not is_guest:
         try:
-            from auth import load_users, save_users
-            users, sha = load_users()
-            if username in users:
-                users[username]["report_count"] = st.session_state.report_count
-                save_users(users, sha)
+            from auth import load_users_github, save_users_github
+            _u, _sha = load_users_github()
+            if username in _u:
+                _u[username]["report_count"] = st.session_state.report_count
+                save_users_github(_u, _sha)
         except Exception as e:
             print(f"Could not persist report count: {e}")
 
@@ -1872,7 +1954,11 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
             rec = a.get("recommendation", "WATCH")
             status.update(label=f"✅ Analysis complete: {company_name} / {rec}", state="complete")
 
+    st.session_state["_generating"] = False  # re-enable button
+
     st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
+    # Auto-scroll to report — fires once after generation completes
+    st.session_state["_scroll_to_report"] = True
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
@@ -1895,6 +1981,43 @@ if st.session_state.cached_report:
             print(f"Report save failed: {e}")
 
     with report_area:
+        # ── Scroll anchor + auto-scroll JS ──
+        st.markdown('<div id="pickr-report-top"></div>', unsafe_allow_html=True)
+        if st.session_state.pop("_scroll_to_report", False):
+            _sc.html("""
+            <script>
+            (function(){
+                function scroll(){
+                    var el = window.parent.document.getElementById('pickr-report-top');
+                    if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+                    else { window.parent.scrollTo({top: window.parent.document.body.scrollHeight, behavior:'smooth'}); }
+                }
+                setTimeout(scroll, 400);
+            })();
+            </script>
+            """, height=0, scrolling=False)
+
+        # ── "Analyze another stock" bar ──
+        _rec_now = c_a.get("recommendation","WATCH").upper()
+        _rc_col  = {"BUY":"#4ade80","PASS":"#f87171"}.get(_rec_now,"#fbbf24")
+        st.markdown(
+            f'<div style="display:flex;align-items:center;justify-content:space-between;'
+            f'background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.08);'
+            f'border-radius:8px;padding:0.7rem 1.2rem;margin-bottom:1rem;">'
+            f'<span style="font-size:0.82rem;color:rgba(255,255,255,0.5);">'
+            f'Viewing: <strong style="color:#fff;">{c_ticker}</strong>'
+            f'&nbsp;&nbsp;<span style="color:{_rc_col};font-weight:700;">{_rec_now}</span>'
+            f'</span>'
+            f'<span style="font-size:0.75rem;color:rgba(255,255,255,0.3);">↑ search above to run another report</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        if st.button("✕  Clear — analyze a different stock", key="clear_report_btn"):
+            st.session_state.cached_report = None
+            st.session_state.pop("resolved", None)
+            st.session_state.pop("resolved_source", None)
+            st.rerun()
+
         render(c_ticker, c_m, c_a, c_data)
         render_track_box(c_ticker, c_m, c_a)
 
