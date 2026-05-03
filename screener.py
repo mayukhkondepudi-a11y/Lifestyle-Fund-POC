@@ -10,6 +10,17 @@ Key improvements over v1:
   • Exponential back-off on rate errors instead of fixed sleep
   • Min market-cap pre-filter before any API call
   • Configurable via env vars: PHASE1_WORKERS, MAX_PICKS, CACHE_TTL_DAYS
+
+PEG computation (v2):
+  Mirrors the exact same 4-priority chain used in compute._compute_peg so
+  screener and report PEG values are always consistent:
+    1. earningsGrowth from yfinance (analyst forward consensus)
+    2. Derived from forward_eps vs trailing_eps
+    3. Historical EPS CAGR from statements — capped at 25%
+    4. Historical NI CAGR from statements  — capped at 25%
+  Raw historical CAGR without a cap is NEVER used directly for PEG to
+  prevent cyclicals / insurers with lumpy earnings from getting false
+  low-PEG scores (e.g. TRV showing <1 PEG when forward PEG is 7+).
 """
 
 import json
@@ -111,7 +122,7 @@ def _retry(fn, retries: int = 3, base_sleep: float = 2.0):
 
 
 def _get_info(ticker: str):
-    """Fetch yf info with retry. Returns (info_dict, error_str)."""
+    """Fetch yf info with retry. Returns (ticker_obj, error_str)."""
     def _fetch():
         t    = yf.Ticker(ticker)
         info = t.info
@@ -195,7 +206,7 @@ def _de_from_statements(t):
 
 def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
     """
-    Returns (metrics_dict, yf_ticker_obj) on pass,
+    Returns (metrics_dict, None) on pass,
             (None, reason_str) on fail.
     """
     # Check skip cache first
@@ -203,9 +214,6 @@ def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
     if cached:
         if cached["result"] == "fail":
             return None, f"[cached] {cached['reason']}"
-        # cached pass — need to re-fetch to get live data anyway; cache just
-        # prevents re-running tickers that ALWAYS fail (no data / wrong sector)
-        pass
 
     t_obj, err = _get_info(ticker)
     if t_obj is None:
@@ -242,19 +250,21 @@ def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
     fcf_yield = round(fcf / mcap, 4) if mcap and mcap > 0 else None
 
     return {
-        "ticker":      ticker,
-        "name":        info.get("shortName", ticker),
-        "sector":      info.get("sector", ""),
-        "price":       info.get("currentPrice") or info.get("regularMarketPrice"),
-        "market_cap":  mcap,
-        "trailing_pe": info.get("trailingPE"),
-        "forward_pe":  info.get("forwardPE"),
-        "forward_eps": info.get("forwardEps"),
-        "roe":         roe,
-        "debt_equity": de,
-        "fcf":         fcf,
-        "fcf_yield":   fcf_yield,
-        "_t_obj":      t_obj,   # carry the Ticker object into phase 2
+        "ticker":        ticker,
+        "name":          info.get("shortName", ticker),
+        "sector":        info.get("sector", ""),
+        "price":         info.get("currentPrice") or info.get("regularMarketPrice"),
+        "market_cap":    mcap,
+        "trailing_pe":   info.get("trailingPE"),
+        "forward_pe":    info.get("forwardPE"),
+        "trailing_eps":  info.get("trailingEps"),
+        "forward_eps":   info.get("forwardEps"),
+        "earnings_growth": info.get("earningsGrowth"),  # analyst forward consensus
+        "roe":           roe,
+        "debt_equity":   de,
+        "fcf":           fcf,
+        "fcf_yield":     fcf_yield,
+        "_t_obj":        t_obj,   # carry the Ticker object into phase 2
     }, None
 
 
@@ -263,21 +273,28 @@ def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
 # ══════════════════════════════════════════════════════════════
 
 def _fetch_earnings_cagr(t_obj):
-    """Compute earnings CAGR from cached Ticker object — no new network call."""
+    """
+    Compute historical earnings CAGR from cached Ticker object.
+    No new network call — reuses the income_stmt already loaded.
+    Returns (cagr_float, years_int).
+    """
     try:
         inc = t_obj.income_stmt
         if inc is None or inc.empty:
             return None, 0
 
-        # Try EPS rows first (more accurate)
+        # Try EPS rows first (more accurate than net income)
         for lbl in ["Diluted EPS", "Basic EPS"]:
             if lbl in inc.index:
                 row = inc.loc[lbl].dropna().sort_index()
                 if len(row) >= 2:
                     if len(row) >= 5:
-                        oldest, newest, years = float(row.iloc[-5]), float(row.iloc[-1]), 4
+                        oldest, newest, years = (float(row.iloc[-5]),
+                                                  float(row.iloc[-1]), 4)
                     else:
-                        oldest, newest, years = float(row.iloc[0]), float(row.iloc[-1]), len(row) - 1
+                        oldest, newest, years = (float(row.iloc[0]),
+                                                  float(row.iloc[-1]),
+                                                  len(row) - 1)
                     if oldest > 0 and years > 0:
                         return round((newest / oldest) ** (1 / years) - 1, 4), years
 
@@ -286,12 +303,77 @@ def _fetch_earnings_cagr(t_obj):
             if lbl in inc.index:
                 row = inc.loc[lbl].dropna().sort_index()
                 if len(row) >= 2:
-                    oldest, newest, years = float(row.iloc[0]), float(row.iloc[-1]), len(row) - 1
+                    oldest = float(row.iloc[0])
+                    newest = float(row.iloc[-1])
+                    years  = len(row) - 1
                     if oldest > 0 and years > 0:
                         return round((newest / oldest) ** (1 / years) - 1, 4), years
     except Exception:
         pass
     return None, 0
+
+
+def _compute_screener_peg(m: dict, historical_cagr) -> float | None:
+    """
+    Compute PEG using the same 4-priority chain as compute._compute_peg
+    so screener and report values are always consistent.
+
+    Priority
+    --------
+    1. earningsGrowth  — yfinance analyst forward consensus (direct field)
+    2. Derived from forward_eps vs trailing_eps
+    3. Historical EPS/NI CAGR from statements — CAPPED at 25%
+
+    The cap on historical CAGR is critical: without it, a stock like TRV
+    with a lumpy earnings base year shows a 30%+ CAGR → PEG < 1 when the
+    true forward PEG is 7+.  The cap keeps the screener honest.
+
+    Returns peg float, or None if no valid growth rate or PE is available.
+    """
+    pe = m.get("forward_pe") or m.get("trailing_pe")
+    if not pe or pe <= 0:
+        return None
+
+    growth = None
+
+    # Priority 1: analyst forward consensus
+    eg = m.get("earnings_growth")
+    if eg is not None:
+        try:
+            g_val = float(eg)
+            g_pct = g_val * 100 if abs(g_val) < 1 else g_val
+            if g_pct > 0:
+                growth = g_pct
+                print(f"    PEG [{m['ticker']}]: earnings_growth = {growth:.1f}%")
+        except Exception:
+            pass
+
+    # Priority 2: derived from forward_eps vs trailing_eps
+    if growth is None:
+        fwd   = m.get("forward_eps")
+        trail = m.get("trailing_eps")
+        if fwd and trail:
+            try:
+                fwd, trail = float(fwd), float(trail)
+                if fwd > 0 and trail > 0 and trail != fwd:
+                    derived = ((fwd - trail) / abs(trail)) * 100
+                    if derived > 0:
+                        growth = derived
+                        print(f"    PEG [{m['ticker']}]: derived fwd/trail EPS "
+                              f"= {growth:.1f}%")
+            except Exception:
+                pass
+
+    # Priority 3: historical CAGR — capped at 25%
+    if growth is None and historical_cagr is not None and historical_cagr > 0:
+        growth = min(historical_cagr * 100, 25.0)
+        print(f"    PEG [{m['ticker']}]: historical CAGR = {growth:.1f}% "
+              f"(capped at 25%)")
+
+    if not growth or growth <= 0:
+        return None
+
+    return round(pe / growth, 3)
 
 
 def _phase2_ticker(m: dict, filters: dict, cache: dict):
@@ -311,15 +393,12 @@ def _phase2_ticker(m: dict, filters: dict, cache: dict):
     m["earnings_cagr"]       = cagr
     m["earnings_cagr_years"] = cagr_years
 
-    pe = m.get("forward_pe") or m.get("trailing_pe")
-    if pe and pe > 0 and cagr > 0:
-        peg = round(pe / (cagr * 100), 3)
-        m["peg_ratio"] = peg
-    else:
-        m["peg_ratio"] = None
+    # Use corrected PEG computation — same logic as compute._compute_peg
+    peg = _compute_screener_peg(m, cagr)
+    m["peg_ratio"] = peg
 
-    if m["peg_ratio"] is None or m["peg_ratio"] > filters["max_peg"]:
-        _cache_write(cache, ticker, "fail", f"PEG {m.get('peg_ratio')}")
+    if peg is None or peg > filters["max_peg"]:
+        _cache_write(cache, ticker, "fail", f"PEG {peg}")
         return False
 
     m["qglp_score"] = compute_qglp_score(m)
@@ -445,11 +524,11 @@ def _clean(m: dict) -> dict:
 
 def save_results(us_picks: list, india_picks: list):
     results = {
-        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        "filters_us":   FILTERS,
+        "last_updated":  datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "filters_us":    FILTERS,
         "filters_india": FILTERS_INDIA,
-        "us_picks":    [_clean(m) for m in us_picks],
-        "india_picks": [_clean(m) for m in india_picks],
+        "us_picks":      [_clean(m) for m in us_picks],
+        "india_picks":   [_clean(m) for m in india_picks],
     }
 
     with open(OUTPUT_FILE, "w") as f:

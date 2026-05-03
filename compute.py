@@ -275,7 +275,24 @@ def _cross_validate_forward_pe(m, info):
 
 
 def _compute_peg(m):
-    """PEG ratio from multi-year earnings CAGR against forward PE."""
+    """
+    PEG ratio — forward PE divided by forward/consensus earnings growth.
+
+    Growth rate priority:
+      1. earnings_growth from yfinance (analyst forward consensus) — most accurate.
+         This is what Finviz, Bloomberg and most screeners use.
+      2. eps_cagr (historical 4-year, from statements) — fallback only.
+         Capped at 25% to prevent lumpy years (insurers, cyclicals, commodity
+         companies) from producing artificially low PEGs.
+      3. net_income_cagr — last resort, same 25% cap.
+
+    Why the cap matters: a company like TRV (Travelers) may show a 30%+
+    historical EPS CAGR if it had a bad cat-loss year 4 years ago and a
+    clean year recently. That produces a PEG under 1 when the forward
+    consensus growth is ~5%, giving a true PEG of 7+. The cap prevents
+    this whilst preserving the fallback for stocks where no forward
+    estimate is available.
+    """
     m["peg_ratio"] = None
     try:
         pe = safe_float(m.get("forward_pe"))
@@ -286,17 +303,38 @@ def _compute_peg(m):
 
         growth = None
 
-        if m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
-            growth = float(m["eps_cagr"]) * 100
-
-        if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
-            growth = float(m["net_income_cagr"]) * 100
-
-        if growth is None and m.get("earnings_growth"):
+        # Priority 1: yfinance earningsGrowth (analyst consensus, direct field)
+        if m.get("earnings_growth"):
             g_val = float(m["earnings_growth"])
             g_pct = g_val * 100 if abs(g_val) < 1 else g_val
             if g_pct > 0:
                 growth = g_pct
+                print(f"  PEG: using earnings_growth = {growth:.1f}%")
+
+        # Priority 2: derive from forward_eps vs trailing_eps.
+        # More reliable than historical CAGR and works for any stock that
+        # has a forward PE — including Indian stocks where yfinance often
+        # omits earningsGrowth entirely.  forward_eps may itself have been
+        # derived from price / forward_pe in _cross_validate_forward_pe,
+        # so this path is available even when the API returns nothing.
+        if growth is None:
+            fwd   = safe_float(m.get("forward_eps"))
+            trail = safe_float(m.get("trailing_eps"))
+            if fwd > 0 and trail > 0 and trail != fwd:
+                derived = ((fwd - trail) / abs(trail)) * 100
+                if derived > 0:
+                    growth = derived
+                    print(f"  PEG: derived growth from fwd/trail EPS = {growth:.1f}%")
+
+        # Priority 3: historical EPS CAGR — capped at 25%
+        if growth is None and m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
+            growth = min(float(m["eps_cagr"]) * 100, 25.0)
+            print(f"  PEG: using eps_cagr = {growth:.1f}% (historical, capped at 25%)")
+
+        # Priority 4: historical NI CAGR — capped at 25%
+        if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
+            growth = min(float(m["net_income_cagr"]) * 100, 25.0)
+            print(f"  PEG: using net_income_cagr = {growth:.1f}% (historical, capped at 25%)")
 
         if growth and growth > 0:
             peg = round(pe / growth, 2)
