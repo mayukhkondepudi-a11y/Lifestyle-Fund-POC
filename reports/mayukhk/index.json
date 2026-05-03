@@ -61,5 +61,14 @@
     "timestamp": "2026-05-02 20:35",
     "recommendation": "BUY",
     "expected_return": 0.4384
+  },
+  {
+    "report_id": "MARUTI.NS_2026-05-03",
+    "ticker": "MARUTI.NS",
+    "company_name": "MARUTI SUZUKI INDIA LTD.",
+    "date": "2026-05-03",
+    "timestamp": "2026-05-03 17:00",
+    "recommendation": "BUY",
+    "expected_return": 0.1383
   }
 ]
