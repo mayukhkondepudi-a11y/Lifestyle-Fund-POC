@@ -70,5 +70,14 @@
     "timestamp": "2026-05-03 17:00",
     "recommendation": "BUY",
     "expected_return": 0.1383
+  },
+  {
+    "report_id": "TRV_2026-05-04",
+    "ticker": "TRV",
+    "company_name": "The Travelers Companies, Inc.",
+    "date": "2026-05-04",
+    "timestamp": "2026-05-04 15:14",
+    "recommendation": "BUY",
+    "expected_return": 0.3496
   }
 ]
