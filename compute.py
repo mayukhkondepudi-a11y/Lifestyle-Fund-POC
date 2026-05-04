@@ -70,6 +70,7 @@ def calc(data):
     m = _compute_cagrs(m, data)
     m = _cross_validate_forward_pe(m, info)
     m = _compute_peg(m)
+    m = _check_growth_consistency(m)
     m = _compute_price_history(m, data)
     m["news"] = [{"title": n.get("title", ""), "publisher": n.get("publisher", "")}
                  for n in data.get("news", [])]
@@ -278,22 +279,46 @@ def _compute_peg(m):
     """
     PEG ratio — forward PE divided by forward/consensus earnings growth.
 
-    Growth rate priority:
-      1. earnings_growth from yfinance (analyst forward consensus) — most accurate.
-         This is what Finviz, Bloomberg and most screeners use.
-      2. eps_cagr (historical 4-year, from statements) — fallback only.
-         Capped at 25% to prevent lumpy years (insurers, cyclicals, commodity
-         companies) from producing artificially low PEGs.
-      3. net_income_cagr — last resort, same 25% cap.
+    DESIGN PHILOSOPHY
+    -----------------
+    PEG is only meaningful when the growth rate used reflects what the market
+    is actually pricing in — i.e. forward analyst consensus, not a historical
+    CAGR that may be distorted by a trough base year.
 
-    Why the cap matters: a company like TRV (Travelers) may show a 30%+
-    historical EPS CAGR if it had a bad cat-loss year 4 years ago and a
-    clean year recently. That produces a PEG under 1 when the forward
-    consensus growth is ~5%, giving a true PEG of 7+. The cap prevents
-    this whilst preserving the fallback for stocks where no forward
-    estimate is available.
+    We surface both forward and historical growth rates to the metrics dict
+    so the LLM has full context and can reason about divergences rather than
+    blindly anchoring on one number.
+
+    GROWTH RATE PRIORITY
+    --------------------
+    1. earnings_growth from yfinance — analyst forward consensus (NTM).
+       CRITICAL: if this is negative, PEG is undefined. We do NOT fall
+       through to historical CAGR in this case because that would silently
+       replace a bearish forward signal with a flattering historical number.
+       Example: Maruti earnings_growth = -6.4% (analysts see near-term
+       earnings decline). Falling through to eps_cagr = 53% (COVID trough
+       distortion) would produce PEG = 0.4x and a false bull thesis.
+
+    2. Derived from forward_eps vs trailing_eps — one-year implied growth.
+       Only used when earnings_growth is entirely absent (None), not when
+       it is present but negative.
+
+    3. Historical EPS CAGR — capped at 25% to prevent trough distortions.
+       Last resort when no forward-looking data is available at all.
+
+    4. Historical NI CAGR — same 25% cap, absolute last resort.
+
+    DIVERGENCE FLAG
+    ---------------
+    When forward growth and historical CAGR diverge by >20 percentage points
+    we store a warning in m["peg_growth_conflict"] so the LLM prompt can
+    surface this tension explicitly in the narrative rather than ignoring it.
     """
-    m["peg_ratio"] = None
+    m["peg_ratio"]           = None
+    m["peg_growth_used"]     = None   # what growth rate was actually used
+    m["peg_growth_source"]   = None   # where it came from
+    m["peg_growth_conflict"] = None   # set if forward vs historical diverge badly
+
     try:
         pe = safe_float(m.get("forward_pe"))
         if pe <= 0:
@@ -301,22 +326,50 @@ def _compute_peg(m):
         if pe <= 0:
             return m
 
-        growth = None
+        # ── Collect historical CAGR for comparison regardless of what we use ──
+        hist_cagr_raw = None
+        if m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
+            hist_cagr_raw = float(m["eps_cagr"]) * 100
+        elif m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
+            hist_cagr_raw = float(m["net_income_cagr"]) * 100
+        m["peg_historical_cagr"] = round(hist_cagr_raw, 1) if hist_cagr_raw else None
 
-        # Priority 1: yfinance earningsGrowth (analyst consensus, direct field)
-        if m.get("earnings_growth"):
+        growth = None
+        source = None
+
+        # ── Priority 1: yfinance earnings_growth (analyst forward consensus) ──
+        if m.get("earnings_growth") is not None:
             g_val = float(m["earnings_growth"])
             g_pct = g_val * 100 if abs(g_val) < 1 else g_val
-            if g_pct > 0:
-                growth = g_pct
-                print(f"  PEG: using earnings_growth = {growth:.1f}%")
 
-        # Priority 2: derive from forward_eps vs trailing_eps.
-        # More reliable than historical CAGR and works for any stock that
-        # has a forward PE — including Indian stocks where yfinance often
-        # omits earningsGrowth entirely.  forward_eps may itself have been
-        # derived from price / forward_pe in _cross_validate_forward_pe,
-        # so this path is available even when the API returns nothing.
+            if g_pct <= 0:
+                # Negative or zero forward growth = PEG undefined.
+                # Do NOT fall through — that would silently replace a bearish
+                # analyst signal with a potentially inflated historical CAGR.
+                print(f"  PEG: earnings_growth is {g_pct:.1f}% (negative/zero) — "
+                      f"PEG undefined. Not falling through to historical CAGR.")
+                m["peg_growth_source"] = "earnings_growth_negative"
+                m["peg_growth_used"]   = round(g_pct, 1)
+
+                # Still flag conflict if historical is wildly different
+                if hist_cagr_raw and hist_cagr_raw > 20:
+                    conflict = (
+                        f"Forward analyst growth ({g_pct:.1f}%) is negative but "
+                        f"historical CAGR is {hist_cagr_raw:.1f}%. This likely "
+                        f"reflects a trough base year in historical data — "
+                        f"the historical CAGR is NOT a reliable forward estimate."
+                    )
+                    m["peg_growth_conflict"] = conflict
+                    print(f"  PEG CONFLICT: {conflict}")
+                return m   # peg_ratio stays None — correct outcome
+
+            growth = g_pct
+            source = "earnings_growth"
+            print(f"  PEG: using earnings_growth = {growth:.1f}%")
+
+        # ── Priority 2: derived from forward_eps vs trailing_eps ──
+        # Only reached when earnings_growth is entirely absent (None),
+        # not when it was present but negative (handled above).
         if growth is None:
             fwd   = safe_float(m.get("forward_eps"))
             trail = safe_float(m.get("trailing_eps"))
@@ -324,30 +377,111 @@ def _compute_peg(m):
                 derived = ((fwd - trail) / abs(trail)) * 100
                 if derived > 0:
                     growth = derived
+                    source = "fwd_trail_eps_derived"
                     print(f"  PEG: derived growth from fwd/trail EPS = {growth:.1f}%")
 
-        # Priority 3: historical EPS CAGR — capped at 25%
-        if growth is None and m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
-            growth = min(float(m["eps_cagr"]) * 100, 25.0)
-            print(f"  PEG: using eps_cagr = {growth:.1f}% (historical, capped at 25%)")
+        # ── Priority 3: historical EPS CAGR — capped at 25% ──
+        if growth is None and hist_cagr_raw:
+            growth = min(hist_cagr_raw, 25.0)
+            source = "eps_cagr_historical"
+            print(f"  PEG: using historical CAGR = {growth:.1f}% (capped at 25%)")
 
-        # Priority 4: historical NI CAGR — capped at 25%
-        if growth is None and m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
-            growth = min(float(m["net_income_cagr"]) * 100, 25.0)
-            print(f"  PEG: using net_income_cagr = {growth:.1f}% (historical, capped at 25%)")
+        if not growth or growth <= 0:
+            print(f"  PEG: no usable growth rate available")
+            return m
 
-        if growth and growth > 0:
-            peg = round(pe / growth, 2)
-            if 0 < peg <= 5.0:
-                m["peg_ratio"] = peg
-                print(f"  PEG computed: {pe:.1f}x PE / {growth:.1f}% growth = {peg:.2f}")
-            else:
-                print(f"  PEG computed but out of range ({peg:.2f}), discarding")
+        # ── Flag divergence between forward and historical ──
+        if hist_cagr_raw and source != "eps_cagr_historical":
+            divergence = abs(growth - hist_cagr_raw)
+            if divergence > 20:
+                conflict = (
+                    f"Forward growth used for PEG ({growth:.1f}%, source: {source}) "
+                    f"diverges significantly from historical CAGR "
+                    f"({hist_cagr_raw:.1f}%). Gap of {divergence:.1f}pp likely "
+                    f"reflects a trough or peak base year — treat historical "
+                    f"CAGR with caution."
+                )
+                m["peg_growth_conflict"] = conflict
+                print(f"  PEG CONFLICT: {conflict}")
+
+        # ── Compute PEG ──
+        peg = round(pe / growth, 2)
+        m["peg_growth_used"]   = round(growth, 1)
+        m["peg_growth_source"] = source
+
+        if 0 < peg <= 5.0:
+            m["peg_ratio"] = peg
+            print(f"  PEG computed: {pe:.1f}x PE / {growth:.1f}% = {peg:.2f} "
+                  f"(source: {source})")
         else:
-            print(f"  PEG: no positive earnings growth available")
+            print(f"  PEG out of range ({peg:.2f}), discarding "
+                  f"(source: {source}, growth: {growth:.1f}%)")
 
     except Exception as e:
         print(f"  PEG computation error: {e}")
+    return m
+
+
+def _check_growth_consistency(m):
+    """
+    Cross-check revenue_growth vs earnings_growth for internal consistency.
+
+    WHY THIS EXISTS
+    ---------------
+    yfinance sometimes returns stale or mismatched fields — e.g. revenue_growth
+    from a recent quarter but earnings_growth from an older estimate, or one
+    field from standalone and another from consolidated financials.
+
+    A divergence of >20 percentage points between revenue growth and earnings
+    growth is a strong signal that at least one figure is unreliable.  Real
+    operating leverage or compression rarely produces gaps this large.
+
+    Example: Maruti shows revenue_growth=28.2% but earnings_growth=-6.4%.
+    That would imply catastrophic margin collapse that isn't happening.
+    One of those numbers is stale or from a different reporting scope.
+
+    We store the warning in m["data_quality_warnings"] (a list) so it can be
+    passed to the LLM prompt and surfaced in the report narrative, and also
+    printed to Streamlit logs for the operator to see.
+    """
+    if "data_quality_warnings" not in m:
+        m["data_quality_warnings"] = []
+
+    rev_g  = m.get("revenue_growth")
+    earn_g = m.get("earnings_growth")
+
+    if rev_g is not None and earn_g is not None:
+        try:
+            rev_pct  = float(rev_g)  * 100 if abs(float(rev_g))  < 1 else float(rev_g)
+            earn_pct = float(earn_g) * 100 if abs(float(earn_g)) < 1 else float(earn_g)
+            divergence = abs(rev_pct - earn_pct)
+
+            if divergence > 20:
+                warning = (
+                    f"DATA QUALITY WARNING: revenue_growth ({rev_pct:.1f}%) and "
+                    f"earnings_growth ({earn_pct:.1f}%) diverge by {divergence:.1f}pp. "
+                    f"This likely indicates stale, mismatched, or standalone-vs-consolidated "
+                    f"scope mismatch in yfinance data. Treat both figures with caution "
+                    f"and do not anchor the investment thesis on either alone."
+                )
+                m["data_quality_warnings"].append(warning)
+                print(f"  {warning}")
+        except Exception:
+            pass
+
+    # Also warn if historical EPS CAGR is implausibly high (>40%) which almost
+    # always signals a trough base year rather than genuine compounding.
+    hist_cagr = m.get("peg_historical_cagr")
+    if hist_cagr and hist_cagr > 40:
+        warning = (
+            f"DATA QUALITY WARNING: historical EPS CAGR is {hist_cagr:.1f}% — "
+            f"extremely high CAGRs almost always reflect a depressed base year "
+            f"(COVID, commodity spike, one-off loss) rather than genuine compounding. "
+            f"Do not use this as a forward growth estimate."
+        )
+        m["data_quality_warnings"].append(warning)
+        print(f"  {warning}")
+
     return m
 
 
