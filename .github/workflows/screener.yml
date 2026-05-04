@@ -29,6 +29,19 @@ jobs:
       - name: Install dependencies
         run: pip install yfinance
 
+        •⁠  ⁠name: Debug import
+      run: |
+        python -c "
+import sys
+try:
+    import screener
+    print('screener import OK')
+except Exception as e:
+    print(f'IMPORT FAILED: {e}')
+    import traceback
+    traceback.print_exc()
+"
+
       # 4. Run screener
       - name: Run screener
         env:
