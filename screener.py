@@ -259,7 +259,10 @@ def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
         "forward_pe":    info.get("forwardPE"),
         "trailing_eps":  info.get("trailingEps"),
         "forward_eps":   info.get("forwardEps"),
-        "earnings_growth": info.get("earningsGrowth"),  # analyst forward consensus
+        "earnings_growth": (                          # analyst forward consensus
+            info.get("earningsGrowth") or            # primary yfinance field
+            info.get("earningsQuarterlyGrowth")      # fallback — yfinance is inconsistent
+        ),
         "roe":           roe,
         "debt_equity":   de,
         "fcf":           fcf,
@@ -313,42 +316,68 @@ def _fetch_earnings_cagr(t_obj):
     return None, 0
 
 
-def _compute_screener_peg(m: dict, historical_cagr) -> float | None:
+def _compute_screener_peg(m: dict, historical_cagr) -> tuple:
     """
-    Compute PEG using the same 4-priority chain as compute._compute_peg
-    so screener and report values are always consistent.
+    Compute PEG mirroring compute._compute_peg exactly — same priority
+    chain, same negative-growth handling, same conflict detection.
+
+    Returns (peg_or_None, growth_source_str, conflict_str_or_None)
+    so _phase2_ticker can log and cache rich diagnostic info.
 
     Priority
     --------
-    1. earningsGrowth  — yfinance analyst forward consensus (direct field)
-    2. Derived from forward_eps vs trailing_eps
-    3. Historical EPS/NI CAGR from statements — CAPPED at 25%
-
-    The cap on historical CAGR is critical: without it, a stock like TRV
-    with a lumpy earnings base year shows a 30%+ CAGR → PEG < 1 when the
-    true forward PEG is 7+.  The cap keeps the screener honest.
-
-    Returns peg float, or None if no valid growth rate or PE is available.
+    1. earningsGrowth from yfinance — analyst forward consensus.
+       CRITICAL: if negative, PEG is undefined and we do NOT fall through
+       to historical CAGR.  A negative analyst signal must not be silently
+       replaced by a flattering historical number.
+    2. Derived from forward_eps vs trailing_eps (one-year implied growth).
+       Only reached when earnings_growth is entirely absent (None).
+    3. Historical EPS/NI CAGR — capped at 25% to prevent trough distortion.
+       Last resort only.
     """
     pe = m.get("forward_pe") or m.get("trailing_pe")
     if not pe or pe <= 0:
-        return None
+        return None, "no_pe", None
 
-    growth = None
+    ticker   = m.get("ticker", "?")
+    growth   = None
+    source   = None
+    conflict = None
 
-    # Priority 1: analyst forward consensus
+    # Collect historical CAGR for comparison regardless of what we use
+    hist_cagr_pct = None
+    if historical_cagr and historical_cagr > 0:
+        hist_cagr_pct = historical_cagr * 100
+
+    # ── Priority 1: analyst forward consensus ──────────────────
     eg = m.get("earnings_growth")
     if eg is not None:
         try:
             g_val = float(eg)
             g_pct = g_val * 100 if abs(g_val) < 1 else g_val
-            if g_pct > 0:
-                growth = g_pct
-                print(f"    PEG [{m['ticker']}]: earnings_growth = {growth:.1f}%")
+
+            if g_pct <= 0:
+                # Negative forward growth = PEG undefined.
+                # Do NOT fall through to historical CAGR.
+                print(f"    PEG [{ticker}]: earnings_growth={g_pct:.1f}% "
+                      f"(negative) — PEG undefined, not falling through")
+                if hist_cagr_pct and hist_cagr_pct > 20:
+                    conflict = (
+                        f"Forward analyst growth ({g_pct:.1f}%) is negative "
+                        f"but historical CAGR is {hist_cagr_pct:.1f}%. "
+                        f"Likely trough distortion in historical data."
+                    )
+                    print(f"    PEG CONFLICT [{ticker}]: {conflict}")
+                return None, "earnings_growth_negative", conflict
+
+            growth = g_pct
+            source = "earnings_growth"
+            print(f"    PEG [{ticker}]: earnings_growth = {growth:.1f}%")
         except Exception:
             pass
 
-    # Priority 2: derived from forward_eps vs trailing_eps
+    # ── Priority 2: derived from forward_eps vs trailing_eps ──
+    # Only reached when earnings_growth is entirely absent (None).
     if growth is None:
         fwd   = m.get("forward_eps")
         trail = m.get("trailing_eps")
@@ -359,21 +388,35 @@ def _compute_screener_peg(m: dict, historical_cagr) -> float | None:
                     derived = ((fwd - trail) / abs(trail)) * 100
                     if derived > 0:
                         growth = derived
-                        print(f"    PEG [{m['ticker']}]: derived fwd/trail EPS "
+                        source = "fwd_trail_eps_derived"
+                        print(f"    PEG [{ticker}]: derived fwd/trail EPS "
                               f"= {growth:.1f}%")
             except Exception:
                 pass
 
-    # Priority 3: historical CAGR — capped at 25%
-    if growth is None and historical_cagr is not None and historical_cagr > 0:
-        growth = min(historical_cagr * 100, 25.0)
-        print(f"    PEG [{m['ticker']}]: historical CAGR = {growth:.1f}% "
+    # ── Priority 3: historical CAGR — capped at 25% ───────────
+    if growth is None and hist_cagr_pct:
+        growth = min(hist_cagr_pct, 25.0)
+        source = "historical_cagr"
+        print(f"    PEG [{ticker}]: historical CAGR = {growth:.1f}% "
               f"(capped at 25%)")
 
     if not growth or growth <= 0:
-        return None
+        return None, "no_growth_available", None
 
-    return round(pe / growth, 3)
+    # ── Conflict flag when forward vs historical diverge ──────
+    if hist_cagr_pct and source != "historical_cagr":
+        divergence = abs(growth - hist_cagr_pct)
+        if divergence > 20:
+            conflict = (
+                f"Forward growth ({growth:.1f}%, {source}) diverges "
+                f"{divergence:.1f}pp from historical CAGR "
+                f"({hist_cagr_pct:.1f}%). Treat historical with caution."
+            )
+            print(f"    PEG CONFLICT [{ticker}]: {conflict}")
+
+    peg = round(pe / growth, 3)
+    return peg, source, conflict
 
 
 def _phase2_ticker(m: dict, filters: dict, cache: dict):
@@ -394,11 +437,16 @@ def _phase2_ticker(m: dict, filters: dict, cache: dict):
     m["earnings_cagr_years"] = cagr_years
 
     # Use corrected PEG computation — same logic as compute._compute_peg
-    peg = _compute_screener_peg(m, cagr)
-    m["peg_ratio"] = peg
+    peg, peg_source, peg_conflict = _compute_screener_peg(m, cagr)
+    m["peg_ratio"]       = peg
+    m["peg_source"]      = peg_source
+    m["peg_conflict"]    = peg_conflict
 
     if peg is None or peg > filters["max_peg"]:
-        _cache_write(cache, ticker, "fail", f"PEG {peg}")
+        reason = f"PEG {peg} (source: {peg_source})"
+        if peg_conflict:
+            reason += f" | CONFLICT: {peg_conflict[:80]}"
+        _cache_write(cache, ticker, "fail", reason)
         return False
 
     m["qglp_score"] = compute_qglp_score(m)
