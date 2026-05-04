@@ -246,7 +246,7 @@ st.markdown("""
         animation: fadeInUp 0.5s ease-out;
     }
     .rb-item { text-align: center; }
-    .rb-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.6); margin-bottom: 0.3rem; }
+    .rb-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.72); margin-bottom: 0.3rem; }
     .rb-val { font-size: 1.8rem; font-weight: 800; }
     .rb-val.buy   { color: #4ade80; }
     .rb-val.watch { color: #fbbf24; }
@@ -302,14 +302,14 @@ st.markdown("""
     .range-bar-dot { width: 12px; height: 12px; background: #fff; border-radius: 50%; position: absolute; top: -2.5px; transform: translateX(-50%); box-shadow: 0 0 8px rgba(224,48,48,0.8); }
 
     /* ── PROSE / BODY TEXT ── */
-    .prose { color: rgba(255,255,255,0.88); }
+    .prose { color: rgba(255,255,255,0.90); line-height: 1.85; }
 
     /* ── RISK ROWS ── */
-    .risk-row { padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.75); }
+    .risk-row { padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.82); }
     .risk-row:last-child { border-bottom: none; }
 
     /* ── BULL / BEAR BOXES ── */
-    .cb { padding: 1.2rem 1.5rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.75); }
+    .cb { padding: 1.2rem 1.5rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.82); }
     .cb-bull { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.28); }
     .cb-bear { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
     .cb-title { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 0.5rem; }
@@ -345,7 +345,7 @@ st.markdown("""
     .track-box { background: #16161e; border: 1px solid rgba(224,48,48,0.3); border-radius: 8px; padding: 1.5rem 2rem; margin-top: 1.5rem; }
     .track-box-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #e03030; margin-bottom: 0.6rem; }
     .track-success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); border-radius: 6px; padding: 0.8rem 1.2rem; font-size: 0.9rem; color: #4ade80; margin-top: 0.8rem; }
-    .track-note { font-size: 0.85rem; color: rgba(255,255,255,0.35); margin-top: 0.6rem; line-height: 1.6; }
+    .track-note { font-size: 0.85rem; color: rgba(255,255,255,0.55); margin-top: 0.6rem; line-height: 1.6; }
 
     /* ── STICKY LOGO (fixed) ── */
     .pickr-logo-sticky {
@@ -379,8 +379,8 @@ st.markdown("""
     .foot-card { background: #16161e; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 1.5rem 2rem; margin-top: 2rem; text-align: center; }
     .foot-name { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.8); }
     .foot-email { font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 0.2rem; }
-    .foot-disclaimer { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 1rem; line-height: 1.75; max-width: 700px; margin-left: auto; margin-right: auto; }
-    .foot-copy { font-size: 0.68rem; color: rgba(255,255,255,0.5); margin-top: 0.8rem; }
+    .foot-disclaimer { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 1rem; line-height: 1.75; max-width: 700px; margin-left: auto; margin-right: auto; }
+    .foot-copy { font-size: 0.7rem; color: rgba(255,255,255,0.38); margin-top: 0.8rem; }
     .foot-email a { color: #e08070 !important; text-decoration: none; border-bottom: 1px solid rgba(224,128,112,0.35); }
     .foot-email a:hover { color: #ffb8a8 !important; border-bottom-color: rgba(255,184,168,0.6); }
 
@@ -388,7 +388,7 @@ st.markdown("""
     .driver-card { background: #111118; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 1rem 1.2rem; margin: 0.5rem 0; transition: all 0.2s ease; }
     .driver-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
     .driver-card-name { font-weight: 700; color: #fff; font-size: 0.98rem; margin-bottom: 0.3rem; }
-    .driver-card-desc { font-size: 0.92rem; color: rgba(255,255,255,0.5); margin-bottom: 0.8rem; line-height: 1.7; }
+    .driver-card-desc { font-size: 0.92rem; color: rgba(255,255,255,0.70); margin-bottom: 0.8rem; line-height: 1.7; }
 
     /* ── HEADWIND / TAILWIND CARDS ── */
     .hw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin: 0.8rem 0 1.2rem; }
@@ -396,7 +396,7 @@ st.markdown("""
     .tw-card { background: #111118; border: 1px solid rgba(74,222,128,0.2);  border-radius: 8px; padding: 1rem 1.2rem; }
     .hw-card-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #f87171; margin-bottom: 0.3rem; }
     .tw-card-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #4ade80; margin-bottom: 0.3rem; }
-    .hw-card-desc  { font-size: 0.95rem; color: rgba(255,255,255,0.55); line-height: 1.65; margin-bottom: 0.6rem; }
+    .hw-card-desc  { font-size: 0.95rem; color: rgba(255,255,255,0.72); line-height: 1.65; margin-bottom: 0.6rem; }
     .hw-prob-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); margin-bottom: 0.4rem; }
     .tw-prob-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25);  margin-bottom: 0.4rem; }
 
@@ -418,7 +418,7 @@ st.markdown("""
         animation: fadeInUp 0.5s ease-out;
     }
     .ev-item { text-align: center; }
-    .ev-label { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.4); margin-bottom: 0.3rem; }
+    .ev-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.62); margin-bottom: 0.3rem; }
     .ev-val { font-size: 1.3rem; font-weight: 800; color: #fff; }
     .ev-val.positive { color: #4ade80; }
     .ev-val.negative { color: #f87171; }
@@ -460,22 +460,164 @@ st.markdown("""
     [data-testid="stStatusWidget"] p, [data-testid="stStatusWidget"] span, [data-testid="stStatusWidget"] div { color: #e8e8e8 !important; }
     .stWarning, .stError, .stInfo { background: #0e0e14 !important; color: #e8e8e8 !important; }
 
-    /* ── BUTTONS ── */
-    .stButton > button {
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
-        border-radius: 8px !important;
-        font-size: 0.9rem !important;
+    /* ══════════════════════════════════════════════════════
+       BUTTON SYSTEM
+       Streamlit renders kind attr on the <button> element.
+       Use both the kind attr and data-testid for coverage.
+    ══════════════════════════════════════════════════════ */
+
+    /* ── Base reset for ALL buttons ── */
+    .stButton > button,
+    [data-testid="stBaseButton-primary"],
+    [data-testid="stBaseButton-secondary"],
+    [data-testid="stDownloadButton"] > button {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.88rem !important;
         font-weight: 600 !important;
         letter-spacing: 0.04em !important;
-        padding: 0.55rem 1.4rem !important;
-        transition: all 0.2s ease !important;
+        border-radius: 8px !important;
+        padding: 0.58rem 1.4rem !important;
+        min-height: 38px !important;
+        cursor: pointer !important;
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+    }
+
+    /* ── Shimmer layer (sits on top, swept by hover) ── */
+    .stButton > button::before,
+    [data-testid="stDownloadButton"] > button::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important; left: -100% !important;
+        width: 60% !important; height: 100% !important;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,0.07) 50%,
+            transparent 100%
+        ) !important;
+        transition: left 0.55s ease !important;
+        pointer-events: none !important;
+    }
+    .stButton > button:hover::before,
+    [data-testid="stDownloadButton"] > button:hover::before {
+        left: 160% !important;
+    }
+
+    /* ── PRIMARY — red gradient CTA ── */
+    .stButton > button[kind="primary"],
+    [data-testid="stBaseButton-primary"] {
+        background: linear-gradient(145deg, #7a1515 0%, #b02828 55%, #c93535 100%) !important;
+        border: 1px solid rgba(180,40,40,0.55) !important;
+        color: #fff !important;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.35) !important;
+        box-shadow:
+            0 2px 8px rgba(139,26,26,0.45),
+            0 1px 2px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.10) !important;
+    }
+    .stButton > button[kind="primary"]:hover,
+    [data-testid="stBaseButton-primary"]:hover {
+        background: linear-gradient(145deg, #921a1a 0%, #cc2e2e 55%, #e03a3a 100%) !important;
+        border-color: rgba(210,55,55,0.65) !important;
+        box-shadow:
+            0 4px 18px rgba(160,30,30,0.55),
+            0 2px 4px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.12) !important;
+        transform: translateY(-1px) !important;
+        color: #fff !important;
+    }
+    .stButton > button[kind="primary"]:active,
+    [data-testid="stBaseButton-primary"]:active {
+        transform: translateY(0) scale(0.98) !important;
+        box-shadow:
+            0 1px 4px rgba(139,26,26,0.4),
+            inset 0 1px 3px rgba(0,0,0,0.2) !important;
+    }
+
+    /* ── PRIMARY DISABLED ── */
+    .stButton > button[kind="primary"]:disabled,
+    [data-testid="stBaseButton-primary"]:disabled {
+        background: rgba(120,20,20,0.35) !important;
+        border-color: rgba(140,30,30,0.25) !important;
+        color: rgba(255,255,255,0.4) !important;
+        box-shadow: none !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        text-shadow: none !important;
+    }
+
+    /* ── SECONDARY — refined ghost ── */
+    .stButton > button[kind="secondary"],
+    [data-testid="stBaseButton-secondary"],
+    .stButton > button:not([kind]) {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.14) !important;
+        color: rgba(255,255,255,0.78) !important;
+        box-shadow:
+            0 1px 3px rgba(0,0,0,0.25),
+            inset 0 1px 0 rgba(255,255,255,0.04) !important;
+    }
+    .stButton > button[kind="secondary"]:hover,
+    [data-testid="stBaseButton-secondary"]:hover,
+    .stButton > button:not([kind]):hover {
+        background: rgba(255,255,255,0.09) !important;
+        border-color: rgba(255,255,255,0.26) !important;
+        color: #fff !important;
+        box-shadow:
+            0 3px 10px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        transform: translateY(-1px) !important;
+    }
+    .stButton > button[kind="secondary"]:active,
+    [data-testid="stBaseButton-secondary"]:active {
+        transform: translateY(0) scale(0.98) !important;
+        background: rgba(255,255,255,0.07) !important;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2) !important;
+    }
+
+    /* ── DOWNLOAD BUTTON — muted teal tint to signal "export" ── */
+    [data-testid="stDownloadButton"] > button {
+        background: rgba(45,55,72,0.55) !important;
+        border: 1px solid rgba(100,130,160,0.28) !important;
+        color: rgba(180,210,240,0.88) !important;
+        box-shadow:
+            0 1px 3px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.04) !important;
+    }
+    [data-testid="stDownloadButton"] > button:hover {
+        background: rgba(55,70,95,0.70) !important;
+        border-color: rgba(120,160,200,0.40) !important;
+        color: rgba(210,230,255,0.95) !important;
+        box-shadow:
+            0 3px 12px rgba(30,60,100,0.35),
+            inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* ── SIDEBAR BUTTONS — keep minimal, just clean ── */
+    [data-testid="stSidebar"] .stButton > button {
+        background: transparent !important;
+        border: 1px solid rgba(255,255,255,0.09) !important;
+        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.78rem !important;
+        font-weight: 500 !important;
+        padding: 0.4rem 0.8rem !important;
+        box-shadow: none !important;
+        transform: none !important;
+        letter-spacing: normal !important;
+        text-shadow: none !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        border-color: rgba(192,48,48,0.45) !important;
+        color: #fff !important;
+        background: rgba(139,26,26,0.12) !important;
+        transform: none !important;
         box-shadow: none !important;
     }
-    .stButton > button:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.28) !important; color: #fff !important; }
-    .stButton > button:active { transform: scale(0.98) !important; }
-
-    /* ── CHARTS ── */
+    [data-testid="stSidebar"] .stButton > button::before { display: none !important; }
     [data-testid="stVegaLiteChart"] { background: rgba(255,255,255,0.02) !important; border: 1px solid rgba(255,255,255,0.04) !important; border-radius: 6px !important; }
 
     /* ── SIDEBAR ── */
@@ -895,12 +1037,12 @@ def render(ticker, m, a, data):
         f'<span style="font-size:0.92rem;color:#fff;font-weight:700;">{_price_str}</span>'
         f'{_spark}</div>'
         f'<div style="display:flex;align-items:center;gap:1.5rem;">'
-        f'<div style="text-align:right;"><div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">Verdict</div>'
+        f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">Verdict</div>'
         f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{rec}</div></div>'
-        f'<div style="text-align:right;"><div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">Exp. Return</div>'
+        f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">Exp. Return</div>'
         f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{exp_ret*100:+.1f}%</div></div>'
-        f'<div style="text-align:right;"><div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:0.1rem;">EV</div>'
-        f'<div style="font-size:0.97rem;font-weight:700;color:rgba(255,255,255,0.8);">{sym}{ev:,.2f}</div></div>'
+        f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">EV</div>'
+        f'<div style="font-size:0.97rem;font-weight:700;color:rgba(255,255,255,0.9);">{sym}{ev:,.2f}</div></div>'
         f'</div></div></div>',
         unsafe_allow_html=True
     )
@@ -1183,7 +1325,7 @@ def render(ticker, m, a, data):
             with m4: st.metric("Op. Margin", f"{op_m*100:.1f}%")
             seg_builds = s.get("segment_builds", [])
             if seg_builds:
-                st.markdown('<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.6);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
+                st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.65);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
                 for seg in seg_builds:
                     sr = safe_float(seg.get("projected_revenue")); sg = safe_float(seg.get("growth_rate"))
                     pct_of_total = (sr / total_rev * 100) if total_rev > 0 else 0
@@ -1198,7 +1340,7 @@ def render(ticker, m, a, data):
                         </div>
                     </div>''', unsafe_allow_html=True)
             if narrative:
-                st.markdown(f'<div style="font-size:0.92rem;color:rgba(255,255,255,0.6);line-height:1.8;font-style:italic;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:0.95rem;color:rgba(255,255,255,0.78);line-height:1.8;font-style:italic;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
             with st.expander("Valuation & margin rationale"):
                 if margin_rat: st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:0.5rem;"><strong style="color:rgba(255,255,255,0.7);">Margin:</strong> {margin_rat}</div>', unsafe_allow_html=True)
                 if pe_rat:     st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;"><strong style="color:rgba(255,255,255,0.7);">Valuation:</strong> {pe_rat}</div>', unsafe_allow_html=True)
@@ -1662,59 +1804,58 @@ with left_col:
     if go:
         st.session_state["_generating"] = True
 
-# ── Right column — How It Scores (fixed: proper HTML, not string literals) ──
-    with right_col:
-     st.markdown(
-        '<div style="padding:1.5rem 0 0;">'
+# ── Right column — How It Scores ──────────────────────────────
+# Written as individual st.markdown / st.write calls.
+# One small HTML string per call = nothing for Streamlit to mangle.
+with right_col:
+    _dim  = "color:rgba(255,255,255,0.45);font-size:0.88rem;margin-top:0.2rem;"
+    _head = "font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.45);"
 
-        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
-        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:1rem;">'
-        'How It Scores</div>'
+    st.markdown(f'<div style="{_head}">How It Scores</div>', unsafe_allow_html=True)
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
 
-        '<div style="margin-bottom:1.2rem;">'
-        '<div style="font-size:1rem;font-weight:800;color:#fff;">Q &middot; Quality</div>'
-        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
-        'ROE &gt;15%, FCF positive, D/E &lt;1</div></div>'
+    for letter, name, detail in [
+        ("Q", "Quality",   "ROE &gt;15%, FCF positive, D/E &lt;1"),
+        ("G", "Growth",    "EPS CAGR &gt;12%, TAM 2&times; GDP"),
+        ("L", "Longevity", "Moat durability 5+ years"),
+        ("P", "Price",     "PEG &lt;1.2&times; is the target"),
+    ]:
+        st.markdown(
+            f'<div style="margin-bottom:1.1rem;">'
+            f'<div style="font-size:1rem;font-weight:800;color:#fff;">'
+            f'{letter} &middot; {name}</div>'
+            f'<div style="{_dim}">{detail}</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
-        '<div style="margin-bottom:1.2rem;">'
-        '<div style="font-size:1rem;font-weight:800;color:#fff;">G &middot; Growth</div>'
-        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
-        'EPS CAGR &gt;12%, TAM 2&times; GDP</div></div>'
+    st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0.6rem 0 1rem;'>",
+                unsafe_allow_html=True)
 
-        '<div style="margin-bottom:1.2rem;">'
-        '<div style="font-size:1rem;font-weight:800;color:#fff;">L &middot; Longevity</div>'
-        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
-        'Moat durability 5+ years</div></div>'
+    st.markdown(f'<div style="{_head}margin-bottom:0.7rem;">Score Bands</div>',
+                unsafe_allow_html=True)
+    for score_range, color, label in [
+        ("85 – 100", "#4ade80", "Strong buy"),
+        ("70 – 84",  "#fbbf24", "Watch"),
+        ("&lt; 70",  "#f87171", "Pass"),
+    ]:
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-between;'
+            f'align-items:center;margin-bottom:0.35rem;">'
+            f'<span style="font-size:0.95rem;font-weight:700;color:{color};">{score_range}</span>'
+            f'<span style="font-size:0.88rem;color:rgba(255,255,255,0.65);">{label}</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
-        '<div style="margin-bottom:1.5rem;">'
-        '<div style="font-size:1rem;font-weight:800;color:#fff;">P &middot; Price</div>'
-        '<div style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-top:0.15rem;">'
-        'PEG &lt;1.2&times; is the target</div></div>'
+    st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0.8rem 0 1rem;'>",
+                unsafe_allow_html=True)
 
-        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;'
-        'margin-bottom:1.5rem;">'
-        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
-        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
-        'Score Bands</div>'
-        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
-        '<span style="font-size:0.95rem;font-weight:700;color:#4ade80;">85 &ndash; 100</span>'
-        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Strong buy</span></div>'
-        '<div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">'
-        '<span style="font-size:0.95rem;font-weight:700;color:#fbbf24;">70 &ndash; 84</span>'
-        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Watch</span></div>'
-        '<div style="display:flex;justify-content:space-between;">'
-        '<span style="font-size:0.95rem;font-weight:700;color:#f87171;">&lt; 70</span>'
-        '<span style="font-size:0.88rem;color:rgba(255,255,255,0.5);">Pass</span></div>'
-        '</div>'
-
-        '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.2rem;">'
-        '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
-        'letter-spacing:0.16em;color:rgba(255,255,255,0.35);margin-bottom:0.8rem;">'
-        'Account</div>'
-        '<div style="font-size:0.92rem;color:rgba(255,255,255,0.5);line-height:1.7;">'
-        '3 full reports free. Screener browsing always free, no login needed.</div>'
-        '</div>'
-
+    st.markdown(f'<div style="{_head}margin-bottom:0.6rem;">Account</div>',
+                unsafe_allow_html=True)
+    st.markdown(
+        '<div style="font-size:0.9rem;color:rgba(255,255,255,0.65);line-height:1.7;">'
+        '3 full reports free. Screener browsing always free, no login needed.'
         '</div>',
         unsafe_allow_html=True
     )
@@ -2061,7 +2202,7 @@ st.markdown("""
       <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
       <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
     </svg>
-    <span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.06em">
+    <span style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.62);letter-spacing:0.06em">
       Built by <span style="color:#e08070">Mayukh Kondepudi</span>
       &nbsp;&middot;&nbsp;
       <a href="mailto:mayukhkondepudi@gmail.com"
@@ -2069,12 +2210,12 @@ st.markdown("""
         mayukhkondepudi@gmail.com</a>
     </span>
   </div>
-  <div style="font-size:0.7rem;color:rgba(255,255,255,0.25);line-height:1.75;max-width:680px;margin:0 auto">
-    PickR is an independent research tool for <strong style="color:rgba(255,255,255,0.4)">educational purposes only</strong>.
+  <div style="font-size:0.75rem;color:rgba(255,255,255,0.45);line-height:1.75;max-width:680px;margin:0 auto">
+    PickR is an independent research tool for <strong style="color:rgba(255,255,255,0.65)">educational purposes only</strong>.
     Nothing on this platform constitutes financial advice, a solicitation, or a recommendation to buy or sell any security.
     Always do your own due diligence before investing.
   </div>
-  <div style="margin-top:0.6rem;font-size:0.62rem;color:rgba(255,255,255,0.15);letter-spacing:0.06em">
+  <div style="margin-top:0.6rem;font-size:0.68rem;color:rgba(255,255,255,0.28);letter-spacing:0.06em">
     &copy; 2026 PickR &nbsp;&middot;&nbsp; All rights reserved
   </div>
 </div>
