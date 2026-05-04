@@ -1,1398 +1,689 @@
-"""Financial metrics computation, scenario math, probability engine, QGLP scoring."""
-import re
-from formatting import safe_float, fmt_n
+"""
+screener.py — QGLP hard-filter screener (v3).
+
+Runs daily via GitHub Actions.
+
+v3 changes (EPS accuracy overhaul):
+  • Self-computed EPS from income_stmt Diluted EPS row (never trust .info)
+  • 2-year lookback for CAGR (avoids COVID trough distortion)
+  • Screener growth cap = 20% (conservative gate-keeping)
+  • PEG floor of 0.3 (anything below is almost certainly data error)
+  • Cross-validation: reject if analyst consensus is negative but CAGR positive
+  • Trailing PE computed from price / statement EPS (not API field)
+
+Retained from v2:
+  • Parallel phase-1 (ThreadPoolExecutor)
+  • Skip cache with TTL
+  • Exponential back-off on rate errors
+  • Min market-cap pre-filter
+  • Configurable via env vars
+"""
+
+import json
+import os
+import time
+import random
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import yfinance as yf
+
+from universe import US_UNIVERSE, INDIA_UNIVERSE
+from config import FILTERS, FILTERS_INDIA
+from compute import compute_qglp_score
+from github_store import push_screener_results
+
+# ── Runtime knobs (override via env) ─────────────────────────
+OUTPUT_FILE    = "screener_results.json"
+CACHE_FILE     = "screener_cache.json"
+CACHE_TTL_DAYS = int(os.getenv("CACHE_TTL_DAYS",  "5"))
+MAX_PICKS      = int(os.getenv("MAX_PICKS",       "10"))
+PHASE1_WORKERS = int(os.getenv("PHASE1_WORKERS",  "6"))
+MIN_MCAP_US    = float(os.getenv("MIN_MCAP_US",   "2e9"))
+MIN_MCAP_IN    = float(os.getenv("MIN_MCAP_IN",   "3e10"))
+
+# ── Screener-specific constants (hardcoded, not configurable) ─
+SCREENER_CAGR_LOOKBACK = 2       # years
+SCREENER_GROWTH_CAP    = 20.0    # max growth % used in PEG
+SCREENER_PEG_FLOOR     = 0.3     # below this = data error
+SCREENER_PE_CEILING    = 100.0   # above this = not a value candidate
 
 
 # ══════════════════════════════════════════════════════════════
-# LATEX SANITIZER
+# SKIP CACHE (unchanged from v2)
 # ══════════════════════════════════════════════════════════════
 
-def clean_latex(text):
-    """Strip LaTeX math delimiters that LLMs sometimes embed in prose."""
-    if not text or not isinstance(text, str):
-        return text
-    text = re.sub(r'\\\((.+?)\\\)', r'\1', text, flags=re.DOTALL)
-    text = re.sub(r'\\\[(.+?)\\\]', r'\1', text, flags=re.DOTALL)
-    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)
-    text = re.sub(r'\\[a-zA-Z]+', ' ', text)
-    text = re.sub(r'\$([^$\d][^$]*?)\$', r'\1', text)
-    text = re.sub(r'  +', ' ', text)
-    return text.strip()
+def _load_cache() -> dict:
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
 
 
-# ══════════════════════════════════════════════════════════════
-# METRICS COMPUTATION
-# ══════════════════════════════════════════════════════════════
-
-def calc(data):
-    info = data.get("info", {})
-    if isinstance(info, dict) and "error" in info:
-        return {"error": info["error"]}
-    g = lambda k, d=None: info.get(k, d)
-
-    m = {
-        "company_name": g("shortName", g("longName", "Unknown")),
-        "sector": g("sector", "N/A"), "industry": g("industry", "N/A"),
-        "country": g("country", "N/A"), "currency": g("currency", "USD"),
-        "description": g("longBusinessSummary", "N/A"),
-        "current_price": g("currentPrice", g("regularMarketPrice")),
-        "market_cap": g("marketCap"), "enterprise_value": g("enterpriseValue"),
-        "trailing_pe": g("trailingPE"), "forward_pe": g("forwardPE"),
-        "peg_ratio": None,
-        "price_to_sales": g("priceToSalesTrailing12Months"),
-        "ev_to_ebitda": g("enterpriseToEbitda"),
-        "gross_margin": g("grossMargins"), "operating_margin": g("operatingMargins"),
-        "profit_margin": g("profitMargins"), "roe": g("returnOnEquity"),
-        "roa": g("returnOnAssets"),
-        "trailing_eps": g("trailingEps"), "forward_eps": g("forwardEps"),
-        "earnings_growth": g("earningsGrowth"),
-        "total_revenue": g("totalRevenue"), "revenue_growth": g("revenueGrowth"),
-        "free_cashflow": g("freeCashflow"), "operating_cashflow": g("operatingCashflow"),
-        "total_cash": g("totalCash"), "total_debt": g("totalDebt"),
-        "dividend_yield": g("dividendYield"), "payout_ratio": g("payoutRatio"),
-        "beta": g("beta"), "week_52_high": g("fiftyTwoWeekHigh"),
-        "week_52_low": g("fiftyTwoWeekLow"),
-        "ma_50": g("fiftyDayAverage"), "ma_200": g("twoHundredDayAverage"),
-        "insider_pct": g("heldPercentInsiders"),
-        "institution_pct": g("heldPercentInstitutions"),
-        "shares_outstanding": g("sharesOutstanding"),
-    }
-
-    # FCF yield
+def _save_cache(cache: dict):
     try:
-        m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
-            if m["free_cashflow"] and m["market_cap"] else None
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2, default=str)
+    except Exception as e:
+        print(f"  Cache save failed: {e}")
+
+
+def _cache_fresh(cache: dict, ticker: str):
+    entry = cache.get(ticker)
+    if not entry:
+        return None
+    try:
+        ts  = datetime.fromisoformat(entry["ts"]).replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - ts
+        if age < timedelta(days=CACHE_TTL_DAYS):
+            return entry
     except Exception:
-        m["fcf_yield"] = None
-
-    m = _compute_debt_equity(m, info, data)
-    m = _compute_margins_from_statements(m, data)
-    m = _compute_cagrs(m, data)
-    m = _cross_validate_forward_pe(m, info)
-    m = _compute_peg(m)
-    m = _check_growth_consistency(m)
-    m = _compute_price_history(m, data)
-    m["news"] = [{"title": n.get("title", ""), "publisher": n.get("publisher", "")}
-                 for n in data.get("news", [])]
-    return m
+        pass
+    return None
 
 
-def _compute_debt_equity(m, info, data):
-    raw_de = info.get("debtToEquity")
-    bs = data.get("bs")
-    computed_de = None
-    computed_current_ratio = None
+def _cache_write(cache: dict, ticker: str, result: str,
+                 reason: str = "", score=None):
+    cache[ticker] = {
+        "result": result,
+        "reason": reason,
+        "score":  score,
+        "ts":     datetime.now(timezone.utc).isoformat(),
+    }
 
-    if bs is not None and not bs.empty:
-        def _bs_row(labels):
-            for lb in labels:
-                if lb in bs.index:
-                    row = bs.loc[lb].dropna()
-                    if not row.empty:
-                        return float(row.iloc[0])
+
+# ══════════════════════════════════════════════════════════════
+# FETCH HELPERS (unchanged from v2)
+# ══════════════════════════════════════════════════════════════
+
+def _jitter(base: float = 0.5):
+    time.sleep(base * (0.6 + 0.8 * random.random()))
+
+
+def _retry(fn, retries: int = 3, base_sleep: float = 2.0):
+    for attempt in range(retries):
+        try:
+            return fn(), None
+        except Exception as e:
+            err = str(e)
+            if attempt < retries - 1:
+                time.sleep(base_sleep * (2 ** attempt) * (0.8 + 0.4 * random.random()))
+            else:
+                return None, err
+    return None, "unknown"
+
+
+def _get_info(ticker: str):
+    def _fetch():
+        t    = yf.Ticker(ticker)
+        info = t.info
+        if not info or len(info) < 5:
+            raise ValueError("Empty info")
+        return t
+    return _retry(_fetch, retries=3)
+
+
+def _de_from_info(de_api):
+    if de_api is None:
+        return None
+    try:
+        v = float(de_api)
+        return round(v / 100, 4) if v > 10 else round(v, 4)
+    except Exception:
+        return None
+
+
+def _roe_from_statements(t):
+    try:
+        inc = t.income_stmt
+        bs  = t.balance_sheet
+        if inc is None or bs is None:
             return None
-
-        total_debt_bs = _bs_row(["Total Debt", "TotalDebt",
-                                  "Long Term Debt And Capital Lease Obligation",
-                                  "Long Term Debt", "LongTermDebt"])
-        total_eq = _bs_row(["Stockholders Equity", "Total Stockholder Equity",
-                            "TotalStockholdersEquity", "Common Stock Equity",
-                            "CommonStockEquity"])
-        current_assets = _bs_row(["Current Assets", "TotalCurrentAssets",
-                                  "Total Current Assets"])
-        current_liabs = _bs_row(["Current Liabilities", "TotalCurrentLiabilities",
-                                 "Total Current Liabilities"])
-
-        if total_debt_bs and total_eq and total_eq != 0:
-            computed_de = round(total_debt_bs / total_eq, 3)
-        if current_assets and current_liabs and current_liabs != 0:
-            computed_current_ratio = round(current_assets / current_liabs, 2)
-
-    if computed_de is not None:
-        m["debt_to_equity"] = computed_de
-    elif raw_de is not None:
-        try:
-            raw_de_float = float(raw_de)
-            if info.get("_source") == "fmp":
-                m["debt_to_equity"] = round(raw_de_float, 3)
-            else:
-                m["debt_to_equity"] = round(raw_de_float / 100, 3)
-        except Exception:
-            m["debt_to_equity"] = None
-    else:
-        m["debt_to_equity"] = None
-
-    m["current_ratio"] = computed_current_ratio if computed_current_ratio is not None \
-        else info.get("currentRatio")
-    return m
+        ni = None
+        for lbl in ["Net Income", "Net Income Common Stockholders"]:
+            if lbl in inc.index:
+                row = inc.loc[lbl].dropna()
+                if not row.empty:
+                    ni = float(row.iloc[0]); break
+        eq = None
+        for lbl in ["Stockholders Equity", "Total Stockholder Equity",
+                    "Common Stock Equity", "Stockholders' Equity"]:
+            if lbl in bs.index:
+                row = bs.loc[lbl].dropna()
+                if not row.empty:
+                    eq = float(row.iloc[0]); break
+        if ni and eq and eq > 0:
+            return round(ni / eq, 4)
+    except Exception:
+        pass
+    return None
 
 
-def _compute_margins_from_statements(m, data):
-    inc = data.get("inc")
-    bs  = data.get("bs")
-
-    if m["gross_margin"] is None and inc is not None:
-        try:
-            rev_row = gp_row = None
-            for lb in ["Total Revenue", "TotalRevenue", "Revenue"]:
-                if lb in inc.index:
-                    rev_row = inc.loc[lb].dropna().sort_index(); break
-            for lb in ["Gross Profit", "GrossProfit"]:
-                if lb in inc.index:
-                    gp_row = inc.loc[lb].dropna().sort_index(); break
-            if rev_row is not None and gp_row is not None:
-                rev = float(rev_row.iloc[-1]); gp = float(gp_row.iloc[-1])
-                if rev > 0:
-                    m["gross_margin"] = round(gp / rev, 4)
-        except Exception:
-            pass
-
-    if m["operating_margin"] is None and inc is not None:
-        try:
-            rev_row = op_row = None
-            for lb in ["Total Revenue", "TotalRevenue", "Revenue"]:
-                if lb in inc.index:
-                    rev_row = inc.loc[lb].dropna().sort_index(); break
-            for lb in ["Operating Income", "OperatingIncome", "EBIT"]:
-                if lb in inc.index:
-                    op_row = inc.loc[lb].dropna().sort_index(); break
-            if rev_row is not None and op_row is not None:
-                rev = float(rev_row.iloc[-1]); op = float(op_row.iloc[-1])
-                if rev > 0:
-                    m["operating_margin"] = round(op / rev, 4)
-        except Exception:
-            pass
-
-    if m["profit_margin"] is None and inc is not None:
-        try:
-            rev_row = ni_row = None
-            for lb in ["Total Revenue", "TotalRevenue", "Revenue"]:
-                if lb in inc.index:
-                    rev_row = inc.loc[lb].dropna().sort_index(); break
-            for lb in ["Net Income", "NetIncome", "Net Income Common Stockholders"]:
-                if lb in inc.index:
-                    ni_row = inc.loc[lb].dropna().sort_index(); break
-            if rev_row is not None and ni_row is not None:
-                rev = float(rev_row.iloc[-1]); ni = float(ni_row.iloc[-1])
-                if rev > 0:
-                    m["profit_margin"] = round(ni / rev, 4)
-        except Exception:
-            pass
-
-    if m["roe"] is None and inc is not None and bs is not None:
-        try:
-            ni_row = eq_row = None
-            for lb in ["Net Income", "NetIncome", "Net Income Common Stockholders"]:
-                if lb in inc.index:
-                    ni_row = inc.loc[lb].dropna().sort_index(); break
-            for lb in ["Stockholders Equity", "Total Stockholder Equity",
-                        "CommonStockEquity"]:
-                if lb in bs.index:
-                    eq_row = bs.loc[lb].dropna().sort_index(); break
-            if ni_row is not None and eq_row is not None:
-                ni = float(ni_row.iloc[-1]); eq = float(eq_row.iloc[0])
-                if eq > 0:
-                    m["roe"] = round(ni / eq, 4)
-        except Exception:
-            pass
-
-    return m
-
-
-def _cagr_from(df, labels):
-    """Compute CAGR from financial statement rows. Always returns (cagr, hist, years)."""
-    if df is None:
-        return None, {}, 0
-    for lb in labels:
-        if lb in df.index:
-            row = df.loc[lb].dropna()
-            if row.empty:
-                continue
-            row = row.sort_index()
-            hist = {str(dt.year) if hasattr(dt, 'year') else str(dt): round(float(v) / 1e9, 2)
-                    for dt, v in row.items()}
-            if len(row) < 2:
-                return None, hist, 0
-            if len(row) >= 5:
-                oldest = float(row.iloc[-5])
-                newest = float(row.iloc[-1])
-                years = 4
-            else:
-                oldest = float(row.iloc[0])
-                newest = float(row.iloc[-1])
-                years = len(row) - 1
-            if oldest <= 0 or years <= 0:
-                return None, hist, 0
-            cagr = (newest / oldest) ** (1 / years) - 1
-            return round(cagr, 4), hist, years
-    return None, {}, 0
-
-
-def _compute_cagrs(m, data):
-    inc = data.get("inc")
-
-    m["revenue_cagr"], m["revenue_history"], m["revenue_cagr_years"] = _cagr_from(
-        inc, ["Total Revenue", "TotalRevenue", "Revenue", "revenue", "totalRevenue"])
-
-    ni_cagr, ni_hist, ni_years = _cagr_from(
-        inc, ["Net Income", "NetIncome", "Net Income Common Stockholders",
-              "netIncome", "Net Income From Continuing Operation Net Minority Interest"])
-    eps_cagr, _, eps_years = _cagr_from(
-        inc, ["Diluted EPS", "Basic EPS", "DilutedEPS", "BasicEPS",
-              "EPS", "Earnings Per Share", "epsdiluted", "eps",
-              "Diluted NI Availto Com Stockholders"])
-
-    # Store raw values for diagnostics
-    m["net_income_cagr_raw"] = ni_cagr
-    m["eps_cagr_raw"]        = eps_cagr
-
-    # Cap at 40% — anything above almost certainly reflects a trough base
-    # year (COVID, commodity spike, one-off loss) rather than genuine
-    # compounding. The raw values are preserved for display/logging.
-    # 40% is intentionally generous: genuine compounders like NVDA in a
-    # normal period can sustain 30-40%. Above 40% is almost always noise.
-    CAP = 0.40
-    m["net_income_cagr"]    = min(ni_cagr,  CAP) if ni_cagr  is not None else None
-    m["net_income_history"] = ni_hist
-    m["ni_cagr_years"]      = ni_years
-    m["eps_cagr"]           = min(eps_cagr, CAP) if eps_cagr is not None else None
-    m["eps_cagr_years"]     = eps_years
-
-    if ni_cagr and ni_cagr > CAP:
-        print(f"  NI CAGR capped: raw={ni_cagr:.1%} → {CAP:.0%} "
-              f"(likely trough distortion)")
-    if eps_cagr and eps_cagr > CAP:
-        print(f"  EPS CAGR capped: raw={eps_cagr:.1%} → {CAP:.0%} "
-              f"(likely trough distortion)")
-
-    return m
-
-
-def _cross_validate_forward_pe(m, info):
-    computed_forward_pe = None
-    if m["current_price"] and m.get("forward_eps"):
-        try:
-            cp_val = float(m["current_price"])
-            fe_val = float(m["forward_eps"])
-            if fe_val > 0 and cp_val > 0:
-                computed_forward_pe = round(cp_val / fe_val, 2)
-        except Exception:
-            pass
-
-    api_forward_pe  = m.get("forward_pe")
-    api_trailing_pe = m.get("trailing_pe")
-
-    if computed_forward_pe is not None:
-        print(f"  Forward PE: using computed {computed_forward_pe} "
-              f"(API returned {api_forward_pe})")
-        m["forward_pe"] = computed_forward_pe
-    elif api_forward_pe is not None:
-        try:
-            fpe = float(api_forward_pe)
-            tpe = float(api_trailing_pe) if api_trailing_pe else 0
-            if fpe > 500:
-                print(f"  Forward PE {fpe} exceeds 500x, discarding")
-                m["forward_pe"] = None
-            elif tpe > 0 and fpe > tpe * 1.5 and fpe > 100:
-                print(f"  Forward PE {fpe} > 1.5x trailing PE {tpe}, using trailing")
-                m["forward_pe"] = tpe
-        except Exception:
-            pass
-    return m
-
-
-def _compute_peg(m):
-    """
-    PEG ratio — forward PE divided by forward/consensus earnings growth.
-
-    DESIGN PHILOSOPHY
-    -----------------
-    PEG is only meaningful when the growth rate used reflects what the market
-    is actually pricing in — i.e. forward analyst consensus, not a historical
-    CAGR that may be distorted by a trough base year.
-
-    We surface both forward and historical growth rates to the metrics dict
-    so the LLM has full context and can reason about divergences rather than
-    blindly anchoring on one number.
-
-    GROWTH RATE PRIORITY
-    --------------------
-    1. earnings_growth from yfinance — analyst forward consensus (NTM).
-       CRITICAL: if this is negative, PEG is undefined. We do NOT fall
-       through to historical CAGR in this case because that would silently
-       replace a bearish forward signal with a flattering historical number.
-       Example: Maruti earnings_growth = -6.4% (analysts see near-term
-       earnings decline). Falling through to eps_cagr = 53% (COVID trough
-       distortion) would produce PEG = 0.4x and a false bull thesis.
-
-    2. Derived from forward_eps vs trailing_eps — one-year implied growth.
-       Only used when earnings_growth is entirely absent (None), not when
-       it is present but negative.
-
-    3. Historical EPS CAGR — capped at 25% to prevent trough distortions.
-       Last resort when no forward-looking data is available at all.
-
-    4. Historical NI CAGR — same 25% cap, absolute last resort.
-
-    DIVERGENCE FLAG
-    ---------------
-    When forward growth and historical CAGR diverge by >20 percentage points
-    we store a warning in m["peg_growth_conflict"] so the LLM prompt can
-    surface this tension explicitly in the narrative rather than ignoring it.
-    """
-    m["peg_ratio"]           = None
-    m["peg_growth_used"]     = None   # what growth rate was actually used
-    m["peg_growth_source"]   = None   # where it came from
-    m["peg_growth_conflict"] = None   # set if forward vs historical diverge badly
-
+def _de_from_statements(t):
     try:
-        pe = safe_float(m.get("forward_pe"))
-        if pe <= 0:
-            pe = safe_float(m.get("trailing_pe"))
-        if pe <= 0:
-            return m
+        bs = t.balance_sheet
+        if bs is None:
+            return None
+        debt = None
+        for lbl in ["Total Debt", "Long Term Debt"]:
+            if lbl in bs.index:
+                row = bs.loc[lbl].dropna()
+                if not row.empty:
+                    debt = float(row.iloc[0]); break
+        eq = None
+        for lbl in ["Stockholders Equity", "Total Stockholder Equity",
+                    "Common Stock Equity", "Stockholders' Equity"]:
+            if lbl in bs.index:
+                row = bs.loc[lbl].dropna()
+                if not row.empty:
+                    eq = float(row.iloc[0]); break
+        if debt is not None and eq and eq > 0:
+            return round(debt / eq, 4)
+    except Exception:
+        pass
+    return None
 
-        # ── Collect historical CAGR for comparison regardless of what we use ──
-        hist_cagr_raw = None
-        if m.get("eps_cagr") and float(m["eps_cagr"]) > 0:
-            hist_cagr_raw = float(m["eps_cagr"]) * 100
-        elif m.get("net_income_cagr") and float(m["net_income_cagr"]) > 0:
-            hist_cagr_raw = float(m["net_income_cagr"]) * 100
-        m["peg_historical_cagr"] = round(hist_cagr_raw, 1) if hist_cagr_raw else None
 
-        growth = None
-        source = None
+# ══════════════════════════════════════════════════════════════
+# SELF-COMPUTED EPS (v3 — core of the accuracy fix)
+# ══════════════════════════════════════════════════════════════
 
-        # ── Priority 1: yfinance earnings_growth (analyst forward consensus) ──
-        if m.get("earnings_growth") is not None:
-            g_val = float(m["earnings_growth"])
-            g_pct = g_val * 100 if abs(g_val) < 1 else g_val
+def _get_eps_series(t_obj):
+    """
+    Extract annual Diluted EPS series from the income statement.
 
-            if g_pct <= 0:
-                # Negative or zero forward growth = PEG undefined.
-                # Do NOT fall through — that would silently replace a bearish
-                # analyst signal with a potentially inflated historical CAGR.
-                print(f"  PEG: earnings_growth is {g_pct:.1f}% (negative/zero) — "
-                      f"PEG undefined. Not falling through to historical CAGR.")
-                m["peg_growth_source"] = "earnings_growth_negative"
-                m["peg_growth_used"]   = round(g_pct, 1)
+    Returns list of (year_int, eps_float) sorted ascending by year.
+    Empty list on failure.
 
-                # Still flag conflict if historical is wildly different
-                if hist_cagr_raw and hist_cagr_raw > 20:
-                    conflict = (
-                        f"Forward analyst growth ({g_pct:.1f}%) is negative but "
-                        f"historical CAGR is {hist_cagr_raw:.1f}%. This likely "
-                        f"reflects a trough base year in historical data — "
-                        f"the historical CAGR is NOT a reliable forward estimate."
-                    )
-                    m["peg_growth_conflict"] = conflict
-                    print(f"  PEG CONFLICT: {conflict}")
-                return m   # peg_ratio stays None — correct outcome
+    WHY THIS EXISTS:
+    .info["trailingEps"] and .info["forwardEps"] from yfinance are
+    frequently stale, scope-mismatched (standalone vs consolidated for
+    Indian stocks), or silently non-GAAP. The income_stmt DataFrame
+    contains the actual filed GAAP numbers.
 
-            growth = g_pct
-            source = "earnings_growth"
-            print(f"  PEG: using earnings_growth = {growth:.1f}%")
+    yfinance income_stmt has columns = dates (newest-first by default)
+    and rows = line items. We sort columns ascending so index 0 = oldest.
+    """
+    try:
+        inc = t_obj.income_stmt
+        if inc is None or inc.empty:
+            return []
 
-        # ── Priority 2: derived from forward_eps vs trailing_eps ──
-        # Only reached when earnings_growth is entirely absent (None),
-        # not when it was present but negative (handled above).
-        if growth is None:
-            fwd   = safe_float(m.get("forward_eps"))
-            trail = safe_float(m.get("trailing_eps"))
-            if fwd > 0 and trail > 0 and trail != fwd:
-                derived = ((fwd - trail) / abs(trail)) * 100
-                if derived > 0:
-                    growth = derived
-                    source = "fwd_trail_eps_derived"
-                    print(f"  PEG: derived growth from fwd/trail EPS = {growth:.1f}%")
+        # ── Priority 1: Diluted EPS row (directly from filings) ───
+        for lbl in ["Diluted EPS", "Basic EPS"]:
+            if lbl in inc.index:
+                row = inc.loc[lbl].dropna()
+                if row.empty:
+                    continue
+                # Sort ascending by date (columns are Timestamp objects)
+                row = row.sort_index()
+                result = []
+                for dt, val in row.items():
+                    try:
+                        yr = dt.year if hasattr(dt, "year") else int(str(dt)[:4])
+                        eps = float(val)
+                        result.append((yr, eps))
+                    except Exception:
+                        continue
+                if len(result) >= 2:
+                    return result
 
-        # ── Priority 3: historical EPS CAGR — capped at 25% ──
-        if growth is None and hist_cagr_raw:
-            growth = min(hist_cagr_raw, 25.0)
-            source = "eps_cagr_historical"
-            print(f"  PEG: using historical CAGR = {growth:.1f}% (capped at 25%)")
+        # ── Priority 2: Net Income / Shares Outstanding ───────────
+        # Less accurate (uses current share count for all years) but
+        # better than trusting the API .info field.
+        ni_row = None
+        for lbl in ["Net Income", "Net Income Common Stockholders"]:
+            if lbl in inc.index:
+                ni_row = inc.loc[lbl].dropna().sort_index()
+                if not ni_row.empty:
+                    break
 
-        if not growth or growth <= 0:
-            print(f"  PEG: no usable growth rate available")
-            return m
+        if ni_row is None or ni_row.empty:
+            return []
 
-        # ── Flag divergence between forward and historical ──
-        if hist_cagr_raw and source != "eps_cagr_historical":
-            divergence = abs(growth - hist_cagr_raw)
-            if divergence > 20:
+        # Get share count: prefer balance sheet, fall back to .info
+        shares = None
+        try:
+            bs = t_obj.balance_sheet
+            if bs is not None and not bs.empty:
+                for lbl in ["Ordinary Shares Number", "Share Issued",
+                            "Common Stock Shares Outstanding"]:
+                    if lbl in bs.index:
+                        s_row = bs.loc[lbl].dropna()
+                        if not s_row.empty:
+                            shares = float(s_row.iloc[0])
+                            break
+        except Exception:
+            pass
+
+        if shares is None or shares <= 0:
+            shares = t_obj.info.get("sharesOutstanding")
+
+        if not shares or shares <= 0:
+            return []
+
+        result = []
+        for dt, ni in ni_row.items():
+            try:
+                yr = dt.year if hasattr(dt, "year") else int(str(dt)[:4])
+                eps = float(ni) / shares
+                result.append((yr, round(eps, 4)))
+            except Exception:
+                continue
+        return result if len(result) >= 2 else []
+
+    except Exception:
+        return []
+
+
+def _trailing_eps_from_series(eps_series):
+    """Most recent annual EPS from our self-computed series."""
+    if not eps_series:
+        return None
+    return eps_series[-1][1]
+
+
+def _eps_cagr_from_series(eps_series, lookback_years=2):
+    """
+    Compute EPS CAGR over `lookback_years` from self-derived series.
+
+    RULES:
+    - Both endpoints must be POSITIVE (no trough-to-recovery nonsense)
+    - Returns (cagr_float, years_int) or (None, 0)
+    - Does NOT cap — caller is responsible for capping
+
+    The series is sorted ascending: index 0 = oldest, index -1 = newest.
+    """
+    if not eps_series or len(eps_series) < 2:
+        return None, 0
+
+    n = len(eps_series)
+    lookback = min(lookback_years, n - 1)
+
+    newest_eps = eps_series[-1][1]
+    oldest_eps = eps_series[-(lookback + 1)][1]
+    years = lookback
+
+    # Both must be positive
+    if oldest_eps <= 0 or newest_eps <= 0 or years <= 0:
+        return None, 0
+
+    cagr = (newest_eps / oldest_eps) ** (1.0 / years) - 1.0
+
+    if cagr <= 0:
+        return None, 0
+
+    return round(cagr, 4), years
+
+
+# ══════════════════════════════════════════════════════════════
+# PHASE 1 — parallel, one ticker per thread
+# ══════════════════════════════════════════════════════════════
+
+def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
+    """
+    Quality gate + self-computed EPS.
+    Returns (metrics_dict, None) on pass, (None, reason_str) on fail.
+    """
+    cached = _cache_fresh(cache, ticker)
+    if cached:
+        if cached["result"] == "fail":
+            return None, f"[cached] {cached['reason']}"
+
+    t_obj, err = _get_info(ticker)
+    if t_obj is None:
+        return None, f"fetch error: {err}"
+
+    info = t_obj.info
+
+    if not info.get("shortName"):
+        return None, "no shortName"
+
+    # Market cap pre-filter
+    mcap = info.get("marketCap")
+    if not mcap or mcap < min_mcap:
+        return None, f"mcap {mcap}"
+
+    # ── Quality filters ───────────────────────────────────────
+    roe = info.get("returnOnEquity")
+    if roe is None:
+        roe = _roe_from_statements(t_obj)
+    if roe is None or roe < filters["min_roe"]:
+        return None, f"ROE {roe}"
+
+    de = _de_from_info(info.get("debtToEquity"))
+    if de is None:
+        de = _de_from_statements(t_obj)
+    if de is None or de > filters["max_debt_equity"]:
+        return None, f"D/E {de}"
+
+    fcf = info.get("freeCashflow")
+    if fcf is None or fcf <= filters["min_fcf"]:
+        return None, f"FCF {fcf}"
+
+    fcf_yield = round(fcf / mcap, 4) if mcap and mcap > 0 else None
+
+    # ── Self-computed EPS ─────────────────────────────────────
+    eps_series = _get_eps_series(t_obj)
+    trailing_eps = _trailing_eps_from_series(eps_series)
+
+    if trailing_eps is None or trailing_eps <= 0:
+        return None, "EPS not computable from statements"
+
+    price = info.get("currentPrice") or info.get("regularMarketPrice")
+    if not price or price <= 0:
+        return None, f"no price"
+
+    trailing_pe = round(price / trailing_eps, 2)
+
+    # PE sanity: too high = not a screener candidate
+    if trailing_pe > SCREENER_PE_CEILING:
+        return None, f"PE {trailing_pe:.0f} > {SCREENER_PE_CEILING:.0f}"
+    if trailing_pe <= 0:
+        return None, f"PE {trailing_pe:.1f} non-positive"
+
+    # ── Cross-validation logging ──────────────────────────────
+    api_trailing_eps = info.get("trailingEps")
+    if api_trailing_eps:
+        try:
+            div = abs(float(api_trailing_eps) - trailing_eps) / abs(trailing_eps)
+            if div > 0.30:
+                print(f"  EPS DIVERGENCE [{ticker}]: "
+                      f"API={float(api_trailing_eps):.2f} vs "
+                      f"stmt={trailing_eps:.2f} ({div:.0%} gap)")
+        except Exception:
+            pass
+
+    return {
+        "ticker":              ticker,
+        "name":                info.get("shortName", ticker),
+        "sector":              info.get("sector", ""),
+        "price":               price,
+        "market_cap":          mcap,
+        "trailing_eps":        trailing_eps,
+        "trailing_pe":         trailing_pe,
+        "eps_series":          eps_series,
+        "api_earnings_growth": info.get("earningsGrowth"),
+        "roe":                 roe,
+        "debt_equity":         de,
+        "fcf":                 fcf,
+        "fcf_yield":           fcf_yield,
+        "_t_obj":              t_obj,
+    }, None
+
+
+# ══════════════════════════════════════════════════════════════
+# PHASE 2 — CAGR + PEG (sequential)
+# ══════════════════════════════════════════════════════════════
+
+def _compute_screener_peg(m: dict) -> tuple:
+    """
+    PEG from self-computed EPS only. No API dependency.
+
+    PE  = price / statement Diluted EPS  (computed in phase 1)
+    G   = 2-year EPS CAGR from statements, capped at 20%
+
+    Returns (peg, source_str, conflict_str_or_None)
+    """
+    ticker = m.get("ticker", "?")
+    pe = m.get("trailing_pe")
+
+    if not pe or pe <= 0:
+        return None, "no_pe", None
+
+    eps_series = m.get("eps_series", [])
+    cagr, years = _eps_cagr_from_series(eps_series, SCREENER_CAGR_LOOKBACK)
+
+    if cagr is None or cagr <= 0:
+        return None, "no_positive_2yr_cagr", None
+
+    growth_pct = cagr * 100.0
+    source = f"stmt_eps_cagr_{years}yr"
+    conflict = None
+
+    # Cap growth for PEG
+    if growth_pct > SCREENER_GROWTH_CAP:
+        print(f"    PEG [{ticker}]: {years}yr CAGR={growth_pct:.1f}% "
+              f"capped to {SCREENER_GROWTH_CAP:.0f}%")
+        growth_pct = SCREENER_GROWTH_CAP
+        source += "_capped"
+
+    # ── Cross-validate against analyst consensus ──────────────
+    # If analysts see NEGATIVE growth but our CAGR is positive,
+    # the historical number is almost certainly trough-inflated.
+    api_eg = m.get("api_earnings_growth")
+    if api_eg is not None:
+        try:
+            api_g = float(api_eg)
+            api_g_pct = api_g * 100 if abs(api_g) < 1 else api_g
+            if api_g_pct < -5.0 and growth_pct > 10.0:
                 conflict = (
-                    f"Forward growth used for PEG ({growth:.1f}%, source: {source}) "
-                    f"diverges significantly from historical CAGR "
-                    f"({hist_cagr_raw:.1f}%). Gap of {divergence:.1f}pp likely "
-                    f"reflects a trough or peak base year — treat historical "
-                    f"CAGR with caution."
+                    f"Analyst consensus NEGATIVE ({api_g_pct:.1f}%) but "
+                    f"2yr CAGR is {cagr*100:.1f}%. Rejecting — historical "
+                    f"is likely trough-inflated."
                 )
-                m["peg_growth_conflict"] = conflict
-                print(f"  PEG CONFLICT: {conflict}")
-
-        # ── Compute PEG ──
-        peg = round(pe / growth, 2)
-        m["peg_growth_used"]   = round(growth, 1)
-        m["peg_growth_source"] = source
-
-        if 0 < peg <= 5.0:
-            m["peg_ratio"] = peg
-            print(f"  PEG computed: {pe:.1f}x PE / {growth:.1f}% = {peg:.2f} "
-                  f"(source: {source})")
-        else:
-            print(f"  PEG out of range ({peg:.2f}), discarding "
-                  f"(source: {source}, growth: {growth:.1f}%)")
-
-    except Exception as e:
-        print(f"  PEG computation error: {e}")
-    return m
-
-
-def _check_growth_consistency(m):
-    """
-    Cross-check revenue_growth vs earnings_growth for internal consistency.
-
-    WHY THIS EXISTS
-    ---------------
-    yfinance sometimes returns stale or mismatched fields — e.g. revenue_growth
-    from a recent quarter but earnings_growth from an older estimate, or one
-    field from standalone and another from consolidated financials.
-
-    A divergence of >20 percentage points between revenue growth and earnings
-    growth is a strong signal that at least one figure is unreliable.  Real
-    operating leverage or compression rarely produces gaps this large.
-
-    Example: Maruti shows revenue_growth=28.2% but earnings_growth=-6.4%.
-    That would imply catastrophic margin collapse that isn't happening.
-    One of those numbers is stale or from a different reporting scope.
-
-    We store the warning in m["data_quality_warnings"] (a list) so it can be
-    passed to the LLM prompt and surfaced in the report narrative, and also
-    printed to Streamlit logs for the operator to see.
-    """
-    if "data_quality_warnings" not in m:
-        m["data_quality_warnings"] = []
-
-    rev_g  = m.get("revenue_growth")
-    earn_g = m.get("earnings_growth")
-
-    if rev_g is not None and earn_g is not None:
-        try:
-            rev_pct  = float(rev_g)  * 100 if abs(float(rev_g))  < 1 else float(rev_g)
-            earn_pct = float(earn_g) * 100 if abs(float(earn_g)) < 1 else float(earn_g)
-            divergence = abs(rev_pct - earn_pct)
-
-            if divergence > 20:
-                warning = (
-                    f"DATA QUALITY WARNING: revenue_growth ({rev_pct:.1f}%) and "
-                    f"earnings_growth ({earn_pct:.1f}%) diverge by {divergence:.1f}pp. "
-                    f"This likely indicates stale, mismatched, or standalone-vs-consolidated "
-                    f"scope mismatch in yfinance data. Treat both figures with caution "
-                    f"and do not anchor the investment thesis on either alone."
-                )
-                m["data_quality_warnings"].append(warning)
-                print(f"  {warning}")
+                print(f"    PEG REJECTED [{ticker}]: {conflict}")
+                return None, "forward_negative_conflict", conflict
         except Exception:
             pass
 
-    # Also warn if historical EPS CAGR is implausibly high (>40%) which almost
-    # always signals a trough base year rather than genuine compounding.
-    hist_cagr = m.get("peg_historical_cagr")
-    if hist_cagr and hist_cagr > 40:
-        warning = (
-            f"DATA QUALITY WARNING: historical EPS CAGR is {hist_cagr:.1f}% — "
-            f"extremely high CAGRs almost always reflect a depressed base year "
-            f"(COVID, commodity spike, one-off loss) rather than genuine compounding. "
-            f"Do not use this as a forward growth estimate."
-        )
-        m["data_quality_warnings"].append(warning)
-        print(f"  {warning}")
+    peg = round(pe / growth_pct, 3)
 
-    return m
+    # Floor check
+    if peg < SCREENER_PEG_FLOOR:
+        conflict = f"PEG {peg:.2f} < {SCREENER_PEG_FLOOR} floor — likely data error"
+        print(f"    PEG REJECTED [{ticker}]: {conflict}")
+        return None, "peg_below_floor", conflict
+
+    print(f"    PEG [{ticker}]: {pe:.1f}x / {growth_pct:.1f}% = {peg:.2f} "
+          f"({source})")
+
+    return peg, source, conflict
 
 
-def _compute_price_history(m, data):
-    h = data.get("hist")
-    if h is not None and not h.empty:
-        try:
-            c = h["Close"]
-            m["price_5y_return"] = round(((c.iloc[-1] / c.iloc[0]) - 1) * 100, 2)
-            m["price_5y_high"]   = round(float(c.max()), 2)
-            m["price_5y_low"]    = round(float(c.min()), 2)
-        except Exception:
-            m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
-    else:
-        m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
-    return m
+def _phase2_ticker(m: dict, filters: dict, cache: dict):
+    """
+    CAGR filter + PEG computation + QGLP score.
+    Mutates m in place. Returns True on pass, False on fail.
+    """
+    ticker = m["ticker"]
+    _ = m.pop("_t_obj", None)   # release the Ticker object
+
+    eps_series = m.get("eps_series", [])
+    cagr, cagr_years = _eps_cagr_from_series(eps_series, SCREENER_CAGR_LOOKBACK)
+
+    if cagr is None or cagr < filters["min_earnings_cagr"]:
+        _cache_write(cache, ticker, "fail", f"2yr_CAGR {cagr}")
+        return False
+
+    m["earnings_cagr"]       = min(cagr, 0.40)
+    m["earnings_cagr_raw"]   = cagr
+    m["earnings_cagr_years"] = cagr_years
+
+    if cagr > 0.40:
+        print(f"  CAGR [{ticker}]: raw={cagr:.1%} capped display to 40%")
+
+    # PEG
+    peg, peg_source, peg_conflict = _compute_screener_peg(m)
+    m["peg_ratio"]    = peg
+    m["peg_source"]   = peg_source
+    m["peg_conflict"] = peg_conflict
+
+    if peg is None or peg > filters["max_peg"]:
+        reason = f"PEG {peg} ({peg_source})"
+        if peg_conflict:
+            reason += f" | {peg_conflict[:80]}"
+        _cache_write(cache, ticker, "fail", reason)
+        return False
+
+    m["qglp_score"] = compute_qglp_score(m)
+    _cache_write(cache, ticker, "pass", score=m["qglp_score"])
+    return True
 
 
 # ══════════════════════════════════════════════════════════════
-# PROBABILITY ENGINE  (v2 — signal-derived, bottoms-up)
-# ══════════════════════════════════════════════════════════════
-#
-# WHAT CHANGED AND WHY
-# ---------------------
-# The old engine asked the LLM to assign bull/base/bear probabilities per
-# macro driver, then took a geometric mean. This produced nearly identical
-# probabilities for every stock (~22/52/26) because:
-#   1. LLMs anchor to "safe" round numbers (25/50/25 or 30/40/30)
-#   2. Geometric mean of near-equal inputs returns near-equal outputs
-#   3. Hardcoded BULL_BOOST/BEAR_BOOST constants applied unconditionally
-#   4. MIN/MAX caps (0.08–0.55) further compressed any variance
-#
-# The new engine derives probabilities entirely from observable, stock-
-# specific financial signals computed in Python.  The LLM still writes the
-# qualitative scenario narratives; Python assigns the probabilities.
-# Each stock now gets genuinely different probabilities driven by its own
-# fundamentals, which is what "bottoms-up" means.
-#
-# SIGNAL ARCHITECTURE
-# --------------------
-# We build a single continuous bull_score (0–100, anchored at 50 = neutral).
-# Signals are additive and capped so no single factor dominates.
-# Bear probability is derived as the mirror with asymmetric dampening
-# (we don't force bear = 1 - bull; base absorbs the middle).
-#
-# Signals and their max contributions:
-#   Earnings revision momentum  ±15 pts  (forward vs trailing EPS direction)
-#   Revenue growth trajectory   ±15 pts  (CAGR tier)
-#   EPS growth trajectory       ±12 pts  (CAGR tier)
-#   Operating margin quality    ±12 pts  (absolute margin level)
-#   Valuation / PEG             ±12 pts  (cheap = more bull upside)
-#   Balance sheet risk          ±8  pts  (D/E ratio)
-#   Price vs 200-day MA         ±6  pts  (momentum / trend confirmation)
-#   Beta / volatility           ±5  pts  (high beta → wider bear tail)
-#
-# Score → probability mapping:
-#   bull_score=80 → ~35% bull, ~50% base, ~15% bear  (strong growth compounder)
-#   bull_score=50 → ~20% bull, ~55% base, ~25% bear  (neutral / no edge)
-#   bull_score=25 → ~12% bull, ~43% base, ~45% bear  (distressed / declining)
-#
-# The method name is stored in the output dict so app.py can show users
-# which engine was used (and so tests can assert on it).
-
-def compute_scenario_probabilities(metrics, llm_output=None):
-    """
-    Derive scenario probabilities from observable financial signals.
-
-    Parameters
-    ----------
-    metrics : dict
-        The metrics dict from calc().  All signals come from here.
-    llm_output : dict, optional
-        Kept for API compatibility.  No longer used for probability
-        computation but retained so call sites don't need changing.
-
-    Returns
-    -------
-    dict with keys: bull, base, bear (sum to 1.0), method, bull_score,
-    signal_detail (list of dicts for debugging / display).
-    """
-
-    # ── Pull signals ───────────────────────────────────────────────────────
-    rev_cagr      = safe_float(metrics.get("revenue_cagr",     0))
-    eps_cagr      = safe_float(metrics.get("eps_cagr",
-                    metrics.get("net_income_cagr",             0)))
-    op_margin     = safe_float(metrics.get("operating_margin", 0))
-    forward_eps   = safe_float(metrics.get("forward_eps",      0))
-    trailing_eps  = safe_float(metrics.get("trailing_eps",     0))
-    de_ratio      = safe_float(metrics.get("debt_to_equity",   1.0))
-    peg           = safe_float(metrics.get("peg_ratio",        0))
-    beta          = safe_float(metrics.get("beta",             1.0))
-    current_price = safe_float(metrics.get("current_price",    0))
-    ma_200        = safe_float(metrics.get("ma_200",           0))
-
-    bull_score  = 50.0   # neutral anchor
-    signal_log  = []
-
-    # ── Signal 1: Earnings revision momentum (±15) ─────────────────────────
-    # Forward EPS > trailing EPS means analysts are upgrading estimates.
-    # This is one of the most reliable leading indicators of outperformance.
-    if forward_eps > 0 and trailing_eps > 0:
-        eps_revision = (forward_eps - trailing_eps) / abs(trailing_eps)
-        delta = max(-15.0, min(15.0, eps_revision * 50.0))
-        bull_score += delta
-        signal_log.append({
-            "signal": "EPS revision momentum",
-            "value":  round(eps_revision, 3),
-            "delta":  round(delta, 1),
-            "note":   f"fwd={forward_eps:.2f} vs trail={trailing_eps:.2f}",
-        })
-    else:
-        signal_log.append({
-            "signal": "EPS revision momentum",
-            "value":  None, "delta": 0.0,
-            "note":   "Insufficient EPS data",
-        })
-
-    # ── Signal 2: Revenue growth trajectory (±15) ─────────────────────────
-    # Tier-based so a 25%-CAGR company looks very different from 5%.
-    if rev_cagr >= 0.25:
-        rev_delta = 15.0
-    elif rev_cagr >= 0.15:
-        rev_delta = 10.0
-    elif rev_cagr >= 0.08:
-        rev_delta = 5.0
-    elif rev_cagr >= 0.02:
-        rev_delta = 0.0
-    elif rev_cagr >= -0.05:
-        rev_delta = -8.0
-    else:
-        rev_delta = -15.0
-    bull_score += rev_delta
-    signal_log.append({
-        "signal": "Revenue CAGR",
-        "value":  round(rev_cagr, 3),
-        "delta":  rev_delta,
-        "note":   f"{rev_cagr*100:.1f}%",
-    })
-
-    # ── Signal 3: EPS / earnings growth trajectory (±12) ──────────────────
-    if eps_cagr >= 0.25:
-        eps_delta = 12.0
-    elif eps_cagr >= 0.15:
-        eps_delta = 8.0
-    elif eps_cagr >= 0.05:
-        eps_delta = 4.0
-    elif eps_cagr >= 0:
-        eps_delta = 0.0
-    elif eps_cagr >= -0.10:
-        eps_delta = -6.0
-    else:
-        eps_delta = -12.0
-    bull_score += eps_delta
-    signal_log.append({
-        "signal": "EPS / NI CAGR",
-        "value":  round(eps_cagr, 3),
-        "delta":  eps_delta,
-        "note":   f"{eps_cagr*100:.1f}%",
-    })
-
-    # ── Signal 4: Operating margin quality (±12) ──────────────────────────
-    # High absolute margins = pricing power + competitive moat.
-    # Negative margins = structural risk even if growth is high.
-    if op_margin >= 0.30:
-        margin_delta = 12.0
-    elif op_margin >= 0.20:
-        margin_delta = 7.0
-    elif op_margin >= 0.10:
-        margin_delta = 3.0
-    elif op_margin >= 0.05:
-        margin_delta = 0.0
-    elif op_margin >= 0:
-        margin_delta = -5.0
-    else:
-        margin_delta = -12.0
-    bull_score += margin_delta
-    signal_log.append({
-        "signal": "Operating margin",
-        "value":  round(op_margin, 3),
-        "delta":  margin_delta,
-        "note":   f"{op_margin*100:.1f}%",
-    })
-
-    # ── Signal 5: Valuation / PEG (±12) ───────────────────────────────────
-    # PEG < 1 = growth at a reasonable price.  PEG > 3 = priced for perfection.
-    # No PEG available → neutral (0).
-    if peg > 0:
-        if peg <= 0.75:
-            peg_delta = 12.0
-        elif peg <= 1.25:
-            peg_delta = 7.0
-        elif peg <= 2.00:
-            peg_delta = 2.0
-        elif peg <= 3.00:
-            peg_delta = -4.0
-        else:
-            peg_delta = -12.0
-        bull_score += peg_delta
-        signal_log.append({
-            "signal": "PEG ratio",
-            "value":  round(peg, 2),
-            "delta":  peg_delta,
-            "note":   f"{peg:.2f}x",
-        })
-    else:
-        signal_log.append({
-            "signal": "PEG ratio",
-            "value":  None, "delta": 0.0,
-            "note":   "PEG not available — neutral",
-        })
-
-    # ── Signal 6: Balance sheet risk — D/E (±8) ───────────────────────────
-    # Very high leverage increases bear scenario probability.
-    if de_ratio <= 0:
-        de_delta = 5.0      # net cash position
-    elif de_ratio <= 0.30:
-        de_delta = 5.0
-    elif de_ratio <= 0.80:
-        de_delta = 2.0
-    elif de_ratio <= 1.50:
-        de_delta = 0.0
-    elif de_ratio <= 2.50:
-        de_delta = -5.0
-    else:
-        de_delta = -8.0
-    bull_score += de_delta
-    signal_log.append({
-        "signal": "Debt/Equity",
-        "value":  round(de_ratio, 2),
-        "delta":  de_delta,
-        "note":   f"{de_ratio:.2f}x",
-    })
-
-    # ── Signal 7: Price vs 200-day MA (±6) ────────────────────────────────
-    # Above 200MA = trend intact.  Below = potential value or deteriorating.
-    # Small weight — this is a confirming signal, not a primary driver.
-    if current_price > 0 and ma_200 > 0:
-        ma_ratio = current_price / ma_200
-        if ma_ratio >= 1.10:
-            ma_delta = 6.0
-        elif ma_ratio >= 1.00:
-            ma_delta = 3.0
-        elif ma_ratio >= 0.90:
-            ma_delta = -2.0
-        else:
-            ma_delta = -6.0
-        bull_score += ma_delta
-        signal_log.append({
-            "signal": "Price vs 200-day MA",
-            "value":  round(ma_ratio, 3),
-            "delta":  ma_delta,
-            "note":   f"price={current_price:.1f} / MA200={ma_200:.1f}",
-        })
-    else:
-        signal_log.append({
-            "signal": "Price vs 200-day MA",
-            "value":  None, "delta": 0.0,
-            "note":   "MA data unavailable — neutral",
-        })
-
-    # ── Signal 8: Beta / volatility (bear tail widener) (±5) ─────────────
-    # High-beta stocks have fatter tails — the bear scenario is more severe
-    # even if the expected case is positive.  We reduce bull slightly and
-    # increase bear tail for high-beta names.
-    if beta > 0:
-        if beta >= 2.0:
-            beta_delta = -5.0
-        elif beta >= 1.5:
-            beta_delta = -3.0
-        elif beta >= 1.0:
-            beta_delta = 0.0
-        elif beta >= 0.6:
-            beta_delta = 2.0
-        else:
-            beta_delta = 4.0      # low-beta defensive = more stable
-        bull_score += beta_delta
-        signal_log.append({
-            "signal": "Beta",
-            "value":  round(beta, 2),
-            "delta":  beta_delta,
-            "note":   f"β={beta:.2f}",
-        })
-    else:
-        signal_log.append({
-            "signal": "Beta",
-            "value":  None, "delta": 0.0,
-            "note":   "Beta unavailable — neutral",
-        })
-
-    # ── Clamp and map score → probabilities ───────────────────────────────
-    bull_score = max(5.0, min(95.0, bull_score))
-
-    # Mapping function (non-linear):
-    #   bull_score=95 → raw_bull≈0.43, raw_bear≈0.08  (very strong bull)
-    #   bull_score=50 → raw_bull≈0.20, raw_bear≈0.24  (neutral, slight bear bias)
-    #   bull_score=5  → raw_bull≈0.06, raw_bear≈0.47  (very weak / distressed)
-    #
-    # We use asymmetric scaling: bull upside is harder to achieve than bear
-    # downside, consistent with empirical equity return distributions.
-    raw_bull = (bull_score / 100.0) * 0.45          # max achievable bull prob ≈ 43%
-    raw_bear = ((100.0 - bull_score) / 100.0) * 0.50  # max achievable bear prob ≈ 47%
-
-    # Base absorbs the remainder — it is always at least 30%
-    raw_base = max(0.30, 1.0 - raw_bull - raw_bear)
-
-    total = raw_bull + raw_base + raw_bear
-    final_bull = round(raw_bull / total, 3)
-    final_base = round(raw_base / total, 3)
-    final_bear = round(1.0 - final_bull - final_base, 3)   # ensures exact sum to 1
-
-    print(f"  Probability engine v2: bull_score={bull_score:.1f} | "
-          f"bull={final_bull:.2%}, base={final_base:.2%}, bear={final_bear:.2%}")
-
-    return {
-        "bull":          final_bull,
-        "base":          final_base,
-        "bear":          final_bear,
-        "method":        "signal_derived_v2",
-        "bull_score":    round(bull_score, 1),
-        "signal_detail": signal_log,
-        # Legacy keys retained so any app.py code that read these won't KeyError
-        "raw_geometric":             {"bull": round(raw_bull, 4), "bear": round(raw_bear, 4)},
-        "correlation_multipliers":   {"bull": 1.0, "bear": 1.0},
-        "driver_detail":             [],
-    }
-
-
-# ══════════════════════════════════════════════════════════════
-# HEADWIND / TAILWIND EPS STAMPER
+# SCREENING PIPELINE (structure unchanged from v2)
 # ══════════════════════════════════════════════════════════════
 
-def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin, tax_rate=0.21):
-    """
-    Stamp bull/base/bear EPS impacts onto the top-level headwind/tailwind items.
-    These are read directly from llm_output by app.py.
+def screen_universe(tickers: list, market_label: str,
+                    filters: dict = None, min_mcap: float = 2e9) -> list:
+    if filters is None:
+        filters = FILTERS
 
-    NOTE: _compute_single_scenario already calls _stamp_item_eps on the
-    scenario-level items (s["headwinds"] / s["tailwinds"]).  This function
-    stamps the *top-level* llm_output["headwinds"] / llm_output["tailwinds"]
-    lists, which are separate objects used by the summary table in app.py.
-    There is no double-stamp: scenario items and top-level items are distinct.
-    """
-    hw_items = llm_output.get("headwinds", [])
-    tw_items = llm_output.get("tailwinds", [])
+    print(f"\n{'='*60}")
+    print(f"Screening {market_label}: {len(tickers)} tickers | "
+          f"workers={PHASE1_WORKERS} | cache_ttl={CACHE_TTL_DAYS}d | "
+          f"cagr_lookback={SCREENER_CAGR_LOOKBACK}yr | "
+          f"growth_cap={SCREENER_GROWTH_CAP}%")
+    print(f"{'='*60}")
 
-    for items in [hw_items, tw_items]:
-        for item in items:
-            rev = safe_float(item.get("revenue_at_risk") or item.get("revenue_opportunity") or 0)
-            if rev == 0 or shares == 0 or op_margin == 0:
-                item["bull_eps_impact"] = 0.0
-                item["base_eps_impact"] = 0.0
-                item["bear_eps_impact"] = 0.0
-                continue
-            for sname in ["bull", "base", "bear"]:
-                s = scenario_results.get(sname, {})
-                s_margin = s.get("operating_margin", op_margin)
-                eps = round((rev * s_margin * (1 - tax_rate)) / shares, 2)
-                item[f"{sname}_eps_impact"] = eps
+    cache = _load_cache()
+    phase1_pass  = []
+    phase1_stats = {"pass": 0, "fail": 0, "cached_fail": 0}
 
+    # ── Phase 1: parallel info fetch + quality filters ────────
+    print(f"\nPhase 1: quality + self-computed EPS (parallel)...")
+    with ThreadPoolExecutor(max_workers=PHASE1_WORKERS) as pool:
+        futures = {
+            pool.submit(_phase1_ticker, t, filters, min_mcap, cache): t
+            for t in tickers
+        }
+        for i, future in enumerate(as_completed(futures), 1):
+            ticker = futures[future]
+            try:
+                m, reason = future.result()
+            except Exception as exc:
+                m, reason = None, str(exc)
 
-# ══════════════════════════════════════════════════════════════
-# SCENARIO MATH ENGINE
-# ══════════════════════════════════════════════════════════════
-
-def _sum_item_eps(items):
-    """
-    Sum eps_impact from individual headwind/tailwind item dicts.
-    The LLM puts eps_impact inside each item, not at the scenario level.
-    Headwinds are negative by convention; tailwinds positive.
-    Falls back to zero gracefully when the field is absent.
-    """
-    total = 0.0
-    for item in (items or []):
-        val = safe_float(item.get("eps_impact", item.get("eps_delta", 0)))
-        total += val
-    return total
-
-
-def _stamp_item_eps(items, scenario_key, shares, operating_margin, tax_rate, total_revenue):
-    """
-    Stamp bull_eps_impact / base_eps_impact / bear_eps_impact onto each
-    headwind/tailwind item so app.py can render them per-row in the table.
-    revenue_at_risk / revenue_opportunity → EPS impact via margin → net → per share.
-    """
-    for item in (items or []):
-        rev_field = (item.get("revenue_at_risk") or item.get("revenue_opportunity") or 0)
-        rev = safe_float(rev_field)
-        if rev == 0 or shares == 0 or operating_margin == 0:
-            item[f"{scenario_key}_eps_impact"] = 0.0
-            continue
-        eps_impact = round((rev * operating_margin * (1 - tax_rate)) / shares, 2)
-        item[f"{scenario_key}_eps_impact"] = eps_impact
-
-
-def _detect_gaap_suppression(python_eps, llm_eps, forward_eps, trailing_eps):
-    """
-    Detect whether GAAP acquisition amortisation is suppressing EPS.
-
-    This is the AVGO/VMware problem: GAAP net income is crushed by intangible
-    amortisation from the $69B acquisition, making GAAP EPS (~$5) look nothing
-    like the non-GAAP consensus forward EPS (~$18) that the market prices on.
-
-    Detection criteria — all three must be true:
-      1. forward_eps exists and is meaningfully positive
-      2. Both python_eps AND llm_eps are less than 60% of forward_eps
-      3. The gap between trailing and forward EPS implies a large GAAP/non-GAAP
-         wedge (forward_eps >> trailing_eps)
-
-    Returns: (is_suppressed: bool, non_gaap_ratio: float)
-      non_gaap_ratio = forward_eps / trailing_eps, capped at 4.0
-    """
-    if forward_eps <= 0 or trailing_eps <= 0:
-        return False, 1.0
-
-    py_below  = python_eps  > 0 and python_eps  < forward_eps * 0.60
-    llm_below = (llm_eps <= 0) or (llm_eps < forward_eps * 0.60)
-
-    if not (py_below and llm_below):
-        return False, 1.0
-
-    non_gaap_ratio = forward_eps / trailing_eps
-    if non_gaap_ratio < 1.3:
-        return False, 1.0
-
-    non_gaap_ratio = min(non_gaap_ratio, 4.0)
-    return True, non_gaap_ratio
-
-
-def _apply_pe_guardrails(pe_mult, scenario_name, anchor_pe):
-    """
-    Constrain the LLM-assigned PE multiple to a plausible range relative
-    to where the stock currently trades (anchor_pe = forward PE or trailing PE).
-
-    WHY THIS EXISTS
-    ---------------
-    Without guardrails the LLM can assign 45x to a utility bull case or 8x
-    to a high-growth tech bear case, producing price targets that are
-    arithmetically possible but analytically indefensible.  PE
-    expansion/compression is the single largest driver of price target
-    variance, so constraining it to a credible band around the current
-    multiple produces more defensible outputs.
-
-    BANDS (relative to anchor_pe)
-    ------
-    Bull  : [anchor * 0.90,  anchor * 1.60]   — meaningful re-rating upside
-    Base  : [anchor * 0.75,  anchor * 1.25]   — modest compression or expansion
-    Bear  : [anchor * 0.40,  anchor * 1.00]   — real de-rating without going to zero
-
-    If anchor_pe is unknown (≤0) we fall back to absolute sanity bounds:
-    3x floor (avoid division-by-zero territory) and 80x ceiling.
-    """
-    if anchor_pe <= 0:
-        # No anchor — apply broad absolute bounds only
-        return max(3.0, min(pe_mult, 80.0))
-
-    if scenario_name == "bull":
-        lo, hi = anchor_pe * 0.90, anchor_pe * 1.60
-    elif scenario_name == "base":
-        lo, hi = anchor_pe * 0.75, anchor_pe * 1.25
-    else:  # bear
-        lo, hi = anchor_pe * 0.40, anchor_pe * 1.00
-
-    clamped = max(lo, min(pe_mult, hi))
-    if clamped != pe_mult:
-        print(f"  PE guardrail [{scenario_name}]: LLM={pe_mult:.1f}x "
-              f"→ clamped to {clamped:.1f}x "
-              f"(band {lo:.1f}x – {hi:.1f}x, anchor={anchor_pe:.1f}x)")
-    return clamped
-
-
-def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
-                              trailing_eps, forward_eps, total_revenue, shares,
-                              operating_margin, profit_margin, fcf_margin,
-                              anchor_pe=0):
-    try:
-        prob     = scenario_probs.get(scenario_name, 0.20)
-        tax_rate = safe_float(s.get("tax_rate"), default=0.21)
-
-        # ── Segment revenue build ──────────────────────────────────────────
-        segment_builds        = s.get("segment_builds", [])
-        segment_revenue_total = sum(safe_float(seg.get("projected_revenue"))
-                                    for seg in segment_builds)
-
-        # ── Headwind / tailwind EPS ────────────────────────────────────────
-        hw_items = s.get("headwinds", [])
-        tw_items = s.get("tailwinds", [])
-
-        hw_revenue      = safe_float(s.get("total_headwind_revenue"))
-        tw_revenue      = safe_float(s.get("total_tailwind_revenue"))
-        hw_eps_scenario = safe_float(s.get("total_headwind_eps"))
-        tw_eps_scenario = safe_float(s.get("total_tailwind_eps"))
-        hw_eps_items    = _sum_item_eps(hw_items)
-        tw_eps_items    = _sum_item_eps(tw_items)
-
-        hw_eps = hw_eps_scenario if hw_eps_scenario != 0 else hw_eps_items
-        tw_eps = tw_eps_scenario if tw_eps_scenario != 0 else tw_eps_items
-
-        # ── Revenue total ──────────────────────────────────────────────────
-        llm_total_revenue    = safe_float(s.get("total_revenue"))
-        python_total_revenue = segment_revenue_total + hw_revenue + tw_revenue
-
-        if python_total_revenue > 0:
-            total_rev = python_total_revenue
-        elif llm_total_revenue > 0:
-            total_rev = llm_total_revenue
-        else:
-            total_rev = total_revenue
-
-        if llm_total_revenue > 0 and python_total_revenue > 0:
-            rev_diff = abs(python_total_revenue - llm_total_revenue) / llm_total_revenue
-            if rev_diff > 0.05:
-                print(f"  {scenario_name}: Revenue discrepancy — "
-                      f"Python={python_total_revenue:.0f}, LLM={llm_total_revenue:.0f} "
-                      f"({rev_diff*100:.1f}% diff)")
-
-        rev_growth = ((total_rev / total_revenue) - 1) if total_revenue > 0 else 0.0
-
-        # ── Margins ────────────────────────────────────────────────────────
-        llm_op_margin    = safe_float(s.get("operating_margin"))
-        llm_net_margin   = safe_float(s.get("net_margin"))
-        margin_rationale = clean_latex(s.get("margin_rationale", ""))
-
-        if operating_margin > 0 and llm_op_margin > 0:
-            margin_ratio = llm_op_margin / operating_margin
-            if margin_ratio > 3.0 or margin_ratio < 0.1:
-                llm_op_margin = max(operating_margin * 0.3,
-                                    min(llm_op_margin, operating_margin * 2.5))
-
-        op_margin  = llm_op_margin  if llm_op_margin  > 0 else operating_margin
-        net_margin = llm_net_margin if llm_net_margin > 0 else profit_margin
-
-        if net_margin == 0 and op_margin > 0:
-            net_margin = op_margin * (1 - tax_rate)
-        if op_margin > 0 and net_margin > op_margin:
-            net_margin = op_margin * (1 - tax_rate)
-
-        # ── EPS: GAAP suppression detection ───────────────────────────────
-        if total_rev > 0 and net_margin > 0 and shares > 0:
-            python_eps = (total_rev * net_margin) / shares
-        elif total_rev > 0 and op_margin > 0 and shares > 0:
-            python_eps = (total_rev * op_margin * (1 - tax_rate)) / shares
-        else:
-            python_eps = 0.0
-
-        llm_eps  = safe_float(s.get("projected_eps"))
-        eps_flag = None
-
-        gaap_suppressed, non_gaap_ratio = _detect_gaap_suppression(
-            python_eps, llm_eps, forward_eps, trailing_eps)
-
-        if gaap_suppressed:
-            scenario_margin_ratio = (llm_op_margin / operating_margin
-                                     if operating_margin > 0 and llm_op_margin > 0
-                                     else 1.0)
-            scenario_margin_ratio = max(0.50, min(2.0, scenario_margin_ratio))
-            final_eps = forward_eps * (1 + rev_growth) * scenario_margin_ratio
-            eps_flag  = (
-                f"GAAP EPS suppressed by acquisition amortisation "
-                f"(Python GAAP={python_eps:.2f}, LLM={llm_eps:.2f}, "
-                f"forward_eps non-GAAP consensus={forward_eps:.2f}). "
-                f"Scaled to non-GAAP using forward_eps × rev_growth "
-                f"({1+rev_growth:.2f}x) × margin ratio ({scenario_margin_ratio:.2f}x) "
-                f"= {final_eps:.2f}."
-            )
-            print(f"  {scenario_name}: {eps_flag}")
-
-        elif python_eps > 0 and llm_eps > 0:
-            eps_diff = abs(python_eps - llm_eps) / llm_eps
-            if eps_diff > 0.10:
-                if forward_eps > 0:
-                    py_dist  = abs(python_eps - forward_eps) / forward_eps
-                    llm_dist = abs(llm_eps    - forward_eps) / forward_eps
-                    if llm_dist < py_dist and llm_dist < 0.40:
-                        final_eps = llm_eps
-                        eps_flag  = (
-                            f"LLM EPS ({llm_eps:.2f}) closer to forward consensus "
-                            f"({forward_eps:.2f}) than Python EPS ({python_eps:.2f}). "
-                            f"Using LLM."
-                        )
-                        print(f"  {scenario_name}: {eps_flag}")
-                    else:
-                        final_eps = python_eps
-                        eps_flag  = (
-                            f"Python EPS ({python_eps:.2f}) differs from "
-                            f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
-                            f"Using Python."
-                        )
-                        print(f"  {scenario_name}: {eps_flag}")
-                else:
-                    final_eps = python_eps
-                    eps_flag  = (
-                        f"Python EPS ({python_eps:.2f}) differs from "
-                        f"LLM EPS ({llm_eps:.2f}) by {eps_diff*100:.1f}%. "
-                        f"Using Python."
-                    )
-                    print(f"  {scenario_name}: {eps_flag}")
+            if m is not None:
+                phase1_pass.append(m)
+                phase1_stats["pass"] += 1
+                print(f"  [{i:>3}/{len(tickers)}] {ticker:20s} PASS  "
+                      f"ROE={m['roe']:.1%}  D/E={m['debt_equity']:.2f}  "
+                      f"EPS={m['trailing_eps']:.2f}  "
+                      f"PE={m['trailing_pe']:.1f}")
             else:
-                final_eps = python_eps
+                if reason and reason.startswith("[cached]"):
+                    phase1_stats["cached_fail"] += 1
+                else:
+                    _cache_write(cache, ticker, "fail", reason or "unknown")
+                    phase1_stats["fail"] += 1
+                    print(f"  [{i:>3}/{len(tickers)}] {ticker:20s} FAIL  {reason}")
 
-        elif python_eps > 0:
-            final_eps = python_eps
-        elif llm_eps > 0:
-            final_eps = llm_eps
-            eps_flag  = "Python could not compute EPS. Using LLM."
+            _jitter(0.2)
+
+    _save_cache(cache)
+    print(f"\nPhase 1: {phase1_stats['pass']} pass / "
+          f"{phase1_stats['fail']} fail / "
+          f"{phase1_stats['cached_fail']} skipped (cached)")
+
+    if not phase1_pass:
+        print("No phase-1 survivors; aborting.")
+        return []
+
+    # ── Phase 2: 2yr CAGR + PEG (sequential) ─────────────────
+    print(f"\nPhase 2: 2yr CAGR + self-computed PEG...")
+    phase2_pass = []
+    for m in phase1_pass:
+        ticker = m["ticker"]
+        passed = _phase2_ticker(m, filters, cache)
+        if passed:
+            print(f"  {ticker:20s} PASS  "
+                  f"CAGR={m['earnings_cagr']:.1%}  "
+                  f"PEG={m['peg_ratio']:.2f}  "
+                  f"Score={m['qglp_score']}")
+            phase2_pass.append(m)
         else:
-            final_eps = trailing_eps * (1 + rev_growth) if trailing_eps > 0 else 0
-            eps_flag  = "Both computations failed. Using trailing EPS grown by revenue growth."
+            print(f"  {ticker:20s} FAIL  "
+                  f"CAGR={m.get('earnings_cagr')}  "
+                  f"PEG={m.get('peg_ratio')}")
+        _jitter(0.3)
 
-        # ── Price target — with PE guardrails ─────────────────────────────
-        raw_pe_mult  = max(safe_float(s.get("pe_multiple"), default=20.0), 3.0)
-        pe_mult      = _apply_pe_guardrails(raw_pe_mult, scenario_name, anchor_pe)
-        pe_rationale = clean_latex(s.get("pe_rationale", ""))
-        price_target = final_eps * pe_mult
-        implied_return = ((price_target - current_price) / current_price
-                          if current_price > 0 else 0.0)
-        breakeven_pe = (current_price / final_eps) if final_eps > 0 else None
+    _save_cache(cache)
+    print(f"\nPhase 2: {len(phase2_pass)} survivors")
 
-        fcf_yield_at_target = None
-        if fcf_margin > 0 and total_rev > 0 and price_target > 0 and shares > 0:
-            implied_market_cap  = price_target * shares
-            projected_fcf       = total_rev * fcf_margin
-            fcf_yield_at_target = projected_fcf / implied_market_cap
+    # ── Sort + top N ──────────────────────────────────────────
+    phase2_pass.sort(key=lambda x: x.get("qglp_score", 0), reverse=True)
+    top = phase2_pass[:MAX_PICKS]
 
-        # Stamp per-item EPS impacts for app.py table rows
-        _stamp_item_eps(hw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
-        _stamp_item_eps(tw_items, scenario_name, shares, op_margin, tax_rate, total_rev)
-        s["headwinds"] = hw_items
-        s["tailwinds"] = tw_items
+    print(f"\nTop {len(top)} {market_label} picks:")
+    for i, m in enumerate(top, 1):
+        print(f"  {i:2}. {m['ticker']:20s}  "
+              f"Score={m['qglp_score']:>3}  "
+              f"PEG={m['peg_ratio']:.2f}  "
+              f"ROE={m['roe']:.1%}  "
+              f"CAGR={m['earnings_cagr']:.1%}  "
+              f"PE={m['trailing_pe']:.1f}")
 
-        return {
-            "probability":            round(prob, 4),
-            "segment_builds":         segment_builds,
-            "segment_revenue_total":  round(segment_revenue_total, 0),
-            "total_headwind_revenue": round(hw_revenue, 0),
-            "total_headwind_eps":     round(hw_eps, 2),
-            "total_tailwind_revenue": round(tw_revenue, 0),
-            "total_tailwind_eps":     round(tw_eps, 2),
-            "total_revenue":          round(total_rev, 0),
-            "revenue_growth":         round(rev_growth, 4),
-            "operating_margin":       round(op_margin, 4),
-            "net_margin":             round(net_margin, 4),
-            "margin_rationale":       margin_rationale,
-            "projected_eps":          round(final_eps, 2),
-            "llm_eps":                round(llm_eps, 2) if llm_eps else None,
-            "eps_flag":               eps_flag,
-            "pe_multiple":            round(pe_mult, 1),
-            "pe_multiple_raw_llm":    round(raw_pe_mult, 1),   # for debugging
-            "pe_rationale":           pe_rationale,
-            "price_target":           round(price_target, 2),
-            "implied_return":         round(implied_return, 4),
-            "breakeven_pe":           round(breakeven_pe, 2) if breakeven_pe else None,
-            "fcf_yield_at_target":    round(fcf_yield_at_target, 4) if fcf_yield_at_target else None,
-            "narrative":              clean_latex(s.get("narrative", "")),
-        }
-
-    except Exception as e:
-        print(f"  Scenario {scenario_name} math error: {e}")
-        return {
-            "probability":            scenario_probs.get(scenario_name, 0.20),
-            "segment_builds":         [], "segment_revenue_total": 0,
-            "total_headwind_revenue": 0,  "total_headwind_eps":    0,
-            "total_tailwind_revenue": 0,  "total_tailwind_eps":    0,
-            "total_revenue":          0,  "revenue_growth":        0,
-            "operating_margin":       0,  "net_margin":            0,
-            "margin_rationale":       "", "projected_eps":         0,
-            "llm_eps":                None, "eps_flag":            str(e),
-            "pe_multiple":            0,  "pe_multiple_raw_llm":   0,
-            "pe_rationale":           "",
-            "price_target":           0,  "implied_return":        0,
-            "breakeven_pe":           None, "fcf_yield_at_target": None,
-            "narrative":              str(e),
-        }
+    return top
 
 
 # ══════════════════════════════════════════════════════════════
-# SENSITIVITY TABLE  (Python-computed, not LLM)
+# OUTPUT (unchanged from v2)
 # ══════════════════════════════════════════════════════════════
-#
-# Replaces the LLM passthrough.  Returns a grid of price targets
-# across ±margin and ±PE dimensions from the base scenario.
-# app.py can render this as a heatmap or table.
 
-def compute_sensitivity_table(base_scenario, current_price):
-    """
-    Build a margin × PE sensitivity grid around the base scenario.
-
-    Parameters
-    ----------
-    base_scenario : dict   — the computed base scenario result dict
-    current_price : float
-
-    Returns
-    -------
-    dict with:
-      rows     : list of dicts  {margin_delta, pe_delta, price_target, implied_return}
-      base_eps : float
-      base_pe  : float
-      base_net_margin : float
-    """
-    base_eps    = safe_float(base_scenario.get("projected_eps",   0))
-    base_pe     = safe_float(base_scenario.get("pe_multiple",     0))
-    base_margin = safe_float(base_scenario.get("net_margin",      0))
-
-    if base_eps <= 0 or base_pe <= 0:
-        return {"rows": [], "base_eps": base_eps,
-                "base_pe": base_pe, "base_net_margin": base_margin}
-
-    margin_deltas = [-0.04, -0.02, -0.01, 0.0, +0.01, +0.02, +0.04]
-    pe_deltas     = [-8,    -4,     -2,   0,    +2,    +4,    +8   ]
-
-    rows = []
-    for md in margin_deltas:
-        # EPS scales proportionally with net margin change
-        if base_margin > 0:
-            margin_factor = (base_margin + md) / base_margin
-        else:
-            margin_factor = 1.0
-        margin_factor = max(0.0, margin_factor)   # don't go negative
-        adj_eps = base_eps * margin_factor
-
-        for pd in pe_deltas:
-            adj_pe = max(3.0, base_pe + pd)
-            adj_pt = round(adj_eps * adj_pe, 2)
-            adj_ret = round((adj_pt - current_price) / current_price, 4) \
-                      if current_price > 0 else 0.0
-            rows.append({
-                "margin_delta":    md,
-                "pe_delta":        pd,
-                "adj_eps":         round(adj_eps, 2),
-                "adj_pe":          round(adj_pe, 1),
-                "price_target":    adj_pt,
-                "implied_return":  adj_ret,
-            })
-
+def _clean(m: dict) -> dict:
     return {
-        "rows":             rows,
-        "base_eps":         round(base_eps,    2),
-        "base_pe":          round(base_pe,     1),
-        "base_net_margin":  round(base_margin, 4),
-        "margin_deltas":    margin_deltas,
-        "pe_deltas":        pe_deltas,
+        "ticker":              m["ticker"],
+        "name":                m["name"],
+        "sector":              m.get("sector", ""),
+        "price":               m.get("price"),
+        "market_cap":          m.get("market_cap"),
+        "trailing_pe":         m.get("trailing_pe"),
+        "peg_ratio":           m.get("peg_ratio"),
+        "peg_source":          m.get("peg_source", ""),
+        "roe":                 round(m.get("roe", 0), 4),
+        "earnings_cagr":       round(m.get("earnings_cagr", 0), 4),
+        "earnings_cagr_years": m.get("earnings_cagr_years", 0),
+        "fcf_yield":           (round(m["fcf_yield"], 4)
+                                if m.get("fcf_yield") else None),
+        "debt_equity":         round(m.get("debt_equity", 0), 4),
+        "qglp_score":          m.get("qglp_score"),
     }
 
 
-# ══════════════════════════════════════════════════════════════
-# MAIN ORCHESTRATOR
-# ══════════════════════════════════════════════════════════════
-
-def compute_scenario_math(metrics, llm_output):
-    current_price    = safe_float(metrics.get("current_price"))
-    trailing_eps     = safe_float(metrics.get("trailing_eps"))
-    forward_eps      = safe_float(metrics.get("forward_eps"))
-    total_revenue    = safe_float(metrics.get("total_revenue"))
-    shares           = safe_float(metrics.get("shares_outstanding"))
-    operating_margin = safe_float(metrics.get("operating_margin"))
-    profit_margin    = safe_float(metrics.get("profit_margin"))
-    market_cap       = safe_float(metrics.get("market_cap"))
-    trailing_pe      = safe_float(metrics.get("trailing_pe"))
-    forward_pe       = safe_float(metrics.get("forward_pe"))
-    free_cashflow    = safe_float(metrics.get("free_cashflow"))
-    risk_free_rate   = 0.06
-
-    if shares == 0 and current_price > 0 and market_cap > 0:
-        shares = market_cap / current_price
-
-    if forward_eps <= 0 and forward_pe > 0 and current_price > 0:
-        forward_eps = round(current_price / forward_pe, 2)
-        print(f"  forward_eps derived from price/forward_pe: {forward_eps:.2f}")
-
-    fcf_margin = (free_cashflow / total_revenue) if total_revenue > 0 and free_cashflow > 0 else 0.0
-    anchor_pe  = forward_pe if forward_pe > 0 else (trailing_pe if trailing_pe > 0 else 0)
-
-    print(f"  Scenario math inputs: price={current_price}, trailing_eps={trailing_eps:.2f}, "
-          f"forward_eps={forward_eps:.2f}, shares={shares:.0f}, "
-          f"op_margin={operating_margin:.3f}, net_margin={profit_margin:.3f}, "
-          f"fcf_margin={fcf_margin:.3f}, anchor_pe={anchor_pe:.1f}")
-
-    # ── Signal-derived probabilities (bottoms-up, per-stock) ──────────────
-    prob_output    = compute_scenario_probabilities(metrics, llm_output)
-    scenario_probs = {
-        "bull": prob_output["bull"],
-        "base": prob_output["base"],
-        "bear": prob_output["bear"],
+def save_results(us_picks: list, india_picks: list):
+    results = {
+        "last_updated":  datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "filters_us":    FILTERS,
+        "filters_india": FILTERS_INDIA,
+        "us_picks":      [_clean(m) for m in us_picks],
+        "india_picks":   [_clean(m) for m in india_picks],
     }
 
-    # ── Per-scenario math ──────────────────────────────────────────────────
-    scenarios_input = llm_output.get("scenarios", {})
-    results = {}
-    for sname in ["bull", "base", "bear"]:
-        s = scenarios_input.get(sname, {})
-        if not s:
-            continue
-        results[sname] = _compute_single_scenario(
-            s, sname, scenario_probs, current_price,
-            trailing_eps, forward_eps, total_revenue, shares,
-            operating_margin, profit_margin, fcf_margin,
-            anchor_pe=anchor_pe)           # ← pass anchor for PE guardrails
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(results, f, indent=2, default=str)
+    print(f"\nSaved to {OUTPUT_FILE}")
 
-    # ── Aggregates ─────────────────────────────────────────────────────────
-    expected_value  = sum(r["price_target"] * r["probability"] for r in results.values())
-    expected_return = ((expected_value - current_price) / current_price
-                       if current_price > 0 else 0)
-    variance = sum(r["probability"] * (r["implied_return"] - expected_return) ** 2
-                   for r in results.values())
-    std_dev        = variance ** 0.5
-    risk_adj_score = ((expected_return - risk_free_rate) / std_dev if std_dev > 0 else 0)
-
-    upside_return   = sum(r["implied_return"] * r["probability"]
-                          for r in results.values() if r["implied_return"] > 0)
-    downside_return = sum(r["implied_return"] * r["probability"]
-                          for r in results.values() if r["implied_return"] < 0)
-    upside_downside_ratio = (abs(upside_return / downside_return)
-                             if downside_return != 0 else float("inf"))
-    prob_positive = sum(r["probability"] for r in results.values()
-                        if r["price_target"] > current_price)
-
-    bear = results.get("bear", {})
-
-    # ── Stamp top-level headwind/tailwind items (summary table in app.py) ─
-    # _compute_single_scenario already stamped scenario-level items.
-    # stamp_headwind_tailwind_eps stamps the top-level llm_output lists,
-    # which are separate objects — no double-stamp.
-    stamp_headwind_tailwind_eps(llm_output, results, shares, operating_margin)
-
-    # ── Python-computed sensitivity table ─────────────────────────────────
-    sensitivity_table = compute_sensitivity_table(
-        results.get("base", {}), current_price)
-
-    return {
-        "scenarios":              results,
-        "scenario_probabilities": prob_output,
-        "expected_value":         round(expected_value, 2),
-        "expected_return":        round(expected_return, 4),
-        "std_dev":                round(std_dev, 4),
-        "risk_adjusted_score":    round(risk_adj_score, 2),
-        "upside_downside_ratio":  round(upside_downside_ratio, 2),
-        "prob_positive_return":   round(prob_positive, 4),
-        "max_drawdown_prob":      round(bear.get("probability", 0), 4),
-        "max_drawdown_magnitude": round(bear.get("implied_return", 0), 4),
-        "risk_free_rate":         risk_free_rate,
-        "anchor_pe":              anchor_pe,
-        "trailing_eps_used":      round(trailing_eps, 2),
-        "forward_eps_used":       round(forward_eps, 2),
-        "fcf_margin_used":        round(fcf_margin, 4),
-        "market_expectations":    llm_output.get("market_expectations", {}),
-        # sensitivity is now a Python-computed grid, not an LLM passthrough
-        "sensitivity":            llm_output.get("sensitivity", {}),   # legacy LLM field kept
-        "sensitivity_table":      sensitivity_table,                   # new computed grid
-    }
+    ok, err = push_screener_results(results)
+    if ok:
+        print("Pushed to GitHub.")
+    else:
+        print(f"GitHub push failed: {err}")
 
 
 # ══════════════════════════════════════════════════════════════
-# QGLP SCORING (shared with screener.py)
+# MAIN
 # ══════════════════════════════════════════════════════════════
 
-def compute_qglp_score(metrics):
-    score = 0.0
+def main():
+    print(f"PickR QGLP Screener v3 — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"US universe : {len(US_UNIVERSE)} tickers")
+    print(f"India universe: {len(INDIA_UNIVERSE)} tickers")
+    print(f"EPS source: income_stmt (self-computed)")
+    print(f"CAGR lookback: {SCREENER_CAGR_LOOKBACK}yr | "
+          f"Growth cap: {SCREENER_GROWTH_CAP}% | "
+          f"PEG floor: {SCREENER_PEG_FLOOR}")
 
-    # PEG — 30 pts
-    peg = metrics.get("peg_ratio", 999)
-    if peg and peg > 0:
-        score += max(0, min(30, 30 * (1 - (peg - 0.5) / 1.5)))
+    us_picks    = screen_universe(US_UNIVERSE,    "US",    FILTERS,       MIN_MCAP_US)
+    india_picks = screen_universe(INDIA_UNIVERSE, "India", FILTERS_INDIA, MIN_MCAP_IN)
 
-    # ROE — 25 pts
-    roe = metrics.get("roe", 0)
-    if roe and roe > 0:
-        score += max(0, min(25, 25 * (roe / 0.30)))
+    save_results(us_picks, india_picks)
+    print(f"\nDone. US: {len(us_picks)} picks | India: {len(india_picks)} picks.")
 
-    # Earnings CAGR — 25 pts
-    cagr = (metrics.get("eps_cagr")
-            or metrics.get("net_income_cagr")
-            or metrics.get("revenue_cagr")
-            or metrics.get("earnings_cagr")
-            or 0)
-    if cagr and cagr > 0:
-        score += max(0, min(25, 25 * (cagr / 0.25)))
 
-    # FCF yield — 10 pts
-    fcf_y = metrics.get("fcf_yield", 0)
-    if fcf_y and fcf_y > 0:
-        score += max(0, min(10, 10 * (fcf_y / 0.05)))
-
-    # Debt/equity — 10 pts
-    de = metrics.get("debt_to_equity", metrics.get("debt_equity"))
-    if de is not None and de >= 0:
-        score += max(0, min(10, 10 * (1 - de)))
-
-    return round(score, 1)
+if __name__ == "__main__":
+    main()
