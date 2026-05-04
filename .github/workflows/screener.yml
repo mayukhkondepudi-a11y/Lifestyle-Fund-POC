@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pip install yfinance
 
+      - name: Clear stale cache
+        run: rm -f screener_cache.json
+
       # 4. Run screener
       - name: Run screener
         env:
