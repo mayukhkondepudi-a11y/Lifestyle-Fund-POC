@@ -1692,7 +1692,7 @@ with left_col:
         unsafe_allow_html=True
     )
     sq = st.text_input(
-        "Search", placeholder="e.g. Apple, Reliance, AVGO, AAPL, RELIANCE.NS",
+        "Search", placeholder="e.g. Apple, AVGO, AAPL, RELIANCE.NS",
         label_visibility="collapsed", key="s1"
     )
     # "Try:" quick-pick pills — clicking sets the ticker via query param
