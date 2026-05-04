@@ -1,0 +1,1133 @@
+{
+  "ticker": "TRV",
+  "date": "2026-05-04",
+  "timestamp": "2026-05-04 15:14",
+  "company_name": "The Travelers Companies, Inc.",
+  "recommendation": "BUY",
+  "conviction": "High",
+  "expected_value": 411.24,
+  "expected_return": 0.3496,
+  "risk_adjusted_score": 0.81,
+  "metrics": {
+    "company_name": "The Travelers Companies, Inc.",
+    "sector": "Financial Services",
+    "industry": "Insurance - Property & Casualty",
+    "country": "United States",
+    "currency": "USD",
+    "current_price": 304.72,
+    "market_cap": 64797089792,
+    "enterprise_value": 66924089344,
+    "trailing_pe": 9.090692,
+    "forward_pe": 10.69,
+    "peg_ratio": 2.99,
+    "price_to_sales": 1.3239567,
+    "ev_to_ebitda": 6.329,
+    "gross_margin": 0.32878,
+    "operating_margin": 0.18744,
+    "profit_margin": 0.15537,
+    "roe": 0.25272,
+    "roa": 0.04442,
+    "trailing_eps": 33.52,
+    "forward_eps": 28.49534,
+    "earnings_growth": 3.576,
+    "total_revenue": 48941998080,
+    "revenue_growth": 0.01,
+    "free_cashflow": 13304375296,
+    "operating_cashflow": 11443999744,
+    "total_cash": 7141000192,
+    "total_debt": 9267999744,
+    "dividend_yield": 1.64,
+    "payout_ratio": 0.1313,
+    "beta": 0.512,
+    "week_52_high": 313.12,
+    "week_52_low": 249.19,
+    "ma_50": 301.0222,
+    "ma_200": 284.04736,
+    "insider_pct": 0.0027200002,
+    "institution_pct": 0.90415,
+    "shares_outstanding": 212644693,
+    "fcf_yield": 0.20532365479232664,
+    "debt_to_equity": 0.282,
+    "current_ratio": 0.335,
+    "revenue_cagr": 0.0979,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.3031,
+    "eps_cagr_raw": 0.3258,
+    "net_income_cagr": 0.3031,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.3258,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 3.6,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth used for PEG (3.6%, source: earnings_growth) diverges significantly from historical CAGR (32.6%). Gap of 29.0pp likely reflects a trough or peak base year \u2014 treat historical CAGR with caution.",
+    "peg_historical_cagr": 32.6,
+    "data_quality_warnings": [],
+    "price_5y_return": 109.13,
+    "price_5y_high": 307.52,
+    "price_5y_low": 131.91
+  },
+  "analysis": {
+    "recommendation": "BUY",
+    "conviction": "High",
+    "investment_thesis": "Travelers offers a rare combination of double-digit earnings power, a fortress balance sheet, and a valuation that has not caught up to the structural improvement in its earnings algorithm. We see 35% expected total return over 12 months with an 85% probability of positive return, anchored by a base case price target of $401 versus the current $305. The market appears to be pricing TRV as a cyclical P&C insurer at a 9x trailing P/E, but our analysis shows a multi-year tailwind from net investment income reinvestment and personal lines margin recovery that should drive sustained mid-teens ROE.",
+    "business_overview": "Travelers is one of the largest property and casualty insurers in the United States, underwriting roughly $49 billion of premium across commercial, specialty, and personal lines. The company makes money two ways: an underwriting margin earned when premiums collected exceed claims and expenses, and a spread on the roughly $90 billion fixed income investment portfolio backing those policy liabilities. In a normal year, the underwriting profit and the investment income are roughly comparable contributors to pre-tax earnings, though the mix shifts based on catastrophe activity and interest rates.\n\nThe business is organized into three insurance segments and one investment income line. Business Insurance, at $23.2 billion of revenue and 47% of the total, writes commercial property, workers compensation, and general liability for middle-market and select accounts. Personal Insurance, at $17.5 billion and 36%, sells homeowners and auto policies primarily through independent agents. Bond and Specialty Insurance, at $4.4 billion or 9%, includes surety, management liability, and cyber. Net Investment Income contributes another $3.85 billion, which flows almost entirely to the bottom line given the 85% incremental margin on that revenue stream.",
+    "revenue_architecture": "Business Insurance is the anchor, growing 8% year-over-year on a combination of mid-single-digit rate increases and strong renewal retention. Workers compensation pricing is softening but commercial property and umbrella remain firm, and management has been disciplined about walking away from underpriced public D&O business. The segment generates an 18% gross margin and is the largest single contributor to operating earnings.\n\nPersonal Insurance is the segment with the most operational leverage. After two punishing years of severity-driven losses in 2022 and 2023, cumulative homeowners renewal price increases of 14%-plus and high-single-digit auto rate are now earning into the book, driving 13% revenue growth and an accelerating trajectory. The 12% gross margin understates the run-rate earnings power if severity moderates. This is where the bull case is won or lost.\n\nNet Investment Income, at $3.85 billion and growing 18%, is the cleanest tailwind in the model. Each maturing bond from the 2-3% yield era is being reinvested above 5%, and with portfolio duration of roughly four years, the reinvestment benefit compounds for several more years before plateauing. Bond and Specialty, growing 7%, is steady-state but benefits from infrastructure-driven surety demand and disciplined management liability pricing.",
+    "growth_drivers": "The primary structural driver is the reset in fixed income yields. TRV holds approximately $90 billion of high-quality bonds, and roughly $15-20 billion turns over annually. Each 25 basis points of new-money yield uplift adds $200-250 million in pre-tax NII, and the company is currently reinvesting at spreads 200-300 basis points wide of the runoff coupon. This is a multi-year, low-risk earnings tailwind that does not depend on underwriting cycles or weather.\n\nThe second driver is personal lines normalization. After regulators in California, New Jersey, and New York approved long-delayed rate increases, TRV is finally earning into homeowners and auto pricing that reflects post-pandemic severity. If loss-cost trends moderate as used-vehicle prices stabilize and roof repair inflation cools, the combined ratio in this segment could improve by 300-500 basis points, translating to $800 million to $1 billion of incremental pre-tax underwriting profit.\n\nThe third driver is capital return. With FCF yield above 20% and capital well above regulatory and rating-agency targets, TRV consistently returns $4-5 billion annually to shareholders through buybacks and dividends. Share count reduction of 3-4% per year provides a built-in EPS growth floor independent of underwriting performance, and the 1.6% dividend yield with a 13% payout ratio leaves ample room for further increases.",
+    "margin_analysis": "The current operating margin of 18.7% reflects a year with elevated but not catastrophic weather losses. In our base case, we model 19% operating margin with cat losses near plan, modest operating leverage from NII, and softer commercial pricing offset by personal lines recovery. The bull case at 21.5% requires a benign hurricane season and 250 basis points of personal lines combined ratio improvement, both reasonable but neither guaranteed.\n\nThe bear case compresses margins by 700 basis points to 11.5%, which would require the convergence of three negatives: a major catastrophe season similar to 2017 or 2022, a sizable casualty reserve charge in commercial liability lines, and softer commercial pricing failing to keep up with loss-cost trend. Each of these has happened historically; what makes the bear case unlikely is requiring all three in the same year.",
+    "financial_health": "The balance sheet is in excellent condition. Debt to equity stands at 0.28, well below the 0.40 internal target, with total debt of $9.3 billion against $7.1 billion of cash and free cash flow generation of $13.3 billion over the trailing twelve months. Operating cash flow of $11.4 billion comfortably covers $1.5 billion of dividends and capital expenditures, leaving ample dry powder for buybacks. ROE of 25% is at the high end of the company's historical range and reflects both the underwriting recovery and the NII tailwind.\n\nCapital allocation is disciplined and predictable. Management has consistently prioritized organic underwriting growth and capital return over large M&A, a stance that has served shareholders well versus peers like Hartford and Liberty Mutual that have pursued more acquisitive strategies. The current ratio of 0.34 looks low at first glance but is normal for a P&C insurer where policy liabilities sit on the balance sheet against long-duration assets. There are no concerns about goodwill, dilution, or hidden leverage.",
+    "competitive_position": "Travelers competes against Chubb, Hartford, Liberty Mutual, AIG, and Zurich in commercial lines, and against Allstate, Progressive, State Farm, and USAA in personal lines. Its moats are not flashy but they are real: a deeply entrenched independent agent distribution network, a 165-year underwriting track record that supports premium pricing in middle-market commercial, and scale advantages in claims handling and reinsurance procurement. The company is consistently rated AA by Standard and Poor's, which matters for surety and large commercial risks where counterparty rating drives placement.\n\nWhere TRV is weaker is in direct-to-consumer personal auto, where Progressive and GEICO have built superior pricing algorithms and lower-cost distribution. TRV's response has been to lean on the agent channel and bundle homeowners with auto, which is a defensible but not market-leading strategy. The risk is that personal auto becomes a permanently lower-margin business industry-wide, but this risk is manageable given that the segment is roughly one-third of revenue and the company has demonstrated willingness to push rate aggressively when needed.",
+    "headwind_narrative": "The single largest risk is catastrophe exposure. A major hurricane making landfall in Florida or Texas could drive $1.5-2.5 billion in pre-tax losses, and the probability of an above-normal cat year is roughly 55% given climate-driven severity trends. Severe convective storms across the Midwest have become a structural cost rather than a tail event. Layered on top is commercial pricing deceleration as capacity returns to property and public D&O, with renewal price changes potentially dropping below the 6-7% loss-cost trend.\n\nThe two slower-burning concerns are casualty reserve development and personal auto severity. Social inflation continues to push up older accident-year general liability and commercial auto claim values, and peers including Travelers itself have already taken modest charges. A larger reserve top-up similar to what AIG and Hartford have announced would dent earnings by $400-500 million. Personal auto severity is the segment that drove the 2022-2023 underwriting losses, and a re-acceleration in medical inflation or attorney involvement would partially undo the margin recovery thesis.",
+    "tailwind_narrative": "The cleanest tailwind is the net investment income reinvestment story, which we assign 75% probability of materializing as expected. Maturing bonds yielding 2-3% are being replaced with new purchases at 5%-plus, and the duration of roughly four years means this benefit compounds for multiple years. In the base case it adds $1.65 EPS; in the bull case, $2.60. This does not require any underwriting genius or favorable weather.\n\nThe largest swing factor for 2026 is personal lines margin recovery. Cumulative homeowners price increases of 14% or more and auto rate increases are earning into the book against potentially moderating severity. We assign 60% probability that this recovery plays out, adding $1.80 EPS in the base case and $3.50 in the bull case. Capital return acceleration provides a smaller but reliable third tailwind: with $5 billion of buyback capacity and 3-4% annual share count reduction, EPS growth is structurally supported even in a flat underwriting year.",
+    "market_pricing_commentary": "At a trailing P/E of 9.1 and a forward P/E of 10.7, the market is pricing TRV as if recent earnings strength is unsustainable and reverts toward a 12-13% ROE. Our analysis suggests sustained 15-18% ROE is achievable through 2026 given the NII tailwind alone. The PEG ratio of 2.99 looks unattractive at first glance but is distorted by a forward earnings growth estimate of just 3.6%, which we believe is too conservative. The historical three-year EPS CAGR of 32.6% reflects an unusually favorable base period, but the truth lies between these two numbers: we model mid-teens EPS growth as base case, against which the current multiple looks quite reasonable.",
+    "scenario_commentary": "The bull case at $531 (74% upside, 32% probability) requires a benign hurricane season, personal lines combined ratio improvement of 250 basis points, and continued NII expansion. Revenue reaches $56.1 billion with operating margin of 21.5% and EPS of $46.17. This is not a heroic scenario; it is what happens if the macro environment cooperates and the existing pricing actions earn through cleanly.\n\nThe base case at $401 (32% upside, 54% probability) assumes cat losses near plan, stable underwriting margins, and the NII tailwind continuing as scheduled. Revenue of $52.5 billion, operating margin of 19%, and EPS of $38.23, capitalized at 10.5x, gets you to the price target. This is the scenario where nothing dramatic happens and the math just works.\n\nThe bear case at $190 (-37% return, 15% probability) requires a major catastrophe season, a casualty reserve charge, and softer commercial pricing all hitting in the same year. Operating margin compresses to 11.5%, EPS falls to $20.03, and the multiple compresses to 9.5x. The breakeven P/E of 15.2x in the bear case would require the market to look through the bad year and re-rate the stock, which is not impossible given TRV's history but is also not the most likely market reaction in the moment.",
+    "conclusion": "Travelers is a high-conviction BUY with 35% expected return and 7.3:1 upside-to-downside skew. The thesis hinges on one variable: whether personal lines margin recovery materializes as the cumulative rate increases earn into the book. The most important near-term catalyst is the 2026 hurricane season and the associated cat-loss disclosure, which will set the earnings starting point for the year. We are watching renewal price change disclosures in Personal Insurance, casualty reserve development trends, and new-money yield commentary on the investment portfolio as the three quarterly tells that confirm or contradict the thesis.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "Business Insurance",
+        "current_revenue": 23200000000,
+        "pct_of_total": 0.474,
+        "gross_margin": 0.18,
+        "yoy_growth": 0.08,
+        "primary_driver": "Commercial P&C rate increases combined with strong renewal retention in middle market and select accounts, especially workers compensation and commercial property.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "Bond & Specialty Insurance",
+        "current_revenue": 4400000000,
+        "pct_of_total": 0.09,
+        "gross_margin": 0.25,
+        "yoy_growth": 0.07,
+        "primary_driver": "Surety bond demand tied to infrastructure spending and management liability pricing in a hardening D&O and cyber market.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "Personal Insurance",
+        "current_revenue": 17500000000,
+        "pct_of_total": 0.358,
+        "gross_margin": 0.12,
+        "yoy_growth": 0.13,
+        "primary_driver": "Auto and homeowners rate increases catching up to severity inflation, with renewal price changes still running double digits in homeowners.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Net Investment Income",
+        "current_revenue": 3850000000,
+        "pct_of_total": 0.079,
+        "gross_margin": 0.85,
+        "yoy_growth": 0.18,
+        "primary_driver": "Higher reinvestment yields on the $90B+ fixed income portfolio as legacy low-coupon bonds roll into 5%+ yields.",
+        "trajectory": "accelerating"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": 0.02,
+      "top_5_customers_pct": 0.08,
+      "geographic_split": {
+        "US": 0.94,
+        "Canada": 0.04,
+        "UK_Ireland": 0.02
+      },
+      "critical_dependencies": [
+        "Independent agent and broker distribution channel which produces the majority of premium volume.",
+        "Reinsurance capacity from major reinsurers to cap catastrophe exposure, particularly for hurricane and wildfire risk.",
+        "Fixed income portfolio performance and interest rate environment which drives net investment income."
+      ],
+      "relationships_at_risk": [
+        "State insurance regulator approvals for personal lines rate filings in California, Florida, and New York could be delayed or denied.",
+        "Reinsurance treaty renewals at January 1, 2027 could come at materially higher cost if 2026 cat season is severe."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "Elevated Catastrophe Losses",
+        "description": "TRV is heavily exposed to US weather catastrophes including hurricanes, severe convective storms, and wildfires. 2024 and 2025 set elevated cat-loss baselines, and a single major hurricane making landfall in Florida or Texas could drive $1.5-2.5B in pre-tax cat losses. Climate-driven severity trends continue to outpace pricing in some geographies.",
+        "probability": 0.55,
+        "revenue_at_risk": 2500000000,
+        "bull_impact": {
+          "revenue": -200000000,
+          "eps": -0.5
+        },
+        "base_impact": {
+          "revenue": -800000000,
+          "eps": -2.2
+        },
+        "bear_impact": {
+          "revenue": -2500000000,
+          "eps": -7.5
+        },
+        "bull_eps_impact": 2.0,
+        "base_eps_impact": 1.76,
+        "bear_eps_impact": 1.07
+      },
+      {
+        "name": "Commercial Pricing Deceleration",
+        "description": "Commercial P&C rate increases have been moderating as capacity returns, particularly in property and public D&O. If Business Insurance renewal price change drops below loss-cost trend (around 6-7%), underwriting margins compress. Competitors like Chubb and Hartford are aggressively defending share.",
+        "probability": 0.5,
+        "revenue_at_risk": 1500000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -500000000,
+          "eps": -1.1
+        },
+        "bear_impact": {
+          "revenue": -1500000000,
+          "eps": -3.2
+        },
+        "bull_eps_impact": 1.2,
+        "base_eps_impact": 1.06,
+        "bear_eps_impact": 0.64
+      },
+      {
+        "name": "Auto Severity Reinflation",
+        "description": "Personal auto loss costs could re-accelerate due to medical inflation, attorney involvement in bodily injury claims, and rising used-vehicle replacement costs. After two strong years of margin recovery, the personal auto combined ratio could deteriorate if severity outpaces earned rate. This is the segment that drove the 2022-2023 underwriting losses.",
+        "probability": 0.35,
+        "revenue_at_risk": 800000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -200000000,
+          "eps": -0.6
+        },
+        "bear_impact": {
+          "revenue": -800000000,
+          "eps": -2.4
+        },
+        "bull_eps_impact": 0.64,
+        "base_eps_impact": 0.56,
+        "bear_eps_impact": 0.34
+      },
+      {
+        "name": "Reserve Development on Casualty",
+        "description": "Social inflation and elevated jury verdicts are pressuring older accident year general liability and commercial auto reserves industry wide. TRV has already taken modest unfavorable development; a larger charge similar to peers' actions would dent earnings. Umbrella and excess liability are the most exposed lines.",
+        "probability": 0.4,
+        "revenue_at_risk": 600000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": -0.8
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": -3.0
+        },
+        "bull_eps_impact": 0.48,
+        "base_eps_impact": 0.42,
+        "bear_eps_impact": 0.26
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "Net Investment Income Acceleration",
+        "description": "TRV's fixed income book is reinvesting maturing low-coupon bonds at materially higher yields. Each 25bp of new-money yield improvement adds roughly $200-250M of pre-tax NII annually as the book turns. The duration is approximately 4 years so the reinvestment tailwind compounds for several years.",
+        "probability": 0.75,
+        "revenue_opportunity": 800000000,
+        "bull_impact": {
+          "revenue": 800000000,
+          "eps": 2.6
+        },
+        "base_impact": {
+          "revenue": 500000000,
+          "eps": 1.65
+        },
+        "bear_impact": {
+          "revenue": 250000000,
+          "eps": 0.85
+        },
+        "bull_eps_impact": 0.64,
+        "base_eps_impact": 0.56,
+        "bear_eps_impact": 0.34
+      },
+      {
+        "name": "Personal Lines Margin Recovery",
+        "description": "Cumulative homeowners renewal price increases of 14%+ and personal auto rate increases earning into the book are restoring underlying combined ratios. If severity moderates as expected, Personal Insurance underwriting profit could expand by $800M-1B pre-tax. This is the single largest earnings swing factor for 2026.",
+        "probability": 0.6,
+        "revenue_opportunity": 1200000000,
+        "bull_impact": {
+          "revenue": 1200000000,
+          "eps": 3.5
+        },
+        "base_impact": {
+          "revenue": 600000000,
+          "eps": 1.8
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 0.96,
+        "base_eps_impact": 0.85,
+        "bear_eps_impact": 0.51
+      },
+      {
+        "name": "Capital Return Acceleration",
+        "description": "TRV generates strong free cash flow and operates with capital well above target. With $5B+ buyback capacity and consistent execution, share count reduction of 3-4% per year supports EPS growth independent of operations. A larger buyback authorization would reinforce this.",
+        "probability": 0.7,
+        "revenue_opportunity": 0,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.8
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": 0.5
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.2
+        },
+        "bull_eps_impact": 0.0,
+        "base_eps_impact": 0.0,
+        "bear_eps_impact": 0.0
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "2026 Catastrophe Season Severity",
+        "measures": "Aggregate US insured catastrophe losses for the 2026 hurricane and severe convective storm season relative to 10-year average.",
+        "bull_outcome": {
+          "description": "Below-average cat season with no major hurricane landfall and modest SCS losses. TRV cat losses run below the $3B annual budget.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Cat losses approximately in line with the elevated 5-year average. TRV absorbs $3.0-3.5B of cat losses, consistent with planning.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Major hurricane landfall in Florida or Gulf Coast plus active SCS season pushes TRV cat losses to $4.5B+, similar to 2024.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Commercial P&C Pricing Cycle",
+        "measures": "Direction and magnitude of renewal rate change in Business Insurance, particularly property and casualty lines.",
+        "bull_outcome": {
+          "description": "Pricing remains firm at mid-to-high single digits driven by social inflation in casualty and disciplined property capacity. Margins expand modestly.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Pricing decelerates to roughly loss-cost trend (5-7%) with property rates softening but casualty firming. Underwriting margins flat.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Capacity inflow drives commercial property and D&O rates negative. Renewal price change falls below loss trend, compressing margins.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Interest Rate Environment",
+        "measures": "Trajectory of intermediate Treasury yields which determines reinvestment yields on TRV's $90B+ fixed income portfolio.",
+        "bull_outcome": {
+          "description": "5-year Treasury yields stay above 4%, allowing continued NII expansion as the book turns over at attractive rates.",
+          "probability": 0.45
+        },
+        "base_outcome": {
+          "description": "Modest Fed cuts bring 5-year yields to 3.5-4.0%. NII still grows but at a decelerating pace.",
+          "probability": 0.4
+        },
+        "bear_outcome": {
+          "description": "Aggressive Fed easing pushes yields below 3%, capping NII growth and pressuring future portfolio returns.",
+          "probability": 0.15
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "Business Insurance",
+            "projected_revenue": 25100000000,
+            "growth_rate": 0.082,
+            "rationale": "Continued rate firming and retention drive net written premium growth above market."
+          },
+          {
+            "name": "Bond & Specialty Insurance",
+            "projected_revenue": 4750000000,
+            "growth_rate": 0.08,
+            "rationale": "Surety strength and management liability pricing support mid-to-high single digit growth."
+          },
+          {
+            "name": "Personal Insurance",
+            "projected_revenue": 19800000000,
+            "growth_rate": 0.131,
+            "rationale": "Earned rate from cumulative homeowners and auto increases flows fully into top line."
+          },
+          {
+            "name": "Net Investment Income",
+            "projected_revenue": 4650000000,
+            "growth_rate": 0.208,
+            "rationale": "Reinvestment yields stay elevated and alternative investments contribute strongly."
+          }
+        ],
+        "total_headwind_revenue": -200000000,
+        "total_headwind_eps": -0.5,
+        "total_tailwind_revenue": 2000000000,
+        "total_tailwind_eps": 6.9,
+        "total_revenue": 56100000000,
+        "operating_margin": 0.215,
+        "margin_rationale": "Light cat year and personal lines combined ratio improvement drive 250bp margin expansion.",
+        "net_margin": 0.175,
+        "tax_rate": 0.19,
+        "projected_eps": 46.16,
+        "pe_multiple": 11.5,
+        "pe_rationale": "Modest premium to current 10.7x forward P/E reflecting earnings quality and ROE above 20%, consistent with Chubb's typical multiple.",
+        "price_target": 530.84,
+        "narrative": "Benign catastrophe season, sustained NII tailwind, and personal lines margin recovery all converge. Buybacks reduce share count by 4%. EPS approaches $46 and the multiple re-rates toward best-in-class P&C peers.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "Business Insurance",
+            "projected_revenue": 24600000000,
+            "growth_rate": 0.06,
+            "rationale": "Renewal price change of 6-7% partially offset by modest exposure unit growth."
+          },
+          {
+            "name": "Bond & Specialty Insurance",
+            "projected_revenue": 4650000000,
+            "growth_rate": 0.057,
+            "rationale": "Steady surety and management liability growth in line with recent trend."
+          },
+          {
+            "name": "Personal Insurance",
+            "projected_revenue": 19200000000,
+            "growth_rate": 0.097,
+            "rationale": "Earned rate increases continue but new business growth slows on reduced filings activity."
+          },
+          {
+            "name": "Net Investment Income",
+            "projected_revenue": 4400000000,
+            "growth_rate": 0.143,
+            "rationale": "Continued portfolio yield uplift, partially offset by lower alts contribution."
+          }
+        ],
+        "total_headwind_revenue": -1500000000,
+        "total_headwind_eps": -4.7,
+        "total_tailwind_revenue": 1100000000,
+        "total_tailwind_eps": 3.95,
+        "total_revenue": 52450000000,
+        "operating_margin": 0.19,
+        "margin_rationale": "Cat losses near plan and stable underwriting margins; modest operating leverage from NII offsets soft commercial pricing.",
+        "net_margin": 0.155,
+        "tax_rate": 0.19,
+        "projected_eps": 38.24,
+        "pe_multiple": 10.5,
+        "pe_rationale": "Roughly in line with current 10.7x forward P/E and TRV's 5-year average multiple of 10-11x.",
+        "price_target": 401.52,
+        "narrative": "TRV delivers mid-single-digit revenue growth, NII continues to expand, and cat losses come in near the elevated $3-3.5B planning level. Personal lines margins improve but commercial pricing decelerates. Steady buybacks support EPS growth and the stock works modestly higher.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "Business Insurance",
+            "projected_revenue": 23800000000,
+            "growth_rate": 0.026,
+            "rationale": "Pricing softens in property and D&O while retention erodes against aggressive competitors."
+          },
+          {
+            "name": "Bond & Specialty Insurance",
+            "projected_revenue": 4500000000,
+            "growth_rate": 0.023,
+            "rationale": "Slowing infrastructure spending and softer management liability pricing weigh on growth."
+          },
+          {
+            "name": "Personal Insurance",
+            "projected_revenue": 18400000000,
+            "growth_rate": 0.051,
+            "rationale": "Reduced new business and rate adequacy pushback in key states slows premium momentum."
+          },
+          {
+            "name": "Net Investment Income",
+            "projected_revenue": 4150000000,
+            "growth_rate": 0.078,
+            "rationale": "Rate cuts compress reinvestment yields and alternative investments underperform."
+          }
+        ],
+        "total_headwind_revenue": -4800000000,
+        "total_headwind_eps": -16.1,
+        "total_tailwind_revenue": 250000000,
+        "total_tailwind_eps": 1.05,
+        "total_revenue": 46300000000,
+        "operating_margin": 0.115,
+        "margin_rationale": "Major catastrophe season, casualty reserve charge, and softer commercial pricing compress margins by 700bp.",
+        "net_margin": 0.092,
+        "tax_rate": 0.19,
+        "projected_eps": 20.04,
+        "pe_multiple": 9.5,
+        "pe_rationale": "Multiple compresses modestly toward trough P&C levels of 9-10x as earnings power is questioned.",
+        "price_target": 190.38,
+        "narrative": "A major hurricane, a casualty reserve charge similar to peers, and decelerating commercial pricing all hit at once. Personal lines margin recovery stalls. EPS falls sharply and the multiple compresses to mid-single-digit-growth P&C levels.",
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [],
+    "peer_tickers": [],
+    "market_expectations": {},
+    "sensitivity": {},
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.317,
+          "segment_builds": [
+            {
+              "name": "Business Insurance",
+              "projected_revenue": 25100000000,
+              "growth_rate": 0.082,
+              "rationale": "Continued rate firming and retention drive net written premium growth above market."
+            },
+            {
+              "name": "Bond & Specialty Insurance",
+              "projected_revenue": 4750000000,
+              "growth_rate": 0.08,
+              "rationale": "Surety strength and management liability pricing support mid-to-high single digit growth."
+            },
+            {
+              "name": "Personal Insurance",
+              "projected_revenue": 19800000000,
+              "growth_rate": 0.131,
+              "rationale": "Earned rate from cumulative homeowners and auto increases flows fully into top line."
+            },
+            {
+              "name": "Net Investment Income",
+              "projected_revenue": 4650000000,
+              "growth_rate": 0.208,
+              "rationale": "Reinvestment yields stay elevated and alternative investments contribute strongly."
+            }
+          ],
+          "segment_revenue_total": 54300000000.0,
+          "total_headwind_revenue": -200000000.0,
+          "total_headwind_eps": -0.5,
+          "total_tailwind_revenue": 2000000000.0,
+          "total_tailwind_eps": 6.9,
+          "total_revenue": 56100000000.0,
+          "revenue_growth": 0.1463,
+          "operating_margin": 0.215,
+          "net_margin": 0.175,
+          "margin_rationale": "Light cat year and personal lines combined ratio improvement drive 250bp margin expansion.",
+          "projected_eps": 46.17,
+          "llm_eps": 46.16,
+          "eps_flag": null,
+          "pe_multiple": 11.5,
+          "pe_multiple_raw_llm": 11.5,
+          "pe_rationale": "Modest premium to current 10.7x forward P/E reflecting earnings quality and ROE above 20%, consistent with Chubb's typical multiple.",
+          "price_target": 530.94,
+          "implied_return": 0.7424,
+          "breakeven_pe": 6.6,
+          "fcf_yield_at_target": 0.1351,
+          "narrative": "Benign catastrophe season, sustained NII tailwind, and personal lines margin recovery all converge. Buybacks reduce share count by 4%. EPS approaches $46 and the multiple re-rates toward best-in-class P&C peers."
+        },
+        "base": {
+          "probability": 0.535,
+          "segment_builds": [
+            {
+              "name": "Business Insurance",
+              "projected_revenue": 24600000000,
+              "growth_rate": 0.06,
+              "rationale": "Renewal price change of 6-7% partially offset by modest exposure unit growth."
+            },
+            {
+              "name": "Bond & Specialty Insurance",
+              "projected_revenue": 4650000000,
+              "growth_rate": 0.057,
+              "rationale": "Steady surety and management liability growth in line with recent trend."
+            },
+            {
+              "name": "Personal Insurance",
+              "projected_revenue": 19200000000,
+              "growth_rate": 0.097,
+              "rationale": "Earned rate increases continue but new business growth slows on reduced filings activity."
+            },
+            {
+              "name": "Net Investment Income",
+              "projected_revenue": 4400000000,
+              "growth_rate": 0.143,
+              "rationale": "Continued portfolio yield uplift, partially offset by lower alts contribution."
+            }
+          ],
+          "segment_revenue_total": 52850000000.0,
+          "total_headwind_revenue": -1500000000.0,
+          "total_headwind_eps": -4.7,
+          "total_tailwind_revenue": 1100000000.0,
+          "total_tailwind_eps": 3.95,
+          "total_revenue": 52450000000.0,
+          "revenue_growth": 0.0717,
+          "operating_margin": 0.19,
+          "net_margin": 0.155,
+          "margin_rationale": "Cat losses near plan and stable underwriting margins; modest operating leverage from NII offsets soft commercial pricing.",
+          "projected_eps": 38.23,
+          "llm_eps": 38.24,
+          "eps_flag": null,
+          "pe_multiple": 10.5,
+          "pe_multiple_raw_llm": 10.5,
+          "pe_rationale": "Roughly in line with current 10.7x forward P/E and TRV's 5-year average multiple of 10-11x.",
+          "price_target": 401.43,
+          "implied_return": 0.3174,
+          "breakeven_pe": 7.97,
+          "fcf_yield_at_target": 0.167,
+          "narrative": "TRV delivers mid-single-digit revenue growth, NII continues to expand, and cat losses come in near the elevated $3-3.5B planning level. Personal lines margins improve but commercial pricing decelerates. Steady buybacks support EPS growth and the stock works modestly higher."
+        },
+        "bear": {
+          "probability": 0.148,
+          "segment_builds": [
+            {
+              "name": "Business Insurance",
+              "projected_revenue": 23800000000,
+              "growth_rate": 0.026,
+              "rationale": "Pricing softens in property and D&O while retention erodes against aggressive competitors."
+            },
+            {
+              "name": "Bond & Specialty Insurance",
+              "projected_revenue": 4500000000,
+              "growth_rate": 0.023,
+              "rationale": "Slowing infrastructure spending and softer management liability pricing weigh on growth."
+            },
+            {
+              "name": "Personal Insurance",
+              "projected_revenue": 18400000000,
+              "growth_rate": 0.051,
+              "rationale": "Reduced new business and rate adequacy pushback in key states slows premium momentum."
+            },
+            {
+              "name": "Net Investment Income",
+              "projected_revenue": 4150000000,
+              "growth_rate": 0.078,
+              "rationale": "Rate cuts compress reinvestment yields and alternative investments underperform."
+            }
+          ],
+          "segment_revenue_total": 50850000000.0,
+          "total_headwind_revenue": -4800000000.0,
+          "total_headwind_eps": -16.1,
+          "total_tailwind_revenue": 250000000.0,
+          "total_tailwind_eps": 1.05,
+          "total_revenue": 46300000000.0,
+          "revenue_growth": -0.054,
+          "operating_margin": 0.115,
+          "net_margin": 0.092,
+          "margin_rationale": "Major catastrophe season, casualty reserve charge, and softer commercial pricing compress margins by 700bp.",
+          "projected_eps": 20.03,
+          "llm_eps": 20.04,
+          "eps_flag": null,
+          "pe_multiple": 9.5,
+          "pe_multiple_raw_llm": 9.5,
+          "pe_rationale": "Multiple compresses modestly toward trough P&C levels of 9-10x as earnings power is questioned.",
+          "price_target": 190.3,
+          "implied_return": -0.3755,
+          "breakeven_pe": 15.21,
+          "fcf_yield_at_target": 0.311,
+          "narrative": "A major hurricane, a casualty reserve charge similar to peers, and decelerating commercial pricing all hit at once. Personal lines margin recovery stalls. EPS falls sharply and the multiple compresses to mid-single-digit-growth P&C levels."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.317,
+        "base": 0.535,
+        "bear": 0.148,
+        "method": "signal_derived_v2",
+        "bull_score": 70.5,
+        "signal_detail": [
+          {
+            "signal": "EPS revision momentum",
+            "value": -0.15,
+            "delta": -7.5,
+            "note": "fwd=28.50 vs trail=33.52"
+          },
+          {
+            "signal": "Revenue CAGR",
+            "value": 0.098,
+            "delta": 5.0,
+            "note": "9.8%"
+          },
+          {
+            "signal": "EPS / NI CAGR",
+            "value": 0.326,
+            "delta": 12.0,
+            "note": "32.6%"
+          },
+          {
+            "signal": "Operating margin",
+            "value": 0.187,
+            "delta": 3.0,
+            "note": "18.7%"
+          },
+          {
+            "signal": "PEG ratio",
+            "value": 2.99,
+            "delta": -4.0,
+            "note": "2.99x"
+          },
+          {
+            "signal": "Debt/Equity",
+            "value": 0.28,
+            "delta": 5.0,
+            "note": "0.28x"
+          },
+          {
+            "signal": "Price vs 200-day MA",
+            "value": 1.073,
+            "delta": 3.0,
+            "note": "price=304.7 / MA200=284.0"
+          },
+          {
+            "signal": "Beta",
+            "value": 0.51,
+            "delta": 4.0,
+            "note": "\u03b2=0.51"
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.3173,
+          "bear": 0.1475
+        },
+        "correlation_multipliers": {
+          "bull": 1.0,
+          "bear": 1.0
+        },
+        "driver_detail": []
+      },
+      "expected_value": 411.24,
+      "expected_return": 0.3496,
+      "std_dev": 0.3568,
+      "risk_adjusted_score": 0.81,
+      "upside_downside_ratio": 7.29,
+      "prob_positive_return": 0.852,
+      "max_drawdown_prob": 0.148,
+      "max_drawdown_magnitude": -0.3755,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 10.69,
+      "trailing_eps_used": 33.52,
+      "forward_eps_used": 28.5,
+      "fcf_margin_used": 0.2718,
+      "market_expectations": {},
+      "sensitivity": {},
+      "sensitivity_table": {
+        "rows": [
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -8,
+            "adj_eps": 28.36,
+            "adj_pe": 3.0,
+            "price_target": 85.09,
+            "implied_return": -0.7208
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -4,
+            "adj_eps": 28.36,
+            "adj_pe": 6.5,
+            "price_target": 184.37,
+            "implied_return": -0.395
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -2,
+            "adj_eps": 28.36,
+            "adj_pe": 8.5,
+            "price_target": 241.1,
+            "implied_return": -0.2088
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 0,
+            "adj_eps": 28.36,
+            "adj_pe": 10.5,
+            "price_target": 297.82,
+            "implied_return": -0.0226
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 2,
+            "adj_eps": 28.36,
+            "adj_pe": 12.5,
+            "price_target": 354.55,
+            "implied_return": 0.1635
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 4,
+            "adj_eps": 28.36,
+            "adj_pe": 14.5,
+            "price_target": 411.28,
+            "implied_return": 0.3497
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 8,
+            "adj_eps": 28.36,
+            "adj_pe": 18.5,
+            "price_target": 524.74,
+            "implied_return": 0.722
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -8,
+            "adj_eps": 33.3,
+            "adj_pe": 3.0,
+            "price_target": 99.89,
+            "implied_return": -0.6722
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -4,
+            "adj_eps": 33.3,
+            "adj_pe": 6.5,
+            "price_target": 216.43,
+            "implied_return": -0.2897
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -2,
+            "adj_eps": 33.3,
+            "adj_pe": 8.5,
+            "price_target": 283.03,
+            "implied_return": -0.0712
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 0,
+            "adj_eps": 33.3,
+            "adj_pe": 10.5,
+            "price_target": 349.62,
+            "implied_return": 0.1473
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 2,
+            "adj_eps": 33.3,
+            "adj_pe": 12.5,
+            "price_target": 416.21,
+            "implied_return": 0.3659
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 4,
+            "adj_eps": 33.3,
+            "adj_pe": 14.5,
+            "price_target": 482.81,
+            "implied_return": 0.5844
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 8,
+            "adj_eps": 33.3,
+            "adj_pe": 18.5,
+            "price_target": 616.0,
+            "implied_return": 1.0215
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -8,
+            "adj_eps": 35.76,
+            "adj_pe": 3.0,
+            "price_target": 107.29,
+            "implied_return": -0.6479
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -4,
+            "adj_eps": 35.76,
+            "adj_pe": 6.5,
+            "price_target": 232.46,
+            "implied_return": -0.2371
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -2,
+            "adj_eps": 35.76,
+            "adj_pe": 8.5,
+            "price_target": 303.99,
+            "implied_return": -0.0024
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 0,
+            "adj_eps": 35.76,
+            "adj_pe": 10.5,
+            "price_target": 375.52,
+            "implied_return": 0.2323
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 2,
+            "adj_eps": 35.76,
+            "adj_pe": 12.5,
+            "price_target": 447.04,
+            "implied_return": 0.4671
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 4,
+            "adj_eps": 35.76,
+            "adj_pe": 14.5,
+            "price_target": 518.57,
+            "implied_return": 0.7018
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 8,
+            "adj_eps": 35.76,
+            "adj_pe": 18.5,
+            "price_target": 661.63,
+            "implied_return": 1.1713
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -8,
+            "adj_eps": 38.23,
+            "adj_pe": 3.0,
+            "price_target": 114.69,
+            "implied_return": -0.6236
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -4,
+            "adj_eps": 38.23,
+            "adj_pe": 6.5,
+            "price_target": 248.49,
+            "implied_return": -0.1845
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -2,
+            "adj_eps": 38.23,
+            "adj_pe": 8.5,
+            "price_target": 324.95,
+            "implied_return": 0.0664
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 0,
+            "adj_eps": 38.23,
+            "adj_pe": 10.5,
+            "price_target": 401.41,
+            "implied_return": 0.3173
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 2,
+            "adj_eps": 38.23,
+            "adj_pe": 12.5,
+            "price_target": 477.87,
+            "implied_return": 0.5682
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 4,
+            "adj_eps": 38.23,
+            "adj_pe": 14.5,
+            "price_target": 554.33,
+            "implied_return": 0.8191
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 8,
+            "adj_eps": 38.23,
+            "adj_pe": 18.5,
+            "price_target": 707.25,
+            "implied_return": 1.321
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -8,
+            "adj_eps": 40.7,
+            "adj_pe": 3.0,
+            "price_target": 122.09,
+            "implied_return": -0.5993
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -4,
+            "adj_eps": 40.7,
+            "adj_pe": 6.5,
+            "price_target": 264.53,
+            "implied_return": -0.1319
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -2,
+            "adj_eps": 40.7,
+            "adj_pe": 8.5,
+            "price_target": 345.92,
+            "implied_return": 0.1352
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 0,
+            "adj_eps": 40.7,
+            "adj_pe": 10.5,
+            "price_target": 427.31,
+            "implied_return": 0.4023
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 2,
+            "adj_eps": 40.7,
+            "adj_pe": 12.5,
+            "price_target": 508.71,
+            "implied_return": 0.6694
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 4,
+            "adj_eps": 40.7,
+            "adj_pe": 14.5,
+            "price_target": 590.1,
+            "implied_return": 0.9365
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 8,
+            "adj_eps": 40.7,
+            "adj_pe": 18.5,
+            "price_target": 752.88,
+            "implied_return": 1.4707
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -8,
+            "adj_eps": 43.16,
+            "adj_pe": 3.0,
+            "price_target": 129.49,
+            "implied_return": -0.5751
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -4,
+            "adj_eps": 43.16,
+            "adj_pe": 6.5,
+            "price_target": 280.56,
+            "implied_return": -0.0793
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -2,
+            "adj_eps": 43.16,
+            "adj_pe": 8.5,
+            "price_target": 366.88,
+            "implied_return": 0.204
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 0,
+            "adj_eps": 43.16,
+            "adj_pe": 10.5,
+            "price_target": 453.21,
+            "implied_return": 0.4873
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 2,
+            "adj_eps": 43.16,
+            "adj_pe": 12.5,
+            "price_target": 539.54,
+            "implied_return": 0.7706
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 4,
+            "adj_eps": 43.16,
+            "adj_pe": 14.5,
+            "price_target": 625.86,
+            "implied_return": 1.0539
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 8,
+            "adj_eps": 43.16,
+            "adj_pe": 18.5,
+            "price_target": 798.51,
+            "implied_return": 1.6205
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -8,
+            "adj_eps": 48.1,
+            "adj_pe": 3.0,
+            "price_target": 144.29,
+            "implied_return": -0.5265
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -4,
+            "adj_eps": 48.1,
+            "adj_pe": 6.5,
+            "price_target": 312.62,
+            "implied_return": 0.0259
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -2,
+            "adj_eps": 48.1,
+            "adj_pe": 8.5,
+            "price_target": 408.81,
+            "implied_return": 0.3416
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 0,
+            "adj_eps": 48.1,
+            "adj_pe": 10.5,
+            "price_target": 505.01,
+            "implied_return": 0.6573
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 2,
+            "adj_eps": 48.1,
+            "adj_pe": 12.5,
+            "price_target": 601.2,
+            "implied_return": 0.973
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 4,
+            "adj_eps": 48.1,
+            "adj_pe": 14.5,
+            "price_target": 697.39,
+            "implied_return": 1.2886
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 8,
+            "adj_eps": 48.1,
+            "adj_pe": 18.5,
+            "price_target": 889.77,
+            "implied_return": 1.92
+          }
+        ],
+        "base_eps": 38.23,
+        "base_pe": 10.5,
+        "base_net_margin": 0.155,
+        "margin_deltas": [
+          -0.04,
+          -0.02,
+          -0.01,
+          0.0,
+          0.01,
+          0.02,
+          0.04
+        ],
+        "pe_deltas": [
+          -8,
+          -4,
+          -2,
+          0,
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+}
