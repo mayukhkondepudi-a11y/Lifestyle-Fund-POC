@@ -230,15 +230,41 @@ def _cagr_from(df, labels):
 
 def _compute_cagrs(m, data):
     inc = data.get("inc")
+
     m["revenue_cagr"], m["revenue_history"], m["revenue_cagr_years"] = _cagr_from(
         inc, ["Total Revenue", "TotalRevenue", "Revenue", "revenue", "totalRevenue"])
-    m["net_income_cagr"], m["net_income_history"], m["ni_cagr_years"] = _cagr_from(
+
+    ni_cagr, ni_hist, ni_years = _cagr_from(
         inc, ["Net Income", "NetIncome", "Net Income Common Stockholders",
               "netIncome", "Net Income From Continuing Operation Net Minority Interest"])
-    m["eps_cagr"], _, m["eps_cagr_years"] = _cagr_from(
+    eps_cagr, _, eps_years = _cagr_from(
         inc, ["Diluted EPS", "Basic EPS", "DilutedEPS", "BasicEPS",
               "EPS", "Earnings Per Share", "epsdiluted", "eps",
               "Diluted NI Availto Com Stockholders"])
+
+    # Store raw values for diagnostics
+    m["net_income_cagr_raw"] = ni_cagr
+    m["eps_cagr_raw"]        = eps_cagr
+
+    # Cap at 40% — anything above almost certainly reflects a trough base
+    # year (COVID, commodity spike, one-off loss) rather than genuine
+    # compounding. The raw values are preserved for display/logging.
+    # 40% is intentionally generous: genuine compounders like NVDA in a
+    # normal period can sustain 30-40%. Above 40% is almost always noise.
+    CAP = 0.40
+    m["net_income_cagr"]    = min(ni_cagr,  CAP) if ni_cagr  is not None else None
+    m["net_income_history"] = ni_hist
+    m["ni_cagr_years"]      = ni_years
+    m["eps_cagr"]           = min(eps_cagr, CAP) if eps_cagr is not None else None
+    m["eps_cagr_years"]     = eps_years
+
+    if ni_cagr and ni_cagr > CAP:
+        print(f"  NI CAGR capped: raw={ni_cagr:.1%} → {CAP:.0%} "
+              f"(likely trough distortion)")
+    if eps_cagr and eps_cagr > CAP:
+        print(f"  EPS CAGR capped: raw={eps_cagr:.1%} → {CAP:.0%} "
+              f"(likely trough distortion)")
+
     return m
 
 

@@ -204,6 +204,25 @@ def _de_from_statements(t):
 # PHASE 1 — one ticker, runs in thread pool
 # ══════════════════════════════════════════════════════════════
 
+def _derive_eps_growth(forward_eps, trailing_eps):
+    """
+    Derive one-year implied earnings growth from forward vs trailing EPS.
+    Returns float (e.g. 0.18 for 18%) or None.
+    Stored in Phase 1 dict so _compute_screener_peg can use it as
+    Priority 2 without re-fetching anything.
+    """
+    try:
+        fwd   = float(forward_eps)  if forward_eps  else None
+        trail = float(trailing_eps) if trailing_eps else None
+        if fwd and trail and trail > 0 and fwd != trail:
+            derived = (fwd - trail) / abs(trail)
+            if derived > 0:
+                return round(derived, 4)
+    except Exception:
+        pass
+    return None
+
+
 def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
     """
     Returns (metrics_dict, None) on pass,
@@ -259,9 +278,13 @@ def _phase1_ticker(ticker: str, filters: dict, min_mcap: float, cache: dict):
         "forward_pe":    info.get("forwardPE"),
         "trailing_eps":  info.get("trailingEps"),
         "forward_eps":   info.get("forwardEps"),
-        "earnings_growth": (                          # analyst forward consensus
-            info.get("earningsGrowth") or            # primary yfinance field
-            info.get("earningsQuarterlyGrowth")      # fallback — yfinance is inconsistent
+        "earnings_growth":  info.get("earningsGrowth"),  # analyst NTM consensus
+        # Derive one-year implied growth from fwd/trail EPS here in Phase 1
+        # so _compute_screener_peg has it available as Priority 2 fallback.
+        # Done here rather than in _compute_screener_peg so the value is
+        # visible in logs and consistent regardless of call order.
+        "eps_implied_growth": _derive_eps_growth(
+            info.get("forwardEps"), info.get("trailingEps")
         ),
         "roe":           roe,
         "debt_equity":   de,
@@ -376,23 +399,15 @@ def _compute_screener_peg(m: dict, historical_cagr) -> tuple:
         except Exception:
             pass
 
-    # ── Priority 2: derived from forward_eps vs trailing_eps ──
+    # ── Priority 2: implied growth from forward_eps vs trailing_eps ──
+    # Pre-computed in Phase 1 by _derive_eps_growth and stored in the dict.
     # Only reached when earnings_growth is entirely absent (None).
     if growth is None:
-        fwd   = m.get("forward_eps")
-        trail = m.get("trailing_eps")
-        if fwd and trail:
-            try:
-                fwd, trail = float(fwd), float(trail)
-                if fwd > 0 and trail > 0 and trail != fwd:
-                    derived = ((fwd - trail) / abs(trail)) * 100
-                    if derived > 0:
-                        growth = derived
-                        source = "fwd_trail_eps_derived"
-                        print(f"    PEG [{ticker}]: derived fwd/trail EPS "
-                              f"= {growth:.1f}%")
-            except Exception:
-                pass
+        implied = m.get("eps_implied_growth")
+        if implied and implied > 0:
+            growth = implied * 100
+            source = "fwd_trail_eps_derived"
+            print(f"    PEG [{ticker}]: implied EPS growth = {growth:.1f}%")
 
     # ── Priority 3: historical CAGR — capped at 25% ───────────
     if growth is None and hist_cagr_pct:
@@ -433,8 +448,15 @@ def _phase2_ticker(m: dict, filters: dict, cache: dict):
         _cache_write(cache, ticker, "fail", f"CAGR {cagr}")
         return False
 
-    m["earnings_cagr"]       = cagr
+    # Cap the displayed CAGR at 40% — anything above almost certainly
+    # reflects a trough base year rather than genuine compounding.
+    # Raw value stored separately for diagnostics.
+    m["earnings_cagr"]       = min(cagr, 0.40)
+    m["earnings_cagr_raw"]   = cagr          # uncapped, for logs only
     m["earnings_cagr_years"] = cagr_years
+    if cagr > 0.40:
+        print(f"  CAGR [{ticker}]: raw={cagr:.1%} capped to 40% "
+              f"(likely trough distortion)")
 
     # Use corrected PEG computation — same logic as compute._compute_peg
     peg, peg_source, peg_conflict = _compute_screener_peg(m, cagr)
