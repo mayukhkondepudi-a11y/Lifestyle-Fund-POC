@@ -79,6 +79,52 @@ def _get_statement_eps(data):
 
     return None, {}
 
+def _compute_base_fcf(data):
+    """
+    Compute trailing FCF from cash flow statement.
+    More reliable than info["freeCashflow"] which is inconsistently
+    populated by yfinance, especially for non-US listings.
+    Returns float or None.
+    """
+    cf = data.get("cf")
+    if cf is not None and not cf.empty:
+        def _cf_row(labels):
+            for lb in labels:
+                if lb in cf.index:
+                    row = cf.loc[lb].dropna().sort_index()
+                    if not row.empty:
+                        return float(row.iloc[-1])
+            return None
+
+        op_cf = _cf_row([
+            "Operating Cash Flow", "Cash Flow From Operations",
+            "Total Cash From Operating Activities",
+            "Net Cash Provided By Operating Activities",
+        ])
+        capex = _cf_row([
+            "Capital Expenditure", "Purchase Of Plant And Equipment",
+            "Capital Expenditures", "Purchases Of Property Plant And Equipment",
+            "Capital Expenditure Reported",
+        ])
+
+        if op_cf is not None and capex is not None:
+            # capex is negative in most statements
+            fcf = op_cf + capex if capex < 0 else op_cf - capex
+            print(f"  FCF computed from statements: op_cf={op_cf:.0f}, "
+                  f"capex={capex:.0f}, fcf={fcf:.0f}")
+            return fcf
+        elif op_cf is not None:
+            print(f"  FCF: no capex row found, using operating CF={op_cf:.0f} as proxy")
+            return op_cf
+
+    # Fallback to info field
+    info_fcf = safe_float(data.get("info", {}).get("freeCashflow", 0))
+    if info_fcf != 0:
+        print(f"  FCF: falling back to info['freeCashflow']={info_fcf:.0f}")
+        return info_fcf
+
+    return None
+
 
 # ══════════════════════════════════════════════════════════════
 # METRICS COMPUTATION
@@ -124,6 +170,28 @@ def calc(data):
             if m["free_cashflow"] and m["market_cap"] else None
     except Exception:
         m["fcf_yield"] = None
+    
+    # FCF yield  ← already exists, find this line
+    try:
+        m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
+            if m["free_cashflow"] and m["market_cap"] else None
+    except Exception:
+        m["fcf_yield"] = None
+
+    # ── Computed FCF from statements (more reliable than info field) ──
+    computed_fcf = _compute_base_fcf(data)
+    if computed_fcf is not None and computed_fcf > 0:
+        info_fcf = safe_float(m.get("free_cashflow", 0))
+        if info_fcf and info_fcf != 0:
+            divergence = abs(computed_fcf - info_fcf) / abs(info_fcf)
+            if divergence > 0.20:
+                print(f"  FCF DIVERGENCE: info={info_fcf:.0f} vs "
+                      f"computed={computed_fcf:.0f} ({divergence:.0%}). "
+                      f"Using computed.")
+        m["free_cashflow"] = computed_fcf
+
+    # ── Reverse DCF (computed here so it's available for both prompts) ──
+    m["reverse_dcf"] = compute_reverse_dcf(m)
 
     # ── Self-computed EPS from statements (v3) ────────────────
     stmt_eps, stmt_eps_series = _get_statement_eps(data)
@@ -784,6 +852,127 @@ def compute_scenario_probabilities(metrics, llm_output=None):
         "correlation_multipliers":   {"bull": 1.0, "bear": 1.0},
         "driver_detail":             [],
     }
+
+# ══════════════════════════════════════════════════════════════
+# REVERSE DCF (v1)
+# Solves for the FCF CAGR implied by the current market price.
+# Python owns all math. AI only interprets the output.
+# ══════════════════════════════════════════════════════════════
+
+# Sector WACC defaults — override per company if needed
+SECTOR_WACC = {
+    "Technology":             0.10,
+    "Communication Services": 0.10,
+    "Consumer Discretionary": 0.10,
+    "Consumer Staples":       0.09,
+    "Healthcare":             0.09,
+    "Industrials":            0.09,
+    "Materials":              0.09,
+    "Energy":                 0.10,
+    "Real Estate":            0.08,
+    "Utilities":              0.07,
+    "Financial Services":     None,  # DCF not appropriate
+    "Financials":             None,
+}
+
+TERMINAL_GROWTH_RATE = 0.03   # conservative nominal GDP proxy
+
+
+def compute_reverse_dcf(metrics, years=5):
+    """
+    Given current price, solve for the FCF CAGR the market is pricing in.
+
+    Returns a dict with implied_fcf_cagr and diagnostics, or None if
+    the inputs make DCF inappropriate (negative FCF, financials, etc.).
+    """
+    sector        = metrics.get("sector", "Technology")
+    wacc          = SECTOR_WACC.get(sector, 0.10)
+
+    if wacc is None:
+        print(f"  Reverse DCF: skipped — sector '{sector}' not DCF-appropriate")
+        return {
+            "available":  False,
+            "reason":     f"DCF not applicable for {sector} companies. "
+                          f"Use price-to-book or PE-based valuation.",
+        }
+
+    current_price = safe_float(metrics.get("current_price"))
+    shares        = safe_float(metrics.get("shares_outstanding"))
+    total_debt    = safe_float(metrics.get("total_debt", 0))
+    total_cash    = safe_float(metrics.get("total_cash", 0))
+    base_fcf      = safe_float(metrics.get("free_cashflow", 0))
+
+    if current_price <= 0 or shares <= 0:
+        return {"available": False, "reason": "Missing price or share count."}
+
+    if base_fcf <= 0:
+        return {
+            "available": False,
+            "reason":    (
+                f"Base FCF is {base_fcf:.0f}. Reverse DCF requires "
+                f"positive trailing FCF. Company may be in investment "
+                f"phase or loss-making."
+            ),
+        }
+
+    tgr           = TERMINAL_GROWTH_RATE
+    target_equity = current_price * shares
+    target_ev     = target_equity + total_debt - total_cash
+
+    if target_ev <= 0:
+        return {"available": False, "reason": "Enterprise value is non-positive."}
+
+    def ev_at_growth(g):
+        fcf = base_fcf
+        pv  = 0.0
+        for i in range(1, years + 1):
+            fcf *= (1 + g)
+            pv  += fcf / (1 + wacc) ** i
+        # Gordon Growth terminal value
+        if wacc <= tgr:
+            return float("inf")
+        tv  = (fcf * (1 + tgr)) / (wacc - tgr)
+        pv += tv / (1 + wacc) ** years
+        return pv
+
+    # Binary search for implied growth rate
+    lo, hi = -0.30, 0.60
+    for _ in range(80):
+        mid = (lo + hi) / 2
+        if ev_at_growth(mid) < target_ev:
+            lo = mid
+        else:
+            hi = mid
+    implied_growth = round((lo + hi) / 2, 4)
+
+    # Terminal value as pct of total (sensitivity flag)
+    final_fcf  = base_fcf * (1 + implied_growth) ** years
+    tv         = (final_fcf * (1 + tgr)) / (wacc - tgr)
+    pv_tv      = tv / (1 + wacc) ** years
+    tv_pct     = pv_tv / target_ev if target_ev > 0 else 0
+
+    result = {
+        "available":          True,
+        "implied_fcf_cagr":   implied_growth,
+        "wacc_used":          wacc,
+        "terminal_growth":    tgr,
+        "sector":             sector,
+        "base_fcf":           round(base_fcf, 0),
+        "target_ev":          round(target_ev, 0),
+        "terminal_value_pct": round(tv_pct, 4),
+        "tv_pct_flag":        tv_pct > 0.80,
+        "note": (
+            f"At {current_price:.2f}/share, market prices in "
+            f"{implied_growth*100:.1f}% FCF CAGR over {years}yr "
+            f"({wacc*100:.0f}% WACC, {tgr*100:.1f}% terminal growth). "
+            f"Terminal value is {tv_pct*100:.0f}% of EV"
+            + (" — high sensitivity to terminal assumptions." if tv_pct > 0.80 else ".")
+        ),
+    }
+
+    print(f"  Reverse DCF: implied FCF CAGR={implied_growth*100:.1f}%, "
+          f"WACC={wacc*100:.0f}%, TV%={tv_pct*100:.0f}%")
+    return result
 
 
 # ══════════════════════════════════════════════════════════════

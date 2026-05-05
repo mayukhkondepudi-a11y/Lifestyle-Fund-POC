@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
+import json
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
 
@@ -898,16 +899,16 @@ def fetch_peers(ticker, sector, llm_peers=None):
 # ══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_pass1(ticker, metrics_json_str):
+def _cached_pass1(ticker, metrics_json_str, reverse_dcf_json):
     m = json.loads(metrics_json_str)
-    return ai.run_pass1(ticker, m)
+    return ai.run_pass1(ticker, m, reverse_dcf_json)
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str):
+def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json):
     m  = json.loads(metrics_json_str)
     sm = json.loads(math_json_str)
     p1 = json.loads(pass1_json_str)
-    return ai.run_pass2(ticker, m, sm, p1)
+    return ai.run_pass2(ticker, m, sm, p1, reverse_dcf_json)
 
 
 def run_analysis(ticker, m):
@@ -2033,6 +2034,7 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
             m = calc(sd)
             if "error" in m:
                 st.error(m["error"]); st.stop()
+            reverse_dcf_json = json.dumps(m.get("reverse_dcf", {"available": False, "reason": "Not computed"}), indent=2)
             st.write("✅ Metrics computed")
 
             status.update(label=f"Analyzing {ticker}... (Step 3 of 6)")
@@ -2041,7 +2043,7 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
             metrics_json_str = json.dumps(
                 {k: v for k, v in m.items() if k not in ["description","news"]},
                 sort_keys=True, default=str)
-            pass1 = _cached_pass1(ticker, metrics_json_str)
+            pass1 = _cached_pass1(ticker, metrics_json_str, reverse_dcf_json)
             if isinstance(pass1, dict) and pass1.get("error"):
                 status.update(label="Analysis failed (Pass 1)", state="error")
                 for d in pass1.get("details", []): st.code(d)
@@ -2059,7 +2061,7 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
             st.caption("Drafting narrative consistent with the computed numbers")
             math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
             pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
-            pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str)
+            pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json)
             if isinstance(pass2, dict) and pass2.get("error"):
                 status.update(label="Analysis failed (Pass 2)", state="error")
                 for d in pass2.get("details", []): st.code(d)

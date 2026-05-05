@@ -41,6 +41,9 @@ COMPUTED SCENARIO MATH:
 MARKET EXPECTATION:
 {market_expectations_json}
 
+REVERSE DCF (Python-computed, not an LLM estimate):
+{reverse_dcf_json}
+
 HEADWINDS AND TAILWINDS:
 {headwinds_tailwinds_json}
 
@@ -109,11 +112,16 @@ OUTPUT FORMAT:
   "tailwind_narrative": "1-2 paragraphs. Same approach for
     tailwinds.",
 
-  "market_pricing_commentary": "1 paragraph. Is the market
-    already pricing in the growth you expect? What does the
-    current valuation imply about expectations? Is there a
-    gap between what the market assumes and what your analysis
-    shows?",
+  "market_pricing_commentary": "1 paragraph. Use the reverse DCF result 
+  provided. State specifically what FCF CAGR the market is pricing in 
+  at the current share price, what WACC and terminal growth rate was 
+  assumed, and how that compares to the FCF or earnings growth your 
+  base case assumes. If the implied rate exceeds your base case, 
+  explain what the investor needs to believe to justify the current 
+  price. If the implied rate is below your base case, explain why the 
+  stock appears mispriced. If reverse DCF was unavailable, explain why 
+  and use PE-implied growth as the reference point. One concrete 
+  number-anchored paragraph. No generic statements."
 
   "scenario_commentary": "2-3 paragraphs. Walk through the
     three scenarios in narrative form. What has to go right

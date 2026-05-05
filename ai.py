@@ -143,7 +143,7 @@ def parse_json_response(raw, model="unknown"):
 # PASS 1: STRUCTURED ASSUMPTIONS
 # ══════════════════════════════════════════════════════════════
 
-def _build_pass1_messages(ticker, m):
+def _build_pass1_messages(ticker, m, reverse_dcf_json):
     ms = json.dumps(
         {k: v for k, v in m.items()
          if k not in ["description", "news", "revenue_history", "net_income_history"]},
@@ -165,6 +165,8 @@ def _build_pass1_messages(ticker, m):
         "{description}": description_snippet,
         "{today_date}": datetime.now().strftime("%B %d, %Y"),
         "{total_revenue}": fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
+        "{reverse_dcf_json}": reverse_dcf_json,
+        "{shares_outstanding}": str(m.get("shares_outstanding")),
     }
 
     user_prompt = PASS1_PROMPT
@@ -177,7 +179,8 @@ def _build_pass1_messages(ticker, m):
     ]
 
 
-def run_pass1(ticker, m):
+def run_pass1(ticker, m, reverse_dcf_json):
+    msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
     """Pass 1: Get structured assumptions from LLM."""
     msgs = _build_pass1_messages(ticker, m)
     raw, model, errors = run_ai(msgs, max_tokens=6000)
@@ -237,7 +240,7 @@ def run_pass1(ticker, m):
 # PASS 2: NARRATIVE
 # ══════════════════════════════════════════════════════════════
 
-def _build_pass2_messages(ticker, m, scenario_math, pass1_output):
+def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
     ms = json.dumps(
         {k: v for k, v in m.items()
          if k not in ["description", "news", "revenue_history", "net_income_history"]},
@@ -287,6 +290,7 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output):
         "{risk_adjusted_score}": str(sm.get("risk_adjusted_score")),
         "{upside_downside_ratio}": str(sm.get("upside_downside_ratio")),
         "{implied_vs_base}": mkt.get("vs_base_case", "N/A"),
+        "{reverse_dcf_json}": reverse_dcf_json,
     }
 
     user_prompt = PASS2_PROMPT
@@ -299,7 +303,8 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output):
     ]
 
 
-def run_pass2(ticker, m, scenario_math, pass1_output):
+def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
+    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
     """Pass 2: Get narrative from LLM seeing computed math."""
     msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output)
     raw, model, errors = run_ai(msgs, max_tokens=6000)
