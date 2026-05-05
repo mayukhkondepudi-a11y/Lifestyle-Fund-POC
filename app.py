@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 import json
 
-st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="auto")
 
 # ── Hide Streamlit toolbar/ellipsis via JS ──
 import streamlit.components.v1 as _sc
@@ -98,24 +98,32 @@ st.markdown("""
         background: transparent !important;
     }
 
-    /* ── HIDE ALL STREAMLIT CHROME (nuclear) ── */
     header, .stAppHeader, [data-testid="stHeader"],
-    [data-testid="stToolbar"], [data-testid="stToolbarActions"],
-    [data-testid="stToolbarActionButtonContainer"],
-    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-    [data-testid="stAppDeployButton"],
-    button[data-testid="baseButton-header"],
-    button[data-testid="baseButton-minimal"],
-    #MainMenu, #MainMenu > ul, footer,
-    .reportview-container .main footer {
-        display:    none       !important;
-        visibility: hidden     !important;
-        height:     0px        !important;
-        max-height: 0px        !important;
-        overflow:   hidden     !important;
-        padding:    0          !important;
-        margin:     0          !important;
-    }
+[data-testid="stToolbar"], [data-testid="stToolbarActions"],
+[data-testid="stToolbarActionButtonContainer"],
+[data-testid="stDecoration"], [data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],
+button[data-testid="baseButton-header"],
+button[data-testid="baseButton-minimal"],
+#MainMenu, #MainMenu > ul, footer,
+.reportview-container .main footer {
+    display:    none       !important;
+    visibility: hidden     !important;
+    height:     0px        !important;
+    max-height: 0px        !important;
+    overflow:   hidden     !important;
+    padding:    0          !important;
+    margin:     0          !important;
+}
+
+/* Re-show sidebar toggle */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"] {
+    display:    flex       !important;
+    visibility: visible    !important;
+    height:     auto       !important;
+    overflow:   visible    !important;
+}
 
     /* ── STICKY LOGO ── */
     .pickr-logo-sticky {
@@ -736,9 +744,10 @@ if authenticated:
                 margin-bottom:0.6rem;line-height:1.5">1 free report · No history saved</div>
             </div>
             """, unsafe_allow_html=True)
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+        if st.button("Sign out", key="logout_btn", use_container_width=True):
+         for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
 
         st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
             border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -909,7 +918,6 @@ def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, rever
     sm = json.loads(math_json_str)
     p1 = json.loads(pass1_json_str)
     return ai.run_pass2(ticker, m, sm, p1, reverse_dcf_json)
-
 
 def run_analysis(ticker, m):
     metrics_json_str = json.dumps(
