@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 import json
 
-st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="auto")
+st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
 
 # ── Hide Streamlit toolbar/ellipsis via JS ──
 # FIX: Removed 'header' and '[data-testid="stHeader"]' from hide list
@@ -689,6 +689,19 @@ st.markdown("""
         .rpt-head h2 { font-size: 1.3rem !important; }
         .pt { display: block !important; overflow-x: auto !important; }
     }
+            /* ── Kill sidebar entirely ── */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"],
+    button[aria-label="Open sidebar"],
+    button[aria-label="Close sidebar"] {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -723,103 +736,89 @@ name     = st.session_state.get("user_name", "")
 username = st.session_state.get("username", "")
 is_guest = st.session_state.get("is_guest", False)
 
-if authenticated:
-    badge_label = f"Guest: {name}" if is_guest else name
-    badge_color_start = "#444" if is_guest else "#8b1a1a"
-    badge_color_end   = "#666" if is_guest else "#c03030"
-    st.markdown(f'''<div style="
-        position:absolute;top:0.6rem;right:2rem;z-index:10;
-        display:flex;align-items:center;gap:0.6rem;">
-        <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">{badge_label}</span>
-        <div style="width:24px;height:24px;border-radius:50%;
-            background:linear-gradient(135deg,{badge_color_start},{badge_color_end});
-            display:flex;align-items:center;justify-content:center;
-            font-size:0.6rem;font-weight:800;color:#fff;">
-            {name[0].upper() if name else "G"}</div>
-    </div>''', unsafe_allow_html=True)
-
 # ══════════════════════════════════════════════════════════════
-# SIDEBAR
-# FIX: Completely rewritten. Removed duplicate logout button,
-#      fixed st.rerun() indentation, single clean block.
+# TOP BAR (replaces sidebar)
 # ══════════════════════════════════════════════════════════════
 
 if authenticated:
-    with st.sidebar:
-        # ── Guest mode badge ──
-        if is_guest:
-            st.markdown("""
-            <div style="background:rgba(139,26,26,0.12);border:1px solid rgba(224,48,48,0.25);
-            border-radius:7px;padding:0.75rem 1rem;margin:0.5rem 0 0.8rem;text-align:center;">
-                <div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;
-                letter-spacing:0.12em;color:#e03030;margin-bottom:0.3rem;">Guest Mode</div>
-                <div style="font-size:0.78rem;color:rgba(255,255,255,0.5);
-                margin-bottom:0.6rem;line-height:1.5">1 free report · No history saved</div>
-            </div>
-            """, unsafe_allow_html=True)
+    _display_name = f"Guest" if is_guest else name
+    _report_count = st.session_state.get('report_count', 0)
+    _limit = 1 if is_guest else 3
+    _count_color = "#4ade80" if _report_count < _limit else "#f87171"
 
-        # ── Branding ──
-        st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
-            border-bottom:1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="flex-shrink:0;">
-                    <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
-                    <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
-                    <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
-                    <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
-                    <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
-                </svg>
-                <div>
-                    <div style="font-size:1rem;font-weight:900;color:#fff;line-height:1;">
-                        Pick<span style="color:#c03030;">R</span></div>
-                    <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;
-                        letter-spacing:0.15em;color:rgba(255,255,255,0.2);margin-top:0.15rem;">
-                        Equity Research</div>
-                </div>
-            </div>
-            <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-                letter-spacing:0.14em;color:rgba(255,255,255,0.2);">Report History</div>
-        </div>''', unsafe_allow_html=True)
+    # ── Visual bar: one clean HTML strip ──
+    st.markdown(f'''
+    <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:0.5rem 1rem;margin:-0.5rem 0 0.8rem;
+        background:rgba(255,255,255,0.025);
+        border:1px solid rgba(255,255,255,0.06);border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:0.8rem;">
+            <div style="width:26px;height:26px;border-radius:50%;
+                background:linear-gradient(135deg,#8b1a1a,#c03030);
+                display:flex;align-items:center;justify-content:center;
+                font-size:0.6rem;font-weight:800;color:#fff;">
+                {name[0].upper() if name else "G"}</div>
+            <span style="font-size:0.82rem;color:rgba(255,255,255,0.6);font-weight:500;">
+                {_display_name}</span>
+            <span style="font-size:0.7rem;color:rgba(255,255,255,0.3);">·</span>
+            <span style="font-size:0.72rem;color:{_count_color};font-weight:600;">
+                {_report_count}/{_limit} reports</span>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);font-weight:600;
+            text-transform:uppercase;letter-spacing:0.1em;">
+            Pick<span style="color:#c03030;">R</span></div>
+    </div>
+    ''', unsafe_allow_html=True)
 
-        # FIX: Single logout button with correct indentation.
-        #      st.rerun() is INSIDE the if block — not dangling outside.
+    # ── Sign out: tiny right-aligned button ──
+    _, _, _, _, signout_col = st.columns([1, 1, 1, 1, 0.4])
+    with signout_col:
         if st.button("Sign out", key="logout_btn", use_container_width=True):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
 
-        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+    # ── Past reports: horizontal chip row ──
+    try:
+        from report_store import load_user_index, load_report as load_saved_report
+        past_reports = load_user_index(username)
+        if past_reports and len(past_reports) > 0:
+            # Build visual row in HTML
+            chips_html = ""
+            display_reports = list(reversed(past_reports[-6:]))
+            for r in display_reports:
+                rec = r.get("recommendation", "")
+                tk  = r["ticker"].replace(".NS","").replace(".BO","")
+                rc  = {"BUY": "#4ade80", "PASS": "#f87171"}.get(rec, "#fbbf24")
+                ret = r.get("expected_return")
+                ret_str = f"{ret*100:+.0f}%" if ret else ""
+                chips_html += (
+                    f'<div style="display:flex;flex-direction:column;align-items:center;'
+                    f'gap:0.15rem;min-width:52px;">'
+                    f'<span style="font-size:0.78rem;font-weight:800;color:#fff;">{tk}</span>'
+                    f'<span style="font-size:0.6rem;font-weight:700;color:{rc};">'
+                    f'{rec} {ret_str}</span>'
+                    f'</div>'
+                )
 
-        # ── Report history ──
-        try:
-            from report_store import load_user_index, load_report as load_saved_report
-            past_reports = load_user_index(username)
-            if past_reports:
-                for r in reversed(past_reports[-20:]):
-                    rec = r.get("recommendation", "")
-                    ret = r.get("expected_return")
-                    rec_color = ("#4ade80" if rec == "BUY"
-                                 else ("#f87171" if rec == "PASS" else "#fbbf24"))
-                    ret_str = f"{ret*100:+.0f}%" if ret else ""
-                    company = r.get("company_name", r["ticker"])[:22]
-                    rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
-                    _rc_bg     = {"BUY": "rgba(74,222,128,0.08)", "PASS": "rgba(248,113,113,0.08)"}.get(rec, "rgba(251,191,36,0.08)")
-                    _rc_border = {"BUY": "rgba(74,222,128,0.2)",  "PASS": "rgba(248,113,113,0.2)"}.get(rec, "rgba(251,191,36,0.2)")
-                    st.markdown(
-                        f'<div style="background:{_rc_bg};border:1px solid {_rc_border};'
-                        f'border-radius:7px;padding:0.6rem 0.75rem;margin:0.35rem 0;">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">'
-                        f'<span style="font-size:0.88rem;color:#fff;font-weight:800;">{r["ticker"].replace(".NS","").replace(".BO","")}</span>'
-                        f'<span style="font-size:0.68rem;font-weight:800;color:{rec_color};background:rgba(0,0,0,0.25);padding:0.1rem 0.4rem;border-radius:3px;">{rec}</span>'
-                        f'</div>'
-                        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{company}</div>'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                        f'<span style="font-size:0.65rem;color:rgba(255,255,255,0.5);">{r.get("date","")}</span>'
-                        f'<span style="font-size:0.75rem;font-weight:700;color:{rec_color};">{ret_str}</span>'
-                        f'</div></div>',
-                        unsafe_allow_html=True
-                    )
-                    if st.button(f"Load report", key=f"load_{rid}", use_container_width=True):
+            st.markdown(f'''
+            <div style="display:flex;align-items:center;gap:1.2rem;
+                padding:0.5rem 0.8rem;margin:0.2rem 0 0.5rem;
+                border-top:1px solid rgba(255,255,255,0.04);overflow-x:auto;">
+                <span style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
+                    letter-spacing:0.12em;color:rgba(255,255,255,0.2);white-space:nowrap;
+                    flex-shrink:0;">History</span>
+                {chips_html}
+            </div>
+            ''', unsafe_allow_html=True)
+
+            # Interactive buttons below (small, subtle)
+            chip_cols = st.columns(len(display_reports))
+            for idx, r in enumerate(display_reports):
+                tk  = r["ticker"].replace(".NS","").replace(".BO","")
+                rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
+                with chip_cols[idx]:
+                    if st.button(f"Load", key=f"load_{rid}", use_container_width=True):
                         report_data = load_saved_report(username, rid)
                         if report_data:
                             st.session_state.cached_report = {
@@ -831,13 +830,8 @@ if authenticated:
                             st.rerun()
                         else:
                             st.toast("Could not load report")
-            else:
-                st.markdown('''<div style="text-align:center;padding:2rem 1rem;">
-                    <div style="font-size:0.85rem;color:rgba(255,255,255,0.5);font-style:italic;line-height:1.6;">
-                        No reports yet.<br>Generate your first analysis and it will appear here.</div>
-                </div>''', unsafe_allow_html=True)
-        except Exception:
-            st.markdown('<div style="font-size:0.75rem;color:rgba(255,255,255,0.15);padding:1rem;">History unavailable</div>', unsafe_allow_html=True)
+    except Exception:
+        pass
 
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
