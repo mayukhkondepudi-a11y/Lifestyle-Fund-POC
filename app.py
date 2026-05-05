@@ -1,4 +1,5 @@
 """PickR - Streamlit UI and rendering."""
+
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -10,6 +11,8 @@ import json
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="auto")
 
 # ── Hide Streamlit toolbar/ellipsis via JS ──
+# FIX: Removed 'header' and '[data-testid="stHeader"]' from hide list
+#      so the sidebar toggle button remains accessible.
 import streamlit.components.v1 as _sc
 _sc.html("""
 <script>
@@ -18,11 +21,8 @@ _sc.html("""
         var p = window.parent.document;
         var sel = [
             '[data-testid="stToolbar"]',
-            '[data-testid="stHeader"]',
-            'header',
             '[data-testid="stDecoration"]',
             '[data-testid="stToolbarActions"]',
-            'button[data-testid="baseButton-header"]',
             '[data-testid="stAppDeployButton"]',
             '#MainMenu'
         ];
@@ -33,6 +33,21 @@ _sc.html("""
                 el.style.setProperty('height','0','important');
                 el.style.setProperty('overflow','hidden','important');
             });
+        });
+        // FIX: Force sidebar toggle to always be visible
+        var toggle = p.querySelectorAll(
+            '[data-testid="stSidebarCollapsedControl"], ' +
+            '[data-testid="collapsedControl"], ' +
+            'button[aria-label="Open sidebar"], ' +
+            'button[aria-label="Close sidebar"]'
+        );
+        toggle.forEach(function(el){
+            el.style.setProperty('display','flex','important');
+            el.style.setProperty('visibility','visible','important');
+            el.style.setProperty('height','auto','important');
+            el.style.setProperty('overflow','visible','important');
+            el.style.setProperty('opacity','1','important');
+            el.style.setProperty('z-index','99999','important');
         });
     }
     hide();
@@ -98,32 +113,48 @@ st.markdown("""
         background: transparent !important;
     }
 
-    header, .stAppHeader, [data-testid="stHeader"],
-[data-testid="stToolbar"], [data-testid="stToolbarActions"],
-[data-testid="stToolbarActionButtonContainer"],
-[data-testid="stDecoration"], [data-testid="stStatusWidget"],
-[data-testid="stAppDeployButton"],
-button[data-testid="baseButton-header"],
-button[data-testid="baseButton-minimal"],
-#MainMenu, #MainMenu > ul, footer,
-.reportview-container .main footer {
-    display:    none       !important;
-    visibility: hidden     !important;
-    height:     0px        !important;
-    max-height: 0px        !important;
-    overflow:   hidden     !important;
-    padding:    0          !important;
-    margin:     0          !important;
-}
+    /* FIX: Only hide specific toolbar elements, NOT the entire header.
+       This preserves the sidebar toggle button. */
+    [data-testid="stToolbar"],
+    [data-testid="stToolbarActions"],
+    [data-testid="stToolbarActionButtonContainer"],
+    [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"],
+    [data-testid="stAppDeployButton"],
+    button[data-testid="baseButton-header"],
+    button[data-testid="baseButton-minimal"],
+    #MainMenu, #MainMenu > ul, footer,
+    .reportview-container .main footer {
+        display:    none       !important;
+        visibility: hidden     !important;
+        height:     0px        !important;
+        max-height: 0px        !important;
+        overflow:   hidden     !important;
+        padding:    0          !important;
+        margin:     0          !important;
+    }
 
-/* Re-show sidebar toggle */
-[data-testid="stSidebarCollapsedControl"],
-[data-testid="stSidebarCollapseButton"] {
-    display:    flex       !important;
-    visibility: visible    !important;
-    height:     auto       !important;
-    overflow:   visible    !important;
-}
+    /* FIX: Make header transparent but keep it in layout for sidebar toggle */
+    header, .stAppHeader, [data-testid="stHeader"] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* FIX: Sidebar toggle — always visible and clickable */
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"],
+    button[aria-label="Open sidebar"],
+    button[aria-label="Close sidebar"] {
+        display:    flex       !important;
+        visibility: visible    !important;
+        height:     auto       !important;
+        overflow:   visible    !important;
+        opacity:    1          !important;
+        z-index:    99999      !important;
+        position:   relative   !important;
+    }
 
     /* ── STICKY LOGO ── */
     .pickr-logo-sticky {
@@ -471,8 +502,6 @@ button[data-testid="baseButton-minimal"],
 
     /* ══════════════════════════════════════════════════════
        BUTTON SYSTEM
-       Streamlit renders kind attr on the <button> element.
-       Use both the kind attr and data-testid for coverage.
     ══════════════════════════════════════════════════════ */
 
     /* ── Base reset for ALL buttons ── */
@@ -494,19 +523,14 @@ button[data-testid="baseButton-minimal"],
         white-space: nowrap !important;
     }
 
-    /* ── Shimmer layer (sits on top, swept by hover) ── */
+    /* ── Shimmer layer ── */
     .stButton > button::before,
     [data-testid="stDownloadButton"] > button::before {
         content: '' !important;
         position: absolute !important;
         top: 0 !important; left: -100% !important;
         width: 60% !important; height: 100% !important;
-        background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255,255,255,0.07) 50%,
-            transparent 100%
-        ) !important;
+        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%) !important;
         transition: left 0.55s ease !important;
         pointer-events: none !important;
     }
@@ -522,28 +546,20 @@ button[data-testid="baseButton-minimal"],
         border: 1px solid rgba(180,40,40,0.55) !important;
         color: #fff !important;
         text-shadow: 0 1px 3px rgba(0,0,0,0.35) !important;
-        box-shadow:
-            0 2px 8px rgba(139,26,26,0.45),
-            0 1px 2px rgba(0,0,0,0.4),
-            inset 0 1px 0 rgba(255,255,255,0.10) !important;
+        box-shadow: 0 2px 8px rgba(139,26,26,0.45), 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10) !important;
     }
     .stButton > button[kind="primary"]:hover,
     [data-testid="stBaseButton-primary"]:hover {
         background: linear-gradient(145deg, #921a1a 0%, #cc2e2e 55%, #e03a3a 100%) !important;
         border-color: rgba(210,55,55,0.65) !important;
-        box-shadow:
-            0 4px 18px rgba(160,30,30,0.55),
-            0 2px 4px rgba(0,0,0,0.4),
-            inset 0 1px 0 rgba(255,255,255,0.12) !important;
+        box-shadow: 0 4px 18px rgba(160,30,30,0.55), 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12) !important;
         transform: translateY(-1px) !important;
         color: #fff !important;
     }
     .stButton > button[kind="primary"]:active,
     [data-testid="stBaseButton-primary"]:active {
         transform: translateY(0) scale(0.98) !important;
-        box-shadow:
-            0 1px 4px rgba(139,26,26,0.4),
-            inset 0 1px 3px rgba(0,0,0,0.2) !important;
+        box-shadow: 0 1px 4px rgba(139,26,26,0.4), inset 0 1px 3px rgba(0,0,0,0.2) !important;
     }
 
     /* ── PRIMARY DISABLED ── */
@@ -565,9 +581,7 @@ button[data-testid="baseButton-minimal"],
         background: rgba(255,255,255,0.05) !important;
         border: 1px solid rgba(255,255,255,0.14) !important;
         color: rgba(255,255,255,0.78) !important;
-        box-shadow:
-            0 1px 3px rgba(0,0,0,0.25),
-            inset 0 1px 0 rgba(255,255,255,0.04) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04) !important;
     }
     .stButton > button[kind="secondary"]:hover,
     [data-testid="stBaseButton-secondary"]:hover,
@@ -575,9 +589,7 @@ button[data-testid="baseButton-minimal"],
         background: rgba(255,255,255,0.09) !important;
         border-color: rgba(255,255,255,0.26) !important;
         color: #fff !important;
-        box-shadow:
-            0 3px 10px rgba(0,0,0,0.3),
-            inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06) !important;
         transform: translateY(-1px) !important;
     }
     .stButton > button[kind="secondary"]:active,
@@ -587,26 +599,22 @@ button[data-testid="baseButton-minimal"],
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.2) !important;
     }
 
-    /* ── DOWNLOAD BUTTON — muted teal tint to signal "export" ── */
+    /* ── DOWNLOAD BUTTON ── */
     [data-testid="stDownloadButton"] > button {
         background: rgba(45,55,72,0.55) !important;
         border: 1px solid rgba(100,130,160,0.28) !important;
         color: rgba(180,210,240,0.88) !important;
-        box-shadow:
-            0 1px 3px rgba(0,0,0,0.3),
-            inset 0 1px 0 rgba(255,255,255,0.04) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04) !important;
     }
     [data-testid="stDownloadButton"] > button:hover {
         background: rgba(55,70,95,0.70) !important;
         border-color: rgba(120,160,200,0.40) !important;
         color: rgba(210,230,255,0.95) !important;
-        box-shadow:
-            0 3px 12px rgba(30,60,100,0.35),
-            inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        box-shadow: 0 3px 12px rgba(30,60,100,0.35), inset 0 1px 0 rgba(255,255,255,0.06) !important;
         transform: translateY(-1px) !important;
     }
 
-    /* ── SIDEBAR BUTTONS — keep minimal, just clean ── */
+    /* ── SIDEBAR BUTTONS ── */
     [data-testid="stSidebar"] .stButton > button {
         background: transparent !important;
         border: 1px solid rgba(255,255,255,0.09) !important;
@@ -632,8 +640,6 @@ button[data-testid="baseButton-minimal"],
     /* ── SIDEBAR ── */
     [data-testid="stSidebar"] > div { background: #0a0a0f !important; border-right: 1px solid rgba(255,255,255,0.05) !important; }
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: rgba(255,255,255,0.7) !important; }
-    [data-testid="stSidebar"] button { font-size: 0.78rem !important; color: rgba(255,255,255,0.5) !important; border: 1px solid rgba(255,255,255,0.08) !important; background: transparent !important; box-shadow: none !important; text-transform: none !important; letter-spacing: normal !important; font-weight: 500 !important; padding: 0.4rem 0.8rem !important; }
-    [data-testid="stSidebar"] button:hover { border-color: rgba(224,48,48,0.4) !important; color: #fff !important; background: transparent !important; transform: none !important; box-shadow: none !important; }
 
     /* ── TABS ── */
     .stTabs [data-baseweb="tab-list"] { background: transparent !important; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
@@ -732,8 +738,15 @@ if authenticated:
             {name[0].upper() if name else "G"}</div>
     </div>''', unsafe_allow_html=True)
 
+# ══════════════════════════════════════════════════════════════
+# SIDEBAR
+# FIX: Completely rewritten. Removed duplicate logout button,
+#      fixed st.rerun() indentation, single clean block.
+# ══════════════════════════════════════════════════════════════
+
 if authenticated:
     with st.sidebar:
+        # ── Guest mode badge ──
         if is_guest:
             st.markdown("""
             <div style="background:rgba(139,26,26,0.12);border:1px solid rgba(224,48,48,0.25);
@@ -744,11 +757,8 @@ if authenticated:
                 margin-bottom:0.6rem;line-height:1.5">1 free report · No history saved</div>
             </div>
             """, unsafe_allow_html=True)
-        if st.button("Sign out", key="logout_btn", use_container_width=True):
-         for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
 
+        # ── Branding ──
         st.markdown('''<div style="padding:0.8rem 0.3rem 0.6rem;
             border-bottom:1px solid rgba(255,255,255,0.06);">
             <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;">
@@ -771,6 +781,8 @@ if authenticated:
                 letter-spacing:0.14em;color:rgba(255,255,255,0.2);">Report History</div>
         </div>''', unsafe_allow_html=True)
 
+        # FIX: Single logout button with correct indentation.
+        #      st.rerun() is INSIDE the if block — not dangling outside.
         if st.button("Sign out", key="logout_btn", use_container_width=True):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
@@ -778,6 +790,7 @@ if authenticated:
 
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
+        # ── Report history ──
         try:
             from report_store import load_user_index, load_report as load_saved_report
             past_reports = load_user_index(username)
@@ -923,13 +936,14 @@ def run_analysis(ticker, m):
     metrics_json_str = json.dumps(
         {k: v for k, v in m.items() if k not in ["description", "news"]},
         sort_keys=True, default=str)
-    pass1 = _cached_pass1(ticker, metrics_json_str)
+    reverse_dcf_json = json.dumps(m.get("reverse_dcf", {"available": False, "reason": "Not computed"}), indent=2)
+    pass1 = _cached_pass1(ticker, metrics_json_str, reverse_dcf_json)
     if isinstance(pass1, dict) and pass1.get("error"):
         return pass1
     scenario_math = compute_scenario_math(m, pass1)
     math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
     pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
-    pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str)
+    pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json)
     if isinstance(pass2, dict) and pass2.get("error"):
         return pass2
     final = {}
@@ -1297,7 +1311,7 @@ def render(ticker, m, a, data):
             unsafe_allow_html=True
         )
 
-    # Scenario tabs (unchanged from original - abbreviated for length)
+    # ── Scenario tabs ──
     st.markdown('<div class="sec">Scenario Analysis <span class="vtag">Segment-Level Builds</span></div>', unsafe_allow_html=True)
     if a.get("scenario_commentary"):
         st.markdown(f'<div class="prose">{strip_html(a["scenario_commentary"])}</div>', unsafe_allow_html=True)
@@ -1421,6 +1435,8 @@ def render(ticker, m, a, data):
 
 # ══════════════════════════════════════════════════════════════
 # RENDER — TRACK BOX
+# UX: Removed the expander — fields are shown directly.
+#     One less click to set up a price alert.
 # ══════════════════════════════════════════════════════════════
 
 def render_track_box(ticker, m, a):
@@ -1440,42 +1456,48 @@ def render_track_box(ticker, m, a):
         suggested_target = float(suggested_target)
     except: suggested_target = round(cp * 1.15, 2)
     rec_color = "#22c55e" if rec == "BUY" else "#f5c542"
+
     st.markdown(f'''<div class="track-box"><div class="track-box-title">Track this stock</div>
         <p style="color:rgba(255,255,255,0.5);font-size:0.9rem;line-height:1.65;margin:0 0 1rem;">
         Get an email when <strong style="color:#fff;">{strip_html(company)}</strong> hits your target price.
         Thesis target: <strong style="color:{rec_color};">{sym}{suggested_target:,.2f}</strong></p></div>''', unsafe_allow_html=True)
-    with st.expander("Set up price alert", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            user_email = st.text_input("Your email", placeholder="you@example.com", key=f"track_email_{ticker}")
-        with col2:
-            target_price = st.number_input(f"Alert me when price reaches ({sym})", min_value=0.01, value=suggested_target, step=0.50, key=f"track_target_{ticker}")
-        thesis_snapshot  = strip_html(a.get("investment_thesis", ""))
-        metrics_snapshot = {k: m.get(k) for k in ["trailing_pe","forward_pe","peg_ratio","operating_margin","roe","revenue_growth","revenue_cagr","fcf_yield","debt_to_equity","ev_to_ebitda"]}
-        if st.button("Start Tracking", key=f"track_btn_{ticker}", type="primary"):
-            if not user_email or "@" not in user_email:
-                st.error("Please enter a valid email address.")
-            elif not GMAIL_SENDER or not GMAIL_APP_PASS:
-                st.warning("Email not configured.")
+
+    # UX: Fields shown directly — no expander needed (saves one click)
+    col1, col2 = st.columns(2)
+    with col1:
+        user_email = st.text_input("Your email", placeholder="you@example.com", key=f"track_email_{ticker}")
+    with col2:
+        target_price = st.number_input(f"Alert price ({sym})", min_value=0.01, value=suggested_target, step=0.50, key=f"track_target_{ticker}")
+
+    thesis_snapshot  = strip_html(a.get("investment_thesis", ""))
+    metrics_snapshot = {k: m.get(k) for k in ["trailing_pe","forward_pe","peg_ratio","operating_margin","roe","revenue_growth","revenue_cagr","fcf_yield","debt_to_equity","ev_to_ebitda"]}
+
+    if st.button("Start Tracking", key=f"track_btn_{ticker}", type="primary"):
+        if not user_email or "@" not in user_email:
+            st.error("Please enter a valid email address.")
+        elif not GMAIL_SENDER or not GMAIL_APP_PASS:
+            st.warning("Email not configured.")
+        else:
+            gh_ok, gh_err = add_tracked_stock(ticker, company, rec, target_price, cp, metrics_snapshot, thesis_snapshot, user_email)
+            ok, err = email_confirmation(user_email, ticker, company, rec, f"{sym}{target_price:,.2f}", f"{sym}{cp:,.2f}")
+            if gh_ok and ok:
+                st.session_state.track_success = ("green", f"Tracking live! Confirmation sent to {user_email}")
+            elif gh_ok and not ok:
+                st.session_state.track_success = ("green", f"Tracking live! (Email failed: {err})")
+            elif not gh_ok and ok:
+                st.session_state.track_success = ("yellow", f"Email sent but GitHub save failed: {gh_err}")
             else:
-                gh_ok, gh_err = add_tracked_stock(ticker, company, rec, target_price, cp, metrics_snapshot, thesis_snapshot, user_email)
-                ok, err = email_confirmation(user_email, ticker, company, rec, f"{sym}{target_price:,.2f}", f"{sym}{cp:,.2f}")
-                if gh_ok and ok:
-                    st.session_state.track_success = ("green", f"Tracking live! Confirmation sent to {user_email}")
-                elif gh_ok and not ok:
-                    st.session_state.track_success = ("green", f"Tracking live! (Email failed: {err})")
-                elif not gh_ok and ok:
-                    st.session_state.track_success = ("yellow", f"Email sent but GitHub save failed: {gh_err}")
-                else:
-                    st.session_state.track_success = ("red", f"Both failed. GitHub: {gh_err} | Email: {err}")
-        if st.session_state.track_success:
-            colour, msg = st.session_state.track_success
-            bg     = {"green":"rgba(74,222,128,0.1)","yellow":"rgba(251,191,36,0.1)","red":"rgba(248,113,113,0.1)"}.get(colour,"rgba(74,222,128,0.1)")
-            border = {"green":"rgba(74,222,128,0.3)","yellow":"rgba(251,191,36,0.3)","red":"rgba(248,113,113,0.3)"}.get(colour)
-            text_c = {"green":"#4ade80","yellow":"#fbbf24","red":"#f87171"}.get(colour)
-            st.markdown(f'<div style="background:{bg};border:1px solid {border};border-radius:6px;padding:0.8rem 1.2rem;font-size:0.88rem;color:{text_c};margin-top:0.8rem;line-height:1.5;">{msg}</div>', unsafe_allow_html=True)
-            st.session_state.track_success = None
-        st.markdown('<div class="track-note">Your email is only used for price alerts. Never shared.</div>', unsafe_allow_html=True)
+                st.session_state.track_success = ("red", f"Both failed. GitHub: {gh_err} | Email: {err}")
+
+    if st.session_state.track_success:
+        colour, msg = st.session_state.track_success
+        bg     = {"green":"rgba(74,222,128,0.1)","yellow":"rgba(251,191,36,0.1)","red":"rgba(248,113,113,0.1)"}.get(colour,"rgba(74,222,128,0.1)")
+        border = {"green":"rgba(74,222,128,0.3)","yellow":"rgba(251,191,36,0.3)","red":"rgba(248,113,113,0.3)"}.get(colour)
+        text_c = {"green":"#4ade80","yellow":"#fbbf24","red":"#f87171"}.get(colour)
+        st.markdown(f'<div style="background:{bg};border:1px solid {border};border-radius:6px;padding:0.8rem 1.2rem;font-size:0.88rem;color:{text_c};margin-top:0.8rem;line-height:1.5;">{msg}</div>', unsafe_allow_html=True)
+        st.session_state.track_success = None
+
+    st.markdown('<div class="track-note">Your email is only used for price alerts. Never shared.</div>', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1529,7 +1551,7 @@ def render_peg_tape(screener_data):
         return
 
     tape_items = []
-    for p in peg_picks:   # ← fixed: entire loop body now properly indented
+    for p in peg_picks:
         tk      = p.get("ticker", "").replace(".NS","").replace(".BO","")
         peg     = p.get("peg_ratio", 0)
         score   = p.get("qglp_score", 0)
@@ -1571,6 +1593,9 @@ def render_peg_tape(screener_data):
     ''', unsafe_allow_html=True)
 
 # ── Screener picks table ──────────────────────────────────────
+# UX: Clicking a ticker in the table now IMMEDIATELY sets it and
+#     triggers generation (if authenticated). One click = report.
+#     No intermediate "selected" state requiring a second click.
 def render_picks_table(picks, market_label, select_key):
     if not picks:
         return
@@ -1582,7 +1607,6 @@ def render_picks_table(picks, market_label, select_key):
         unsafe_allow_html=True
     )
 
-    # ── header defined ONCE, outside the row loop ──
     header_html = (
         '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">'
         '<th style="padding:0.6rem 0.5rem;text-align:left;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">Company</th>'
@@ -1646,17 +1670,14 @@ def render_picks_table(picks, market_label, select_key):
         unsafe_allow_html=True
     )
 
-    # Per-row analyze buttons — one button per pick, no redundant dropdown
+    # UX: Subtle ghost buttons — not red primary. Less visual noise.
     btn_cols = st.columns(len(picks))
     for i, (pick, col) in enumerate(zip(picks, btn_cols)):
         tk       = pick.get("ticker", "")
         tk_clean = tk.replace(".NS","").replace(".BO","")
-        is_selected = st.session_state.get("resolved") == tk
-        label = f"✓ {tk_clean}" if is_selected else tk_clean
         with col:
-            if st.button(label, key=f"{select_key}_btn_{i}",
-                         type="primary" if is_selected else "secondary",
-                         use_container_width=True):
+            if st.button(f"{tk_clean}", key=f"{select_key}_btn_{i}",
+                         type="secondary", use_container_width=True):
                 st.session_state["resolved"] = tk
                 st.session_state["resolved_source"] = "picks_table"
                 if st.session_state.get("authenticated"):
@@ -1679,7 +1700,6 @@ render_peg_tape(screener_data)
 left_col, right_col = st.columns([2.2, 1], gap="large")
 
 with left_col:
-    # Hero — fixed: proper opening < on the div tag
     st.markdown(
         '<div style="padding:1.5rem 1.4rem;background:rgba(255,255,255,0.03);'
         'border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem">'
@@ -1704,7 +1724,9 @@ with left_col:
         "Search", placeholder="e.g. Apple, AVGO, AAPL, RELIANCE.NS",
         label_visibility="collapsed", key="s1"
     )
-    # "Try:" quick-pick pills — clicking sets the ticker via query param
+
+    # UX: Quick-pick pills. Clicking goes straight to generation
+    #     (no intermediate state). Uses query param for instant action.
     st.markdown("""
     <div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
         <span>Try:</span>
@@ -1723,7 +1745,7 @@ with left_col:
     </div>
     """, unsafe_allow_html=True)
 
-    # Handle ?_qt= quick-ticker param set by the pills above
+    # Handle ?_qt= quick-ticker param
     _qt = st.query_params.get("_qt", "")
     if _qt:
         try: st.query_params.clear()
@@ -1731,11 +1753,11 @@ with left_col:
         st.session_state["resolved"] = _qt.strip().upper()
         st.session_state["resolved_source"] = "quickticker"
         if st.session_state.get("authenticated"):
+            # UX: Auto-generate immediately — zero extra clicks
             st.session_state["auto_generate"] = True
         st.rerun()
 
     if sq and len(sq) >= 2:
-        # Text input is active — it owns `resolved`; ignore quick-pick selectors
         if len(sq) <= 12 and " " not in sq:
             st.session_state["resolved"] = sq.strip().upper()
             st.session_state.pop("resolved_source", None)
@@ -1755,8 +1777,7 @@ with left_col:
             else:
                 st.caption("No results found. Try entering the ticker directly.")
     else:
-        # No active text search — show quick-pick selectors.
-        # Each uses a "— …" placeholder as index 0 so nothing fires on first render.
+        # UX: Popular / Recent selectors — shown when search box is empty.
         pop_keys   = list(POPULAR.keys())
         recent_rev = list(reversed(st.session_state.recent[-6:]))
 
@@ -1802,10 +1823,9 @@ with left_col:
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
 
-    # Disable the button if a generation is already in flight
     _generating = st.session_state.get("_generating", False)
     go = st.button(
-        "⟳ Generating…" if _generating else "Generate Report",
+        "Generating..." if _generating else "Generate Report",
         type="primary",
         disabled=_generating or not resolved_now,
         key="generate_btn"
@@ -1814,8 +1834,6 @@ with left_col:
         st.session_state["_generating"] = True
 
 # ── Right column — How It Scores ──────────────────────────────
-# Written as individual st.markdown / st.write calls.
-# One small HTML string per call = nothing for Streamlit to mangle.
 with right_col:
     _dim  = "color:rgba(255,255,255,0.45);font-size:0.88rem;margin-top:0.2rem;"
     _head = "font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.45);"
@@ -1823,7 +1841,7 @@ with right_col:
     st.markdown(f'<div style="{_head}">How It Scores</div>', unsafe_allow_html=True)
     st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
 
-    for letter, name, detail in [
+    for letter, name_str, detail in [
         ("Q", "Quality",   "ROE &gt;15%, FCF positive, D/E &lt;1"),
         ("G", "Growth",    "EPS CAGR &gt;12%, TAM 2&times; GDP"),
         ("L", "Longevity", "Moat durability 5+ years"),
@@ -1832,7 +1850,7 @@ with right_col:
         st.markdown(
             f'<div style="margin-bottom:1.1rem;">'
             f'<div style="font-size:1rem;font-weight:800;color:#fff;">'
-            f'{letter} &middot; {name}</div>'
+            f'{letter} &middot; {name_str}</div>'
             f'<div style="{_dim}">{detail}</div>'
             f'</div>',
             unsafe_allow_html=True
@@ -1844,8 +1862,8 @@ with right_col:
     st.markdown(f'<div style="{_head}margin-bottom:0.7rem;">Score Bands</div>',
                 unsafe_allow_html=True)
     for score_range, color, label in [
-        ("85 – 100", "#4ade80", "Strong buy"),
-        ("70 – 84",  "#fbbf24", "Watch"),
+        ("85 - 100", "#4ade80", "Strong buy"),
+        ("70 - 84",  "#fbbf24", "Watch"),
         ("&lt; 70",  "#f87171", "Pass"),
     ]:
         st.markdown(
@@ -1882,7 +1900,7 @@ if screener_data and not report_already_run:
     </div>''', unsafe_allow_html=True)
     st.markdown(
         '<div style="font-size:0.95rem;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:1.5rem;line-height:1.7;">'
-        'Select any ticker below or search above to generate a full report.</div>',
+        'Click any ticker below to generate a full report instantly.</div>',
         unsafe_allow_html=True
     )
     render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
@@ -1896,21 +1914,19 @@ if go and not st.session_state.get("authenticated"):
 report_count = st.session_state.get("report_count", 0)
 if authenticated:
     if is_guest:
-        # Always show guest limit — they need to know they only get 1
         st.markdown(f"""
         <div style="display:flex;align-items:center;justify-content:space-between;
         background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.07);
         border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
             <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
                 Guest report: <strong style="color:#fff">{report_count}/1</strong> used</span>
-            <span style="font-size:0.75rem;color:#e03030;font-weight:700;">Create account → 3 reports</span>
+            <span style="font-size:0.75rem;color:#e03030;font-weight:700;">Create account for 3 reports</span>
         </div>
         """, unsafe_allow_html=True)
     elif report_count > 0:
-        # Only show the bar once they've actually used a report
         bar_pct   = min(report_count / 3 * 100, 100)
         bar_color = "#4ade80" if report_count < 2 else "#fbbf24" if report_count < 3 else "#f87171"
-        limit_msg = " &nbsp;·&nbsp; <span style='color:#f87171;'>Limit reached — paid tiers coming soon</span>" if report_count >= 3 else ""
+        limit_msg = " &nbsp;·&nbsp; <span style='color:#f87171;'>Limit reached</span>" if report_count >= 3 else ""
         st.markdown(f"""
         <div style="display:flex;align-items:center;gap:0.8rem;
         background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.07);
@@ -1927,8 +1943,7 @@ status_area = st.container()
 report_area = st.container()
 
 # ══════════════════════════════════════════════════════════════
-# GENERATION LOGIC  — fixed: entire analysis block inside
-#                    `if should_generate and ticker:` guard
+# GENERATION LOGIC
 # ══════════════════════════════════════════════════════════════
 
 should_generate = False
@@ -1939,29 +1954,25 @@ auto_gen        = st.session_state.pop("auto_generate", False)
 if (go or auto_gen) and resolved and st.session_state.get("authenticated"):
     ticker          = resolved.strip().upper()
     should_generate = True
-    # Clear so a page refresh or back-button doesn't re-trigger the same report
     st.session_state.pop("resolved", None)
     st.session_state.pop("resolved_source", None)
 elif go and not resolved and st.session_state.get("authenticated"):
     with status_area:
         st.warning("Select or enter a company first.")
 
-if should_generate and ticker:   # ← every subsequent block lives inside here
+if should_generate and ticker:
     GUEST_LIMIT = 1
     USER_LIMIT  = 3
 
-    # For signed-in users: re-fetch the authoritative count from GitHub
-    # so opening a second tab can't bypass the cap.
     if not is_guest:
         try:
-            from auth import load_users_github
+            from auth import load_users_github, save_users_github
             _u, _ = load_users_github()
             if username in _u:
-                # Sync session state with the persisted value
                 st.session_state.report_count = _u[username].get("report_count", 0)
                 report_count = st.session_state.report_count
         except Exception:
-            pass  # fall back to session-state value if GitHub unreachable
+            pass
 
     if is_guest and report_count >= GUEST_LIMIT:
         st.markdown("""
@@ -1982,7 +1993,7 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
         st.stop()
 
     elif not is_guest and report_count >= USER_LIMIT:
-        st.warning(f"⚠️ You've used all {USER_LIMIT} free reports. Paid tiers are coming soon.")
+        st.warning(f"You've used all {USER_LIMIT} free reports. Paid tiers are coming soon.")
         st.stop()
 
     # Guest fingerprint check
@@ -1999,8 +2010,6 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
         st.session_state.recent.append(ticker)
     st.session_state.report_count += 1
 
-    # Persist count for signed-in users — always write to GitHub so it
-    # survives Streamlit restarts (local save_users() does NOT persist).
     if not is_guest:
         try:
             from auth import load_users_github, save_users_github
@@ -2018,13 +2027,12 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
     with status_area:
         with st.status(f"Analyzing {ticker}...", expanded=True) as status:
             st.markdown(
-                "⏱️ **This analysis may take up to 2 minutes.** "
+                "This analysis may take up to 2 minutes. "
                 "We're computing 24 financial metrics and running "
                 "AI-driven scenario analysis across bull, base, and bear cases."
             )
 
-            st.write("📡 **Step 1 of 6** — Fetching financial data...")
-            st.caption("Pulling real-time price, fundamentals, financials, and 5-year history")
+            st.write("Step 1 of 6 - Fetching financial data...")
             try:
                 sd = fetch(ticker)
             except Exception as e:
@@ -2034,20 +2042,18 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
                 st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
             company_name = info.get("shortName", info.get("longName", ticker))
             data_source  = info.get("_source", "yfinance")
-            st.write(f"✅ Loaded **{company_name}** (via {data_source})")
+            st.write(f"Loaded **{company_name}** (via {data_source})")
 
             status.update(label=f"Analyzing {ticker}... (Step 2 of 6)")
-            st.write("📊 **Step 2 of 6** — Computing 24 verified financial metrics...")
-            st.caption("Revenue CAGR, margins, ROE/ROA, FCF yield, valuation ratios, debt metrics")
+            st.write("Step 2 of 6 - Computing 24 verified financial metrics...")
             m = calc(sd)
             if "error" in m:
                 st.error(m["error"]); st.stop()
             reverse_dcf_json = json.dumps(m.get("reverse_dcf", {"available": False, "reason": "Not computed"}), indent=2)
-            st.write("✅ Metrics computed")
+            st.write("Metrics computed")
 
             status.update(label=f"Analyzing {ticker}... (Step 3 of 6)")
-            st.write("🧠 **Step 3 of 6** — AI is building scenario assumptions...")
-            st.caption("Identifying macro drivers, headwinds, tailwinds, revenue segments, and catalysts")
+            st.write("Step 3 of 6 - AI is building scenario assumptions...")
             metrics_json_str = json.dumps(
                 {k: v for k, v in m.items() if k not in ["description","news"]},
                 sort_keys=True, default=str)
@@ -2056,17 +2062,15 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
                 status.update(label="Analysis failed (Pass 1)", state="error")
                 for d in pass1.get("details", []): st.code(d)
                 st.stop()
-            st.write("✅ Assumptions locked in")
+            st.write("Assumptions locked in")
 
             status.update(label=f"Analyzing {ticker}... (Step 4 of 6)")
-            st.write("🔢 **Step 4 of 6** — Running probability math...")
-            st.caption("Computing price targets, scenario probabilities, and expected values")
+            st.write("Step 4 of 6 - Running probability math...")
             scenario_math = compute_scenario_math(m, pass1)
-            st.write("✅ Scenarios computed")
+            st.write("Scenarios computed")
 
             status.update(label=f"Analyzing {ticker}... (Step 5 of 6)")
-            st.write("✍️ **Step 5 of 6** — AI is writing the final analysis...")
-            st.caption("Drafting narrative consistent with the computed numbers")
+            st.write("Step 5 of 6 - AI is writing the final analysis...")
             math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
             pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
             pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json)
@@ -2074,11 +2078,10 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
                 status.update(label="Analysis failed (Pass 2)", state="error")
                 for d in pass2.get("details", []): st.code(d)
                 st.stop()
-            st.write("✅ Narrative complete")
+            st.write("Narrative complete")
 
             status.update(label=f"Analyzing {ticker}... (Step 6 of 6)")
-            st.write("🔗 **Step 6 of 6** — Finalizing report...")
-            st.caption("Merging data, checking consistency, packaging results")
+            st.write("Step 6 of 6 - Finalizing report...")
 
             final = {}
             for key in ["recommendation","conviction","investment_thesis","business_overview",
@@ -2103,12 +2106,11 @@ if should_generate and ticker:   # ← every subsequent block lives inside here
 
             a   = final
             rec = a.get("recommendation", "WATCH")
-            status.update(label=f"✅ Analysis complete: {company_name} / {rec}", state="complete")
+            status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
-    st.session_state["_generating"] = False  # re-enable button
+    st.session_state["_generating"] = False
 
     st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
-    # Auto-scroll to report — fires once after generation completes
     st.session_state["_scroll_to_report"] = True
 
 # ══════════════════════════════════════════════════════════════
@@ -2148,7 +2150,8 @@ if st.session_state.cached_report:
             </script>
             """, height=0, scrolling=False)
 
-        # ── "Analyze another stock" bar ──
+        # UX: Clear bar at top with ticker + recommendation visible.
+        #     "Clear" button is prominent so user knows how to analyze another stock.
         _rec_now = c_a.get("recommendation","WATCH").upper()
         _rc_col  = {"BUY":"#4ade80","PASS":"#f87171"}.get(_rec_now,"#fbbf24")
         st.markdown(
@@ -2159,11 +2162,11 @@ if st.session_state.cached_report:
             f'Viewing: <strong style="color:#fff;">{c_ticker}</strong>'
             f'&nbsp;&nbsp;<span style="color:{_rc_col};font-weight:700;">{_rec_now}</span>'
             f'</span>'
-            f'<span style="font-size:0.75rem;color:rgba(255,255,255,0.3);">↑ search above to run another report</span>'
+            f'<span style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Scroll up to search another</span>'
             f'</div>',
             unsafe_allow_html=True
         )
-        if st.button("✕  Clear — analyze a different stock", key="clear_report_btn"):
+        if st.button("Clear and analyze a different stock", key="clear_report_btn"):
             st.session_state.cached_report = None
             st.session_state.pop("resolved", None)
             st.session_state.pop("resolved_source", None)

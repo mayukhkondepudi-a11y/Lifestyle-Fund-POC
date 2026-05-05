@@ -182,7 +182,7 @@ def _build_pass1_messages(ticker, m, reverse_dcf_json):
 def run_pass1(ticker, m, reverse_dcf_json):
     msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
     """Pass 1: Get structured assumptions from LLM."""
-    msgs = _build_pass1_messages(ticker, m)
+    msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
     raw, model, errors = run_ai(msgs, max_tokens=6000)
     if raw is None:
         return {"error": True, "details": errors}
@@ -306,7 +306,7 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_js
 def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
     msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
     """Pass 2: Get narrative from LLM seeing computed math."""
-    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output)
+    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
     raw, model, errors = run_ai(msgs, max_tokens=6000)
     if raw is None:
         return {"error": True, "details": errors}

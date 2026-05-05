@@ -345,9 +345,13 @@ def render_auth_modal():
                 st.session_state["show_auth"]        = False
                 st.rerun()
 
-    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
-    if st.button("← Back to PickR", key="auth_back_btn"):
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+     if st.button("← Back to PickR", key="auth_back_btn", 
+                 use_container_width=True):
         st.session_state["show_auth"] = False
+        st.session_state["authenticated"] = False
         st.rerun()
 
     return None, None, False
