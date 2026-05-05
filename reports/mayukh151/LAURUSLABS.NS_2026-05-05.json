@@ -1,0 +1,1115 @@
+{
+  "ticker": "LAURUSLABS.NS",
+  "date": "2026-05-05",
+  "timestamp": "2026-05-05 18:23",
+  "company_name": "LAURUS LABS LIMITED",
+  "recommendation": "PASS",
+  "conviction": "High",
+  "expected_value": 896.21,
+  "expected_return": -0.2301,
+  "risk_adjusted_score": -1.58,
+  "metrics": {
+    "company_name": "LAURUS LABS LIMITED",
+    "sector": "Healthcare",
+    "industry": "Drug Manufacturers - Specialty & Generic",
+    "country": "India",
+    "currency": "INR",
+    "current_price": 1164.1,
+    "market_cap": 628598505472,
+    "enterprise_value": 618647912448,
+    "trailing_pe": 175.32,
+    "forward_pe": 49.14,
+    "peg_ratio": 2.53,
+    "price_to_sales": 9.351876,
+    "ev_to_ebitda": 37.323,
+    "gross_margin": 0.57023,
+    "operating_margin": 0.22037001,
+    "profit_margin": 0.12546,
+    "roe": 0.1069,
+    "roa": null,
+    "trailing_eps": 6.64,
+    "forward_eps": 23.68923,
+    "earnings_growth": 0.194,
+    "total_revenue": 67216297984,
+    "revenue_growth": 0.06,
+    "free_cashflow": null,
+    "operating_cashflow": null,
+    "total_cash": 1136999936,
+    "total_debt": 25184800768,
+    "dividend_yield": 0.22,
+    "payout_ratio": 0.1025,
+    "beta": 0.339,
+    "week_52_high": 1175.5,
+    "week_52_low": 572.25,
+    "ma_50": 1056.587,
+    "ma_200": 983.3762,
+    "insider_pct": 0.32057998,
+    "institution_pct": 0.30385,
+    "shares_outstanding": 539856582,
+    "fcf_yield": null,
+    "reverse_dcf": {
+      "available": false,
+      "reason": "Base FCF is 0. Reverse DCF requires positive trailing FCF. Company may be in investment phase or loss-making."
+    },
+    "stmt_trailing_eps": 6.64,
+    "stmt_eps_series": {
+      "2022": 15.35,
+      "2023": 14.64,
+      "2024": 2.97,
+      "2025": 6.64
+    },
+    "debt_to_equity": 0.618,
+    "current_ratio": 1.22,
+    "revenue_cagr": 0.0406,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": -0.2435,
+    "eps_cagr_raw": -0.2437,
+    "net_income_cagr": -0.2435,
+    "ni_cagr_years": 3,
+    "eps_cagr": -0.2437,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 19.4,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": null,
+    "peg_historical_cagr": null,
+    "data_quality_warnings": [],
+    "price_5y_return": 142.64,
+    "price_5y_high": 1164.1,
+    "price_5y_low": 290.43
+  },
+  "analysis": {
+    "recommendation": "PASS",
+    "conviction": "High",
+    "investment_thesis": "We rate Laurus Labs a PASS at Rs.1,164, with a probability-weighted expected return of -23% over the next 12 months and zero probability of positive return on our scenario distribution. The market is pricing in roughly 30-35% sustained EPS growth at the current 49x forward P/E, but our base case yields FY26 EPS of Rs.18.4 versus the implied trajectory needed to justify the multiple. The CDMO ramp is real and accelerating at 45% YoY, but it is already more than discounted in the price, leaving an unfavourable risk-reward even in the bull case (-5.9% implied return).",
+    "business_overview": "Laurus Labs is a vertically integrated Indian pharmaceutical company that earns money in four distinct ways. It manufactures Active Pharmaceutical Ingredients (APIs, the chemical building blocks of drugs) which it sells to other generic drugmakers globally; it produces finished-dose formulations (FDFs, the actual tablets and capsules) sold mainly into government tender markets for HIV/AIDS treatment in low- and middle-income countries; it runs a Contract Development and Manufacturing Organisation (CDMO) business that synthesises molecules on behalf of innovator pharma and animal health customers; and it operates Laurus Bio, a biotech arm that produces recombinant proteins and fermentation-derived ingredients used in cell-culture media.\n\nOn FY25 revenue of Rs.6,722 crore, Generics-API contributes ~45%, CDMO ~26%, FDF ~22%, and Bio ~8%. Historically the company was built on antiretroviral (ARV) drugs sold through PEPFAR and Global Fund tenders, but the strategic centre of gravity is shifting decisively toward higher-margin CDMO and Bio work. The mix shift is the single most important variable in the equity story.",
+    "revenue_architecture": "The Generics-API segment at Rs.3,000 crore is the anchor of the business, growing modestly at ~5% as ARV API demand stabilises and oncology and cardiovascular APIs scale up. Gross margin here sits around 48%, reflecting commoditised ARV chemistry partially offset by more differentiated non-ARV molecules. The Generics-FDF segment at Rs.1,450 crore is in outright decline, contracting 5% YoY as TLD (Tenofovir-Lamivudine-Dolutegravir) tender pricing erodes and PEPFAR funding faces political uncertainty under the current US administration; gross margin of 42% will likely come under further pressure.\n\nThe CDMO/Synthesis segment at Rs.1,750 crore is the growth engine, expanding 45% YoY at a 55% gross margin. This is being driven by two specific programs: the Aspen animal health contract and a marquee global pharma molecule moving from Phase 3 toward commercial supply in FY26. Laurus Bio, while still small at Rs.520 crore, is growing 30% as the Richcore fermentation facility ramps and animal-origin-free recombinant proteins penetrate cell-culture-media customers.\n\nIn aggregate, the base-case revenue build for the forecast period sums to Rs.7,350 crore (API Rs.3,150 + FDF Rs.1,378 + CDMO Rs.2,538 + Bio Rs.676, adjusted for net headwind/tailwind impact of -Rs.300 crore), reflecting the deceleration in FDF being more than offset by CDMO and Bio acceleration.",
+    "growth_drivers": "The dominant structural driver is the CDMO commercial ramp. Management has guided that one or more late-stage innovator molecules will cross from Phase 3 into commercial supply through FY27, with single-program run-rates that could exceed USD 100m annually. Capacity at Unit 2 has already been built, meaning the incremental margin on these revenues will be high if utilisation lifts on schedule. We assess the probability of this commercial ramp materialising on the guided timeline at 60%, with a Rs.6,000 crore revenue opportunity in the bull case.\n\nThe second driver is non-ARV generics diversification. Multiple US ANDA approvals are pending in oncology and cardiovascular APIs and complex Para-IV FDFs. Successful launches lift blended gross margin because these molecules face less competitive intensity than ARVs. We assign a 50% probability to meaningful traction here, with a Rs.3,000 crore revenue uplift in the bull case.\n\nThe third driver is Laurus Bio, where the recombinant protein and fermentation business addresses a global cell-culture-media market growing well above pharma industry average. Animal-origin-free proteins are a regulatory tailwind for biopharma customers seeking to de-risk their supply chains. Each of these drivers maps to a specific segment, and the bull case requires at least two of the three to deliver simultaneously.",
+    "margin_analysis": "Operating margin in FY25 sits at 22%, recovering from a depressed FY24 trough as ARV pricing has begun to stabilise and CDMO mix improves. The base case assumes 23.5% operating margin, reflecting mild operating leverage from CDMO becoming a larger share of the mix, partially offset by ongoing ARV FDF pricing erosion. The bull case lifts operating margin to 26%, an expansion of roughly 400 bps driven by better fixed-cost absorption at Unit 2 (CDMO) and the Richcore Bio facility once volumes scale.\n\nThe bear case is structurally damaging: operating margin compresses to 16% as fixed costs at Unit 2 and the Bio facilities run ahead of revenue, creating negative operating leverage. This asymmetry, where margin upside is 400 bps but downside is over 600 bps, is a key reason the risk-adjusted score is -1.58. EPS swings from Rs.19.9 in the bull case to Rs.12.5 in the bear case, a 37% range that the market does not seem to be pricing.",
+    "financial_health": "The balance sheet is workable but not pristine. Debt-to-equity of 0.62x and a current ratio of 1.22 leave Laurus with limited cushion if CDMO ramps slip while capex commitments continue. Total debt of Rs.2,518 crore against cash of just Rs.114 crore means net debt sits near Rs.2,400 crore, manageable against an enterprise value of Rs.61,865 crore but uncomfortable given that trailing free cash flow has been depressed by capacity build-out. ROE has compressed to 10.7%, well below the 15% QGLP threshold and a far cry from the 25%+ levels achieved during the ARV boom of FY21-22.\n\nCapital allocation has prioritised growth capex over shareholder returns: dividend yield is just 0.22% and the payout ratio is 10%. There is no buyback program. The 32% promoter holding provides alignment, but until FCF generation normalises, the company has limited optionality. Investors are effectively underwriting that current capex translates into the projected CDMO and Bio revenue ramps; if it does not, the equity will be working through a multi-year deleveraging cycle.",
+    "competitive_position": "In ARV APIs and FDFs, Laurus competes against Indian generics peers including Hetero, Aurobindo, Cipla and Mylan/Viatris partners. Pricing has been a race to the bottom and this segment offers no durable moat. The genuine competitive position is in CDMO, where Laurus competes with Divi's Laboratories, Syngene International, and Piramal Pharma Solutions. Here the moat is built on USFDA-inspected capacity, a track record of innovator partnerships (Aspen being the marquee reference), and integrated capabilities from intermediates through commercial-scale supply.\n\nLaurus's CDMO franchise is younger and smaller than Divi's, which trades at premium multiples for justifiable reasons (longer track record, deeper innovator relationships, superior margins). Laurus is earning its way into that league but is not yet there. In Bio, Laurus is sub-scale relative to global recombinant protein suppliers, and the franchise needs another two to three years of execution to establish a defensible position. The moats are emerging but not yet durable enough to underwrite a 49x P/E.",
+    "headwind_narrative": "The first and most consequential headwind is ARV pricing erosion compounded by PEPFAR funding risk. TLD prices have steadily eroded as multiple Indian players compete for Global Fund and PEPFAR tenders, and any meaningful PEPFAR budget cut under the current US administration directly hits Laurus's largest historical revenue pool. We assign a 55% probability to material erosion, with a Rs.250 crore revenue impact and Rs.3.2 EPS hit in the base case, escalating to Rs.600 crore and Rs.7.8 EPS in the bear case. This is not a tail risk; it is the probable path.\n\nThe second headwind is CDMO project slippage. Innovator CDMO revenue is milestone- and campaign-driven, and a single delay in commercial supply for the Aspen animal health program or the lead global pharma molecule defers billions of rupees into the next fiscal. With capacity already built ahead of demand at Unit 2, slippage creates fixed-cost absorption pain. We rate this at 40% probability with a Rs.150 crore base-case revenue hit. The third headwind is regulatory: a Form 483 escalating to a warning letter at Unit 2 (FDF) or Unit 6 (CDMO) would block US shipments and damage innovator customer trust. At 20% probability, this is a smaller but more violent risk if it materialises.",
+    "tailwind_narrative": "The dominant tailwind is the CDMO commercial ramp on the marquee innovator molecule, which we rate at 60% probability. Management has guided that one or more late-stage innovator molecules will cross into commercial supply through FY27, with order book commentary suggesting USD 100m-plus annual run-rate within a few years from a single program. In the bull case this contributes Rs.600 crore of revenue and Rs.7.5 of EPS uplift. Importantly, this tailwind and the ARV headwind are partially offsetting in expected-value terms.\n\nThe second tailwind is non-ARV generics and oncology API diversification, rated at 50% probability. Multiple US ANDA approvals are pending and successful launches in oncology APIs and Para-IV FDFs would both reduce ARV dependence and lift blended gross margins. The bull-case contribution is Rs.300 crore of revenue and Rs.3.2 of EPS. Together these tailwinds could deliver Rs.10+ of incremental EPS in a favourable scenario, which is what underpins the bull case EPS of Rs.19.9.",
+    "market_pricing_commentary": "The reverse DCF is unavailable because trailing free cash flow is effectively zero, with the company in an investment phase. Using the P/E-implied growth lens instead: at Rs.1,164 the stock trades at 49.1x forward EPS of Rs.23.7, and applying a PEG of 1.0 implies the market is pricing in roughly 49% sustained earnings growth. Even adjusting for the India pharma sector premium and accepting a PEG of 1.4-1.5x, the implied growth required is 30-35% sustained over 3-4 years. Our base case projects FY26 EPS of Rs.18.4, which is below the trailing forward consensus of Rs.23.7 and well short of the trajectory needed. To justify the current price, an investor must believe the bull-case CDMO ramp materialises on schedule (60% probability in our framework), the ARV headwind is mild rather than severe, and operating margins expand 400 bps to 26%. Even then, the bull-case price target of Rs.1,096 implies -5.9% return, meaning the stock is overvalued even on optimistic assumptions.",
+    "scenario_commentary": "The bull case (31% probability, Rs.1,096 target, -5.9% return) requires the CDMO commercial ramp to deliver USD 100m-plus from a single program, Bio to scale at Richcore on schedule, ARV pricing erosion to be mild (only Rs.50 crore revenue hit), and operating margins to expand to 26%. Revenue reaches Rs.9,000 crore and EPS Rs.19.9. Notably, even this favourable outcome does not generate positive return at a 55x P/E, because the market is already pricing it in.\n\nThe base case (53% probability, Rs.919 target, -21.1% return) reflects the most probable path: CDMO grows but with some slippage, ARV pricing erosion takes Rs.250 crore of revenue, Bio scales modestly, and operating margin sits at 23.5%. Revenue is Rs.7,350 crore and EPS Rs.18.4. This scenario applies a 50x P/E and still produces materially negative returns because the starting valuation is too rich for the realistic trajectory.\n\nThe bear case (16% probability, Rs.439 target, -62.3% return) is where execution unwinds: a USFDA warning letter at Unit 2 or Unit 6 blocks US shipments, PEPFAR funding is cut materially, the CDMO marquee molecule slips into FY27, and operating margin compresses to 16% as fixed costs at Unit 2 and Bio facilities outpace revenue. EPS collapses to Rs.12.5 and the market re-rates the multiple to 35x as the growth narrative breaks. The Rs.439 target reflects how violent the de-rating can be when a richly priced growth story disappoints.",
+    "conclusion": "We rate Laurus Labs PASS with high conviction. The single variable on which all scenarios hinge is the timing and scale of CDMO commercial supply revenue from the marquee innovator molecule. The business is improving, the strategic shift from commoditised ARVs into CDMO and Bio is genuine, and management is executing. But the stock is priced for execution that exceeds even our bull case, and the probability-weighted expected return is -23%. The most important catalyst to watch is the FY26 commercial supply ramp commentary at the next two quarterly results, specifically order book guidance on the Aspen contract and the global pharma molecule. We would revisit this name only if (a) the stock corrects 25%-plus toward Rs.870 or below, or (b) there is hard evidence of CDMO commercial supplies running at USD 80m-plus annualised.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+        "current_revenue": 30000000000,
+        "pct_of_total": 0.446,
+        "gross_margin": 0.48,
+        "yoy_growth": 0.05,
+        "primary_driver": "ARV API demand from global tender business plus diversification into oncology and cardiovascular APIs.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "Generics - Formulations (FDF)",
+        "current_revenue": 14500000000,
+        "pct_of_total": 0.216,
+        "gross_margin": 0.42,
+        "yoy_growth": -0.05,
+        "primary_driver": "ARV LMIC tender volumes via PEPFAR/Global Fund, partially offset by pricing erosion and tender lumpiness.",
+        "trajectory": "decelerating"
+      },
+      {
+        "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+        "current_revenue": 17500000000,
+        "pct_of_total": 0.26,
+        "gross_margin": 0.55,
+        "yoy_growth": 0.45,
+        "primary_driver": "Ramp-up of large innovator CDMO contracts including animal health (Aspen) and a marquee global pharma molecule with commercial supplies in FY26.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+        "current_revenue": 5200000000,
+        "pct_of_total": 0.078,
+        "gross_margin": 0.4,
+        "yoy_growth": 0.3,
+        "primary_driver": "Animal-origin-free recombinant proteins for cell culture media and growth from new fermentation capacity at Richcore facility.",
+        "trajectory": "accelerating"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": 0.2,
+      "top_5_customers_pct": 0.55,
+      "geographic_split": {
+        "North_America": 0.32,
+        "Europe": 0.28,
+        "India": 0.12,
+        "Africa_LMIC": 0.18,
+        "Rest_of_World": 0.1
+      },
+      "critical_dependencies": [
+        "Heavy reliance on global ARV tender mechanisms (PEPFAR, Global Fund) for both API and FDF volumes.",
+        "CDMO growth concentrated in a small number of innovator molecules where customer milestone decisions can swing quarterly revenue materially.",
+        "Regulatory standing with US FDA at Visakhapatnam manufacturing units is critical for both API and FDF exports."
+      ],
+      "relationships_at_risk": [
+        "Dolutegravir-based ARV tender share faces increased competition from Hetero, Mylan/Viatris and Aurobindo as TLD pricing erodes.",
+        "Large CDMO animal-health contract with Aspen has finite duration and renewal/extension is a 12-month thesis variable.",
+        "PEPFAR funding under US administration review introduces sovereign-customer risk for the LMIC ARV franchise."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "ARV Pricing Erosion & PEPFAR Funding Risk",
+        "description": "TLD (Tenofovir-Lamivudine-Dolutegravir) prices have eroded steadily as multiple Indian generics compete for Global Fund/PEPFAR tenders. Any meaningful PEPFAR budget cut under the current US administration directly compresses Laurus's largest historical revenue pool.",
+        "probability": 0.55,
+        "revenue_at_risk": 6000000000,
+        "bull_impact": {
+          "revenue": -500000000,
+          "eps": -0.7
+        },
+        "base_impact": {
+          "revenue": -2500000000,
+          "eps": -3.2
+        },
+        "bear_impact": {
+          "revenue": -6000000000,
+          "eps": -7.8
+        },
+        "bull_eps_impact": 2.28,
+        "base_eps_impact": 2.06,
+        "bear_eps_impact": 1.4
+      },
+      {
+        "name": "CDMO Project Slippage",
+        "description": "Innovator CDMO revenue is milestone- and campaign-driven; a single delay in a commercial supply project (Aspen animal health, or the lead global pharma molecule) can defer billions of rupees of revenue into the next fiscal. Capacity at Unit 2 has been built ahead of demand, creating fixed-cost absorption risk if ramps slip.",
+        "probability": 0.4,
+        "revenue_at_risk": 4000000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -1500000000,
+          "eps": -2.1
+        },
+        "bear_impact": {
+          "revenue": -4000000000,
+          "eps": -5.5
+        },
+        "bull_eps_impact": 1.52,
+        "base_eps_impact": 1.38,
+        "bear_eps_impact": 0.94
+      },
+      {
+        "name": "USFDA Regulatory Action",
+        "description": "Laurus has multiple USFDA-inspected facilities; a Form 483 escalating to a warning letter at Unit 2 (FDF) or Unit 6 (CDMO) would block US shipments and impair innovator customer trust. Recent industry inspections have trended toward stricter outcomes.",
+        "probability": 0.2,
+        "revenue_at_risk": 3500000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -300000000,
+          "eps": -0.4
+        },
+        "bear_impact": {
+          "revenue": -3500000000,
+          "eps": -4.8
+        },
+        "bull_eps_impact": 1.33,
+        "base_eps_impact": 1.2,
+        "bear_eps_impact": 0.82
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "CDMO Commercial Ramp on Marquee Innovator Molecule",
+        "description": "Laurus has guided to a step-change in CDMO revenue as one or more late-stage innovator molecules transition from Phase 3 to commercial supply through FY27. Order book commentary suggests USD 100m-plus annual run-rate within a few years from a single program.",
+        "probability": 0.6,
+        "revenue_opportunity": 6000000000,
+        "bull_impact": {
+          "revenue": 6000000000,
+          "eps": 7.5
+        },
+        "base_impact": {
+          "revenue": 2500000000,
+          "eps": 3.0
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 2.28,
+        "base_eps_impact": 2.06,
+        "bear_eps_impact": 1.4
+      },
+      {
+        "name": "Non-ARV Generics & Oncology API Diversification",
+        "description": "Management has accelerated investment in oncology and cardiovascular APIs and complex Para-IV FDFs; multiple US ANDA approvals are pending. Successful launches reduce ARV dependence and lift blended gross margin given less competitive intensity.",
+        "probability": 0.5,
+        "revenue_opportunity": 3000000000,
+        "bull_impact": {
+          "revenue": 3000000000,
+          "eps": 3.2
+        },
+        "base_impact": {
+          "revenue": 1000000000,
+          "eps": 1.0
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 1.14,
+        "base_eps_impact": 1.03,
+        "bear_eps_impact": 0.7
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "CDMO Commercial Ramp",
+        "measures": "Whether Laurus's innovator CDMO order book converts to commercial supply revenue at the pace management has guided.",
+        "bull_outcome": {
+          "description": "Lead molecule(s) hit commercial supply on schedule and Aspen extension materialises; CDMO segment grows 50%+ in FY27.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "CDMO grows 25-30% with mix of campaign and commercial revenue, but timing is back-end loaded.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "One or more programs slip by 2-4 quarters, leaving Unit 2 under-absorbed and CDMO growth in single digits.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "ARV Tender Economics",
+        "measures": "Direction of TLD pricing and PEPFAR/Global Fund tender volumes for Laurus.",
+        "bull_outcome": {
+          "description": "Pricing stabilises and PEPFAR funding is preserved; Laurus retains share and ARV API/FDF revenue is flat to up low single digits.",
+          "probability": 0.25
+        },
+        "base_outcome": {
+          "description": "Modest pricing erosion (5-8%) with stable volumes; ARV revenue declines mid-single digits.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Material PEPFAR cut or share loss to competitors; ARV revenue declines 15-20%.",
+          "probability": 0.25
+        }
+      },
+      {
+        "name": "Operating Leverage & Margin Recovery",
+        "measures": "Whether EBITDA margin expands from current ~22% operating margin level toward the historical 28-30% range as utilization improves.",
+        "bull_outcome": {
+          "description": "Higher-margin CDMO mix plus Bio scaling lift operating margin to 26%+ within 12 months.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Operating margin improves to 23-24% on modest volume growth and cost discipline.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Fixed costs at new facilities outpace revenue ramp; operating margin compresses below 20%.",
+          "probability": 0.2
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+            "projected_revenue": 33000000000,
+            "growth_rate": 0.1,
+            "rationale": "Non-ARV API growth (oncology, CVS) offsets ARV softness as new customers qualify."
+          },
+          {
+            "name": "Generics - Formulations (FDF)",
+            "projected_revenue": 15500000000,
+            "growth_rate": 0.069,
+            "rationale": "ARV volumes hold and new US ANDA launches contribute incrementally."
+          },
+          {
+            "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+            "projected_revenue": 26000000000,
+            "growth_rate": 0.486,
+            "rationale": "Marquee innovator molecule reaches commercial supply and Aspen extends."
+          },
+          {
+            "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+            "projected_revenue": 7000000000,
+            "growth_rate": 0.346,
+            "rationale": "New fermentation capacity fills with cell-culture-media protein orders."
+          }
+        ],
+        "total_headwind_revenue": -500000000,
+        "total_headwind_eps": -0.7,
+        "total_tailwind_revenue": 9000000000,
+        "total_tailwind_eps": 10.7,
+        "total_revenue": 90000000000,
+        "operating_margin": 0.26,
+        "margin_rationale": "Higher CDMO mix and Bio scale drive 400 bps operating margin expansion through better fixed-cost absorption.",
+        "net_margin": 0.155,
+        "tax_rate": 0.25,
+        "projected_eps": 25.84,
+        "pe_multiple": 55,
+        "pe_rationale": "Premium to forward P/E of 49x reflects re-rating as CDMO growth visibility returns, in line with Indian CDMO peers like Divi's at 55-60x.",
+        "price_target": 1421.0,
+        "narrative": "Bull case requires the marquee CDMO molecule to deliver commercial supply on schedule, ARV pricing to stabilise, and Bio capacity utilisation to step up. Operating margin recovers toward historical norms, and Laurus re-rates as a CDMO-led story rather than an ARV generics company.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+            "projected_revenue": 31000000000,
+            "growth_rate": 0.033,
+            "rationale": "ARV API softness offset by gradual non-ARV diversification."
+          },
+          {
+            "name": "Generics - Formulations (FDF)",
+            "projected_revenue": 13500000000,
+            "growth_rate": -0.069,
+            "rationale": "ARV pricing erosion of 5-8% with broadly stable volumes."
+          },
+          {
+            "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+            "projected_revenue": 22500000000,
+            "growth_rate": 0.286,
+            "rationale": "Steady ramp in innovator campaigns; commercial supply phases in late in the period."
+          },
+          {
+            "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+            "projected_revenue": 6500000000,
+            "growth_rate": 0.25,
+            "rationale": "Bio scales with new product approvals but profitability remains modest."
+          }
+        ],
+        "total_headwind_revenue": -2500000000,
+        "total_headwind_eps": -3.2,
+        "total_tailwind_revenue": 2500000000,
+        "total_tailwind_eps": 3.0,
+        "total_revenue": 73500000000,
+        "operating_margin": 0.235,
+        "margin_rationale": "Mild operating leverage from CDMO mix, partly offset by ARV pricing erosion.",
+        "net_margin": 0.135,
+        "tax_rate": 0.25,
+        "projected_eps": 18.38,
+        "pe_multiple": 50,
+        "pe_rationale": "In line with current forward P/E of 49x, reflecting steady CDMO progression without a step-change.",
+        "price_target": 919.0,
+        "narrative": "Base case sees CDMO grow ~28% with mixed timing on commercial milestones, ARV revenue erode modestly on pricing, and operating margin recover only marginally. The stock holds a premium multiple but offers limited upside from current levels.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+            "projected_revenue": 27000000000,
+            "growth_rate": -0.1,
+            "rationale": "ARV API volumes drop on PEPFAR cut and share loss; non-ARV ramps slower than expected."
+          },
+          {
+            "name": "Generics - Formulations (FDF)",
+            "projected_revenue": 11500000000,
+            "growth_rate": -0.207,
+            "rationale": "Sharp ARV tender losses and pricing pressure."
+          },
+          {
+            "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+            "projected_revenue": 18500000000,
+            "growth_rate": 0.057,
+            "rationale": "Project slippage on lead innovator molecule defers commercial supply by 2-4 quarters."
+          },
+          {
+            "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+            "projected_revenue": 5500000000,
+            "growth_rate": 0.058,
+            "rationale": "Bio scaling stalls as customer qualification cycles extend."
+          }
+        ],
+        "total_headwind_revenue": -13500000000,
+        "total_headwind_eps": -18.1,
+        "total_tailwind_revenue": 0,
+        "total_tailwind_eps": 0.0,
+        "total_revenue": 49000000000,
+        "operating_margin": 0.16,
+        "margin_rationale": "Negative operating leverage at Unit 2 and Bio facilities as fixed costs outpace revenue.",
+        "net_margin": 0.075,
+        "tax_rate": 0.25,
+        "projected_eps": 6.81,
+        "pe_multiple": 35,
+        "pe_rationale": "De-rating to mid-cycle Indian generics multiple of 30-35x as the CDMO story is questioned and ARV deteriorates.",
+        "price_target": 238.0,
+        "narrative": "Bear case combines a PEPFAR funding cut, slippage on the lead CDMO molecule and a USFDA observation that disrupts US business. EPS collapses back toward FY24 lows and the multiple compresses sharply, exposing significant downside from current price.",
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [],
+    "peer_tickers": [],
+    "market_expectations": {
+      "implied_growth_rate": 0.49,
+      "basis": "Forward P/E of 49x with PEG=1 implies ~49% earnings growth; even adjusting for India pharma premium, the market is pricing 30-35% sustained EPS growth.",
+      "vs_base_case": "overvalued",
+      "commentary": "Our base case projects EPS of ~Rs.18, well below the implied trajectory needed to justify a 49x forward multiple. The stock requires the bull-case CDMO ramp to materialise on schedule to deliver positive returns from current levels; on base assumptions, the stock is roughly 20% overvalued."
+    },
+    "sensitivity": {},
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.306,
+          "segment_builds": [
+            {
+              "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+              "projected_revenue": 33000000000,
+              "growth_rate": 0.1,
+              "rationale": "Non-ARV API growth (oncology, CVS) offsets ARV softness as new customers qualify."
+            },
+            {
+              "name": "Generics - Formulations (FDF)",
+              "projected_revenue": 15500000000,
+              "growth_rate": 0.069,
+              "rationale": "ARV volumes hold and new US ANDA launches contribute incrementally."
+            },
+            {
+              "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+              "projected_revenue": 26000000000,
+              "growth_rate": 0.486,
+              "rationale": "Marquee innovator molecule reaches commercial supply and Aspen extends."
+            },
+            {
+              "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+              "projected_revenue": 7000000000,
+              "growth_rate": 0.346,
+              "rationale": "New fermentation capacity fills with cell-culture-media protein orders."
+            }
+          ],
+          "segment_revenue_total": 81500000000.0,
+          "total_headwind_revenue": -500000000.0,
+          "total_headwind_eps": -0.7,
+          "total_tailwind_revenue": 9000000000.0,
+          "total_tailwind_eps": 10.7,
+          "total_revenue": 90000000000.0,
+          "revenue_growth": 0.339,
+          "operating_margin": 0.26,
+          "net_margin": 0.155,
+          "margin_rationale": "Higher CDMO mix and Bio scale drive 400 bps operating margin expansion through better fixed-cost absorption.",
+          "projected_eps": 19.92,
+          "llm_eps": 25.84,
+          "eps_flag": "EPS CLAMPED: computed 25.84 was >3x trailing (6.64). Clamped to 19.92. Original flag: none",
+          "pe_multiple": 55.0,
+          "pe_multiple_raw_llm": 55.0,
+          "pe_rationale": "Premium to forward P/E of 49x reflects re-rating as CDMO growth visibility returns, in line with Indian CDMO peers like Divi's at 55-60x.",
+          "price_target": 1095.6,
+          "implied_return": -0.0588,
+          "breakeven_pe": 58.44,
+          "fcf_yield_at_target": null,
+          "narrative": "Bull case requires the marquee CDMO molecule to deliver commercial supply on schedule, ARV pricing to stabilise, and Bio capacity utilisation to step up. Operating margin recovers toward historical norms, and Laurus re-rates as a CDMO-led story rather than an ARV generics company."
+        },
+        "base": {
+          "probability": 0.534,
+          "segment_builds": [
+            {
+              "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+              "projected_revenue": 31000000000,
+              "growth_rate": 0.033,
+              "rationale": "ARV API softness offset by gradual non-ARV diversification."
+            },
+            {
+              "name": "Generics - Formulations (FDF)",
+              "projected_revenue": 13500000000,
+              "growth_rate": -0.069,
+              "rationale": "ARV pricing erosion of 5-8% with broadly stable volumes."
+            },
+            {
+              "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+              "projected_revenue": 22500000000,
+              "growth_rate": 0.286,
+              "rationale": "Steady ramp in innovator campaigns; commercial supply phases in late in the period."
+            },
+            {
+              "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+              "projected_revenue": 6500000000,
+              "growth_rate": 0.25,
+              "rationale": "Bio scales with new product approvals but profitability remains modest."
+            }
+          ],
+          "segment_revenue_total": 73500000000.0,
+          "total_headwind_revenue": -2500000000.0,
+          "total_headwind_eps": -3.2,
+          "total_tailwind_revenue": 2500000000.0,
+          "total_tailwind_eps": 3.0,
+          "total_revenue": 73500000000.0,
+          "revenue_growth": 0.0935,
+          "operating_margin": 0.235,
+          "net_margin": 0.135,
+          "margin_rationale": "Mild operating leverage from CDMO mix, partly offset by ARV pricing erosion.",
+          "projected_eps": 18.38,
+          "llm_eps": 18.38,
+          "eps_flag": null,
+          "pe_multiple": 50.0,
+          "pe_multiple_raw_llm": 50.0,
+          "pe_rationale": "In line with current forward P/E of 49x, reflecting steady CDMO progression without a step-change.",
+          "price_target": 918.99,
+          "implied_return": -0.2106,
+          "breakeven_pe": 63.34,
+          "fcf_yield_at_target": null,
+          "narrative": "Base case sees CDMO grow ~28% with mixed timing on commercial milestones, ARV revenue erode modestly on pricing, and operating margin recover only marginally. The stock holds a premium multiple but offers limited upside from current levels."
+        },
+        "bear": {
+          "probability": 0.16,
+          "segment_builds": [
+            {
+              "name": "Generics - Active Pharmaceutical Ingredients (APIs)",
+              "projected_revenue": 27000000000,
+              "growth_rate": -0.1,
+              "rationale": "ARV API volumes drop on PEPFAR cut and share loss; non-ARV ramps slower than expected."
+            },
+            {
+              "name": "Generics - Formulations (FDF)",
+              "projected_revenue": 11500000000,
+              "growth_rate": -0.207,
+              "rationale": "Sharp ARV tender losses and pricing pressure."
+            },
+            {
+              "name": "CDMO / Synthesis (Contract Development & Manufacturing)",
+              "projected_revenue": 18500000000,
+              "growth_rate": 0.057,
+              "rationale": "Project slippage on lead innovator molecule defers commercial supply by 2-4 quarters."
+            },
+            {
+              "name": "Bio (Laurus Bio - biotech, recombinant proteins, fermentation)",
+              "projected_revenue": 5500000000,
+              "growth_rate": 0.058,
+              "rationale": "Bio scaling stalls as customer qualification cycles extend."
+            }
+          ],
+          "segment_revenue_total": 62500000000.0,
+          "total_headwind_revenue": -13500000000.0,
+          "total_headwind_eps": -18.1,
+          "total_tailwind_revenue": 0.0,
+          "total_tailwind_eps": 0.0,
+          "total_revenue": 49000000000.0,
+          "revenue_growth": -0.271,
+          "operating_margin": 0.16,
+          "net_margin": 0.075,
+          "margin_rationale": "Negative operating leverage at Unit 2 and Bio facilities as fixed costs outpace revenue.",
+          "projected_eps": 12.54,
+          "llm_eps": 6.81,
+          "eps_flag": "GAAP EPS suppressed by acquisition amortisation (Python GAAP=6.81, LLM=6.81, forward_eps non-GAAP consensus=23.69). Scaled to non-GAAP using forward_eps x rev_growth (0.73x) x margin ratio (0.73x) = 12.54.",
+          "pe_multiple": 35.0,
+          "pe_multiple_raw_llm": 35.0,
+          "pe_rationale": "De-rating to mid-cycle Indian generics multiple of 30-35x as the CDMO story is questioned and ARV deteriorates.",
+          "price_target": 438.84,
+          "implied_return": -0.623,
+          "breakeven_pe": 92.84,
+          "fcf_yield_at_target": null,
+          "narrative": "Bear case combines a PEPFAR funding cut, slippage on the lead CDMO molecule and a USFDA observation that disrupts US business. EPS collapses back toward FY24 lows and the multiple compresses sharply, exposing significant downside from current price."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.306,
+        "base": 0.534,
+        "bear": 0.16,
+        "method": "signal_derived_v2",
+        "bull_score": 68.0,
+        "signal_detail": [
+          {
+            "signal": "EPS revision momentum",
+            "value": 2.568,
+            "delta": 15.0,
+            "note": "fwd=23.69 vs trail=6.64"
+          },
+          {
+            "signal": "Revenue CAGR",
+            "value": 0.041,
+            "delta": 0.0,
+            "note": "4.1%"
+          },
+          {
+            "signal": "EPS / NI CAGR",
+            "value": -0.244,
+            "delta": -12.0,
+            "note": "-24.4%"
+          },
+          {
+            "signal": "Operating margin",
+            "value": 0.22,
+            "delta": 7.0,
+            "note": "22.0%"
+          },
+          {
+            "signal": "PEG ratio",
+            "value": 2.53,
+            "delta": -4.0,
+            "note": "2.53x"
+          },
+          {
+            "signal": "Debt/Equity",
+            "value": 0.62,
+            "delta": 2.0,
+            "note": "0.62x"
+          },
+          {
+            "signal": "Price vs 200-day MA",
+            "value": 1.184,
+            "delta": 6.0,
+            "note": "price=1164.1 / MA200=983.4"
+          },
+          {
+            "signal": "Beta",
+            "value": 0.34,
+            "delta": 4.0,
+            "note": "beta=0.34"
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.306,
+          "bear": 0.16
+        },
+        "correlation_multipliers": {
+          "bull": 1.0,
+          "bear": 1.0
+        },
+        "driver_detail": []
+      },
+      "expected_value": 896.21,
+      "expected_return": -0.2301,
+      "std_dev": 0.1841,
+      "risk_adjusted_score": -1.58,
+      "upside_downside_ratio": 0.0,
+      "prob_positive_return": 0,
+      "max_drawdown_prob": 0.16,
+      "max_drawdown_magnitude": -0.623,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 49.14,
+      "trailing_eps_used": 6.64,
+      "forward_eps_used": 23.69,
+      "fcf_margin_used": 0.0,
+      "market_expectations": {
+        "implied_growth_rate": 0.49,
+        "basis": "Forward P/E of 49x with PEG=1 implies ~49% earnings growth; even adjusting for India pharma premium, the market is pricing 30-35% sustained EPS growth.",
+        "vs_base_case": "overvalued",
+        "commentary": "Our base case projects EPS of ~Rs.18, well below the implied trajectory needed to justify a 49x forward multiple. The stock requires the bull-case CDMO ramp to materialise on schedule to deliver positive returns from current levels; on base assumptions, the stock is roughly 20% overvalued."
+      },
+      "sensitivity": {},
+      "sensitivity_table": {
+        "rows": [
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -8,
+            "adj_eps": 12.93,
+            "adj_pe": 42.0,
+            "price_target": 543.23,
+            "implied_return": -0.5333
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -4,
+            "adj_eps": 12.93,
+            "adj_pe": 46.0,
+            "price_target": 594.97,
+            "implied_return": -0.4889
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -2,
+            "adj_eps": 12.93,
+            "adj_pe": 48.0,
+            "price_target": 620.84,
+            "implied_return": -0.4667
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 0,
+            "adj_eps": 12.93,
+            "adj_pe": 50.0,
+            "price_target": 646.7,
+            "implied_return": -0.4445
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 2,
+            "adj_eps": 12.93,
+            "adj_pe": 52.0,
+            "price_target": 672.57,
+            "implied_return": -0.4222
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 4,
+            "adj_eps": 12.93,
+            "adj_pe": 54.0,
+            "price_target": 698.44,
+            "implied_return": -0.4
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 8,
+            "adj_eps": 12.93,
+            "adj_pe": 58.0,
+            "price_target": 750.18,
+            "implied_return": -0.3556
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -8,
+            "adj_eps": 15.66,
+            "adj_pe": 42.0,
+            "price_target": 657.6,
+            "implied_return": -0.4351
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -4,
+            "adj_eps": 15.66,
+            "adj_pe": 46.0,
+            "price_target": 720.22,
+            "implied_return": -0.3813
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -2,
+            "adj_eps": 15.66,
+            "adj_pe": 48.0,
+            "price_target": 751.54,
+            "implied_return": -0.3544
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 0,
+            "adj_eps": 15.66,
+            "adj_pe": 50.0,
+            "price_target": 782.85,
+            "implied_return": -0.3275
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 2,
+            "adj_eps": 15.66,
+            "adj_pe": 52.0,
+            "price_target": 814.17,
+            "implied_return": -0.3006
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 4,
+            "adj_eps": 15.66,
+            "adj_pe": 54.0,
+            "price_target": 845.48,
+            "implied_return": -0.2737
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 8,
+            "adj_eps": 15.66,
+            "adj_pe": 58.0,
+            "price_target": 908.11,
+            "implied_return": -0.2199
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -8,
+            "adj_eps": 17.02,
+            "adj_pe": 42.0,
+            "price_target": 714.78,
+            "implied_return": -0.386
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -4,
+            "adj_eps": 17.02,
+            "adj_pe": 46.0,
+            "price_target": 782.85,
+            "implied_return": -0.3275
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -2,
+            "adj_eps": 17.02,
+            "adj_pe": 48.0,
+            "price_target": 816.89,
+            "implied_return": -0.2983
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 0,
+            "adj_eps": 17.02,
+            "adj_pe": 50.0,
+            "price_target": 850.93,
+            "implied_return": -0.269
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 2,
+            "adj_eps": 17.02,
+            "adj_pe": 52.0,
+            "price_target": 884.96,
+            "implied_return": -0.2398
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 4,
+            "adj_eps": 17.02,
+            "adj_pe": 54.0,
+            "price_target": 919.0,
+            "implied_return": -0.2105
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 8,
+            "adj_eps": 17.02,
+            "adj_pe": 58.0,
+            "price_target": 987.07,
+            "implied_return": -0.1521
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -8,
+            "adj_eps": 18.38,
+            "adj_pe": 42.0,
+            "price_target": 771.96,
+            "implied_return": -0.3369
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -4,
+            "adj_eps": 18.38,
+            "adj_pe": 46.0,
+            "price_target": 845.48,
+            "implied_return": -0.2737
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -2,
+            "adj_eps": 18.38,
+            "adj_pe": 48.0,
+            "price_target": 882.24,
+            "implied_return": -0.2421
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 0,
+            "adj_eps": 18.38,
+            "adj_pe": 50.0,
+            "price_target": 919.0,
+            "implied_return": -0.2105
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 2,
+            "adj_eps": 18.38,
+            "adj_pe": 52.0,
+            "price_target": 955.76,
+            "implied_return": -0.179
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 4,
+            "adj_eps": 18.38,
+            "adj_pe": 54.0,
+            "price_target": 992.52,
+            "implied_return": -0.1474
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 8,
+            "adj_eps": 18.38,
+            "adj_pe": 58.0,
+            "price_target": 1066.04,
+            "implied_return": -0.0842
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -8,
+            "adj_eps": 19.74,
+            "adj_pe": 42.0,
+            "price_target": 829.14,
+            "implied_return": -0.2877
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -4,
+            "adj_eps": 19.74,
+            "adj_pe": 46.0,
+            "price_target": 908.11,
+            "implied_return": -0.2199
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -2,
+            "adj_eps": 19.74,
+            "adj_pe": 48.0,
+            "price_target": 947.59,
+            "implied_return": -0.186
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 0,
+            "adj_eps": 19.74,
+            "adj_pe": 50.0,
+            "price_target": 987.07,
+            "implied_return": -0.1521
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 2,
+            "adj_eps": 19.74,
+            "adj_pe": 52.0,
+            "price_target": 1026.56,
+            "implied_return": -0.1182
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 4,
+            "adj_eps": 19.74,
+            "adj_pe": 54.0,
+            "price_target": 1066.04,
+            "implied_return": -0.0842
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 8,
+            "adj_eps": 19.74,
+            "adj_pe": 58.0,
+            "price_target": 1145.01,
+            "implied_return": -0.0164
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -8,
+            "adj_eps": 21.1,
+            "adj_pe": 42.0,
+            "price_target": 886.32,
+            "implied_return": -0.2386
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -4,
+            "adj_eps": 21.1,
+            "adj_pe": 46.0,
+            "price_target": 970.74,
+            "implied_return": -0.1661
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -2,
+            "adj_eps": 21.1,
+            "adj_pe": 48.0,
+            "price_target": 1012.94,
+            "implied_return": -0.1299
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 0,
+            "adj_eps": 21.1,
+            "adj_pe": 50.0,
+            "price_target": 1055.15,
+            "implied_return": -0.0936
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 2,
+            "adj_eps": 21.1,
+            "adj_pe": 52.0,
+            "price_target": 1097.35,
+            "implied_return": -0.0573
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 4,
+            "adj_eps": 21.1,
+            "adj_pe": 54.0,
+            "price_target": 1139.56,
+            "implied_return": -0.0211
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 8,
+            "adj_eps": 21.1,
+            "adj_pe": 58.0,
+            "price_target": 1223.97,
+            "implied_return": 0.0514
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -8,
+            "adj_eps": 23.83,
+            "adj_pe": 42.0,
+            "price_target": 1000.69,
+            "implied_return": -0.1404
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -4,
+            "adj_eps": 23.83,
+            "adj_pe": 46.0,
+            "price_target": 1095.99,
+            "implied_return": -0.0585
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -2,
+            "adj_eps": 23.83,
+            "adj_pe": 48.0,
+            "price_target": 1143.64,
+            "implied_return": -0.0176
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 0,
+            "adj_eps": 23.83,
+            "adj_pe": 50.0,
+            "price_target": 1191.3,
+            "implied_return": 0.0234
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 2,
+            "adj_eps": 23.83,
+            "adj_pe": 52.0,
+            "price_target": 1238.95,
+            "implied_return": 0.0643
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 4,
+            "adj_eps": 23.83,
+            "adj_pe": 54.0,
+            "price_target": 1286.6,
+            "implied_return": 0.1052
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 8,
+            "adj_eps": 23.83,
+            "adj_pe": 58.0,
+            "price_target": 1381.9,
+            "implied_return": 0.1871
+          }
+        ],
+        "base_eps": 18.38,
+        "base_pe": 50.0,
+        "base_net_margin": 0.135,
+        "margin_deltas": [
+          -0.04,
+          -0.02,
+          -0.01,
+          0.0,
+          0.01,
+          0.02,
+          0.04
+        ],
+        "pe_deltas": [
+          -8,
+          -4,
+          -2,
+          0,
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+}
