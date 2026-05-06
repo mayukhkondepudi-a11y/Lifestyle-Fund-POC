@@ -1,0 +1,674 @@
+{
+  "ticker": "MARUTI.NS",
+  "date": "2026-05-06",
+  "timestamp": "2026-05-06 20:26",
+  "company_name": "MARUTI SUZUKI INDIA LTD.",
+  "recommendation": "BUY",
+  "conviction": "Medium",
+  "expected_value": 15162.02,
+  "expected_return": 0.1383,
+  "risk_adjusted_score": 0.16,
+  "metrics": {
+    "company_name": "MARUTI SUZUKI INDIA LTD.",
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "country": "India",
+    "currency": "INR",
+    "current_price": 13320.0,
+    "market_cap": 4187842150400,
+    "enterprise_value": 4013503283200,
+    "trailing_pe": 28.502953,
+    "forward_pe": 21.28,
+    "peg_ratio": 0.4,
+    "price_to_sales": 2.2844934,
+    "ev_to_ebitda": 18.706,
+    "gross_margin": 0.27837,
+    "operating_margin": 0.08406,
+    "profit_margin": 0.08008,
+    "roe": 0.14434,
+    "roa": 0.06549,
+    "trailing_eps": 467.32,
+    "forward_eps": 626.07404,
+    "earnings_growth": -0.064,
+    "total_revenue": 1833160015872,
+    "revenue_growth": 0.282,
+    "free_cashflow": 77131751424,
+    "operating_cashflow": 190999003136,
+    "total_cash": 173457997824,
+    "total_debt": 1025000000,
+    "dividend_yield": 1.05,
+    "payout_ratio": 0.2891,
+    "beta": 0.273,
+    "week_52_high": 17370.0,
+    "week_52_low": 12016.0,
+    "ma_50": 13376.86,
+    "ma_200": 14930.775,
+    "insider_pct": 0.59685004,
+    "institution_pct": 0.27976,
+    "shares_outstanding": 314402574,
+    "fcf_yield": 0.018418017836854903,
+    "debt_to_equity": 0.001,
+    "current_ratio": 1.07,
+    "revenue_cagr": 0.166,
+    "revenue_cagr_years": 3,
+    "net_income_cagr": 0.2111,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.5313,
+    "eps_cagr_years": 3,
+    "price_5y_return": 107.33,
+    "price_5y_high": 16960.0,
+    "price_5y_low": 6389.99
+  },
+  "analysis": {
+    "recommendation": "BUY",
+    "conviction": "Medium",
+    "investment_thesis": "We rate Maruti Suzuki a BUY with a 12-month price target of Rs.15,162, implying 13.8% expected return against a 72% probability of positive outcome. The core thesis is that the market is anchored on Maruti's EV transition lag and undervalues two near-term structural levers: the Kharkhoda capacity expansion that unlocks volume operating leverage from FY26, and India's emergence as Suzuki's global export hub with shipments to 100+ countries. With the stock trading at a PEG of just 0.4x against a 21% three-year net income CAGR, valuation already discounts a meaningful slice of the EV-related concern, leaving asymmetric upside as SUV mix and exports compound.",
+    "business_overview": "Maruti Suzuki is India's largest passenger vehicle manufacturer with roughly 41% market share. The company designs, manufactures and sells small cars, sedans, SUVs and vans under brands like Swift, Baleno, Brezza, Grand Vitara, Fronx, Jimny, Ertiga and Wagon R, distributed through India's largest auto retail network of over 3,500 outlets including Arena, Nexa, True Value (used cars) and Commercial channels. Suzuki Motor Corporation of Japan owns approximately 58% of the equity, and Maruti pays royalty to Suzuki for technology licensing.\n\nThe company makes money primarily by selling new vehicles in India (71% of revenue), exporting vehicles built in India to over 100 countries (15%), and earning a high-margin annuity from spare parts, accessories and after-sales services on the 30 million+ Maruti vehicles already on Indian roads (8%). The remaining 6% comes from sale of moulds, dies, scrap and royalty-linked income. The model is fundamentally a scale-and-distribution play: India's lowest cost auto manufacturing base combined with unmatched dealer reach, increasingly leveraged across export markets where Suzuki has assigned India as its global manufacturing hub.",
+    "revenue_architecture": "Domestic passenger vehicle sales of Rs.1.30 trillion grew 18% year-on-year and remain the dominant engine. Within this, the SUV portfolio (Brezza, Grand Vitara, Fronx, Jimny) is the growth driver, taking Maruti's UV share from 14% to over 25% of mix and lifting average selling prices materially. The entry-level hatchback business, where Maruti commands 65%+ share, is the soft underbelly: this sub-Rs.6 lakh segment has shrunk from 35% to under 25% of industry as affordability deteriorated post-BS6 emission norms and insurance cost hikes.\n\nExports are the most exciting trajectory in the model: Rs.280 billion in revenue growing 32% year-on-year, with management targeting 750k-800k export units by FY30 versus roughly 330k today. The Fronx is now shipped to Japan, the Jimny goes to Latin America, Africa and ASEAN, and the upcoming e-Vitara will be exported to Europe. This segment also runs structurally higher gross margin (30%) than domestic.\n\nThe Rs.150 billion spare parts, accessories and services business is the unsung asset: 35% gross margin, 12% growth and a near-permanent annuity tied to the installed parc. Other operating revenue of Rs.103 billion (tooling, scrap, royalty income) grows in line with production volumes at modest margin.",
+    "growth_drivers": "The first growth driver is the Kharkhoda Greenfield plant in Haryana, which adds 250,000 units of capacity in phase one going live in FY26 and scales to 1 million units by FY29. Maruti has been capacity-constrained at its Manesar and Gurgaon plants for several years, with waiting periods on popular models. Kharkhoda removes that bottleneck and creates the operating leverage embedded in our base case margin expansion from 8.4% to 9.5%.\n\nThe second is SUV mix shift. Each percentage point of UV share gain translates into materially higher blended ASPs and gross margins because SUVs carry a Rs.150,000-300,000 price premium and richer feature content versus comparable hatchbacks. The Brezza-Grand Vitara-Fronx-Jimny lineup has plugged a long-standing gap and is taking share from Hyundai Creta and Kia Seltos in the mid-SUV segment.\n\nThe third is the export hub designation from parent Suzuki. India already manufactures Fronx and Jimny for global markets at lower cost than Japan, and the e-Vitara will follow. Export revenue at 32% growth is more than double the domestic pace, structurally diversifies away from Indian cyclicality, and runs at higher margin. By FY30 exports could approach 25% of total revenue.",
+    "margin_analysis": "Operating margin sits at 8.4% today, modest by global auto standards but constrained by Maruti's entry-segment mix, JPY-linked royalty payments and import content roughly 15% of bill of materials. In the base case, margin expands to 9.5% as Kharkhoda volumes deliver fixed-cost absorption and SUV/export mix lifts blended realisations, partially offset by e-Vitara launch costs and battery-related capex. The bull case to 11.5% requires benign commodity costs (steel, aluminium, palladium), a stable INR-JPY, and richer-than-expected mix progression. The bear case to 7.5% reflects negative operating leverage if Kharkhoda underutilises, commodity inflation, and meaningful EV launch losses as Maruti chases share against Tata.\n\nGross margin at 27.8% is structurally lower than premium peers but the spare parts and exports segments at 35% and 30% respectively provide a margin cushion that grows as the parc and export book compound.",
+    "financial_health": "Maruti's balance sheet is essentially debt-free: total debt of just Rs.1,025 crore against cash of Rs.17,346 crore yields a debt-to-equity ratio of 0.001. Operating cash flow of Rs.19,100 crore comfortably funds the Kharkhoda capex programme without leverage, and free cash flow of Rs.7,713 crore supports the 1.05% dividend yield at a comfortable 29% payout ratio. ROE at 14.4% is below the 15% quality threshold, reflecting a heavy cash hoard that drags returns; this is a long-standing capital allocation criticism but also provides optionality for the EV transition without dilution.\n\nThe key concerns are not balance sheet related but capital deployment: Rs.17,000 crore in cash sitting at sub-market yields when ROE is mid-teens is value destructive at the margin. A larger buyback or special dividend would lift ROE meaningfully. Insider ownership of 60% (Suzuki Motor Corporation) provides alignment but also limits free float and any activist pressure on capital returns.",
+    "competitive_position": "Maruti's moat rests on three reinforcing pillars: India's largest dealer network (3,500+ outlets reaching tier-3 and tier-4 towns where competitors struggle to serve), the lowest-cost manufacturing base in the global Suzuki system, and unmatched brand trust built over four decades. In hatchbacks and entry sedans the company holds 65%+ share with no credible challenger. In SUVs Maruti has gone from absent to credible, taking share from Hyundai Creta, Kia Seltos and Mahindra in the Rs.10-15 lakh band.\n\nThe vulnerability is electric vehicles. Tata Motors holds 60%+ EV market share through Nexon EV, Punch EV and Tiago EV, while Hyundai (Creta EV, Kona) and Mahindra (XUV400, BE6, XEV9e) have multiple SUV-EV launches. Maruti's first EV, the e-Vitara, only launches in late FY26 \u2014 three to four years behind Tata. If EV penetration in passenger vehicles accelerates beyond 15% by FY28, Maruti risks ceding premium SUV mindshare and faces CAFE penalty exposure. We view this as manageable but not negligible, given Suzuki's hybrid-first strategy provides a credible bridge.",
+    "headwind_narrative": "The dominant headwind is the EV transition lag. Tata sells more EVs in a quarter than Maruti has sold in its history, and consumers shopping above Rs.15 lakh increasingly view Maruti as the legacy ICE brand. We assign 65% probability to this dragging Rs.4,000-8,000 crore of revenue and Rs.55-110 of EPS in base and bear scenarios. The mitigation is that 85%+ of the Indian PV market remains ICE or hybrid for the next three to four years, giving Maruti time to ramp at Kharkhoda.\n\nThe second concern is entry-level hatchback weakness. The sub-Rs.6 lakh segment shrinking from 35% to under 25% of industry directly attacks Maruti's volume base, where it commands 65%+ share. We see 55% probability of continued weakness costing Rs.2,500-6,000 crore in revenue. Third, commodity and yen cost inflation: roughly 15% of Maruti's bill of materials is JPY-linked through royalty and imports, so INR weakness against the yen flows directly to a thin 8.4% operating margin. This impacts EPS without affecting reported revenue and could compress earnings by Rs.25-50 in adverse scenarios.",
+    "tailwind_narrative": "The single largest tailwind is the export hub acceleration, which we assign 70% probability and which contributes Rs.35 of EPS in our base case scaling to Rs.80 in the bull. Suzuki has explicitly designated India as its global manufacturing base, and FY25 export growth of 32% is just the leading edge of a multi-year ramp toward 750k-800k units by FY30. The second is SUV mix and ASP expansion (75% probability, Rs.30 EPS base case), driven by the Brezza-Grand Vitara-Fronx-Jimny portfolio that has lifted UV share from 14% to 25%+ of Maruti's mix in three years.\n\nThe third tailwind is Kharkhoda capacity coming online (80% probability, Rs.18 EPS base case). With 250k units of phase-one capacity going live in FY26 and 1 million by FY29, Maruti gets to convert latent demand into volumes and absorb fixed costs over a wider base. The combination of these three tailwinds working in sync is what produces the 11.5% operating margin in the bull case.",
+    "market_pricing_commentary": "At trailing P/E of 28.5x and forward P/E of 21.3x against a three-year EPS CAGR of 53% and net income CAGR of 21%, Maruti trades at a PEG of just 0.4x. The market is implicitly pricing a sharp deceleration: continued EV share loss, entry-segment stagnation, and limited margin recovery from Kharkhoda. Our base case revenue trajectory of Rs.21.1 trillion (15% growth) is consistent with consensus, but our base operating margin of 9.5% and resulting EPS of Rs.587 captures the operating leverage that we believe consensus underweights. The gap between a 0.4x PEG and a high-teens earnings algorithm is the source of the asymmetric setup.",
+    "scenario_commentary": "In the bull case (36% probability, Rs.22,723 target, +71%), Kharkhoda phase one runs near capacity by H2 FY26, exports accelerate toward 450k units with strong Fronx and Jimny demand, SUV mix climbs above 30%, and commodity tailwinds combine with stable INR-JPY to lift operating margin to 11.5%. EPS reaches Rs.811 and the market re-rates the stock to 28x as EV concerns fade with the e-Vitara launch.\n\nThe base case (37% probability, Rs.14,093 target, +5.8%) is the most likely path. Revenue grows to Rs.21.1 trillion (15%) with Kharkhoda at moderate utilisation, exports growing 25%+, SUV share inching higher, and operating margin expanding modestly to 9.5%. EV transition drag (Rs.55 EPS) and entry-segment weakness (Rs.35 EPS) partially offset Rs.83 of combined tailwind contribution. The 24x P/E reflects continued investor caution on the EV question.\n\nThe bear case (28% probability, Rs.6,774 target, -49%) is the genuine risk: a combination of Kharkhoda underutilisation, severe commodity and yen inflation, sustained EV share loss to Tata and Hyundai, and cyclical weakness in entry hatchbacks compresses margin to 7.5% and crashes EPS to Rs.376. The market de-rates to 18x on structural concerns. The breakeven P/E of 35.4x in the bear case shows how punishing the multiple compression would be.",
+    "conclusion": "We recommend BUY on Maruti Suzuki with medium conviction, anchored by a 13.8% expected return, 72% probability of positive outcome, and a 2.0x upside-to-downside ratio. The single variable that decides all scenarios is operating margin trajectory at Kharkhoda: each 100 basis points of margin is roughly Rs.60 of EPS and Rs.1,500 of price target. The most important catalyst over the next 12 months is the Kharkhoda phase-one ramp curve and the e-Vitara launch reception in late FY26 \u2014 both will determine whether the EV narrative pivots from headwind to neutral. We are watching monthly export volumes, SUV mix percentage in the disclosed product split, and gross margin direction quarter-over-quarter as the leading indicators.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "Domestic Passenger Vehicle Sales",
+        "current_revenue": 1300000000000,
+        "pct_of_total": 0.709,
+        "gross_margin": 0.28,
+        "yoy_growth": 0.18,
+        "primary_driver": "Volume growth in SUV portfolio (Brezza, Grand Vitara, Fronx, Jimny) and recovery in entry-level hatchback demand from rural and first-time buyers.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "Exports",
+        "current_revenue": 280000000000,
+        "pct_of_total": 0.153,
+        "gross_margin": 0.3,
+        "yoy_growth": 0.32,
+        "primary_driver": "Maruti's strategic positioning as Suzuki's global export hub, with Fronx and Jimny shipments to Japan, Latin America, Africa and ASEAN markets accelerating.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Spare Parts, Accessories and Services",
+        "current_revenue": 150000000000,
+        "pct_of_total": 0.082,
+        "gross_margin": 0.35,
+        "yoy_growth": 0.12,
+        "primary_driver": "Growing parc of 30M+ Maruti vehicles on Indian roads driving aftermarket parts demand and Maruti True Value used car commissions.",
+        "trajectory": "stable"
+      },
+      {
+        "name": "Other Operating Revenue (Sale of Moulds, Dies, Scrap, Royalty)",
+        "current_revenue": 103160015872,
+        "pct_of_total": 0.056,
+        "gross_margin": 0.2,
+        "yoy_growth": 0.1,
+        "primary_driver": "Tooling sales to vendors, scrap monetization, and lease income tied to overall production volumes.",
+        "trajectory": "stable"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": 0.0,
+      "top_5_customers_pct": 0.0,
+      "geographic_split": {
+        "India": 0.847,
+        "Exports_Latam_Africa_ASEAN_Japan_Europe": 0.153
+      },
+      "critical_dependencies": [
+        "Suzuki Motor Corporation Japan provides core technology, platforms, and approves all major model launches and capex plans.",
+        "Sole sourcing from key vendors like Bosch, Denso and Sona BLW for electronics, fuel injection and EV powertrain components creates supply chain fragility.",
+        "Dealer network of 4,000+ outlets (Arena, Nexa, Commercial) is the principal distribution moat and any large-scale dealer profitability stress could disrupt sales."
+      ],
+      "relationships_at_risk": [
+        "Toyota-Suzuki cross-badging arrangement (Glanza, Urban Cruiser Hyryder, Taisor) terms could shift as Toyota expands its own India footprint.",
+        "Haryana state government's role in the Kharkhoda plant ramp-up and labor relations remains a recurring operational risk."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "EV Transition Lag vs Tata and Hyundai",
+        "description": "Maruti's first EV (e-Vitara) launched late versus Tata Motors which holds 60%+ EV share and Hyundai/Mahindra which have multiple SUV-EVs. Until Maruti ramps EV manufacturing at Kharkhoda, it risks ceding premium SUV mindshare and could face CAFE penalty exposure.",
+        "probability": 0.65,
+        "revenue_at_risk": 80000000000,
+        "bull_impact": {
+          "revenue": -10000000000,
+          "eps": -20.0
+        },
+        "base_impact": {
+          "revenue": -40000000000,
+          "eps": -55.0
+        },
+        "bear_impact": {
+          "revenue": -80000000000,
+          "eps": -110.0
+        },
+        "bull_eps_impact": 23.12,
+        "base_eps_impact": 19.1,
+        "bear_eps_impact": 15.08
+      },
+      {
+        "name": "Entry-Level Hatchback Demand Weakness",
+        "description": "The sub-Rs.6 lakh segment where Maruti has 65%+ share has shrunk from 35% of industry to under 25% as affordability worsens post-BS6 and insurance cost hikes. Continued weakness pressures Maruti's volume base disproportionately.",
+        "probability": 0.55,
+        "revenue_at_risk": 60000000000,
+        "bull_impact": {
+          "revenue": -5000000000,
+          "eps": -10.0
+        },
+        "base_impact": {
+          "revenue": -25000000000,
+          "eps": -35.0
+        },
+        "bear_impact": {
+          "revenue": -60000000000,
+          "eps": -80.0
+        },
+        "bull_eps_impact": 17.34,
+        "base_eps_impact": 14.32,
+        "bear_eps_impact": 11.31
+      },
+      {
+        "name": "Commodity and Yen Cost Inflation",
+        "description": "Steel, aluminum and precious metal costs along with JPY-denominated royalty and import content (~15% of BOM) compress gross margins. A weaker INR vs JPY directly hits operating margin which is already a thin 8.4%.",
+        "probability": 0.5,
+        "revenue_at_risk": 0,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": -5.0
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": -25.0
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": -50.0
+        },
+        "bull_eps_impact": 0.0,
+        "base_eps_impact": 0.0,
+        "bear_eps_impact": 0.0
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "Export Hub Acceleration",
+        "description": "Suzuki has designated India as its global export base with the Fronx, Jimny and upcoming e-Vitara shipped to 100+ countries including Japan and Europe. Export volumes grew 32% in FY25 and management targets 750k-800k export units by FY30 vs ~330k currently.",
+        "probability": 0.7,
+        "revenue_opportunity": 120000000000,
+        "bull_impact": {
+          "revenue": 120000000000,
+          "eps": 80.0
+        },
+        "base_impact": {
+          "revenue": 60000000000,
+          "eps": 35.0
+        },
+        "bear_impact": {
+          "revenue": 10000000000,
+          "eps": 5.0
+        },
+        "bull_eps_impact": 34.68,
+        "base_eps_impact": 28.64,
+        "bear_eps_impact": 22.61
+      },
+      {
+        "name": "SUV Mix Shift and ASP Expansion",
+        "description": "Maruti's UV share has risen from 14% to 25%+ of its mix with Brezza, Grand Vitara, Fronx and Jimny. Higher ASP and richer margins on SUVs lift blended realization and offset hatchback weakness.",
+        "probability": 0.75,
+        "revenue_opportunity": 90000000000,
+        "bull_impact": {
+          "revenue": 90000000000,
+          "eps": 60.0
+        },
+        "base_impact": {
+          "revenue": 50000000000,
+          "eps": 30.0
+        },
+        "bear_impact": {
+          "revenue": 15000000000,
+          "eps": 8.0
+        },
+        "bull_eps_impact": 26.01,
+        "base_eps_impact": 21.48,
+        "bear_eps_impact": 16.96
+      },
+      {
+        "name": "Kharkhoda Capacity Coming Online",
+        "description": "The new Haryana Kharkhoda plant adds 250k units of capacity in phase 1 (live in FY26) with total 1M unit capacity by FY29. This unlocks volume-led operating leverage that has been capped by capacity constraints.",
+        "probability": 0.8,
+        "revenue_opportunity": 70000000000,
+        "bull_impact": {
+          "revenue": 70000000000,
+          "eps": 40.0
+        },
+        "base_impact": {
+          "revenue": 35000000000,
+          "eps": 18.0
+        },
+        "bear_impact": {
+          "revenue": 5000000000,
+          "eps": 2.0
+        },
+        "bull_eps_impact": 20.23,
+        "base_eps_impact": 16.71,
+        "bear_eps_impact": 13.19
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "Indian PV Industry Volume Growth",
+        "measures": "Total domestic passenger vehicle wholesales growth rate over the next 12 months.",
+        "bull_outcome": {
+          "description": "Industry grows 8-10% as rural recovery, GST cuts on small cars and rate cuts boost demand.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Industry grows 4-6%, in line with long-term trend, with mix continuing to shift to SUVs.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Industry is flat to negative as urban saturation, EV anxiety and affordability concerns weigh.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Maruti EV Reception (e-Vitara and Follow-ons)",
+        "measures": "Market acceptance and volume traction of Maruti's EV portfolio launched in 2025-2026.",
+        "bull_outcome": {
+          "description": "e-Vitara achieves 40k+ annual run-rate by year-end, establishing Maruti as a credible EV player and unlocking export volumes to Europe.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "EVs achieve modest 15-25k annual run-rate, contributing 2-3% of volumes; Maruti remains an ICE-led story.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "EV sales disappoint at sub-10k units, market share in the EV segment stays under 5%, and CAFE penalty risk emerges.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Export Volume Trajectory",
+        "measures": "Annual export units shipped from India and trajectory of new geographies/models being added.",
+        "bull_outcome": {
+          "description": "Exports grow 30%+ to 425k+ units as Jimny, Fronx and e-Vitara ramp in Japan, Europe and Latin America.",
+          "probability": 0.35
+        },
+        "base_outcome": {
+          "description": "Exports grow 15-20% to ~390k units, on track for FY30 targets.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Exports flat to single-digit growth as Latin American FX pressure and European emission rules hurt shipments.",
+          "probability": 0.15
+        }
+      },
+      {
+        "name": "Input Cost and JPY Trajectory",
+        "measures": "Combined direction of steel, aluminum, precious metals and JPY/INR cross.",
+        "bull_outcome": {
+          "description": "Commodities soften and JPY weakens vs INR, expanding gross margin by 100-150bps.",
+          "probability": 0.25
+        },
+        "base_outcome": {
+          "description": "Commodities and FX neutral, margins broadly flat with mix-led benefit only.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Commodities spike or JPY strengthens sharply, compressing margins by 100bps+.",
+          "probability": 0.25
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "Domestic Passenger Vehicle Sales",
+            "projected_revenue": 1495000000000,
+            "growth_rate": 0.15,
+            "rationale": "Industry growth of 9% plus market share gains and SUV mix lift drive 15% topline."
+          },
+          {
+            "name": "Exports",
+            "projected_revenue": 380000000000,
+            "growth_rate": 0.357,
+            "rationale": "Fronx, Jimny and e-Vitara shipments to 100+ markets accelerate sharply."
+          },
+          {
+            "name": "Spare Parts, Accessories and Services",
+            "projected_revenue": 172000000000,
+            "growth_rate": 0.147,
+            "rationale": "Growing parc plus accessory attachment rates on SUVs lift growth."
+          },
+          {
+            "name": "Other Operating Revenue",
+            "projected_revenue": 118000000000,
+            "growth_rate": 0.144,
+            "rationale": "Higher production at Kharkhoda boosts tooling sales and scrap."
+          }
+        ],
+        "total_headwind_revenue": -15000000000,
+        "total_headwind_eps": -35.0,
+        "total_tailwind_revenue": 280000000000,
+        "total_tailwind_eps": 180.0,
+        "total_revenue": 2430000000000,
+        "operating_margin": 0.115,
+        "margin_rationale": "Operating leverage from Kharkhoda volumes, richer SUV/export mix and benign commodities expand margin from 8.4% to 11.5%.",
+        "net_margin": 0.105,
+        "tax_rate": 0.255,
+        "projected_eps": 811.4,
+        "pe_multiple": 28,
+        "pe_rationale": "Premium re-rating to 28x reflects renewed EV credibility and export visibility, in line with Maruti's 5-year average multiple during growth phases.",
+        "price_target": 22719.0,
+        "narrative": "Industry recovers strongly, Kharkhoda ramps without hiccups, exports compound at 30%+, and the e-Vitara establishes Maruti as a top-3 EV player. Margin expansion compounds with volume to deliver outsized EPS growth and a multiple re-rating.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "Domestic Passenger Vehicle Sales",
+            "projected_revenue": 1417000000000,
+            "growth_rate": 0.09,
+            "rationale": "Industry grows 5% plus modest share gain and SUV ASP lift deliver 9% segment growth."
+          },
+          {
+            "name": "Exports",
+            "projected_revenue": 336000000000,
+            "growth_rate": 0.2,
+            "rationale": "Exports continue 20% trajectory on Suzuki global hub strategy."
+          },
+          {
+            "name": "Spare Parts, Accessories and Services",
+            "projected_revenue": 165000000000,
+            "growth_rate": 0.1,
+            "rationale": "Steady parc-driven aftermarket growth."
+          },
+          {
+            "name": "Other Operating Revenue",
+            "projected_revenue": 112000000000,
+            "growth_rate": 0.086,
+            "rationale": "Modest growth in line with production."
+          }
+        ],
+        "total_headwind_revenue": -65000000000,
+        "total_headwind_eps": -115.0,
+        "total_tailwind_revenue": 145000000000,
+        "total_tailwind_eps": 83.0,
+        "total_revenue": 2110000000000,
+        "operating_margin": 0.095,
+        "margin_rationale": "Mix shift to SUVs and modest operating leverage from Kharkhoda lift margin from 8.4% to 9.5%, partially offset by EV launch costs.",
+        "net_margin": 0.0875,
+        "tax_rate": 0.255,
+        "projected_eps": 587.2,
+        "pe_multiple": 24,
+        "pe_rationale": "24x is consistent with current forward P/E of 21.3x with a modest premium for export and Kharkhoda visibility, well within Maruti's 22-26x typical band.",
+        "price_target": 14093.0,
+        "narrative": "Industry grows mid-single-digits, Kharkhoda volumes layer in gradually, exports compound at 20%, and EV ramp is steady but unspectacular. Margin recovery and SUV mix support mid-teens EPS growth.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "Domestic Passenger Vehicle Sales",
+            "projected_revenue": 1287000000000,
+            "growth_rate": -0.01,
+            "rationale": "Flat industry plus continued hatchback drag offset SUV gains."
+          },
+          {
+            "name": "Exports",
+            "projected_revenue": 305000000000,
+            "growth_rate": 0.089,
+            "rationale": "Exports decelerate sharply due to LatAm FX issues and European emission compliance costs."
+          },
+          {
+            "name": "Spare Parts, Accessories and Services",
+            "projected_revenue": 158000000000,
+            "growth_rate": 0.053,
+            "rationale": "Aftermarket grows but slower in a weak demand environment."
+          },
+          {
+            "name": "Other Operating Revenue",
+            "projected_revenue": 100000000000,
+            "growth_rate": -0.031,
+            "rationale": "Lower production cuts tooling and scrap revenue."
+          }
+        ],
+        "total_headwind_revenue": -140000000000,
+        "total_headwind_eps": -240.0,
+        "total_tailwind_revenue": 30000000000,
+        "total_tailwind_eps": 15.0,
+        "total_revenue": 1740000000000,
+        "operating_margin": 0.075,
+        "margin_rationale": "Negative operating leverage at Kharkhoda, commodity inflation and EV launch losses compress margin from 8.4% to 7.5%.",
+        "net_margin": 0.068,
+        "tax_rate": 0.255,
+        "projected_eps": 376.4,
+        "pe_multiple": 18,
+        "pe_rationale": "De-rating to 18x reflects EPS contraction, EV concerns and cyclical de-rating, comparable to Maruti's trough multiples in 2019-2020.",
+        "price_target": 6775.0,
+        "narrative": "Industry stagnates, Maruti loses share in EVs to Tata/Hyundai/Mahindra, hatchback weakness deepens, and commodity/JPY headwinds bite. Capacity additions at Kharkhoda turn into negative operating leverage.",
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [],
+    "peer_tickers": [],
+    "market_expectations": {},
+    "sensitivity": {},
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.3575,
+          "segment_builds": [
+            {
+              "name": "Domestic Passenger Vehicle Sales",
+              "projected_revenue": 1495000000000,
+              "growth_rate": 0.15,
+              "rationale": "Industry growth of 9% plus market share gains and SUV mix lift drive 15% topline."
+            },
+            {
+              "name": "Exports",
+              "projected_revenue": 380000000000,
+              "growth_rate": 0.357,
+              "rationale": "Fronx, Jimny and e-Vitara shipments to 100+ markets accelerate sharply."
+            },
+            {
+              "name": "Spare Parts, Accessories and Services",
+              "projected_revenue": 172000000000,
+              "growth_rate": 0.147,
+              "rationale": "Growing parc plus accessory attachment rates on SUVs lift growth."
+            },
+            {
+              "name": "Other Operating Revenue",
+              "projected_revenue": 118000000000,
+              "growth_rate": 0.144,
+              "rationale": "Higher production at Kharkhoda boosts tooling sales and scrap."
+            }
+          ],
+          "segment_revenue_total": 2165000000000.0,
+          "total_headwind_revenue": -15000000000.0,
+          "total_headwind_eps": -35.0,
+          "total_tailwind_revenue": 280000000000.0,
+          "total_tailwind_eps": 180.0,
+          "total_revenue": 2430000000000.0,
+          "revenue_growth": 0.3256,
+          "operating_margin": 0.115,
+          "net_margin": 0.105,
+          "margin_rationale": "Operating leverage from Kharkhoda volumes, richer SUV/export mix and benign commodities expand margin from 8.4% to 11.5%.",
+          "projected_eps": 811.54,
+          "llm_eps": 811.4,
+          "eps_flag": null,
+          "pe_multiple": 28.0,
+          "pe_rationale": "Premium re-rating to 28x reflects renewed EV credibility and export visibility, in line with Maruti's 5-year average multiple during growth phases.",
+          "price_target": 22723.1,
+          "implied_return": 0.7059,
+          "breakeven_pe": 16.41,
+          "fcf_yield_at_target": 0.0143,
+          "narrative": "Industry recovers strongly, Kharkhoda ramps without hiccups, exports compound at 30%+, and the e-Vitara establishes Maruti as a top-3 EV player. Margin expansion compounds with volume to deliver outsized EPS growth and a multiple re-rating."
+        },
+        "base": {
+          "probability": 0.367,
+          "segment_builds": [
+            {
+              "name": "Domestic Passenger Vehicle Sales",
+              "projected_revenue": 1417000000000,
+              "growth_rate": 0.09,
+              "rationale": "Industry grows 5% plus modest share gain and SUV ASP lift deliver 9% segment growth."
+            },
+            {
+              "name": "Exports",
+              "projected_revenue": 336000000000,
+              "growth_rate": 0.2,
+              "rationale": "Exports continue 20% trajectory on Suzuki global hub strategy."
+            },
+            {
+              "name": "Spare Parts, Accessories and Services",
+              "projected_revenue": 165000000000,
+              "growth_rate": 0.1,
+              "rationale": "Steady parc-driven aftermarket growth."
+            },
+            {
+              "name": "Other Operating Revenue",
+              "projected_revenue": 112000000000,
+              "growth_rate": 0.086,
+              "rationale": "Modest growth in line with production."
+            }
+          ],
+          "segment_revenue_total": 2030000000000.0,
+          "total_headwind_revenue": -65000000000.0,
+          "total_headwind_eps": -115.0,
+          "total_tailwind_revenue": 145000000000.0,
+          "total_tailwind_eps": 83.0,
+          "total_revenue": 2110000000000.0,
+          "revenue_growth": 0.151,
+          "operating_margin": 0.095,
+          "net_margin": 0.0875,
+          "margin_rationale": "Mix shift to SUVs and modest operating leverage from Kharkhoda lift margin from 8.4% to 9.5%, partially offset by EV launch costs.",
+          "projected_eps": 587.22,
+          "llm_eps": 587.2,
+          "eps_flag": null,
+          "pe_multiple": 24.0,
+          "pe_rationale": "24x is consistent with current forward P/E of 21.3x with a modest premium for export and Kharkhoda visibility, well within Maruti's 22-26x typical band.",
+          "price_target": 14093.4,
+          "implied_return": 0.0581,
+          "breakeven_pe": 22.68,
+          "fcf_yield_at_target": 0.02,
+          "narrative": "Industry grows mid-single-digits, Kharkhoda volumes layer in gradually, exports compound at 20%, and EV ramp is steady but unspectacular. Margin recovery and SUV mix support mid-teens EPS growth."
+        },
+        "bear": {
+          "probability": 0.2755,
+          "segment_builds": [
+            {
+              "name": "Domestic Passenger Vehicle Sales",
+              "projected_revenue": 1287000000000,
+              "growth_rate": -0.01,
+              "rationale": "Flat industry plus continued hatchback drag offset SUV gains."
+            },
+            {
+              "name": "Exports",
+              "projected_revenue": 305000000000,
+              "growth_rate": 0.089,
+              "rationale": "Exports decelerate sharply due to LatAm FX issues and European emission compliance costs."
+            },
+            {
+              "name": "Spare Parts, Accessories and Services",
+              "projected_revenue": 158000000000,
+              "growth_rate": 0.053,
+              "rationale": "Aftermarket grows but slower in a weak demand environment."
+            },
+            {
+              "name": "Other Operating Revenue",
+              "projected_revenue": 100000000000,
+              "growth_rate": -0.031,
+              "rationale": "Lower production cuts tooling and scrap revenue."
+            }
+          ],
+          "segment_revenue_total": 1850000000000.0,
+          "total_headwind_revenue": -140000000000.0,
+          "total_headwind_eps": -240.0,
+          "total_tailwind_revenue": 30000000000.0,
+          "total_tailwind_eps": 15.0,
+          "total_revenue": 1740000000000.0,
+          "revenue_growth": -0.0508,
+          "operating_margin": 0.075,
+          "net_margin": 0.068,
+          "margin_rationale": "Negative operating leverage at Kharkhoda, commodity inflation and EV launch losses compress margin from 8.4% to 7.5%.",
+          "projected_eps": 376.33,
+          "llm_eps": 376.4,
+          "eps_flag": null,
+          "pe_multiple": 18.0,
+          "pe_rationale": "De-rating to 18x reflects EPS contraction, EV concerns and cyclical de-rating, comparable to Maruti's trough multiples in 2019-2020.",
+          "price_target": 6773.99,
+          "implied_return": -0.4914,
+          "breakeven_pe": 35.39,
+          "fcf_yield_at_target": 0.0344,
+          "narrative": "Industry stagnates, Maruti loses share in EVs to Tata/Hyundai/Mahindra, hatchback weakness deepens, and commodity/JPY headwinds bite. Capacity additions at Kharkhoda turn into negative operating leverage."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.3575,
+        "base": 0.367,
+        "bear": 0.2755,
+        "method": "geometric_mean_probability",
+        "driver_detail": [
+          {
+            "name": "Indian PV Industry Volume Growth",
+            "bull_p": 0.3,
+            "base_p": 0.5,
+            "bear_p": 0.2
+          },
+          {
+            "name": "Maruti EV Reception (e-Vitara and Follow-ons)",
+            "bull_p": 0.3,
+            "base_p": 0.5,
+            "bear_p": 0.2
+          },
+          {
+            "name": "Export Volume Trajectory",
+            "bull_p": 0.35,
+            "base_p": 0.5,
+            "bear_p": 0.15
+          },
+          {
+            "name": "Input Cost and JPY Trajectory",
+            "bull_p": 0.25,
+            "base_p": 0.5,
+            "bear_p": 0.25
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.2979,
+          "bear": 0.1968
+        },
+        "correlation_multipliers": {
+          "bull": 1.2,
+          "bear": 1.4
+        }
+      },
+      "expected_value": 15162.02,
+      "expected_return": 0.1383,
+      "std_dev": 0.4762,
+      "risk_adjusted_score": 0.16,
+      "upside_downside_ratio": 2.02,
+      "prob_positive_return": 0.7245,
+      "max_drawdown_prob": 0.2755,
+      "max_drawdown_magnitude": -0.4914,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 21.28,
+      "trailing_eps_used": 467.32,
+      "forward_eps_used": 626.07,
+      "fcf_margin_used": 0.0421,
+      "market_expectations": {},
+      "sensitivity": {}
+    }
+  }
+}
