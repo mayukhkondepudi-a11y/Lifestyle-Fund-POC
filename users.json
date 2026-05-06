@@ -10,5 +10,11 @@
     "email": "kmayukh@amazon.com",
     "password_hash": "$2b$12$dpXLh7Gq4HoiBEY4OjWvMOcHjWEtE5ic2yWi8VU7vy6/GMgi9osOW",
     "report_count": 3
+  },
+  "mayukh123": {
+    "name": "MK",
+    "email": "mK@yahoo.com",
+    "password_hash": "$2b$12$nhS05t8EzBYGlxZIYhmqAuNN83R7alSOfJaqRxh4CFmkHFQINvA9u",
+    "report_count": 0
   }
 }
