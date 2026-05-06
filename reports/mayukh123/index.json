@@ -7,5 +7,14 @@
     "timestamp": "2026-05-06 23:18",
     "recommendation": "WATCH",
     "expected_return": 0.2113
+  },
+  {
+    "report_id": "B_2026-05-07",
+    "ticker": "B",
+    "company_name": "Barrick Mining Corporation",
+    "date": "2026-05-07",
+    "timestamp": "2026-05-07 03:17",
+    "recommendation": "WATCH",
+    "expected_return": 0.0802
   }
 ]
