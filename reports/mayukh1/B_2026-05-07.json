@@ -1,0 +1,1077 @@
+{
+  "ticker": "B",
+  "date": "2026-05-07",
+  "timestamp": "2026-05-07 03:59",
+  "company_name": "Barrick Mining Corporation",
+  "recommendation": "WATCH",
+  "conviction": "Medium",
+  "expected_value": 44.52,
+  "expected_return": 0.0707,
+  "risk_adjusted_score": 0.04,
+  "metrics": {
+    "company_name": "Barrick Mining Corporation",
+    "sector": "Basic Materials",
+    "industry": "Gold",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 41.58,
+    "market_cap": 69835210752,
+    "enterprise_value": 72733958144,
+    "trailing_pe": 14.191127,
+    "forward_pe": 9.26,
+    "peg_ratio": null,
+    "price_to_sales": 4.1186132,
+    "ev_to_ebitda": 7.344,
+    "gross_margin": 0.51256,
+    "operating_margin": 0.52576,
+    "profit_margin": 0.29447,
+    "roe": 0.20684999,
+    "roa": 0.09974,
+    "trailing_eps": 2.93,
+    "forward_eps": 4.49108,
+    "earnings_growth": 1.5,
+    "total_revenue": 16956000256,
+    "revenue_growth": 0.645,
+    "free_cashflow": 3868000000.0,
+    "operating_cashflow": 7688999936,
+    "total_cash": 6705999872,
+    "total_debt": 5210999808,
+    "dividend_yield": 4.34,
+    "payout_ratio": 0.1792,
+    "beta": 1.068,
+    "week_52_high": 54.69,
+    "week_52_low": 17.41,
+    "ma_50": 42.408,
+    "ma_200": 37.77805,
+    "insider_pct": 0.00477,
+    "institution_pct": 0.66718,
+    "shares_outstanding": 1675508360,
+    "fcf_yield": 0.05538753242595785,
+    "reverse_dcf": {
+      "available": true,
+      "implied_fcf_cagr": 0.0728,
+      "wacc_used": 0.1,
+      "terminal_growth": 0.03,
+      "sector": "Basic Materials",
+      "base_fcf": 3868000000.0,
+      "target_ev": 68172637545.0,
+      "terminal_value_pct": 0.7366,
+      "tv_pct_flag": false,
+      "note": "At 41.58/share, market prices in 7.3% FCF CAGR over 5yr (10% WACC, 3.0% terminal growth). Terminal value is 74% of EV."
+    },
+    "stmt_trailing_eps": 2.93,
+    "stmt_eps_series": {
+      "2022": 0.24,
+      "2023": 0.72,
+      "2024": 1.22,
+      "2025": 2.93
+    },
+    "debt_to_equity": 0.196,
+    "current_ratio": 2.92,
+    "revenue_cagr": 0.1547,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 1.261,
+    "eps_cagr_raw": 1.3026,
+    "net_income_cagr": 0.4,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.4,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 38.5pp from historical CAGR (40.0%). Treat historical with caution.",
+    "peg_historical_cagr": 40.0,
+    "data_quality_warnings": [
+      "DATA QUALITY WARNING: revenue_growth (64.5%) and earnings_growth (1.5%) diverge by 63.0pp. Likely stale or scope-mismatched yfinance data."
+    ],
+    "price_5y_return": 101.21,
+    "price_5y_high": 50.65,
+    "price_5y_low": 12.99
+  },
+  "analysis": {
+    "recommendation": "WATCH",
+    "conviction": "Medium",
+    "investment_thesis": "Barrick Mining warrants a WATCH at 41.58 per share. The expected return of 7.1% with only a 40% probability of positive return reflects a base case that actually implies a 6.6% drawdown to 38.86, with the positive expected value driven entirely by an asymmetric bull case tied to gold sustaining above 3,200 per ounce. The market is already pricing in 7.3% FCF CAGR over five years per the reverse DCF, which is achievable but leaves little margin of safety given the unresolved Mali Loulo-Gounkoto dispute and elevated AISC. We would become more constructive on either a Mali resolution or a pullback toward 35.",
+    "business_overview": "Barrick Mining is one of the world's largest gold producers and an emerging copper major, operating tier-one mines across North America, Africa, Latin America and Asia Pacific. The company generates revenue primarily from selling gold dore and refined gold to bullion banks at prevailing spot prices, with copper concentrate sales and silver by-product credits providing meaningful diversification. Roughly 75% of revenue comes from gold, 18% from copper, and the balance from royalties, energy and by-products.\n\nThe production base spans the Nevada Gold Mines joint venture with Newmont (the largest gold complex in the world), Pueblo Viejo in the Dominican Republic, Kibali in the DRC, North Mara and Bulyanhulu in Tanzania, Porgera in Papua New Guinea, and the Lumwana copper mine in Zambia. The strategic pivot toward copper, anchored by the Reko Diq development in Pakistan and the Lumwana Super-Pit expansion, positions Barrick as a gold-copper champion levered to both monetary debasement themes and electrification demand.",
+    "revenue_architecture": "Trailing reported revenue of 16.96 billion is dominated by North America at 6.1 billion (36% of total), reflecting Nevada Gold Mines benefiting from realized gold prices averaging above 2,400 per ounce and stable attributable production around 3.3 million ounces. Africa and Middle East contributed 3.9 billion (23%) on a trailing basis, but this segment is the most exposed forward risk given the Loulo-Gounkoto suspension in Mali. Latin America and Asia Pacific gold contributed 2.7 billion (16%) and is accelerating on Pueblo Viejo expansion ramp-up and the Porgera restart.\n\nCopper Operations posted 3.05 billion in trailing revenue (18%) with Lumwana and Zaldivar production benefiting from copper prices above 4.50 per pound. Other revenue (royalties, by-products, energy) contributed 1.18 billion. The base case scenario projects forward revenue of 19.1 billion, embedding both the loss of Loulo-Gounkoto contribution and the offsetting tailwind of higher realized gold prices and the Pueblo Viejo ramp. The bull case projects 26.4 billion, requiring sustained gold above 3,200 per ounce, Mali restart, and full Pueblo Viejo and Porgera contribution.\n\nThe Mali suspension is the cleanest example of a forward-looking risk not yet visible in trailing financials: Loulo-Gounkoto historically contributed roughly 600,000 ounces annually, and operations were halted in early 2025 following the dispute over the new mining code, asset seizures and executive detentions. This risk is reflected in our scenario projections rather than in the reported segment revenue.",
+    "growth_drivers": "The first structural driver is the gold price itself. Central bank buying has run at record pace, the BRICS reserve diversification narrative remains intact, and Fed rate cuts compress real yields, all supportive of gold above 3,000 per ounce. Barrick has substantial operating leverage to this: each 100 per ounce move adds roughly 0.20 to EPS given the relatively fixed cost base, and the North America and Latin America gold segments capture this most cleanly.\n\nThe second driver is the copper pivot. Reko Diq in Pakistan is targeting first production in 2028 with Barrick holding 50%, and the financing milestones with IFC and World Bank involvement through 2026-2027 should support a re-rating well before first ounce. The Lumwana Super-Pit expansion roughly doubles copper capacity to 240,000 tonnes annually by 2028, capturing the electrification and grid investment cycle. Together these reinforce the gold-copper champion positioning and provide a multi-decade reserve life that few peers can match.\n\nThe third driver is the brownfield ramp at Pueblo Viejo (Dominican Republic) and the Porgera restart (Papua New Guinea), both contributing incremental ounces at attractive AISC and strong realized prices. These are visible in the Latin America and Asia Pacific segment, which is growing 40% year-over-year.",
+    "margin_analysis": "Trailing operating margin of 52.6% and gross margin of 51.3% reflect the combination of high realized gold prices and Barrick's tier-one asset quality. Profit margin of 29.4% and ROE of 20.7% confirm that the price environment is currently flowing through to shareholder returns. The base case holds operating margin at the trailing 52.6% level, balancing AISC creep against price strength.\n\nThe bull case compresses operating margin slightly to 42% on the rationale that operating leverage from high gold prices flows disproportionately to margin given the relatively fixed cost base, partially offset by inflation in labor, diesel and reagents. The risk to margins is industry-wide AISC moving toward 1,500 per ounce: Barrick guided AISC in the 1,460-1,560 range with overshoot risk if grades decline at maturing assets like Cortez and Veladero, which could compress margins by 200-300 basis points.",
+    "financial_health": "The balance sheet is in excellent shape. Total debt of 5.21 billion against total cash of 6.71 billion leaves Barrick in a net cash position, and debt-to-equity of 0.20 is among the lowest in the senior gold producer cohort. Operating cash flow of 7.69 billion and free cash flow of 3.87 billion (FCF yield of 5.5%) easily fund the 4.34% dividend yield with a payout ratio of just 17.9%, leaving substantial capacity for the Reko Diq and Lumwana growth capex.\n\nCurrent ratio of 2.92 confirms ample working capital cushion. Capital allocation priorities have appropriately shifted toward funding the copper expansion pipeline and maintaining the base dividend, with episodic share buybacks when the share price is depressed. There are no concerning debt maturities, dilution risks, or goodwill exposures that would change the thesis.",
+    "competitive_position": "Barrick sits alongside Newmont as one of the two senior gold producers with global tier-one asset diversification. The Nevada Gold Mines joint venture with Newmont effectively neutralizes the largest competitive overlap and creates structural cost advantages neither company could achieve alone. Versus Agnico Eagle (more concentrated in safer jurisdictions) and AngloGold Ashanti (smaller scale), Barrick offers the unique combination of tier-one gold scale plus the Reko Diq copper optionality.\n\nThe moats are reserve quality and geological optionality, multi-decade mine lives at Nevada and Pueblo Viejo, joint venture cost advantages, and government relationships in difficult jurisdictions (with Mali as the obvious counter-example). These are durable but not unique to Barrick, and the recent Mali experience is a reminder that political risk can compress moat economics quickly. The copper pivot is genuinely differentiated and is the strongest source of multi-year competitive advantage versus pure gold peers.",
+    "headwind_narrative": "The Mali Loulo-Gounkoto suspension is the single most important active risk. With 70% probability of meaningful ongoing impact, this represents roughly 1.5 billion of revenue at risk and a base case EPS impact of around 0.20. The Malian government has detained executives and seized gold inventory, and resolution will require either a renegotiated revenue-sharing arrangement or international arbitration, both of which take quarters to play out.\n\nGold price reversion is the macro risk. Gold is trading well above its trailing five-year average on safe-haven demand and central bank buying; a normalization toward 2,200-2,400 per ounce on dollar strength or geopolitical de-escalation would compress revenue across all gold segments by roughly 200 million per 100 per ounce move. Layered on top is industry-wide AISC creep toward 1,500 per ounce on labor, diesel and reagent inflation, which could compress margins another 200-300 basis points if grades disappoint at Cortez and Veladero. None of these are existential, but together they cap the upside if gold cools.",
+    "tailwind_narrative": "The cleanest tailwind is sustained gold strength. With 45% probability of gold remaining above 3,200 per ounce through 2026, the bull case captures 1.8 billion of incremental revenue and roughly 0.55 of incremental bull-case EPS through Barrick's operating leverage. This is the dominant driver of the asymmetric upside in the bull scenario.\n\nThe copper expansion story is the more durable tailwind. Reko Diq Phase 1 first production in 2028 (Barrick 50%) and the Lumwana Super-Pit doubling to 240,000 tonnes annually combine to add roughly 800 million of opportunity, and the financing milestones in 2026-2027 should drive re-rating well before first production. A Mali resolution at 30% probability would restore approximately 1.5 billion in annualized revenue and is the single most catalytic near-term event the market is not pricing.",
+    "market_pricing_commentary": "The reverse DCF indicates that at 41.58 per share, the market is pricing in a 7.3% FCF CAGR over five years, assuming a 10% WACC and 3% terminal growth rate, with terminal value representing 74% of enterprise value. Our base case assumes forward revenue of 19.1 billion versus trailing 16.96 billion, which is broadly consistent with mid-single-digit growth and effectively matches what the market expects. There is no obvious mispricing here: to justify the current price an investor needs to believe Barrick can compound FCF at roughly 7% annually, which requires gold staying above 2,800 per ounce, eventual Mali resolution, and on-time delivery of Reko Diq and Lumwana capacity. That is a reasonable but not conservative bar.",
+    "scenario_commentary": "The bull case at 63.03 (51.6% upside, 40% probability) requires gold sustaining above 3,200 per ounce, Mali Loulo-Gounkoto restarting, and Reko Diq financing milestones de-risking the long-term copper story. Revenue reaches 26.4 billion and EPS reaches 4.25 on operating leverage, with the market re-rating to 14.8x forward earnings as Barrick is repositioned as a gold-copper compounder rather than a cyclical gold miner.\n\nThe base case at 38.86 (negative 6.6% return, 50% probability) is the most-likely outcome and is what gates the recommendation. Revenue lands at 19.1 billion with EPS of 3.36, embedding the loss of Loulo-Gounkoto contribution offset partially by Pueblo Viejo ramp and elevated gold prices. The market holds the multiple at roughly 11.6x, and the stock drifts modestly lower from current levels because the price already reflects most of the favorable gold backdrop.\n\nA bear scenario was not separately modeled in the provided math, but the pathway is straightforward: gold reverting toward 2,400 per ounce, Mali arbitration dragging into 2027, and AISC overshooting guidance would combine to compress EPS by roughly 1.00 versus base and likely re-rate the multiple toward 9-10x, implying a low-30s share price. The asymmetric upside-to-downside ratio of 6.16 looks attractive on paper, but the base case drawdown is what disciplined capital allocators must respect.",
+    "conclusion": "Barrick is a high-quality senior gold producer with a credible copper pivot, but at 41.58 the price already discounts a constructive gold environment and offers limited margin of safety, with the base case implying a modest drawdown. The single variable all scenarios hinge on is the realized gold price: at sustained 3,200-plus per ounce the stock works meaningfully higher; at 2,400 it does not. The most important near-term catalyst is the Mali Loulo-Gounkoto resolution, where any negotiated settlement releasing seized inventory and resuming operations would unlock roughly 1.5 billion of annualized revenue and likely trigger a re-rating. We are watching for arbitration filings, settlement signals from Bamako, gold price action around the 3,000 per ounce level, and Reko Diq financing milestones expected in 2026.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "North America (Nevada Gold Mines)",
+        "current_revenue": 6105000000,
+        "pct_of_total": 0.36,
+        "gross_margin": 0.55,
+        "yoy_growth": 0.35,
+        "primary_driver": "Nevada Gold Mines JV with Newmont (Carlin, Cortez, Turquoise Ridge) benefiting from higher realized gold prices averaging above 2,400 per ounce and stable production around 3.3 million ounces attributable.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Africa & Middle East (excluding Loulo-Gounkoto)",
+        "current_revenue": 3900000000,
+        "pct_of_total": 0.23,
+        "gross_margin": 0.48,
+        "yoy_growth": 0.15,
+        "primary_driver": "Kibali (DRC), North Mara and Bulyanhulu (Tanzania) production combined with higher gold prices, partially offset by suspension of Loulo-Gounkoto in Mali following dispute with the government.",
+        "trajectory": "decelerating"
+      },
+      {
+        "name": "Latin America & Asia Pacific (Gold)",
+        "current_revenue": 2715000000,
+        "pct_of_total": 0.16,
+        "gross_margin": 0.5,
+        "yoy_growth": 0.4,
+        "primary_driver": "Pueblo Viejo expansion ramp-up in Dominican Republic and Porgera restart in Papua New Guinea contributing incremental ounces at favorable price realizations.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Copper Operations",
+        "current_revenue": 3055000000,
+        "pct_of_total": 0.18,
+        "gross_margin": 0.45,
+        "yoy_growth": 1.5,
+        "primary_driver": "Lumwana (Zambia) and Zaldivar (Chile) production combined with copper prices above 4.50 per pound; Reko Diq (Pakistan) development not yet contributing revenue but underpins long-term thesis.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Other (royalties, by-products, energy)",
+        "current_revenue": 1181000000,
+        "pct_of_total": 0.07,
+        "gross_margin": 0.4,
+        "yoy_growth": 0.1,
+        "primary_driver": "Silver by-product credits, energy sales, and royalty income tied to underlying mine throughput.",
+        "trajectory": "stable"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": null,
+      "top_5_customers_pct": null,
+      "geographic_split": {
+        "North_America": 0.36,
+        "Africa_Middle_East": 0.23,
+        "Latin_America_AsiaPac": 0.34,
+        "Other": 0.07
+      },
+      "critical_dependencies": [
+        "Joint venture with Newmont in Nevada Gold Mines, where Barrick is operator with 61.5% interest, drives the largest single revenue stream.",
+        "Host government relationships in Mali, DRC, Tanzania, Pakistan and Zambia where mineral codes and tax regimes can shift unilaterally.",
+        "Gold and copper price realizations, which together drive over 95% of revenue and are exogenous to management control.",
+        "Pueblo Viejo tailings expansion (Dominican Republic) requiring uninterrupted operating permits to sustain throughput."
+      ],
+      "relationships_at_risk": [
+        "Mali government dispute over Loulo-Gounkoto remains unresolved, with operations suspended and gold stockpile seized; resolution timing is uncertain.",
+        "Pakistan political stability affects Reko Diq financing and construction timeline targeting first production 2028.",
+        "Tanzania framework agreement renegotiation risk persists despite 2020 settlement structure."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "Mali Loulo-Gounkoto Suspension",
+        "description": "Barrick suspended operations at Loulo-Gounkoto in early 2025 following a dispute with the Malian government over a new mining code, asset seizures, and detention of executives. The complex historically contributed roughly 600,000 ounces annually, representing meaningful cash flow now stranded. Resolution requires either a negotiated settlement or international arbitration outcome.",
+        "probability": 0.7,
+        "revenue_at_risk": 1500000000,
+        "bull_impact": {
+          "revenue": -300000000,
+          "eps": -0.05
+        },
+        "base_impact": {
+          "revenue": -1100000000,
+          "eps": -0.2
+        },
+        "bear_impact": {
+          "revenue": -1500000000,
+          "eps": -0.3
+        },
+        "bull_eps_impact": -0.3,
+        "base_eps_impact": -0.37,
+        "bear_eps_impact": -0.37
+      },
+      {
+        "name": "Gold Price Reversion",
+        "description": "Gold has rallied above 3,000 per ounce on safe-haven demand, central bank buying, and rate-cut expectations. A normalization toward 2,200-2,400 per ounce on dollar strength or geopolitical de-escalation would compress revenue across all gold segments. Sensitivity is roughly 200 million dollars of revenue per 100 dollar move per ounce on Barrick's production base.",
+        "probability": 0.35,
+        "revenue_at_risk": 2500000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -500000000,
+          "eps": -0.1
+        },
+        "bear_impact": {
+          "revenue": -2500000000,
+          "eps": -0.55
+        },
+        "bull_eps_impact": -0.5,
+        "base_eps_impact": -0.62,
+        "bear_eps_impact": -0.62
+      },
+      {
+        "name": "Cost Inflation and AISC Creep",
+        "description": "All-in sustaining costs across the industry have climbed toward 1,500 per ounce on labor, diesel, and reagent inflation. Barrick guided AISC 1,460-1,560 range with risk of overshoot if grades decline at maturing assets like Cortez and Veladero. Margin compression of 200-300 bps would meaningfully impact EPS.",
+        "probability": 0.5,
+        "revenue_at_risk": 0,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.1
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": -0.15
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": -0.4
+        },
+        "bull_eps_impact": 0.0,
+        "base_eps_impact": 0.0,
+        "bear_eps_impact": 0.0
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "Reko Diq and Lumwana Super-Pit Expansion",
+        "description": "Reko Diq Phase 1 first production is targeted for 2028 with Barrick holding 50%, but financing milestones, offtake agreements and IFC/World Bank involvement in 2026-2027 should support a re-rating. Lumwana Super-Pit expansion doubles copper capacity to 240,000 tonnes annually by 2028. Together these reinforce Barrick's pivot to a gold-copper champion.",
+        "probability": 0.65,
+        "revenue_opportunity": 800000000,
+        "bull_impact": {
+          "revenue": 800000000,
+          "eps": 0.15
+        },
+        "base_impact": {
+          "revenue": 250000000,
+          "eps": 0.05
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 0.16,
+        "base_eps_impact": 0.2,
+        "bear_eps_impact": 0.2
+      },
+      {
+        "name": "Sustained Gold Price Strength Above 3,200",
+        "description": "Continued central bank buying, persistent geopolitical tensions and Fed rate cuts could keep gold above 3,200 per ounce through 2026. Barrick has substantial operating leverage with margins expanding disproportionately above 3,000 per ounce given relatively fixed cost structure. Each 100 dollar move adds roughly 0.20 to EPS.",
+        "probability": 0.45,
+        "revenue_opportunity": 1800000000,
+        "bull_impact": {
+          "revenue": 1800000000,
+          "eps": 0.55
+        },
+        "base_impact": {
+          "revenue": 400000000,
+          "eps": 0.12
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 0.36,
+        "base_eps_impact": 0.45,
+        "bear_eps_impact": 0.45
+      },
+      {
+        "name": "Mali Resolution and Restart",
+        "description": "A negotiated settlement releasing seized gold and resuming operations at Loulo-Gounkoto would restore approximately 1.5 billion in annualized revenue. Recent precedent in similar African disputes has been resolution via revenue-sharing renegotiation. Probability is meaningful given mutual economic interest.",
+        "probability": 0.3,
+        "revenue_opportunity": 1500000000,
+        "bull_impact": {
+          "revenue": 1200000000,
+          "eps": 0.25
+        },
+        "base_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 0.3,
+        "base_eps_impact": 0.37,
+        "bear_eps_impact": 0.37
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "Gold Price Trajectory",
+        "measures": "Average realized gold price over the next 12 months, which directly drives revenue and margin given relatively fixed unit costs.",
+        "bull_outcome": {
+          "description": "Gold sustains above 3,200 per ounce on continued central bank buying, geopolitical tensions and a Fed cutting cycle. Realized price averages 3,300+.",
+          "probability": 0.4
+        },
+        "base_outcome": {
+          "description": "Gold consolidates in 2,800-3,100 per ounce range as some safe-haven flows unwind but structural demand persists. Realized price averages 2,950.",
+          "probability": 0.45
+        },
+        "bear_outcome": {
+          "description": "Gold corrects to 2,200-2,500 per ounce on dollar strength, geopolitical de-escalation and ETF outflows.",
+          "probability": 0.15
+        }
+      },
+      {
+        "name": "Mali Loulo-Gounkoto Resolution",
+        "measures": "Whether and on what terms Barrick restores operations at the Loulo-Gounkoto complex in Mali.",
+        "bull_outcome": {
+          "description": "Negotiated settlement within 6-9 months, gold stockpile released and operations restart with revised but workable economic terms.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Status quo persists with operations suspended; arbitration proceedings continue without near-term restart.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Mali nationalizes the asset or imposes punitive terms, forcing Barrick to write down the operation entirely.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Operating Cost Discipline",
+        "measures": "Whether Barrick achieves AISC guidance of 1,460-1,560 per ounce versus industry-wide cost creep.",
+        "bull_outcome": {
+          "description": "AISC comes in below guidance midpoint at 1,400-1,460 driven by grade improvements at Pueblo Viejo and energy cost relief.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "AISC lands within guidance range of 1,460-1,560 per ounce with normal cost inflation absorbed.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "AISC overshoots to 1,600+ on labor inflation, lower grades at Cortez and unplanned mill maintenance.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Copper Project Execution",
+        "measures": "Whether Lumwana Super-Pit expansion and Reko Diq construction stay on schedule and budget.",
+        "bull_outcome": {
+          "description": "Both projects achieve key 2026 milestones on time and within budget, with offtake agreements and project financing finalized.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Modest delays of 3-6 months on Reko Diq with cost overruns of 10-15%; Lumwana progresses on plan.",
+          "probability": 0.55
+        },
+        "bear_outcome": {
+          "description": "Material delays or political disruption in Pakistan force project re-scoping; Lumwana faces Zambian power constraints.",
+          "probability": 0.15
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "North America (Nevada Gold Mines)",
+            "projected_revenue": 7900000000,
+            "growth_rate": 0.29,
+            "rationale": "Higher realized gold prices above 3,300 per ounce combined with stable Carlin and Cortez throughput drive strong revenue uplift."
+          },
+          {
+            "name": "Africa & Middle East (excluding Loulo-Gounkoto)",
+            "projected_revenue": 5500000000,
+            "growth_rate": 0.41,
+            "rationale": "Mali partial resolution restores 1.2B from Loulo-Gounkoto restart, and Kibali plus Tanzania benefit from gold price strength."
+          },
+          {
+            "name": "Latin America & Asia Pacific (Gold)",
+            "projected_revenue": 3700000000,
+            "growth_rate": 0.36,
+            "rationale": "Pueblo Viejo expansion fully ramped and Porgera at steady state benefit from high gold realizations."
+          },
+          {
+            "name": "Copper Operations",
+            "projected_revenue": 4400000000,
+            "growth_rate": 0.44,
+            "rationale": "Lumwana expansion contributes incremental tonnes and copper prices remain elevated above 4.80 per pound."
+          },
+          {
+            "name": "Other (royalties, by-products, energy)",
+            "projected_revenue": 1400000000,
+            "growth_rate": 0.19,
+            "rationale": "Silver by-product credits and royalty streams scale with base mine production."
+          }
+        ],
+        "total_headwind_revenue": -300000000,
+        "total_headwind_eps": -0.05,
+        "total_tailwind_revenue": 3800000000,
+        "total_tailwind_eps": 0.95,
+        "total_revenue": 22900000000,
+        "operating_margin": 0.42,
+        "margin_rationale": "Operating leverage from high gold prices flows disproportionately to margin given relatively fixed cost base, partially offset by inflation.",
+        "net_margin": 0.27,
+        "tax_rate": 0.3,
+        "projected_eps": 3.69,
+        "pe_multiple": 16,
+        "pe_rationale": "Peak-cycle gold equities historically trade at 15-18x forward earnings; a 16x multiple reflects strong cash generation and copper optionality.",
+        "price_target": 59.04,
+        "narrative": "Gold sustains above 3,200, Mali achieves a workable settlement, and Lumwana plus Pueblo Viejo expansions deliver on schedule. Free cash flow exceeds 5 billion enabling buybacks and dividend hikes. Investors re-rate Barrick toward a gold-copper champion multiple.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "North America (Nevada Gold Mines)",
+            "projected_revenue": 6900000000,
+            "growth_rate": 0.13,
+            "rationale": "Nevada Gold Mines benefits from gold price averaging 2,950 with stable production around 3.2 million attributable ounces."
+          },
+          {
+            "name": "Africa & Middle East (excluding Loulo-Gounkoto)",
+            "projected_revenue": 4200000000,
+            "growth_rate": 0.08,
+            "rationale": "Mali remains suspended, but Kibali and Tanzania capture higher gold price; net result is modest growth from price offsetting volume loss."
+          },
+          {
+            "name": "Latin America & Asia Pacific (Gold)",
+            "projected_revenue": 3100000000,
+            "growth_rate": 0.14,
+            "rationale": "Pueblo Viejo continues ramp toward design capacity with Porgera contributing steadily."
+          },
+          {
+            "name": "Copper Operations",
+            "projected_revenue": 3650000000,
+            "growth_rate": 0.19,
+            "rationale": "Lumwana early expansion benefits and stable copper price near 4.50 per pound drive moderate growth."
+          },
+          {
+            "name": "Other (royalties, by-products, energy)",
+            "projected_revenue": 1250000000,
+            "growth_rate": 0.06,
+            "rationale": "Steady contribution from royalties and by-product credits."
+          }
+        ],
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [],
+    "peer_tickers": [],
+    "market_expectations": {},
+    "sensitivity": {},
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.395,
+          "segment_builds": [
+            {
+              "name": "North America (Nevada Gold Mines)",
+              "projected_revenue": 7900000000,
+              "growth_rate": 0.29,
+              "rationale": "Higher realized gold prices above 3,300 per ounce combined with stable Carlin and Cortez throughput drive strong revenue uplift."
+            },
+            {
+              "name": "Africa & Middle East (excluding Loulo-Gounkoto)",
+              "projected_revenue": 5500000000,
+              "growth_rate": 0.41,
+              "rationale": "Mali partial resolution restores 1.2B from Loulo-Gounkoto restart, and Kibali plus Tanzania benefit from gold price strength."
+            },
+            {
+              "name": "Latin America & Asia Pacific (Gold)",
+              "projected_revenue": 3700000000,
+              "growth_rate": 0.36,
+              "rationale": "Pueblo Viejo expansion fully ramped and Porgera at steady state benefit from high gold realizations."
+            },
+            {
+              "name": "Copper Operations",
+              "projected_revenue": 4400000000,
+              "growth_rate": 0.44,
+              "rationale": "Lumwana expansion contributes incremental tonnes and copper prices remain elevated above 4.80 per pound."
+            },
+            {
+              "name": "Other (royalties, by-products, energy)",
+              "projected_revenue": 1400000000,
+              "growth_rate": 0.19,
+              "rationale": "Silver by-product credits and royalty streams scale with base mine production."
+            }
+          ],
+          "segment_revenue_total": 22900000000.0,
+          "total_headwind_revenue": -300000000.0,
+          "total_headwind_eps": -0.05,
+          "total_tailwind_revenue": 3800000000.0,
+          "total_tailwind_eps": 0.95,
+          "total_revenue": 26400000000.0,
+          "revenue_growth": 0.557,
+          "operating_margin": 0.42,
+          "net_margin": 0.27,
+          "margin_rationale": "Operating leverage from high gold prices flows disproportionately to margin given relatively fixed cost base, partially offset by inflation.",
+          "projected_eps": 4.25,
+          "llm_eps": 3.69,
+          "eps_flag": "Python EPS (4.25) differs from LLM EPS (3.69) by 15.3%. Using Python.",
+          "pe_multiple": 14.8,
+          "pe_multiple_raw_llm": 16.0,
+          "pe_rationale": "Peak-cycle gold equities historically trade at 15-18x forward earnings; a 16x multiple reflects strong cash generation and copper optionality.",
+          "price_target": 63.03,
+          "implied_return": 0.5159,
+          "breakeven_pe": 9.77,
+          "fcf_yield_at_target": 0.057,
+          "narrative": "Gold sustains above 3,200, Mali achieves a workable settlement, and Lumwana plus Pueblo Viejo expansions deliver on schedule. Free cash flow exceeds 5 billion enabling buybacks and dividend hikes. Investors re-rate Barrick toward a gold-copper champion multiple."
+        },
+        "base": {
+          "probability": 0.505,
+          "segment_builds": [
+            {
+              "name": "North America (Nevada Gold Mines)",
+              "projected_revenue": 6900000000,
+              "growth_rate": 0.13,
+              "rationale": "Nevada Gold Mines benefits from gold price averaging 2,950 with stable production around 3.2 million attributable ounces."
+            },
+            {
+              "name": "Africa & Middle East (excluding Loulo-Gounkoto)",
+              "projected_revenue": 4200000000,
+              "growth_rate": 0.08,
+              "rationale": "Mali remains suspended, but Kibali and Tanzania capture higher gold price; net result is modest growth from price offsetting volume loss."
+            },
+            {
+              "name": "Latin America & Asia Pacific (Gold)",
+              "projected_revenue": 3100000000,
+              "growth_rate": 0.14,
+              "rationale": "Pueblo Viejo continues ramp toward design capacity with Porgera contributing steadily."
+            },
+            {
+              "name": "Copper Operations",
+              "projected_revenue": 3650000000,
+              "growth_rate": 0.19,
+              "rationale": "Lumwana early expansion benefits and stable copper price near 4.50 per pound drive moderate growth."
+            },
+            {
+              "name": "Other (royalties, by-products, energy)",
+              "projected_revenue": 1250000000,
+              "growth_rate": 0.06,
+              "rationale": "Steady contribution from royalties and by-product credits."
+            }
+          ],
+          "segment_revenue_total": 19100000000.0,
+          "total_headwind_revenue": 0.0,
+          "total_headwind_eps": 0.0,
+          "total_tailwind_revenue": 0.0,
+          "total_tailwind_eps": 0.0,
+          "total_revenue": 19100000000.0,
+          "revenue_growth": 0.1264,
+          "operating_margin": 0.5258,
+          "net_margin": 0.2945,
+          "margin_rationale": "",
+          "projected_eps": 3.36,
+          "llm_eps": null,
+          "eps_flag": null,
+          "pe_multiple": 11.6,
+          "pe_multiple_raw_llm": 20.0,
+          "pe_rationale": "",
+          "price_target": 38.86,
+          "implied_return": -0.0655,
+          "breakeven_pe": 12.39,
+          "fcf_yield_at_target": 0.0669,
+          "narrative": ""
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.395,
+        "base": 0.505,
+        "bear": 0.1,
+        "method": "signal_derived_v2",
+        "bull_score": 95.0,
+        "signal_detail": [
+          {
+            "signal": "EPS revision momentum",
+            "value": 0.533,
+            "delta": 15.0,
+            "note": "fwd=4.49 vs trail=2.93"
+          },
+          {
+            "signal": "Revenue CAGR",
+            "value": 0.155,
+            "delta": 10.0,
+            "note": "15.5%"
+          },
+          {
+            "signal": "EPS / NI CAGR",
+            "value": 0.4,
+            "delta": 12.0,
+            "note": "40.0%"
+          },
+          {
+            "signal": "Operating margin",
+            "value": 0.526,
+            "delta": 12.0,
+            "note": "52.6%"
+          },
+          {
+            "signal": "PEG ratio",
+            "value": null,
+            "delta": 0.0,
+            "note": "PEG not available -- neutral"
+          },
+          {
+            "signal": "Debt/Equity",
+            "value": 0.2,
+            "delta": 5.0,
+            "note": "0.20x"
+          },
+          {
+            "signal": "Price vs 200-day MA",
+            "value": 1.101,
+            "delta": 6.0,
+            "note": "price=41.6 / MA200=37.8"
+          },
+          {
+            "signal": "Beta",
+            "value": 1.07,
+            "delta": 0.0,
+            "note": "beta=1.07"
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.4275,
+          "bear": 0.025
+        },
+        "correlation_multipliers": {
+          "bull": 1.0,
+          "bear": 1.0
+        },
+        "driver_detail": []
+      },
+      "expected_value": 44.52,
+      "expected_return": 0.0707,
+      "std_dev": 0.2961,
+      "risk_adjusted_score": 0.04,
+      "upside_downside_ratio": 6.16,
+      "prob_positive_return": 0.395,
+      "max_drawdown_prob": 0,
+      "max_drawdown_magnitude": 0,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 9.26,
+      "trailing_eps_used": 2.93,
+      "forward_eps_used": 4.49,
+      "fcf_margin_used": 0.2281,
+      "market_expectations": {},
+      "sensitivity": {},
+      "sensitivity_table": {
+        "rows": [
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -8,
+            "adj_eps": 2.9,
+            "adj_pe": 3.6,
+            "price_target": 10.45,
+            "implied_return": -0.7487
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -4,
+            "adj_eps": 2.9,
+            "adj_pe": 7.6,
+            "price_target": 22.07,
+            "implied_return": -0.4692
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -2,
+            "adj_eps": 2.9,
+            "adj_pe": 9.6,
+            "price_target": 27.87,
+            "implied_return": -0.3297
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 0,
+            "adj_eps": 2.9,
+            "adj_pe": 11.6,
+            "price_target": 33.68,
+            "implied_return": -0.19
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 2,
+            "adj_eps": 2.9,
+            "adj_pe": 13.6,
+            "price_target": 39.49,
+            "implied_return": -0.0503
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 4,
+            "adj_eps": 2.9,
+            "adj_pe": 15.6,
+            "price_target": 45.3,
+            "implied_return": 0.0895
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 8,
+            "adj_eps": 2.9,
+            "adj_pe": 19.6,
+            "price_target": 56.91,
+            "implied_return": 0.3687
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -8,
+            "adj_eps": 3.13,
+            "adj_pe": 3.6,
+            "price_target": 11.27,
+            "implied_return": -0.729
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -4,
+            "adj_eps": 3.13,
+            "adj_pe": 7.6,
+            "price_target": 23.8,
+            "implied_return": -0.4276
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -2,
+            "adj_eps": 3.13,
+            "adj_pe": 9.6,
+            "price_target": 30.07,
+            "implied_return": -0.2768
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 0,
+            "adj_eps": 3.13,
+            "adj_pe": 11.6,
+            "price_target": 36.33,
+            "implied_return": -0.1263
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 2,
+            "adj_eps": 3.13,
+            "adj_pe": 13.6,
+            "price_target": 42.59,
+            "implied_return": 0.0243
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 4,
+            "adj_eps": 3.13,
+            "adj_pe": 15.6,
+            "price_target": 48.86,
+            "implied_return": 0.1751
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 8,
+            "adj_eps": 3.13,
+            "adj_pe": 19.6,
+            "price_target": 61.38,
+            "implied_return": 0.4762
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -8,
+            "adj_eps": 3.25,
+            "adj_pe": 3.6,
+            "price_target": 11.69,
+            "implied_return": -0.7189
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -4,
+            "adj_eps": 3.25,
+            "adj_pe": 7.6,
+            "price_target": 24.67,
+            "implied_return": -0.4067
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -2,
+            "adj_eps": 3.25,
+            "adj_pe": 9.6,
+            "price_target": 31.16,
+            "implied_return": -0.2506
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 0,
+            "adj_eps": 3.25,
+            "adj_pe": 11.6,
+            "price_target": 37.65,
+            "implied_return": -0.0945
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 2,
+            "adj_eps": 3.25,
+            "adj_pe": 13.6,
+            "price_target": 44.14,
+            "implied_return": 0.0616
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 4,
+            "adj_eps": 3.25,
+            "adj_pe": 15.6,
+            "price_target": 50.64,
+            "implied_return": 0.2179
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 8,
+            "adj_eps": 3.25,
+            "adj_pe": 19.6,
+            "price_target": 63.62,
+            "implied_return": 0.5301
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -8,
+            "adj_eps": 3.36,
+            "adj_pe": 3.6,
+            "price_target": 12.1,
+            "implied_return": -0.709
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -4,
+            "adj_eps": 3.36,
+            "adj_pe": 7.6,
+            "price_target": 25.54,
+            "implied_return": -0.3858
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -2,
+            "adj_eps": 3.36,
+            "adj_pe": 9.6,
+            "price_target": 32.26,
+            "implied_return": -0.2241
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 0,
+            "adj_eps": 3.36,
+            "adj_pe": 11.6,
+            "price_target": 38.98,
+            "implied_return": -0.0625
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 2,
+            "adj_eps": 3.36,
+            "adj_pe": 13.6,
+            "price_target": 45.7,
+            "implied_return": 0.0991
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 4,
+            "adj_eps": 3.36,
+            "adj_pe": 15.6,
+            "price_target": 52.42,
+            "implied_return": 0.2607
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 8,
+            "adj_eps": 3.36,
+            "adj_pe": 19.6,
+            "price_target": 65.86,
+            "implied_return": 0.5839
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -8,
+            "adj_eps": 3.47,
+            "adj_pe": 3.6,
+            "price_target": 12.51,
+            "implied_return": -0.6991
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -4,
+            "adj_eps": 3.47,
+            "adj_pe": 7.6,
+            "price_target": 26.4,
+            "implied_return": -0.3651
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -2,
+            "adj_eps": 3.47,
+            "adj_pe": 9.6,
+            "price_target": 33.35,
+            "implied_return": -0.1979
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 0,
+            "adj_eps": 3.47,
+            "adj_pe": 11.6,
+            "price_target": 40.3,
+            "implied_return": -0.0308
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 2,
+            "adj_eps": 3.47,
+            "adj_pe": 13.6,
+            "price_target": 47.25,
+            "implied_return": 0.1364
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 4,
+            "adj_eps": 3.47,
+            "adj_pe": 15.6,
+            "price_target": 54.2,
+            "implied_return": 0.3035
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 8,
+            "adj_eps": 3.47,
+            "adj_pe": 19.6,
+            "price_target": 68.09,
+            "implied_return": 0.6376
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -8,
+            "adj_eps": 3.59,
+            "adj_pe": 3.6,
+            "price_target": 12.92,
+            "implied_return": -0.6893
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -4,
+            "adj_eps": 3.59,
+            "adj_pe": 7.6,
+            "price_target": 27.27,
+            "implied_return": -0.3442
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -2,
+            "adj_eps": 3.59,
+            "adj_pe": 9.6,
+            "price_target": 34.45,
+            "implied_return": -0.1715
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 0,
+            "adj_eps": 3.59,
+            "adj_pe": 11.6,
+            "price_target": 41.62,
+            "implied_return": 0.001
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 2,
+            "adj_eps": 3.59,
+            "adj_pe": 13.6,
+            "price_target": 48.8,
+            "implied_return": 0.1736
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 4,
+            "adj_eps": 3.59,
+            "adj_pe": 15.6,
+            "price_target": 55.98,
+            "implied_return": 0.3463
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 8,
+            "adj_eps": 3.59,
+            "adj_pe": 19.6,
+            "price_target": 70.33,
+            "implied_return": 0.6914
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -8,
+            "adj_eps": 3.82,
+            "adj_pe": 3.6,
+            "price_target": 13.74,
+            "implied_return": -0.6696
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -4,
+            "adj_eps": 3.82,
+            "adj_pe": 7.6,
+            "price_target": 29.0,
+            "implied_return": -0.3025
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -2,
+            "adj_eps": 3.82,
+            "adj_pe": 9.6,
+            "price_target": 36.64,
+            "implied_return": -0.1188
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 0,
+            "adj_eps": 3.82,
+            "adj_pe": 11.6,
+            "price_target": 44.27,
+            "implied_return": 0.0647
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 2,
+            "adj_eps": 3.82,
+            "adj_pe": 13.6,
+            "price_target": 51.9,
+            "implied_return": 0.2482
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 4,
+            "adj_eps": 3.82,
+            "adj_pe": 15.6,
+            "price_target": 59.54,
+            "implied_return": 0.4319
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 8,
+            "adj_eps": 3.82,
+            "adj_pe": 19.6,
+            "price_target": 74.8,
+            "implied_return": 0.7989
+          }
+        ],
+        "base_eps": 3.36,
+        "base_pe": 11.6,
+        "base_net_margin": 0.2945,
+        "margin_deltas": [
+          -0.04,
+          -0.02,
+          -0.01,
+          0.0,
+          0.01,
+          0.02,
+          0.04
+        ],
+        "pe_deltas": [
+          -8,
+          -4,
+          -2,
+          0,
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+}
