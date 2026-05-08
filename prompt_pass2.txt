@@ -14,6 +14,15 @@ RULES:
    needing an MBA. Explain financial concepts briefly when you use
    them.
 
+3. Never compute your own financial ratios or yields. Use ONLY the
+   figures present in metrics_json and scenario_math_json. If you need
+   a dividend yield, FCF yield, payout ratio, or any derived metric,
+   it must come from the data provided. If a metric is not in the
+   provided data, state that it is unavailable rather than estimating.
+   Specifically: do not calculate your own dividend yield from
+   dividend-per-share and price. Use the value in metrics_json.
+
+
 3. Be specific. Use company names, product names, dollar amounts,
    and percentages from the data provided. Generic statements like
    "the company has strong fundamentals" add no value.
@@ -21,6 +30,11 @@ RULES:
 4. All text must be plain text. No HTML tags, no markdown.
 
 5. Respond with ONLY valid JSON. No markdown fences.
+CRITICAL FORMATTING RULE: Never use $ signs in any narrative text.
+Write currency amounts as "41.22" or "7.8B" without the dollar sign.
+The UI rendering layer adds the appropriate currency symbol automatically.
+Use "per ounce", "per share", "per lb" rather than "$X/oz" patterns.
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -53,14 +67,21 @@ RECOMMENDATION GUIDELINES:
 
 Expected return: {expected_return}
 Probability of positive return: {prob_positive}
+Base case implied return: {base_implied_return}
 Risk-adjusted score: {risk_adjusted_score}
 Upside/downside ratio: {upside_downside_ratio}
 Market implied growth vs base case growth: {implied_vs_base}
 
+PRIMARY RULES (expected return + probability):
 If expected return > 10% AND prob positive > 55%: BUY
 If expected return > 0% AND prob positive > 40%: WATCH or BUY
 If expected return < 0% OR prob positive < 40%: WATCH or PASS
 If expected return < -15% AND prob positive < 30%: PASS
+
+BASE-CASE OVERRIDES (the base case is the most-likely outcome — it MUST gate the recommendation):
+If base case implied return < -10%: WATCH minimum, regardless of expected return
+If base case implied return < -25%: PASS regardless of expected return
+A positive expected return driven entirely by an asymmetric bull-case tail is NOT a BUY signal when the base case implies a meaningful drawdown.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -84,6 +105,17 @@ OUTPUT FORMAT:
     revenue segment with specific numbers. Describe what is
     growing, what is stable, what is at risk. Reference the
     segment data provided.",
+When discussing segment revenues, clearly distinguish between:
+(a) Trailing reported revenue (what was filed — use the exact figures
+    from segments_json current_revenue)
+(b) Forward projected revenue (what the scenarios assume — use the
+    segment_builds from scenario_math_json)
+
+If an operation has been suspended or disrupted after the reporting
+period, explain this as a forward-looking risk that is reflected in
+the scenario projections, not as a contradiction of the reported
+current revenue.
+
 
   "growth_drivers": "2-3 paragraphs. What are the structural
     forces driving growth? Be specific about products, markets,

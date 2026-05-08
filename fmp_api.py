@@ -174,6 +174,7 @@ def _merge_profile_quote(profile, quote):
         "sharesOutstanding":    q.get("sharesOutstanding"),
         "heldPercentInsiders":   None,
         "heldPercentInstitutions": None,
+        "website":               p.get("website", ""),
     }
 
 

@@ -53,6 +53,13 @@ def fmt_c(v, cur="USD", d=2):
     return fmt_n(v, p=get_sym(cur), d=d)
 
 
+def clean_ticker(t):
+    """Strip exchange suffixes (.NS / .BO / .L) for display."""
+    if not t:
+        return ""
+    return str(t).replace(".NS", "").replace(".BO", "").replace(".L", "")
+
+
 def strip_html(text):
     if not text:
         return ""

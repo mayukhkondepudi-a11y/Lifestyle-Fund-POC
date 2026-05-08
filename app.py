@@ -1,18 +1,14 @@
 """PickR - Streamlit UI and rendering."""
 
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import json
 import os
 from datetime import datetime
-import json
+from compute import clean_latex
 
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
 
-# ── Hide Streamlit toolbar/ellipsis via JS ──
-# FIX: Removed 'header' and '[data-testid="stHeader"]' from hide list
-#      so the sidebar toggle button remains accessible.
 import streamlit.components.v1 as _sc
 _sc.html("""
 <script>
@@ -34,26 +30,10 @@ _sc.html("""
                 el.style.setProperty('overflow','hidden','important');
             });
         });
-        // FIX: Force sidebar toggle to always be visible
-        var toggle = p.querySelectorAll(
-            '[data-testid="stSidebarCollapsedControl"], ' +
-            '[data-testid="collapsedControl"], ' +
-            'button[aria-label="Open sidebar"], ' +
-            'button[aria-label="Close sidebar"]'
-        );
-        toggle.forEach(function(el){
-            el.style.setProperty('display','flex','important');
-            el.style.setProperty('visibility','visible','important');
-            el.style.setProperty('height','auto','important');
-            el.style.setProperty('overflow','visible','important');
-            el.style.setProperty('opacity','1','important');
-            el.style.setProperty('z-index','99999','important');
-        });
     }
     hide();
     setTimeout(hide, 300);
     setTimeout(hide, 800);
-    setTimeout(hide, 1500);
     var obs = new MutationObserver(hide);
     obs.observe(window.parent.document.body, {childList:true, subtree:true});
 })();
@@ -62,9 +42,29 @@ _sc.html("""
 
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
-                    RESEND_API_KEY)
+                    RESEND_API_KEY, DOMAIN_MAP)
 from formatting import (safe_float, get_sym, fmt_n, fmt_p, fmt_r, fmt_c,
-                         strip_html)
+                         strip_html, clean_ticker)
+
+# FIX: fmt_eps_impact now correctly accepts sym as a required parameter
+#      and uses it consistently. The original had it missing from tailwind calls.
+def fmt_eps_impact(val, sym, is_headwind=False):
+    """Format EPS impact with correct sign and color."""
+    v = safe_float(val)
+    if v == 0:
+        return f'<span style="color:#888">{sym}0.00</span>'
+    if is_headwind:
+        return f'<span style="color:#ef4444">-{sym}{abs(v):.2f}</span>'
+    else:
+        return f'<span style="color:#22c55e">+{sym}{abs(v):.2f}</span>'
+
+
+def pt_table(header_html, rows_html):
+    """Render a styled .pt table given pre-built <tr>...</tr> header and rows HTML."""
+    return (f'<div class="pt-wrap"><table class="pt">'
+            f'<thead>{header_html}</thead>'
+            f'<tbody>{rows_html}</tbody></table></div>')
+
 from github_store import (add_tracked_stock, load_screener_results_raw,
                           load_tracker)
 from email_service import send_email, email_confirmation
@@ -88,622 +88,9 @@ for key, default in [
 # CSS
 # ══════════════════════════════════════════════════════════════
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+from styles import APP_CSS
+st.markdown(APP_CSS, unsafe_allow_html=True)
 
-    /* ── BASE ── */
-    html, body, .stApp {
-        background: linear-gradient(180deg, #0f0f13 0%, #14141a 100%) !important;
-        color: rgba(255,255,255,0.92) !important;
-        font-family: 'Inter', sans-serif !important;
-        font-size: 17px !important;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-    .block-container {
-        padding-top: 0 !important;
-        max-width: 1400px !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-        background: transparent !important;
-    }
-    .stApp > div,
-    [data-testid="stAppViewContainer"] {
-        background: transparent !important;
-    }
-
-    /* FIX: Only hide specific toolbar elements, NOT the entire header.
-       This preserves the sidebar toggle button. */
-    [data-testid="stToolbar"],
-    [data-testid="stToolbarActions"],
-    [data-testid="stToolbarActionButtonContainer"],
-    [data-testid="stDecoration"],
-    [data-testid="stStatusWidget"],
-    [data-testid="stAppDeployButton"],
-    button[data-testid="baseButton-header"],
-    button[data-testid="baseButton-minimal"],
-    #MainMenu, #MainMenu > ul, footer,
-    .reportview-container .main footer {
-        display:    none       !important;
-        visibility: hidden     !important;
-        height:     0px        !important;
-        max-height: 0px        !important;
-        overflow:   hidden     !important;
-        padding:    0          !important;
-        margin:     0          !important;
-    }
-
-    /* FIX: Make header transparent but keep it in layout for sidebar toggle */
-    header, .stAppHeader, [data-testid="stHeader"] {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-
-    /* FIX: Sidebar toggle — always visible and clickable */
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"],
-    button[aria-label="Open sidebar"],
-    button[aria-label="Close sidebar"] {
-        display:    flex       !important;
-        visibility: visible    !important;
-        height:     auto       !important;
-        overflow:   visible    !important;
-        opacity:    1          !important;
-        z-index:    99999      !important;
-        position:   relative   !important;
-    }
-
-    /* ── STICKY LOGO ── */
-    .pickr-logo-sticky {
-        top: 1.1rem;
-        left: 1.6rem;
-        transform: scale(1.25);
-        opacity: 0.95;
-    }
-    .pickr-logo-sticky .wordmark {
-        font-size: 1.4rem;
-        font-weight: 900;
-        letter-spacing: -0.015em;
-    }
-
-    /* ── HERO ── */
-    .hero {
-        padding: 4rem 2rem 1.5rem;
-        text-align: center;
-        position: relative;
-        animation: fadeInUp 0.6s ease-out;
-        background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(139,26,26,0.07) 0%, transparent 70%);
-    }
-    .hero::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 60px;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #8b1a1a, transparent);
-    }
-    .hero h1 { font-size: 4.2rem; font-weight: 900; letter-spacing: -0.03em; margin: 0; }
-    .hero h1 .pick {
-        background: linear-gradient(180deg, #ffffff 0%, #ffffff 35%, #e0e0e0 55%, #c8c8c8 75%, #e8e8e8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(255,255,255,0.08));
-    }
-    .hero h1 .accent {
-        background: linear-gradient(135deg, #a52525 0%, #e04040 30%, #ff8a8a 50%, #e04040 70%, #a52525 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        filter: drop-shadow(0 0 8px rgba(200,50,50,0.3));
-    }
-    .hero .tag  { color: rgba(255,255,255,0.7); }
-    .hero .desc { color: rgba(255,255,255,0.65); }
-
-    /* ── STATS ROW ── */
-    .stats-row {
-        display: flex;
-        justify-content: center;
-        gap: 3rem;
-        padding: 1.3rem 0;
-        margin-top: 1.5rem;
-        border-top: 1px solid rgba(255,255,255,0.05);
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .sr-item { text-align: center; }
-    .sr-num  { font-size: 1.6rem; font-weight: 800; color: #fff; display: block; }
-    .sr-lbl  { font-size: 0.65rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; }
-
-    /* ── HOW IT WORKS ── */
-    .hiw { padding: 2rem 0 1rem; }
-    .hiw-title { text-align: center; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(255,255,255,0.5); margin-bottom: 1.2rem; }
-    .hiw-grid { display: flex; justify-content: center; gap: 1.5rem; }
-    .hiw-card { background: #1a1a22; border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; padding: 1.3rem; text-align: center; flex: 1; max-width: 260px; }
-    .hiw-step { font-size: 0.6rem; font-weight: 800; color: #8b1a1a; text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 0.4rem; }
-    .hiw-title2 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
-    .hiw-desc { font-size: 0.97rem; color: rgba(255,255,255,0.55); line-height: 1.7; }
-
-    /* ── QGLP THESIS ── */
-    .thesis-section {
-        background: linear-gradient(135deg, rgba(25,20,35,0.85) 0%, rgba(18,16,28,0.95) 100%);
-        border: 1px solid rgba(139,80,50,0.2);
-        border-radius: 8px;
-        padding: 2rem;
-        margin: 1.5rem 0;
-    }
-    .thesis-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: rgba(255,255,255,0.6); margin-bottom: 1rem; }
-    .thesis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-    .thesis-card { background: rgba(20,18,30,0.7); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 1rem 1.2rem; transition: all 0.2s ease; }
-    .thesis-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .thesis-card-letter { font-size: 1.4rem; font-weight: 800; color: #8b1a1a; margin-bottom: 0.2rem; }
-    .thesis-card-name   { font-size: 0.95rem; font-weight: 700; color: #ffffff; margin-bottom: 0.3rem; }
-    .thesis-card-desc   { font-size: 0.92rem; color: rgba(255,255,255,0.6); line-height: 1.7; }
-    .thesis-scoring { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); }
-    .thesis-scoring-title { font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.35); margin-bottom: 0.6rem; }
-    .scoring-row { display: flex; gap: 1.5rem; }
-    .scoring-item { text-align: center; flex: 1; }
-    .scoring-range { font-size: 1.15rem; font-weight: 700; }
-    .scoring-range.buy   { color: #22c55e; }
-    .scoring-range.watch { color: #f5c542; }
-    .scoring-range.pass  { color: #ff4d4d; }
-    .scoring-label { font-size: 0.62rem; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-
-    /* ── PARAMS CARD ── */
-    .params-card { background: #111118; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem; }
-    .params-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.9rem; }
-    .params-row:last-child { border-bottom: none; }
-    .params-key { color: rgba(255,255,255,0.6); font-weight: 500; }
-    .params-val { color: rgba(255,255,255,0.95); font-weight: 600; }
-
-    /* ── REPORT CARD ── */
-    .rpt-card {
-        background: #16161e;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 12px;
-        border-top: 1px solid rgba(74,222,128,0.12);
-        padding: 2rem 2.5rem;
-        margin-top: 1rem;
-        animation: fadeInUp 0.4s ease-out;
-    }
-    .rpt-head h2 { font-size: 2.4rem; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.02em; }
-    .rpt-head .meta { color: rgba(255,255,255,0.55); font-size: 0.97rem; letter-spacing: 0.04em; margin-top: 0.4rem; font-weight: 500; }
-
-    /* ── RECOMMENDATION BAR ── */
-    .rec-bar {
-        display: flex;
-        justify-content: center;
-        gap: 3.5rem;
-        padding: 1.5rem 0;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        margin-bottom: 0.5rem;
-        background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
-        border-radius: 8px;
-        animation: fadeInUp 0.5s ease-out;
-    }
-    .rb-item { text-align: center; }
-    .rb-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.72); margin-bottom: 0.3rem; }
-    .rb-val { font-size: 1.8rem; font-weight: 800; }
-    .rb-val.buy   { color: #4ade80; }
-    .rb-val.watch { color: #fbbf24; }
-    .rb-val.pass  { color: #f87171; }
-
-    /* ── EXECUTIVE SUMMARY ── */
-    .exec-summary {
-        background: linear-gradient(135deg, rgba(35,50,45,0.3) 0%, rgba(25,28,37,1) 100%);
-        border-left: 3px solid rgba(74,222,128,0.4);
-        border-radius: 0 8px 8px 0;
-        padding: 1.4rem 1.8rem;
-        margin: 1.2rem 0;
-        font-size: 1.05rem;
-        line-height: 2;
-        color: rgba(255,255,255,0.82);
-        font-style: italic;
-    }
-
-    /* ── SECTION HEADERS ── */
-    .sec {
-        font-size: 0.86rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        color: rgba(255,255,255,0.85);
-        margin: 3rem 0 1.2rem;
-        padding-bottom: 0.6rem;
-        border-bottom: 2px solid rgba(255,255,255,0.12);
-        display: block;
-    }
-
-    /* ── METRICS ── */
-    [data-testid="stMetricLabel"] {
-        color: rgba(255,255,255,0.75) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.06em !important;
-        font-weight: 700 !important;
-    }
-    [data-testid="stMetricValue"] {
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        color: rgba(255,255,255,0.95) !important;
-        font-feature-settings: "tnum","ss01" !important;
-        letter-spacing: 0.01em !important;
-    }
-    [data-testid="stMetricDelta"] { display: none !important; }
-
-    /* ── 52-WEEK RANGE BAR ── */
-    .range-bar-container { margin: 0.8rem 0 1.5rem; }
-    .range-bar-labels { display: flex; justify-content: space-between; font-size: 0.82rem; color: rgba(255,255,255,0.7); margin-bottom: 0.4rem; font-weight: 600; }
-    .range-bar { height: 7px; background: rgba(255,255,255,0.1); border-radius: 4px; position: relative; }
-    .range-bar-fill { height: 100%; background: linear-gradient(90deg,#8b1a1a,#e03030); border-radius: 4px; }
-    .range-bar-dot { width: 12px; height: 12px; background: #fff; border-radius: 50%; position: absolute; top: -2.5px; transform: translateX(-50%); box-shadow: 0 0 8px rgba(224,48,48,0.8); }
-
-    /* ── PROSE / BODY TEXT ── */
-    .prose { color: rgba(255,255,255,0.90); line-height: 1.85; }
-
-    /* ── RISK ROWS ── */
-    .risk-row { padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.82); }
-    .risk-row:last-child { border-bottom: none; }
-
-    /* ── BULL / BEAR BOXES ── */
-    .cb { padding: 1.2rem 1.5rem; border-radius: 8px; font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.82); }
-    .cb-bull { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.28); }
-    .cb-bear { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
-    .cb-title { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 0.5rem; }
-    .cb-bull .cb-title { color: #4ade80; }
-    .cb-bear .cb-title { color: #f87171; }
-
-    /* ── TABLES ── */
-    .pt { width: 100%; border-collapse: collapse; font-size: 0.97rem; }
-    .pt th {
-        text-align: left;
-        font-size: 0.67rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 0.7rem 0.85rem;
-        border-bottom: 2px solid rgba(74,222,128,0.25);
-        background: linear-gradient(135deg, rgba(100,20,20,0.4) 0%, rgba(25,20,35,0.95) 100%);
-        color: rgba(255,255,255,0.85) !important;
-    }
-    .pt td { color: rgba(255,255,255,0.85); padding: 0.6rem 0.85rem; }
-    .pt tr.hl td { font-weight: 700; color: #ffffff; background: rgba(224,48,48,0.12); }
-    .pt tbody tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
-    .pt tbody tr:nth-child(odd)  td { background: transparent; }
-    .pt tbody tr:hover td { background: rgba(255,255,255,0.05); }
-
-    /* ── VTAG ── */
-    .vtag { display: inline-block; font-size: 0.52rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #e03030; border: 1px solid rgba(224,48,48,0.4); padding: 0.06rem 0.3rem; border-radius: 2px; margin-left: 0.4rem; vertical-align: middle; }
-
-    /* ── DIVIDER ── */
-    .div { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 1rem 0; }
-
-    /* ── TRACK BOX ── */
-    .track-box { background: #16161e; border: 1px solid rgba(224,48,48,0.3); border-radius: 8px; padding: 1.5rem 2rem; margin-top: 1.5rem; }
-    .track-box-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #e03030; margin-bottom: 0.6rem; }
-    .track-success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); border-radius: 6px; padding: 0.8rem 1.2rem; font-size: 0.9rem; color: #4ade80; margin-top: 0.8rem; }
-    .track-note { font-size: 0.85rem; color: rgba(255,255,255,0.55); margin-top: 0.6rem; line-height: 1.6; }
-
-    /* ── STICKY LOGO (fixed) ── */
-    .pickr-logo-sticky {
-        position: fixed;
-        top: 0.85rem;
-        left: 1.2rem;
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        pointer-events: none;
-    }
-    .pickr-logo-sticky .wm-pick {
-        background: linear-gradient(180deg,#fff 0%,#e0e0e0 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 1.05rem;
-        font-weight: 900;
-        letter-spacing: -0.02em;
-    }
-    .pickr-logo-sticky .wm-accent {
-        background: linear-gradient(135deg,#a52525,#e04040 40%,#ff8a8a 60%,#a52525);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 1.05rem;
-        font-weight: 900;
-        letter-spacing: -0.02em;
-    }
-
-    /* ── FOOTER ── */
-    .foot-card { background: #16161e; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 1.5rem 2rem; margin-top: 2rem; text-align: center; }
-    .foot-name { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.8); }
-    .foot-email { font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-top: 0.2rem; }
-    .foot-disclaimer { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 1rem; line-height: 1.75; max-width: 700px; margin-left: auto; margin-right: auto; }
-    .foot-copy { font-size: 0.7rem; color: rgba(255,255,255,0.38); margin-top: 0.8rem; }
-    .foot-email a { color: #e08070 !important; text-decoration: none; border-bottom: 1px solid rgba(224,128,112,0.35); }
-    .foot-email a:hover { color: #ffb8a8 !important; border-bottom-color: rgba(255,184,168,0.6); }
-
-    /* ── DRIVER CARDS ── */
-    .driver-card { background: #111118; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 1rem 1.2rem; margin: 0.5rem 0; transition: all 0.2s ease; }
-    .driver-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .driver-card-name { font-weight: 700; color: #fff; font-size: 0.98rem; margin-bottom: 0.3rem; }
-    .driver-card-desc { font-size: 0.92rem; color: rgba(255,255,255,0.70); margin-bottom: 0.8rem; line-height: 1.7; }
-
-    /* ── HEADWIND / TAILWIND CARDS ── */
-    .hw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin: 0.8rem 0 1.2rem; }
-    .hw-card { background: #111118; border: 1px solid rgba(248,113,113,0.2); border-radius: 8px; padding: 1rem 1.2rem; }
-    .tw-card { background: #111118; border: 1px solid rgba(74,222,128,0.2);  border-radius: 8px; padding: 1rem 1.2rem; }
-    .hw-card-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #f87171; margin-bottom: 0.3rem; }
-    .tw-card-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #4ade80; margin-bottom: 0.3rem; }
-    .hw-card-desc  { font-size: 0.95rem; color: rgba(255,255,255,0.72); line-height: 1.65; margin-bottom: 0.6rem; }
-    .hw-prob-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); margin-bottom: 0.4rem; }
-    .tw-prob-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; background: rgba(74,222,128,0.1);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25);  margin-bottom: 0.4rem; }
-
-    /* ── SCENARIO CARDS ── */
-    .scenario-card { background: #16161e; border-radius: 8px; padding: 1.2rem 1.5rem; margin: 0.8rem 0; transition: all 0.2s ease; }
-    .scenario-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-
-    /* ── EXPECTED VALUE BAR ── */
-    .ev-bar {
-        display: flex;
-        justify-content: center;
-        gap: 2.5rem;
-        background: linear-gradient(180deg, rgba(14,14,20,1) 0%, rgba(18,18,26,1) 100%);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 8px;
-        padding: 1.2rem 1.5rem;
-        margin: 1rem 0;
-        flex-wrap: wrap;
-        animation: fadeInUp 0.5s ease-out;
-    }
-    .ev-item { text-align: center; }
-    .ev-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.62); margin-bottom: 0.3rem; }
-    .ev-val { font-size: 1.3rem; font-weight: 800; color: #fff; }
-    .ev-val.positive { color: #4ade80; }
-    .ev-val.negative { color: #f87171; }
-    .ev-val.neutral  { color: #fbbf24; }
-
-    /* ── CALLOUTS ── */
-    .plain-callout { background: rgba(139,26,26,0.14); border-left: 3px solid #8b1a1a; border-radius: 0 6px 6px 0; padding: 1rem 1.4rem; margin: 0.8rem 0; font-size: 0.92rem; color: rgba(255,255,255,0.7); line-height: 1.8; }
-    .plain-callout-label { font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: #d44040; margin-bottom: 0.4rem; }
-
-    /* ── PROBABILITY EXPLAINER ── */
-    .prob-explainer { background: #111118; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 1.4rem 1.6rem; margin: 1rem 0; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.8; }
-    .prob-explainer strong { color: rgba(255,255,255,0.95); }
-    .prob-math-row   { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; font-size: 0.85rem; }
-    .prob-math-chip  { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.25rem 0.6rem; color: #e0e0e0; font-weight: 600; }
-    .prob-math-chip.bull { border-color: rgba(74,222,128,0.4);  color: #4ade80; background: rgba(74,222,128,0.06); }
-    .prob-math-chip.bear { border-color: rgba(248,113,113,0.4); color: #f87171; background: rgba(248,113,113,0.06); }
-    .prob-math-chip.base { border-color: rgba(251,191,36,0.4);  color: #fbbf24; background: rgba(251,191,36,0.06); }
-    .prob-math-arrow { color: rgba(255,255,255,0.35); font-size: 0.9rem; }
-
-    /* ── FORM INPUTS ── */
-    .stTextInput > div > div > input {
-        background: #0e0e14 !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
-        border-radius: 6px !important;
-        color: #fff !important;
-        font-size: 1rem !important;
-        padding: 0.6rem 1rem !important;
-        caret-color: #fff !important;
-    }
-    .stTextInput > div > div > input:focus { border-color: #8b1a1a !important; box-shadow: 0 0 0 2px rgba(139,26,26,0.2) !important; }
-    .stTextInput > div > div > input::placeholder { color: rgba(255,255,255,0.4) !important; }
-    .stSelectbox > div > div { background: #0e0e14 !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 6px !important; color: #fff !important; }
-    .stSelectbox > div > div > div { color: #fff !important; }
-    .stSelectbox svg { fill: rgba(255,255,255,0.5) !important; }
-    .stNumberInput > div > div > input { background: #0e0e14 !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 6px !important; color: #fff !important; }
-
-    /* ── STATUS / ALERTS ── */
-    [data-testid="stStatusWidget"], .stAlert, .stStatus { background: #12121a !important; border: 1px solid rgba(255,255,255,0.08) !important; color: #e8e8e8 !important; border-radius: 6px !important; }
-    [data-testid="stStatusWidget"] p, [data-testid="stStatusWidget"] span, [data-testid="stStatusWidget"] div { color: #e8e8e8 !important; }
-    .stWarning, .stError, .stInfo { background: #0e0e14 !important; color: #e8e8e8 !important; }
-
-    /* ══════════════════════════════════════════════════════
-       BUTTON SYSTEM
-    ══════════════════════════════════════════════════════ */
-
-    /* ── Base reset for ALL buttons ── */
-    .stButton > button,
-    [data-testid="stBaseButton-primary"],
-    [data-testid="stBaseButton-secondary"],
-    [data-testid="stDownloadButton"] > button {
-        font-family: 'Inter', sans-serif !important;
-        font-size: 0.88rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.04em !important;
-        border-radius: 8px !important;
-        padding: 0.58rem 1.4rem !important;
-        min-height: 38px !important;
-        cursor: pointer !important;
-        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        position: relative !important;
-        overflow: hidden !important;
-        white-space: nowrap !important;
-    }
-
-    /* ── Shimmer layer ── */
-    .stButton > button::before,
-    [data-testid="stDownloadButton"] > button::before {
-        content: '' !important;
-        position: absolute !important;
-        top: 0 !important; left: -100% !important;
-        width: 60% !important; height: 100% !important;
-        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%) !important;
-        transition: left 0.55s ease !important;
-        pointer-events: none !important;
-    }
-    .stButton > button:hover::before,
-    [data-testid="stDownloadButton"] > button:hover::before {
-        left: 160% !important;
-    }
-
-    /* ── PRIMARY — red gradient CTA ── */
-    .stButton > button[kind="primary"],
-    [data-testid="stBaseButton-primary"] {
-        background: linear-gradient(145deg, #7a1515 0%, #b02828 55%, #c93535 100%) !important;
-        border: 1px solid rgba(180,40,40,0.55) !important;
-        color: #fff !important;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.35) !important;
-        box-shadow: 0 2px 8px rgba(139,26,26,0.45), 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10) !important;
-    }
-    .stButton > button[kind="primary"]:hover,
-    [data-testid="stBaseButton-primary"]:hover {
-        background: linear-gradient(145deg, #921a1a 0%, #cc2e2e 55%, #e03a3a 100%) !important;
-        border-color: rgba(210,55,55,0.65) !important;
-        box-shadow: 0 4px 18px rgba(160,30,30,0.55), 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12) !important;
-        transform: translateY(-1px) !important;
-        color: #fff !important;
-    }
-    .stButton > button[kind="primary"]:active,
-    [data-testid="stBaseButton-primary"]:active {
-        transform: translateY(0) scale(0.98) !important;
-        box-shadow: 0 1px 4px rgba(139,26,26,0.4), inset 0 1px 3px rgba(0,0,0,0.2) !important;
-    }
-
-    /* ── PRIMARY DISABLED ── */
-    .stButton > button[kind="primary"]:disabled,
-    [data-testid="stBaseButton-primary"]:disabled {
-        background: rgba(120,20,20,0.35) !important;
-        border-color: rgba(140,30,30,0.25) !important;
-        color: rgba(255,255,255,0.4) !important;
-        box-shadow: none !important;
-        cursor: not-allowed !important;
-        transform: none !important;
-        text-shadow: none !important;
-    }
-
-    /* ── SECONDARY — refined ghost ── */
-    .stButton > button[kind="secondary"],
-    [data-testid="stBaseButton-secondary"],
-    .stButton > button:not([kind]) {
-        background: rgba(255,255,255,0.05) !important;
-        border: 1px solid rgba(255,255,255,0.14) !important;
-        color: rgba(255,255,255,0.78) !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04) !important;
-    }
-    .stButton > button[kind="secondary"]:hover,
-    [data-testid="stBaseButton-secondary"]:hover,
-    .stButton > button:not([kind]):hover {
-        background: rgba(255,255,255,0.09) !important;
-        border-color: rgba(255,255,255,0.26) !important;
-        color: #fff !important;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-        transform: translateY(-1px) !important;
-    }
-    .stButton > button[kind="secondary"]:active,
-    [data-testid="stBaseButton-secondary"]:active {
-        transform: translateY(0) scale(0.98) !important;
-        background: rgba(255,255,255,0.07) !important;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2) !important;
-    }
-
-    /* ── DOWNLOAD BUTTON ── */
-    [data-testid="stDownloadButton"] > button {
-        background: rgba(45,55,72,0.55) !important;
-        border: 1px solid rgba(100,130,160,0.28) !important;
-        color: rgba(180,210,240,0.88) !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04) !important;
-    }
-    [data-testid="stDownloadButton"] > button:hover {
-        background: rgba(55,70,95,0.70) !important;
-        border-color: rgba(120,160,200,0.40) !important;
-        color: rgba(210,230,255,0.95) !important;
-        box-shadow: 0 3px 12px rgba(30,60,100,0.35), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-        transform: translateY(-1px) !important;
-    }
-
-    /* ── SIDEBAR BUTTONS ── */
-    [data-testid="stSidebar"] .stButton > button {
-        background: transparent !important;
-        border: 1px solid rgba(255,255,255,0.09) !important;
-        color: rgba(255,255,255,0.55) !important;
-        font-size: 0.78rem !important;
-        font-weight: 500 !important;
-        padding: 0.4rem 0.8rem !important;
-        box-shadow: none !important;
-        transform: none !important;
-        letter-spacing: normal !important;
-        text-shadow: none !important;
-    }
-    [data-testid="stSidebar"] .stButton > button:hover {
-        border-color: rgba(192,48,48,0.45) !important;
-        color: #fff !important;
-        background: rgba(139,26,26,0.12) !important;
-        transform: none !important;
-        box-shadow: none !important;
-    }
-    [data-testid="stSidebar"] .stButton > button::before { display: none !important; }
-    [data-testid="stVegaLiteChart"] { background: rgba(255,255,255,0.02) !important; border: 1px solid rgba(255,255,255,0.04) !important; border-radius: 6px !important; }
-
-    /* ── SIDEBAR ── */
-    [data-testid="stSidebar"] > div { background: #0a0a0f !important; border-right: 1px solid rgba(255,255,255,0.05) !important; }
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: rgba(255,255,255,0.7) !important; }
-
-    /* ── TABS ── */
-    .stTabs [data-baseweb="tab-list"] { background: transparent !important; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
-    .stTabs [data-baseweb="tab"] { color: rgba(255,255,255,0.45) !important; font-size: 0.82rem !important; font-weight: 600 !important; padding: 0.6rem 1.2rem !important; border-bottom: 2px solid transparent !important; transition: all 0.2s ease !important; }
-    .stTabs [data-baseweb="tab"]:hover { color: rgba(255,255,255,0.7) !important; }
-    .stTabs [aria-selected="true"] { color: #fff !important; border-bottom-color: #e03030 !important; }
-    .stTabs [data-baseweb="tab-panel"] { padding-top: 1rem !important; }
-
-    /* ── ANIMATIONS ── */
-    @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #080810; }
-    ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #44445a; }
-
-    /* ── MOBILE RESPONSIVE ── */
-    @media (max-width: 768px) {
-        .hero h1 { font-size: 2.8rem !important; }
-        .hero .desc { font-size: 0.88rem; padding: 0 1rem; }
-        .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
-        .rpt-card { padding: 1.2rem 1rem !important; }
-        .rec-bar { gap: 1.2rem !important; flex-wrap: wrap !important; padding: 1rem 0.5rem !important; }
-        .rb-val  { font-size: 1.2rem !important; }
-        .rb-label { font-size: 0.58rem !important; }
-        .ev-bar  { gap: 1.2rem !important; flex-wrap: wrap !important; padding: 1rem !important; }
-        .ev-val  { font-size: 1rem !important; }
-        .stats-row { gap: 1.5rem !important; flex-wrap: wrap !important; }
-        .sr-num  { font-size: 1.2rem !important; }
-        .pt { font-size: 0.75rem !important; }
-        .pt th { font-size: 0.55rem !important; padding: 0.4rem !important; }
-        .pt td { padding: 0.4rem !important; }
-        .prose { font-size: 0.9rem !important; }
-        .exec-summary { padding: 1rem !important; font-size: 0.9rem !important; }
-        .rpt-head h2 { font-size: 1.6rem !important; }
-        .rpt-head .meta { font-size: 0.72rem !important; }
-        .thesis-grid { grid-template-columns: 1fr !important; }
-        .hiw-grid { flex-direction: column !important; align-items: center !important; }
-        .hw-grid { grid-template-columns: 1fr !important; }
-        div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
-    }
-    @media (max-width: 480px) {
-        .hero h1 { font-size: 2.2rem !important; }
-        .rb-val  { font-size: 1rem !important; }
-        .ev-val  { font-size: 0.9rem !important; }
-        .rpt-head h2 { font-size: 1.3rem !important; }
-        .pt { display: block !important; overflow-x: auto !important; }
-    }
-            /* ── Kill sidebar entirely ── */
-    [data-testid="stSidebar"],
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"],
-    button[aria-label="Open sidebar"],
-    button[aria-label="Close sidebar"] {
-        display: none !important;
-        width: 0 !important;
-        min-width: 0 !important;
-        max-width: 0 !important;
-        overflow: hidden !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # AUTHENTICATION
@@ -711,7 +98,6 @@ st.markdown("""
 
 from auth import render_auth_modal
 
-# ── Session-state defaults for auth ──
 for _k in ["authenticated", "username", "user_name", "user_email", "is_guest", "show_auth"]:
     if _k not in st.session_state:
         st.session_state[_k] = False if _k in ("authenticated","is_guest","show_auth") else ""
@@ -721,7 +107,8 @@ if "initialized" not in st.session_state:
 
 if st.session_state.get("show_auth"):
     render_auth_modal()
-    st.stop()
+    if st.session_state.pop("_just_authed", False):
+        st.rerun()
 
 if st.query_params.get("_si") == "1":
     try:
@@ -737,99 +124,122 @@ username = st.session_state.get("username", "")
 is_guest = st.session_state.get("is_guest", False)
 
 # ══════════════════════════════════════════════════════════════
-# TOP BAR (replaces sidebar)
+# TOP BAR
 # ══════════════════════════════════════════════════════════════
 
 if authenticated:
-    _display_name = f"Guest" if is_guest else name
+    _display_name = "Guest" if is_guest else name
     _report_count = st.session_state.get('report_count', 0)
-    _limit = 1 if is_guest else 3
-    _count_color = "#4ade80" if _report_count < _limit else "#f87171"
+    _is_admin     = not is_guest and username.lower() in {"mayukhk"}
+    _limit        = 1 if is_guest else (None if _is_admin else 3)
+    _limit_str    = "∞" if _is_admin else str(_limit)
+    _count_color  = "#c084fc" if _is_admin else ("#4ade80" if _report_count < (_limit or 999) else "#f87171")
+    _initial      = (name[0].upper() if name else "G")
 
-    # ── Visual bar: one clean HTML strip ──
-    st.markdown(f'''
-    <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:0.5rem 1rem;margin:-0.5rem 0 0.8rem;
-        background:rgba(255,255,255,0.025);
-        border:1px solid rgba(255,255,255,0.06);border-radius:8px;">
-        <div style="display:flex;align-items:center;gap:0.8rem;">
-            <div style="width:26px;height:26px;border-radius:50%;
-                background:linear-gradient(135deg,#8b1a1a,#c03030);
-                display:flex;align-items:center;justify-content:center;
-                font-size:0.6rem;font-weight:800;color:#fff;">
-                {name[0].upper() if name else "G"}</div>
-            <span style="font-size:0.82rem;color:rgba(255,255,255,0.6);font-weight:500;">
-                {_display_name}</span>
-            <span style="font-size:0.7rem;color:rgba(255,255,255,0.3);">·</span>
-            <span style="font-size:0.72rem;color:{_count_color};font-weight:600;">
-                {_report_count}/{_limit} reports</span>
+    _has_report = bool(st.session_state.get("cached_report"))
+    if _has_report:
+        _topbar_col, _back_col, _signout_col = st.columns([4.6, 1.4, 0.85])
+    else:
+        _topbar_col, _back_col, _signout_col = st.columns([6, 0.001, 0.85])
+
+    with _topbar_col:
+        st.markdown(f'''
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+            gap:0.5rem;padding:0.45rem 1rem;margin:-0.5rem 0 0.5rem;
+            position:sticky;top:0;z-index:100;
+            backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            background:linear-gradient(90deg,rgba(12,12,18,0.96) 0%,rgba(14,14,20,0.96) 100%);
+            border:1px solid rgba(255,255,255,0.07);border-radius:8px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.25);min-height:44px;">
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                <div style="width:26px;height:26px;border-radius:50%;flex-shrink:0;
+                    background:linear-gradient(135deg,#8b1a1a,#c03030);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:0.6rem;font-weight:800;color:#fff;
+                    box-shadow:0 0 0 2px rgba(192,48,48,0.25);">{_initial}</div>
+                <span style="font-size:0.82rem;color:rgba(255,255,255,0.7);font-weight:600;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;"
+                    title="{_display_name}">{_display_name}</span>
+                <span style="font-size:0.7rem;color:rgba(255,255,255,0.2);flex-shrink:0;">·</span>
+                <span style="font-size:0.72rem;font-weight:700;color:{_count_color};
+                    background:rgba(255,255,255,0.04);padding:0.1rem 0.45rem;
+                    border-radius:3px;border:1px solid rgba(255,255,255,0.06);
+                    white-space:nowrap;">{_report_count}/{_limit_str} reports</span>
+            </div>
+            <div style="font-size:0.62rem;color:rgba(255,255,255,0.2);font-weight:700;
+                text-transform:uppercase;letter-spacing:0.12em;flex-shrink:0;">
+                Pick<span style="color:rgba(192,48,48,0.6);">R</span></div>
         </div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,0.25);font-weight:600;
-            text-transform:uppercase;letter-spacing:0.1em;">
-            Pick<span style="color:#c03030;">R</span></div>
-    </div>
-    ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
 
-    # ── Sign out: tiny right-aligned button ──
-    _, _, _, _, signout_col = st.columns([1, 1, 1, 1, 0.4])
-    with signout_col:
+    with _back_col:
+        if _has_report:
+            st.markdown('<div style="padding-top:0.05rem;">', unsafe_allow_html=True)
+            if st.button("← New Search", key="topbar_clear_btn", use_container_width=True):
+                st.session_state.cached_report = None
+                st.session_state.pop("resolved", None)
+                st.session_state.pop("resolved_source", None)
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    pass
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with _signout_col:
+        st.markdown('<div class="pickr-signout-col" style="padding-top:0.05rem;">', unsafe_allow_html=True)
         if st.button("Sign out", key="logout_btn", use_container_width=True):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── Past reports: horizontal chip row ──
+    # ── Past reports history dropdown ──
     try:
         from report_store import load_user_index, load_report as load_saved_report
         past_reports = load_user_index(username)
         if past_reports and len(past_reports) > 0:
-            # Build visual row in HTML
-            chips_html = ""
-            display_reports = list(reversed(past_reports[-6:]))
+            display_reports = list(reversed(past_reports[-10:]))
+
+            _opts = ["History"]
+            _rids = [None]
             for r in display_reports:
-                rec = r.get("recommendation", "")
-                tk  = r["ticker"].replace(".NS","").replace(".BO","")
-                rc  = {"BUY": "#4ade80", "PASS": "#f87171"}.get(rec, "#fbbf24")
-                ret = r.get("expected_return")
-                ret_str = f"{ret*100:+.0f}%" if ret else ""
-                chips_html += (
-                    f'<div style="display:flex;flex-direction:column;align-items:center;'
-                    f'gap:0.15rem;min-width:52px;">'
-                    f'<span style="font-size:0.78rem;font-weight:800;color:#fff;">{tk}</span>'
-                    f'<span style="font-size:0.6rem;font-weight:700;color:{rc};">'
-                    f'{rec} {ret_str}</span>'
-                    f'</div>'
-                )
+                tk      = clean_ticker(r["ticker"])
+                rec     = r.get("recommendation", "")
+                ret     = r.get("expected_return")
+                ret_str = f"  {ret*100:+.0f}%" if ret is not None else ""
+                date_str = r.get("date", "")
+                if date_str and len(date_str) >= 7:
+                    date_str = date_str[5:]  # MM-DD
+                _opts.append(f"{tk}  ·  {rec}{ret_str}  ·  {date_str}")
+                _rids.append(r.get("report_id", f"{r['ticker']}_{r.get('date','')}"))
 
-            st.markdown(f'''
-            <div style="display:flex;align-items:center;gap:1.2rem;
-                padding:0.5rem 0.8rem;margin:0.2rem 0 0.5rem;
-                border-top:1px solid rgba(255,255,255,0.04);overflow-x:auto;">
-                <span style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
-                    letter-spacing:0.12em;color:rgba(255,255,255,0.2);white-space:nowrap;
-                    flex-shrink:0;">History</span>
-                {chips_html}
-            </div>
-            ''', unsafe_allow_html=True)
-
-            # Interactive buttons below (small, subtle)
-            chip_cols = st.columns(len(display_reports))
-            for idx, r in enumerate(display_reports):
-                tk  = r["ticker"].replace(".NS","").replace(".BO","")
-                rid = r.get("report_id", f"{r['ticker']}_{r['date']}")
-                with chip_cols[idx]:
-                    if st.button(f"Load", key=f"load_{rid}", use_container_width=True):
-                        report_data = load_saved_report(username, rid)
-                        if report_data:
-                            st.session_state.cached_report = {
-                                "ticker": report_data["ticker"],
-                                "metrics": report_data["metrics"],
-                                "analysis": report_data["analysis"],
-                                "data": {"hist": None, "info": {}, "inc": None, "qinc": None, "bs": None, "cf": None, "news": []},
-                            }
-                            st.rerun()
-                        else:
-                            st.toast("Could not load report")
+            sel_label = st.selectbox(
+                "History", _opts,
+                key="history_select",
+                label_visibility="collapsed",
+            )
+            if sel_label and sel_label != _opts[0]:
+                sel_idx = _opts.index(sel_label)
+                rid = _rids[sel_idx]
+                report_data = load_saved_report(username, rid)
+                if report_data:
+                    st.session_state.cached_report = {
+                        "ticker": report_data["ticker"],
+                        "metrics": report_data["metrics"],
+                        "analysis": report_data["analysis"],
+                        "data": {"hist": None, "info": {}, "inc": None, "qinc": None,
+                                 "bs": None, "cf": None, "news": []},
+                    }
+                    try:
+                        st.query_params["ticker"] = report_data["ticker"]
+                    except Exception:
+                        pass
+                    st.session_state["history_select"] = _opts[0]
+                    st.rerun()
+                else:
+                    st.toast("Could not load that report.", icon="⚠️")
+                    st.session_state["history_select"] = _opts[0]
     except Exception:
         pass
 
@@ -976,15 +386,12 @@ def render(ticker, m, a, data):
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
     # ── Masthead ──
-    _DOMAIN_MAP = {
-        "NVDA":"nvidia.com","AAPL":"apple.com","MSFT":"microsoft.com","AMZN":"amazon.com",
-        "GOOGL":"google.com","META":"meta.com","TSLA":"tesla.com","NFLX":"netflix.com",
-        "ADBE":"adobe.com","INTU":"intuit.com","NOW":"servicenow.com","PYPL":"paypal.com",
-        "AVGO":"broadcom.com","PH":"parker.com","BHARTIARTL":"airtel.in","DRREDDY":"drreddys.com",
-        "RELIANCE":"ril.com","TCS":"tcs.com","INFY":"infosys.com",
-    }
-    _tk_clean = ticker.replace(".NS","").replace(".BO","").replace(".L","")
-    _domain   = _DOMAIN_MAP.get(_tk_clean, f"{_tk_clean.lower()}.com")
+    _tk_clean = clean_ticker(ticker)
+    _website  = data.get("info", {}).get("website", "") if data else ""
+    if _website and _tk_clean not in DOMAIN_MAP:
+        _domain = _website.split("//")[-1].split("/")[0].replace("www.", "").strip() or f"{_tk_clean.lower()}.com"
+    else:
+        _domain = DOMAIN_MAP.get(_tk_clean, f"{_tk_clean.lower()}.com")
     _ini      = (company[:1] if company else ticker[:1]).upper()
     _logo     = (
         f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
@@ -1013,6 +420,7 @@ def render(ticker, m, a, data):
     rc       = "buy" if rec == "BUY" else ("pass" if rec == "PASS" else "watch")
     ev       = sm.get("expected_value", 0)
     exp_ret  = sm.get("expected_return", 0)
+    base_ret = sm.get("scenarios", {}).get("base", {}).get("implied_return", exp_ret)
     prob_pos = sm.get("prob_positive_return", 0)
     try:
         _price = float(m.get("current_price") or 0)
@@ -1047,17 +455,19 @@ def render(ticker, m, a, data):
         f'<div style="position:sticky;top:0;z-index:100;'
         f'background:rgba(10,10,16,0.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);'
         f'border-bottom:1px solid rgba(255,255,255,0.07);padding:0.55rem 1.5rem;margin:0 -2.5rem 1rem;">'
-        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-        f'<div style="display:flex;align-items:center;gap:0.75rem;">'
-        f'<span style="font-weight:800;font-size:0.95rem;color:#fff;">{strip_html(company)}</span>'
-        f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.06);padding:0.1rem 0.45rem;border-radius:4px;font-weight:600;">{ticker}</span>'
-        f'<span style="font-size:0.92rem;color:#fff;font-weight:700;">{_price_str}</span>'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;overflow:hidden;">'
+        f'<div style="display:flex;align-items:center;gap:0.75rem;min-width:0;overflow:hidden;">'
+        f'<span style="font-weight:800;font-size:0.95rem;color:#fff;white-space:nowrap;'
+        f'overflow:hidden;text-overflow:ellipsis;max-width:200px;">{strip_html(company)}</span>'
+        f'<span style="font-size:0.78rem;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.06);'
+        f'padding:0.1rem 0.45rem;border-radius:4px;font-weight:600;flex-shrink:0;">{ticker}</span>'
+        f'<span style="font-size:0.92rem;color:#fff;font-weight:700;flex-shrink:0;">{_price_str}</span>'
         f'{_spark}</div>'
-        f'<div style="display:flex;align-items:center;gap:1.5rem;">'
+        f'<div style="display:flex;align-items:center;gap:1.5rem;flex-shrink:0;">'
         f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">Verdict</div>'
         f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{rec}</div></div>'
-        f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">Exp. Return</div>'
-        f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{exp_ret*100:+.1f}%</div></div>'
+        f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">Base Case</div>'
+        f'<div style="font-size:0.97rem;font-weight:800;color:{_rec_color};">{base_ret*100:+.1f}%</div></div>'
         f'<div style="text-align:right;"><div style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:rgba(255,255,255,0.55);margin-bottom:0.1rem;">EV</div>'
         f'<div style="font-size:0.97rem;font-weight:700;color:rgba(255,255,255,0.9);">{sym}{ev:,.2f}</div></div>'
         f'</div></div></div>',
@@ -1069,17 +479,17 @@ def render(ticker, m, a, data):
         <div class="rb-item"><div class="rb-label">Recommendation</div><div class="rb-val {rc}">{rec}</div></div>
         <div class="rb-item"><div class="rb-label">Conviction</div><div class="rb-val {rc}">{conv}</div></div>
         <div class="rb-item"><div class="rb-label">Expected Value</div><div class="rb-val {rc}">{sym}{ev:,.2f}</div></div>
-        <div class="rb-item"><div class="rb-label">Expected Return</div><div class="rb-val {rc}">{exp_ret*100:+.1f}%</div></div>
-        <div class="rb-item"><div class="rb-label">Chance of Gain</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
+        <div class="rb-item"><div class="rb-label">Base Case Return</div><div class="rb-val {rc}">{base_ret*100:+.1f}%</div></div>
+        <div class="rb-item" title="Probability mass of scenarios whose price target exceeds today's price. With 3 discrete scenarios this only takes values in &#123;0, P(bull), P(bull)+P(base), 1&#125; — it is NOT a continuous probability of a positive 12-month return."><div class="rb-label">P(Target &gt; Today)</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
     </div>''', unsafe_allow_html=True)
 
     if a.get("investment_thesis"):
-        st.markdown(f'<div class="exec-summary">{strip_html(a["investment_thesis"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="exec-summary">{clean_latex(strip_html(a["investment_thesis"]))}</div>', unsafe_allow_html=True)
     if a.get("rec_override_reason"):
-        st.markdown(f'<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:1rem 1.2rem;margin:0.8rem 0;font-size:0.88rem;color:#fbbf24;line-height:1.6;">{strip_html(a["rec_override_reason"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:1rem 1.2rem;margin:0.8rem 0;font-size:0.88rem;color:#fbbf24;line-height:1.6;">{clean_latex(strip_html(a["rec_override_reason"]))}</div>', unsafe_allow_html=True)
     if a.get("business_overview"):
         st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["business_overview"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["business_overview"]))}</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sec">Key Metrics <span class="vtag">Python-Verified</span></div>', unsafe_allow_html=True)
     c1,c2,c3,c4,c5,c6 = st.columns(6)
@@ -1142,17 +552,31 @@ def render(ticker, m, a, data):
     segments = a.get("segments", [])
     if segments:
         st.markdown('<div class="sec">Revenue Segmentation</div>', unsafe_allow_html=True)
-        seg_header = "<tr><th>Segment</th><th>Revenue</th><th>% of Total</th><th>Gross Margin</th><th>YoY Growth</th><th>Trajectory</th><th>Primary Driver</th></tr>"
+        seg_header = "<tr><th>Segment</th><th>Revenue</th><th>% of Total</th><th>Gross Margin</th><th>YoY Growth</th><th>Trajectory</th></tr>"
         seg_rows = ""
+        _driver_style = 'font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:400;margin-top:0.25rem;line-height:1.5;'
         for seg in segments:
             traj = strip_html(seg.get("trajectory", ""))
             tcolor = "#4ade80" if "accel" in traj.lower() else ("#f87171" if "decel" in traj.lower() else "#fbbf24")
-            seg_rows += f'<tr><td style="font-weight:600;">{strip_html(seg.get("name",""))}</td><td>{fmt_c(seg.get("current_revenue"), cur)}</td><td>{fmt_p(seg.get("pct_of_total"))}</td><td>{fmt_p(seg.get("gross_margin"))}</td><td>{fmt_p(seg.get("yoy_growth"))}</td><td style="color:{tcolor};">{traj}</td><td style="color:rgba(255,255,255,0.5);font-size:0.85rem;">{strip_html(seg.get("primary_driver",""))}</td></tr>'
-        st.markdown(f'<table class="pt"><thead>{seg_header}</thead><tbody>{seg_rows}</tbody></table>', unsafe_allow_html=True)
+            _driver = strip_html(seg.get("primary_driver", ""))
+            _driver_html = f'<div style="{_driver_style}">{_driver}</div>' if _driver else ""
+            seg_rows += (
+                f'<tr>'
+                f'<td style="font-weight:600;min-width:160px;">'
+                f'{strip_html(seg.get("name",""))}{_driver_html}'
+                f'</td>'
+                f'<td class="nowrap">{fmt_c(seg.get("current_revenue"), cur)}</td>'
+                f'<td class="nowrap">{fmt_p(seg.get("pct_of_total"))}</td>'
+                f'<td class="nowrap">{fmt_p(seg.get("gross_margin"))}</td>'
+                f'<td class="nowrap">{fmt_p(seg.get("yoy_growth"))}</td>'
+                f'<td class="nowrap" style="color:{tcolor};">{traj}</td>'
+                f'</tr>'
+            )
+        st.markdown(pt_table(seg_header, seg_rows), unsafe_allow_html=True)
 
     if a.get("revenue_architecture"):
         st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["revenue_architecture"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["revenue_architecture"]))}</div>', unsafe_allow_html=True)
 
     conc = a.get("concentration", {})
     if conc:
@@ -1180,13 +604,13 @@ def render(ticker, m, a, data):
 
     if a.get("growth_drivers"):
         st.markdown('<div class="sec">Growth Drivers &amp; Competitive Moats</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["growth_drivers"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["growth_drivers"]))}</div>', unsafe_allow_html=True)
     if a.get("margin_analysis"):
         st.markdown('<div class="sec">Margin Analysis</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["margin_analysis"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["margin_analysis"]))}</div>', unsafe_allow_html=True)
     if a.get("financial_health"):
         st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["financial_health"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["financial_health"]))}</div>', unsafe_allow_html=True)
 
     sector    = m.get("sector", "")
     llm_peers = a.get("peer_tickers", [])
@@ -1202,30 +626,59 @@ def render(ticker, m, a, data):
                        "Rev Gr.": fmt_p(m.get("revenue_growth"))}
             hds  = list(cur_row.keys())
             th   = "".join(f"<th>{hd}</th>" for hd in hds)
-            tr_c = "<tr class='hl'>" + "".join(f"<td>{cur_row[hd]}</td>" for hd in hds) + "</tr>"
-            tr_p = "".join("<tr>" + "".join(f"<td>{pr.get(hd, '-')}</td>" for hd in hds) + "</tr>" for pr in peers)
-            st.markdown(f'<table class="pt"><thead><tr>{th}</tr></thead><tbody>{tr_c}{tr_p}</tbody></table>', unsafe_allow_html=True)
+            tr_c = "<tr class='hl'>" + "".join(f"<td class='nowrap'>{cur_row[hd]}</td>" for hd in hds) + "</tr>"
+            tr_p = "".join(
+                "<tr>" + "".join(f"<td class='nowrap'>{pr.get(hd, '-')}</td>" for hd in hds) + "</tr>"
+                for pr in peers
+            )
+            st.markdown(pt_table(f"<tr>{th}</tr>", tr_c + tr_p), unsafe_allow_html=True)
 
     if a.get("competitive_position"):
         st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["competitive_position"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["competitive_position"]))}</div>', unsafe_allow_html=True)
 
+    # ── Headwinds & Tailwinds ──
+    # FIX: This block was dedented out of render() in the original, making a, cur, sym
+    #      undefined at module level. It is now correctly inside render().
     headwinds = a.get("headwinds", [])
     tailwinds = a.get("tailwinds", [])
     if headwinds or tailwinds:
         st.markdown('<div class="sec">What Could Go Wrong &amp; What Could Go Right <span class="vtag">Quantified</span></div>', unsafe_allow_html=True)
         if a.get("headwind_narrative"):
-            st.markdown(f'<div class="prose">{strip_html(a["headwind_narrative"])}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["headwind_narrative"]))}</div>', unsafe_allow_html=True)
         if headwinds:
-            hw_header = "<tr><th>Headwind</th><th>Prob.</th><th>Revenue at Risk</th><th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>"
-            hw_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(hw.get("name",""))}</td><td>{fmt_p(hw.get("probability"))}</td><td>{fmt_c(hw.get("revenue_at_risk"), cur)}</td><td>{sym}{safe_float(hw.get("bull_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(hw.get("base_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(hw.get("bear_eps_impact",0)):+.2f}</td></tr>' for hw in headwinds)
-            st.markdown(f'<table class="pt"><thead>{hw_header}</thead><tbody>{hw_rows}</tbody></table>', unsafe_allow_html=True)
+            hw_header = "<tr><th>Headwind</th><th>Prob.</th><th>Rev. at Risk</th><th>Bull EPS</th><th>Base EPS</th><th>Bear EPS</th></tr>"
+            # FIX: was using `tw` variable inside headwind loop — corrected to `hw`
+            # FIX: fmt_eps_impact now receives `sym` and correct is_headwind=True for headwinds
+            hw_rows = "".join(
+                f'<tr>'
+                f'<td style="font-weight:600;">{strip_html(hw.get("name",""))}</td>'
+                f'<td class="nowrap">{fmt_p(hw.get("probability"))}</td>'
+                f'<td class="nowrap">{fmt_c(hw.get("revenue_at_risk"), cur)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(hw.get("bull_eps_impact", 0), sym, is_headwind=True)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(hw.get("base_eps_impact", 0), sym, is_headwind=True)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(hw.get("bear_eps_impact", 0), sym, is_headwind=True)}</td>'
+                f'</tr>'
+                for hw in headwinds
+            )
+            st.markdown(pt_table(hw_header, hw_rows), unsafe_allow_html=True)
         if a.get("tailwind_narrative"):
-            st.markdown(f'<div class="prose" style="margin-top:1rem;">{strip_html(a["tailwind_narrative"])}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="prose" style="margin-top:1rem;">{clean_latex(strip_html(a["tailwind_narrative"]))}</div>', unsafe_allow_html=True)
         if tailwinds:
-            tw_header = "<tr><th>Tailwind</th><th>Prob.</th><th>Revenue Opportunity</th><th>Bull Impact</th><th>Base Impact</th><th>Bear Impact</th></tr>"
-            tw_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(tw.get("name",""))}</td><td>{fmt_p(tw.get("probability"))}</td><td>{fmt_c(tw.get("revenue_opportunity"), cur)}</td><td>{sym}{safe_float(tw.get("bull_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(tw.get("base_eps_impact",0)):+.2f}</td><td>{sym}{safe_float(tw.get("bear_eps_impact",0)):+.2f}</td></tr>' for tw in tailwinds)
-            st.markdown(f'<table class="pt"><thead>{tw_header}</thead><tbody>{tw_rows}</tbody></table>', unsafe_allow_html=True)
+            tw_header = "<tr><th>Tailwind</th><th>Prob.</th><th>Rev. Opportunity</th><th>Bull EPS</th><th>Base EPS</th><th>Bear EPS</th></tr>"
+            # FIX: fmt_eps_impact now receives `sym` — was missing in original tailwind call
+            tw_rows = "".join(
+                f'<tr>'
+                f'<td style="font-weight:600;">{strip_html(tw.get("name",""))}</td>'
+                f'<td class="nowrap">{fmt_p(tw.get("probability"))}</td>'
+                f'<td class="nowrap">{fmt_c(tw.get("revenue_opportunity"), cur)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(tw.get("bull_eps_impact", 0), sym, is_headwind=False)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(tw.get("base_eps_impact", 0), sym, is_headwind=False)}</td>'
+                f'<td class="nowrap">{fmt_eps_impact(tw.get("bear_eps_impact", 0), sym, is_headwind=False)}</td>'
+                f'</tr>'
+                for tw in tailwinds
+            )
+            st.markdown(pt_table(tw_header, tw_rows), unsafe_allow_html=True)
 
     macro_drivers = a.get("macro_drivers", [])
     if macro_drivers:
@@ -1237,15 +690,17 @@ def render(ticker, m, a, data):
             The percentages show how likely each outcome is.
         </div>''', unsafe_allow_html=True)
         for d in macro_drivers:
-            dname    = strip_html(d.get("name", ""))
+            dname     = strip_html(d.get("name", ""))
             dmeasures = strip_html(d.get("measures", ""))
-            bull_p   = safe_float(d.get("bull_outcome", {}).get("probability"))
-            base_p   = safe_float(d.get("base_outcome", {}).get("probability"))
-            bear_p   = safe_float(d.get("bear_outcome", {}).get("probability"))
-            bull_n   = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
-            base_n   = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
-            bear_n   = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
-            bw = max(2, min(100, round(bull_p*100))); basew = max(2, min(100, round(base_p*100))); bearw = max(2, min(100, round(bear_p*100)))
+            bull_p    = safe_float(d.get("bull_outcome", {}).get("probability"))
+            base_p    = safe_float(d.get("base_outcome", {}).get("probability"))
+            bear_p    = safe_float(d.get("bear_outcome", {}).get("probability"))
+            bull_n    = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
+            base_n    = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
+            bear_n    = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
+            bw   = max(2, min(100, round(bull_p*100)))
+            basew = max(2, min(100, round(base_p*100)))
+            bearw = max(2, min(100, round(bear_p*100)))
             st.markdown(f'''<div class="driver-card">
                 <div class="driver-card-name">{dname}</div>
                 <div class="driver-card-desc">{dmeasures}</div>
@@ -1273,13 +728,41 @@ def render(ticker, m, a, data):
     fbe = prob_out.get("bear", 0)
     if fb or fba or fbe:
         st.markdown('<div class="sec">How We Weighted the Scenarios</div>', unsafe_allow_html=True)
-        n_drivers = len(macro_drivers)
+        bull_score = prob_out.get("bull_score")
+        signal_detail = prob_out.get("signal_detail", []) or []
+        active_signals = [s for s in signal_detail
+                          if isinstance(s, dict) and s.get("delta") not in (0, 0.0, None)]
+        score_str = f"{bull_score:.1f}/100" if bull_score is not None else "N/A"
         st.markdown(f'''<div class="plain-callout">
-            <div class="plain-callout-label">From factors to scenario weights</div>
-            We analyzed <strong>{n_drivers} key factor{"s" if n_drivers != 1 else ""}</strong> above and combined their probabilities to arrive at these scenario weights:
+            <div class="plain-callout-label">Weights derived from fundamentals scoring</div>
+            Scenario weights come from an 8-signal scoring engine on the company's fundamentals
+            (EPS revision momentum, revenue and earnings CAGR, operating margin, PEG, debt-to-equity,
+            beta, and price vs 200-day MA). Bull score: <strong>{score_str}</strong>
+            ({len(active_signals)} of {len(signal_detail)} signals materially active).
+            The qualitative factor distributions shown above are narrative context; they do not
+            mathematically drive the weights below.
         </div>''', unsafe_allow_html=True)
+        if active_signals:
+            with st.expander("Show signal breakdown"):
+                for sig in active_signals:
+                    name  = strip_html(str(sig.get("signal", "")))
+                    delta = sig.get("delta", 0) or 0
+                    note  = strip_html(str(sig.get("note", "")))
+                    color = "#4ade80" if delta > 0 else "#f87171"
+                    sign  = "+" if delta > 0 else ""
+                    st.markdown(
+                        f'<div style="display:flex;justify-content:space-between;'
+                        f'font-size:0.82rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        f'<span style="color:rgba(255,255,255,0.7);">{name}</span>'
+                        f'<span style="color:rgba(255,255,255,0.45);font-size:0.78rem;">{note}</span>'
+                        f'<span style="color:{color};font-weight:700;min-width:3rem;text-align:right;">{sign}{delta:.1f}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
         bull_pct = f"{fb*100:.0f}"; base_pct = f"{fba*100:.0f}"; bear_pct = f"{fbe*100:.0f}"
-        _bw = max(2, min(96, round(fb*100))); _baw = max(2, min(96, round(fba*100))); _bew = max(2, min(96, round(fbe*100)))
+        _bw  = max(2, min(96, round(fb*100)))
+        _baw = max(2, min(96, round(fba*100)))
+        _bew = max(2, min(96, round(fbe*100)))
         st.markdown(
             f'<div style="margin:1.2rem 0 1.4rem;">'
             f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">'
@@ -1308,7 +791,7 @@ def render(ticker, m, a, data):
     # ── Scenario tabs ──
     st.markdown('<div class="sec">Scenario Analysis <span class="vtag">Segment-Level Builds</span></div>', unsafe_allow_html=True)
     if a.get("scenario_commentary"):
-        st.markdown(f'<div class="prose">{strip_html(a["scenario_commentary"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["scenario_commentary"]))}</div>', unsafe_allow_html=True)
 
     scenarios = sm.get("scenarios", {})
     bull_s = scenarios.get("bull", {}); base_s = scenarios.get("base", {}); bear_s = scenarios.get("bear", {})
@@ -1321,15 +804,21 @@ def render(ticker, m, a, data):
         s = scenarios.get(sname, {})
         if not s: continue
         with tab:
-            prob = s.get("probability",0)*100; pt = s.get("price_target",0)
-            ret  = s.get("implied_return",0)*100; eps = s.get("projected_eps",0)
-            pe   = s.get("pe_multiple",0); bpe = s.get("breakeven_pe")
-            op_m = s.get("operating_margin",0); rev_g = s.get("revenue_growth",0)
-            total_rev = s.get("total_revenue",0); fcf_y = s.get("fcf_yield_at_target")
-            narrative  = strip_html(s.get("narrative","")); pe_rat = strip_html(s.get("pe_rationale",""))
-            margin_rat = strip_html(s.get("margin_rationale","")); eps_flag = s.get("eps_flag")
-            hw_rev = s.get("total_headwind_revenue",0); hw_eps = s.get("total_headwind_eps",0)
-            tw_rev = s.get("total_tailwind_revenue",0); tw_eps = s.get("total_tailwind_eps",0)
+            prob      = s.get("probability", 0) * 100
+            pt        = s.get("price_target", 0)
+            ret       = s.get("implied_return", 0) * 100
+            eps       = s.get("projected_eps", 0)
+            pe        = s.get("pe_multiple", 0)
+            bpe       = s.get("breakeven_pe")
+            op_m      = s.get("operating_margin", 0)
+            total_rev = s.get("total_revenue", 0)
+            fcf_y     = s.get("fcf_yield_at_target")
+            # FIX: narrative and pe_rat were on a broken split line — now correct single assignments
+            narrative  = clean_latex(strip_html(s.get("narrative", "")))
+            pe_rat     = strip_html(s.get("pe_rationale", ""))
+            margin_rat = strip_html(s.get("margin_rationale", ""))
+            eps_flag   = s.get("eps_flag")
+
             st.markdown(f'''<div style="text-align:center;padding:1.5rem 0 1rem;">
                 <div style="font-size:2.2rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
                 <div style="font-size:1.1rem;font-weight:700;color:{scolor};margin-top:0.3rem;">{ret:+.1f}% return</div>
@@ -1363,18 +852,42 @@ def render(ticker, m, a, data):
                 if pe_rat:     st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;"><strong style="color:rgba(255,255,255,0.7);">Valuation:</strong> {pe_rat}</div>', unsafe_allow_html=True)
                 if bpe:        st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:0.5rem;">Breakeven P/E: <strong style="color:#fff;">{bpe:.1f}x</strong></div>', unsafe_allow_html=True)
                 if fcf_y:      st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);">FCF Yield at target: <strong style="color:#fff;">{fcf_y*100:.1f}%</strong></div>', unsafe_allow_html=True)
-                if eps_flag:   st.markdown(f'<div style="font-size:0.82rem;color:#fbbf24;margin-top:0.5rem;font-style:italic;">{strip_html(eps_flag)}</div>', unsafe_allow_html=True)
+                # FIX: was `{clean_latex(strip_html(eps_flag)}</div>` — mismatched brackets, now fixed
+                if eps_flag:   st.markdown(f'<div style="font-size:0.82rem;color:#fbbf24;margin-top:0.5rem;font-style:italic;">{clean_latex(strip_html(eps_flag))}</div>', unsafe_allow_html=True)
+
+    # ── EV reconciliation: show the actual probability-weighted math ──
+    # Resolves the apparent mismatch where displayed integer probabilities
+    # (e.g. 40%/50%/10%) don't quite reproduce the displayed EV when the
+    # underlying probabilities carry 3-decimal precision.
+    if bull_s and base_s and bear_s:
+        bu_p = bull_s.get("probability", 0); bu_t = bull_s.get("price_target", 0)
+        ba_p = base_s.get("probability", 0); ba_t = base_s.get("price_target", 0)
+        be_p = bear_s.get("probability", 0); be_t = bear_s.get("price_target", 0)
+        ev_check = bu_p * bu_t + ba_p * ba_t + be_p * be_t
+        st.markdown(
+            f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.55);'
+            f'margin:0.6rem 0 1rem;padding:0.6rem 0.9rem;'
+            f'background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.15);'
+            f'border-radius:4px;font-family:ui-monospace,monospace;">'
+            f'Probability-weighted EV = '
+            f'{bu_p:.3f}×{sym}{bu_t:,.2f} + '
+            f'{ba_p:.3f}×{sym}{ba_t:,.2f} + '
+            f'{be_p:.3f}×{sym}{be_t:,.2f} = '
+            f'<strong style="color:rgba(255,255,255,0.85);">{sym}{ev_check:,.2f}</strong>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
     if a.get("market_pricing_commentary"):
         st.markdown('<div class="sec">Valuation vs Expectations</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["market_pricing_commentary"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["market_pricing_commentary"]))}</div>', unsafe_allow_html=True)
 
     ras      = sm.get("risk_adjusted_score", 0)
     ud_ratio = sm.get("upside_downside_ratio", 0)
-    mdd      = sm.get("max_drawdown_magnitude", 0)*100
-    mdd_prob = sm.get("max_drawdown_prob", 0)*100
-    rfr      = sm.get("risk_free_rate", 0.06)*100
-    std_dev  = sm.get("std_dev", 0)*100
+    mdd      = abs(sm.get("max_drawdown_magnitude", 0)) * 100
+    mdd_prob = sm.get("max_drawdown_prob", 0) * 100
+    rfr      = sm.get("risk_free_rate", 0.06) * 100
+    std_dev  = sm.get("std_dev", 0) * 100
     ras_color  = "#4ade80" if ras > 1.0 else ("#fbbf24" if ras > 0.3 else "#f87171")
     ret_color  = "positive" if exp_ret > 0.05 else ("neutral" if exp_ret > 0 else "negative")
     ud_display = "inf" if ud_ratio == float("inf") else f"{ud_ratio:.2f}x"
@@ -1382,7 +895,7 @@ def render(ticker, m, a, data):
     st.markdown('<div class="sec">The Bottom Line</div>', unsafe_allow_html=True)
     st.markdown(f'''<div class="ev-bar">
         <div class="ev-item"><div class="ev-label">Expected Value</div><div class="ev-val">{sym}{ev:,.2f}</div></div>
-        <div class="ev-item"><div class="ev-label">Expected Return</div><div class="ev-val {ret_color}">{exp_ret*100:+.1f}%</div></div>
+        <div class="ev-item"><div class="ev-label">Base Case</div><div class="ev-val {ret_color}">{base_ret*100:+.1f}%</div></div>
         <div class="ev-item"><div class="ev-label">Volatility</div><div class="ev-val">{std_dev:.1f}%</div></div>
         <div class="ev-item"><div class="ev-label">Risk-Adjusted Return</div><div class="ev-val" style="color:{ras_color};">{ras:.2f}</div>
             <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">above a safe {rfr:.0f}% return</div></div>
@@ -1394,7 +907,7 @@ def render(ticker, m, a, data):
     sensitivity = sm.get("sensitivity", {})
     if sensitivity and sensitivity.get("dominant_driver"):
         driver_name = strip_html(sensitivity.get("dominant_driver", ""))
-        current_p   = safe_float(sensitivity.get("current_bull_probability"))*100
+        current_p   = safe_float(sensitivity.get("current_bull_probability")) * 100
         ev_plus     = safe_float(sensitivity.get("ev_if_bull_plus_10"))
         ev_minus    = safe_float(sensitivity.get("ev_if_bull_minus_10"))
         interp      = strip_html(sensitivity.get("interpretation", ""))
@@ -1403,7 +916,7 @@ def render(ticker, m, a, data):
             <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
                 What happens to the expected value if we change the bull probability on <strong style="color:#fff;">{driver_name}</strong>?
             </div>
-            <div style="display:flex;justify-content:center;gap:2.5rem;">
+            <div style="display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;">
                 <div style="text-align:center;"><div style="font-size:0.82rem;color:#f87171;font-weight:600;">Bull Prob -10pp ({current_p-10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div></div>
                 <div style="text-align:center;"><div style="font-size:0.82rem;color:rgba(255,255,255,0.5);font-weight:600;">Current ({current_p:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div></div>
                 <div style="text-align:center;"><div style="font-size:0.82rem;color:#4ade80;font-weight:600;">Bull Prob +10pp ({current_p+10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div></div>
@@ -1414,13 +927,21 @@ def render(ticker, m, a, data):
     catalysts = a.get("catalysts", [])
     if catalysts:
         st.markdown('<div class="sec">What to Watch</div>', unsafe_allow_html=True)
-        cat_header = "<tr><th>Date</th><th>Event</th><th style='color:#4ade80;'>Positive Signal</th><th style='color:#f87171;'>Negative Signal</th></tr>"
-        cat_rows = "".join(f'<tr><td style="font-weight:600;">{strip_html(c.get("date",""))}</td><td>{strip_html(c.get("event",""))}</td><td style="color:#4ade80;">{strip_html(c.get("positive_signal",c.get("bull_signal","")))}</td><td style="color:#f87171;">{strip_html(c.get("negative_signal",c.get("bear_signal","")))}</td></tr>' for c in catalysts)
-        st.markdown(f'<table class="pt"><thead>{cat_header}</thead><tbody>{cat_rows}</tbody></table>', unsafe_allow_html=True)
+        cat_header = "<tr><th>Date</th><th>Event</th><th>Positive Signal</th><th>Negative Signal</th></tr>"
+        cat_rows = "".join(
+            f'<tr>'
+            f'<td class="nowrap" style="font-weight:600;">{strip_html(c.get("date",""))}</td>'
+            f'<td>{strip_html(c.get("event",""))}</td>'
+            f'<td style="color:#4ade80;">{strip_html(c.get("positive_signal", c.get("bull_signal", "")))}</td>'
+            f'<td style="color:#f87171;">{strip_html(c.get("negative_signal", c.get("bear_signal", "")))}</td>'
+            f'</tr>'
+            for c in catalysts
+        )
+        st.markdown(pt_table(cat_header, cat_rows), unsafe_allow_html=True)
 
     if a.get("conclusion"):
         st.markdown('<div class="sec">Conclusion</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{strip_html(a["conclusion"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["conclusion"]))}</div>', unsafe_allow_html=True)
 
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")} &nbsp;/&nbsp;
@@ -1429,8 +950,6 @@ def render(ticker, m, a, data):
 
 # ══════════════════════════════════════════════════════════════
 # RENDER — TRACK BOX
-# UX: Removed the expander — fields are shown directly.
-#     One less click to set up a price alert.
 # ══════════════════════════════════════════════════════════════
 
 def render_track_box(ticker, m, a):
@@ -1456,31 +975,42 @@ def render_track_box(ticker, m, a):
         Get an email when <strong style="color:#fff;">{strip_html(company)}</strong> hits your target price.
         Thesis target: <strong style="color:{rec_color};">{sym}{suggested_target:,.2f}</strong></p></div>''', unsafe_allow_html=True)
 
-    # UX: Fields shown directly — no expander needed (saves one click)
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1.4, 1])
     with col1:
-        user_email = st.text_input("Your email", placeholder="you@example.com", key=f"track_email_{ticker}")
+        user_email = st.text_input(
+            "Email address", placeholder="you@example.com",
+            key=f"track_email_{ticker}",
+            help="Used only for price alerts — never shared."
+        )
     with col2:
-        target_price = st.number_input(f"Alert price ({sym})", min_value=0.01, value=suggested_target, step=0.50, key=f"track_target_{ticker}")
+        target_price = st.number_input(
+            f"Alert price ({sym})", min_value=0.01,
+            value=suggested_target, step=0.50,
+            key=f"track_target_{ticker}", format="%.2f"
+        )
 
     thesis_snapshot  = strip_html(a.get("investment_thesis", ""))
     metrics_snapshot = {k: m.get(k) for k in ["trailing_pe","forward_pe","peg_ratio","operating_margin","roe","revenue_growth","revenue_cagr","fcf_yield","debt_to_equity","ev_to_ebitda"]}
 
-    if st.button("Start Tracking", key=f"track_btn_{ticker}", type="primary"):
+    if st.button("Set Alert", key=f"track_btn_{ticker}", type="primary"):
         if not user_email or "@" not in user_email:
-            st.error("Please enter a valid email address.")
+            st.toast("Enter a valid email address.", icon="⚠️")
         elif not GMAIL_SENDER or not GMAIL_APP_PASS:
-            st.warning("Email not configured.")
+            st.toast("Email alerts are not configured yet.", icon="ℹ️")
         else:
             gh_ok, gh_err = add_tracked_stock(ticker, company, rec, target_price, cp, metrics_snapshot, thesis_snapshot, user_email)
             ok, err = email_confirmation(user_email, ticker, company, rec, f"{sym}{target_price:,.2f}", f"{sym}{cp:,.2f}")
             if gh_ok and ok:
-                st.session_state.track_success = ("green", f"Tracking live! Confirmation sent to {user_email}")
+                st.toast(f"Alert set! Confirmation sent to {user_email}", icon="✅")
+                st.session_state.track_success = ("green", f"Alert set! Confirmation sent to {user_email}")
             elif gh_ok and not ok:
-                st.session_state.track_success = ("green", f"Tracking live! (Email failed: {err})")
+                st.toast(f"Alert saved. Email delivery failed: {err}", icon="⚠️")
+                st.session_state.track_success = ("green", f"Alert saved. (Email failed: {err})")
             elif not gh_ok and ok:
-                st.session_state.track_success = ("yellow", f"Email sent but GitHub save failed: {gh_err}")
+                st.toast("Confirmation sent but save failed.", icon="⚠️")
+                st.session_state.track_success = ("yellow", f"Email sent but save failed: {gh_err}")
             else:
+                st.toast("Something went wrong. Please try again.", icon="❌")
                 st.session_state.track_success = ("red", f"Both failed. GitHub: {gh_err} | Email: {err}")
 
     if st.session_state.track_success:
@@ -1546,7 +1076,7 @@ def render_peg_tape(screener_data):
 
     tape_items = []
     for p in peg_picks:
-        tk      = p.get("ticker", "").replace(".NS","").replace(".BO","")
+        tk      = clean_ticker(p.get("ticker", ""))
         peg     = p.get("peg_ratio", 0)
         score   = p.get("qglp_score", 0)
         roe     = p.get("roe", 0)
@@ -1587,12 +1117,10 @@ def render_peg_tape(screener_data):
     ''', unsafe_allow_html=True)
 
 # ── Screener picks table ──────────────────────────────────────
-# UX: Clicking a ticker in the table now IMMEDIATELY sets it and
-#     triggers generation (if authenticated). One click = report.
-#     No intermediate "selected" state requiring a second click.
 def render_picks_table(picks, market_label, select_key):
     if not picks:
         return
+
     st.markdown(
         f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
         f'letter-spacing:0.14em;color:rgba(255,255,255,0.6);'
@@ -1600,25 +1128,6 @@ def render_picks_table(picks, market_label, select_key):
         f'border-bottom:1px solid rgba(255,255,255,0.05);">{market_label}</div>',
         unsafe_allow_html=True
     )
-
-    header_html = (
-        '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">'
-        '<th style="padding:0.6rem 0.5rem;text-align:left;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">Company</th>'
-        '<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">Sc.</th>'
-        '<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">PEG</th>'
-        '<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">ROE</th>'
-        '<th style="padding:0.6rem 0.5rem;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);">CAGR</th>'
-        '</tr>'
-    )
-
-    _DOMAIN_MAP = {
-        "NVDA":"nvidia.com","AAPL":"apple.com","MSFT":"microsoft.com","AMZN":"amazon.com",
-        "GOOGL":"google.com","META":"meta.com","TSLA":"tesla.com","NFLX":"netflix.com",
-        "ADBE":"adobe.com","INTU":"intuit.com","NOW":"servicenow.com","PYPL":"paypal.com",
-        "AVGO":"broadcom.com","BHARTIARTL":"airtel.in","DRREDDY":"drreddys.com",
-        "RELIANCE":"ril.com","TCS":"tcs.com","INFY":"infosys.com",
-        "HDFCBANK":"hdfcbank.com","ICICIBANK":"icicibank.com","WIPRO":"wipro.com","HINDUNILVR":"hul.co.in",
-    }
 
     rows_html = ""
     for i, pick in enumerate(picks):
@@ -1629,49 +1138,55 @@ def render_picks_table(picks, market_label, select_key):
         peg      = float(pick.get("peg_ratio") or 0)
         tk       = pick.get("ticker", "")
         name     = pick.get("name", tk)
-        tk_clean = tk.replace(".NS","").replace(".BO","")
+        tk_clean = clean_ticker(tk)
         _ini     = tk_clean[:1].upper()
-        _domain  = _DOMAIN_MAP.get(tk_clean, f"{tk_clean.lower()}.com")
+        _domain  = DOMAIN_MAP.get(tk_clean, f"{tk_clean.lower()}.com")
 
         logo_html = (
             f'<img src="https://www.google.com/s2/favicons?domain={_domain}&sz=64" '
-            f'width="22" height="22" loading="lazy" '
-            f'style="border-radius:5px;object-fit:contain;background:#111118;padding:1px;'
-            f'border:1px solid rgba(255,255,255,0.08);vertical-align:middle;margin-right:0.5rem;" '
-            f'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline-flex\';">'
-            f'<span style="display:none;width:22px;height:22px;border-radius:5px;background:#16161e;'
-            f'border:1px solid rgba(255,255,255,0.1);align-items:center;justify-content:center;'
-            f'font-size:0.55rem;font-weight:800;color:rgba(255,255,255,0.5);'
-            f'vertical-align:middle;margin-right:0.5rem;">{_ini}</span>'
+            f'width="18" height="18" loading="lazy" '
+            f'style="border-radius:4px;object-fit:contain;background:#111118;'
+            f'border:1px solid rgba(255,255,255,0.08);vertical-align:middle;margin-right:0.45rem;" '
+            f'onerror="this.style.display=\'none\';">'
         )
         rows_html += (
-            f'<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">'
-            f'<td style="padding:0.7rem 0.5rem;font-size:0.95rem;">'
+            f'<tr>'
+            f'<td style="padding:0.7rem 0.7rem;white-space:nowrap;">'
+            f'<span style="display:inline-flex;align-items:center;">'
             f'{logo_html}'
-            f'<strong style="color:#fff;font-weight:800;">{tk_clean}</strong>'
-            f'<span style="color:rgba(255,255,255,0.4);margin-left:0.5rem;">{name[:20]}</span>'
+            f'<strong style="color:#fff;font-weight:800;margin-right:0.4rem;">{tk_clean}</strong>'
+            f'</span>'
+            f'<span class="co-name" title="{name}">{name}</span>'
             f'</td>'
-            f'<td style="padding:0.7rem 0.5rem;text-align:center;font-weight:800;color:{sc};font-size:0.95rem;">{score:.0f}</td>'
-            f'<td style="padding:0.7rem 0.5rem;text-align:center;font-size:0.95rem;color:rgba(255,255,255,0.7);">{peg:.2f}</td>'
-            f'<td style="padding:0.7rem 0.5rem;text-align:center;font-size:0.95rem;color:rgba(255,255,255,0.7);">{roe*100:.0f}%</td>'
-            f'<td style="padding:0.7rem 0.5rem;text-align:center;font-size:0.95rem;color:#4ade80;font-weight:600;">+{cagr*100:.0f}%</td>'
+            f'<td class="right" style="padding:0.7rem 0.7rem;font-weight:800;color:{sc};white-space:nowrap;">{score:.0f}</td>'
+            f'<td class="right" style="padding:0.7rem 0.7rem;color:rgba(255,255,255,0.7);white-space:nowrap;">{peg:.2f}</td>'
+            f'<td class="right" style="padding:0.7rem 0.7rem;color:rgba(255,255,255,0.7);white-space:nowrap;">{roe*100:.0f}%</td>'
+            f'<td class="right" style="padding:0.7rem 0.7rem;color:#4ade80;font-weight:600;white-space:nowrap;">+{cagr*100:.0f}%</td>'
             f'</tr>'
         )
 
     st.markdown(
-        f'<table style="width:100%;border-collapse:collapse;">'
-        f'<thead>{header_html}</thead><tbody>{rows_html}</tbody></table>',
+        f'<table class="picks-table">'
+        f'<thead><tr>'
+        f'<th>Company</th>'
+        f'<th class="right">Score</th>'
+        f'<th class="right">PEG</th>'
+        f'<th class="right">ROE</th>'
+        f'<th class="right">EPS CAGR</th>'
+        f'</tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        f'</table>',
         unsafe_allow_html=True
     )
 
-    # UX: Subtle ghost buttons — not red primary. Less visual noise.
     btn_cols = st.columns(len(picks))
     for i, (pick, col) in enumerate(zip(picks, btn_cols)):
         tk       = pick.get("ticker", "")
-        tk_clean = tk.replace(".NS","").replace(".BO","")
+        tk_clean = clean_ticker(tk)
         with col:
-            if st.button(f"{tk_clean}", key=f"{select_key}_btn_{i}",
-                         type="secondary", use_container_width=True):
+            if st.button(f"{tk_clean} →", key=f"{select_key}_btn_{i}",
+                         type="secondary", use_container_width=True,
+                         help=f"Generate full report for {tk_clean}"):
                 st.session_state["resolved"] = tk
                 st.session_state["resolved_source"] = "picks_table"
                 if st.session_state.get("authenticated"):
@@ -1697,13 +1212,27 @@ with left_col:
     st.markdown(
         '<div style="padding:1.5rem 1.4rem;background:rgba(255,255,255,0.03);'
         'border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem">'
-        '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.6rem;'
+        '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.5rem;'
         'line-height:1.25;letter-spacing:-0.02em;">'
-        'Generate a <span style="color:#c03030">report</span> on any listed company.</h1>'
-        '<p style="font-size:1.05rem;color:rgba(255,255,255,0.55);line-height:1.8;'
-        'max-width:620px;margin:0;">'
-        'Scores it on 24 metrics across Quality, Growth, Longevity and Price. '
-        'Three probability-weighted scenarios. Instant.</p>'
+        'Institutional-grade equity research. <span style="color:#c03030">In 120 seconds.</span></h1>'
+        '<p style="font-size:1.02rem;color:rgba(255,255,255,0.55);line-height:1.8;'
+        'max-width:620px;margin:0 0 1rem;">'
+        'QGLP scoring across 24 verified metrics, three probability-weighted scenarios, '
+        'and a full analyst narrative — for any listed company.</p>'
+        '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">'
+        '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
+        'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
+        'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'
+        '&#10003; No credit card</span>'
+        '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
+        'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
+        'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'
+        '&#10003; 3 free reports</span>'
+        '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
+        'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
+        'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'
+        '&#10003; US &amp; India stocks</span>'
+        '</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -1719,8 +1248,6 @@ with left_col:
         label_visibility="collapsed", key="s1"
     )
 
-    # UX: Quick-pick pills. Clicking goes straight to generation
-    #     (no intermediate state). Uses query param for instant action.
     st.markdown("""
     <div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
         <span>Try:</span>
@@ -1739,7 +1266,6 @@ with left_col:
     </div>
     """, unsafe_allow_html=True)
 
-    # Handle ?_qt= quick-ticker param
     _qt = st.query_params.get("_qt", "")
     if _qt:
         try: st.query_params.clear()
@@ -1747,58 +1273,98 @@ with left_col:
         st.session_state["resolved"] = _qt.strip().upper()
         st.session_state["resolved_source"] = "quickticker"
         if st.session_state.get("authenticated"):
-            # UX: Auto-generate immediately — zero extra clicks
+            st.session_state["auto_generate"] = True
+        st.rerun()
+
+    _ticker_qp = st.query_params.get("ticker", "")
+    if _ticker_qp and not st.session_state.get("cached_report"):
+        try: st.query_params.clear()
+        except Exception: pass
+        st.session_state["resolved"] = _ticker_qp.strip().upper()
+        st.session_state["resolved_source"] = "quickticker"
+        if st.session_state.get("authenticated"):
             st.session_state["auto_generate"] = True
         st.rerun()
 
     if sq and len(sq) >= 2:
-        if len(sq) <= 12 and " " not in sq:
-            st.session_state["resolved"] = sq.strip().upper()
-            st.session_state.pop("resolved_source", None)
+        with st.spinner(""):
+            res = search_ticker(sq)
+        if res:
+            cards = ""
+            for r in res[:6]:
+                name = r.get("name", r["symbol"])
+                sym  = r["symbol"]
+                exch = r.get("exchange", "")
+                tk   = clean_ticker(sym)
+                dom  = DOMAIN_MAP.get(tk, f"{tk.lower()}.com")
+                exch_badge = f'<span class="sr-exch">{exch}</span>' if exch else ""
+                cards += (
+                    f'<a href="?_qt={sym}" target="_self" class="sr-row">'
+                    f'<img src="https://www.google.com/s2/favicons?domain={dom}&sz=32"'
+                    f' width="20" height="20" class="sr-ico"'
+                    f' onerror="this.style.display=\'none\'">'
+                    f'<span class="sr-name">{name}</span>'
+                    f'<span class="sr-sym">{sym}</span>'
+                    f'{exch_badge}</a>'
+                )
+            st.markdown(f"""
+<style>
+.sr-wrap{{border:1px solid rgba(255,255,255,0.07);border-radius:10px;
+    overflow:hidden;margin:0.4rem 0;background:#0d0d16;}}
+.sr-row{{display:flex;align-items:center;gap:0.7rem;
+    padding:0.6rem 0.9rem;text-decoration:none;color:inherit;
+    border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.12s;}}
+.sr-row:last-child{{border-bottom:none;}}
+.sr-row:hover{{background:rgba(255,255,255,0.04);}}
+.sr-ico{{border-radius:4px;flex-shrink:0;}}
+.sr-name{{flex:1;font-size:0.88rem;color:rgba(255,255,255,0.75);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.sr-sym{{font-size:0.76rem;font-weight:700;color:rgba(255,255,255,0.5);
+    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+    padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;}}
+.sr-exch{{font-size:0.72rem;color:rgba(255,255,255,0.2);flex-shrink:0;}}
+</style>
+<div class="sr-wrap">{cards}</div>""", unsafe_allow_html=True)
+        else:
             st.markdown(
-                f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.4);padding:0.3rem 0 0.1rem;">'
-                f'Using ticker: <strong style="color:#fff;">{sq.strip().upper()}</strong></div>',
+                f'<div style="font-size:0.84rem;color:rgba(255,255,255,0.35);'
+                f'padding:0.5rem 0;">No companies found for <em>"{sq}"</em></div>',
                 unsafe_allow_html=True
             )
-        else:
-            res = search_ticker(sq)
-            if res:
-                opts = {f"{r['name']} ({r['symbol']})": r['symbol'] for r in res}
-                sel2 = st.selectbox("Pick result", opts.keys(), label_visibility="collapsed", key="s2")
-                if sel2:
-                    st.session_state["resolved"] = opts[sel2]
-                    st.session_state["resolved_source"] = "search"
-            else:
-                st.caption("No results found. Try entering the ticker directly.")
+            if len(sq) <= 8 and sq.replace(".", "").replace("-", "").isalnum():
+                if st.button(f"Try '{sq.upper()}' as a ticker anyway",
+                             key=f"try_{sq}"):
+                    st.session_state["resolved"] = sq.strip().upper()
+                    st.session_state.pop("resolved_source", None)
+                    st.rerun()
     else:
-        # UX: Popular / Recent selectors — shown when search box is empty.
-        pop_keys   = list(POPULAR.keys())
+        pop_keys   = [k for k in POPULAR if k]
         recent_rev = list(reversed(st.session_state.recent[-6:]))
 
         if pop_keys and recent_rev:
             qc1, qc2 = st.columns([1, 1])
             with qc1:
-                sp = st.selectbox("Popular", ["— popular —"] + pop_keys,
+                sp = st.selectbox("Popular", ["Popular stocks"] + pop_keys,
                                   label_visibility="collapsed", key="s3")
-                if sp and sp != "— popular —" and POPULAR.get(sp):
+                if sp and sp != "Popular stocks" and POPULAR.get(sp):
                     st.session_state["resolved"] = POPULAR[sp]
                     st.session_state["resolved_source"] = "popular"
             with qc2:
-                sr = st.selectbox("Recent", ["— recent —"] + recent_rev,
+                sr = st.selectbox("Recent", ["Recent searches"] + recent_rev,
                                   label_visibility="collapsed", key="s_recent")
-                if sr and sr != "— recent —":
+                if sr and sr != "Recent searches":
                     st.session_state["resolved"] = sr
                     st.session_state["resolved_source"] = "recent"
         elif pop_keys:
-            sp = st.selectbox("Popular stocks", ["— popular —"] + pop_keys,
+            sp = st.selectbox("Popular stocks", ["Popular stocks"] + pop_keys,
                               label_visibility="collapsed", key="s3")
-            if sp and sp != "— popular —" and POPULAR.get(sp):
+            if sp and sp != "Popular stocks" and POPULAR.get(sp):
                 st.session_state["resolved"] = POPULAR[sp]
                 st.session_state["resolved_source"] = "popular"
         elif recent_rev:
-            sr = st.selectbox("Recent searches", ["— recent —"] + recent_rev,
+            sr = st.selectbox("Recent searches", ["Recent searches"] + recent_rev,
                               label_visibility="collapsed", key="s_recent")
-            if sr and sr != "— recent —":
+            if sr and sr != "Recent searches":
                 st.session_state["resolved"] = sr
                 st.session_state["resolved_source"] = "recent"
 
@@ -1810,12 +1376,24 @@ with left_col:
             f'border-radius:6px;padding:0.4rem 0.8rem;margin:0.5rem 0;">'
             f'<span style="font-size:0.72rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.08em;">Selected</span>'
             f'<span style="font-size:0.95rem;font-weight:800;color:#fff;">'
-            f'{resolved_now.replace(".NS","").replace(".BO","")}</span>'
+            f'{clean_ticker(resolved_now)}</span>'
             f'</div>',
             unsafe_allow_html=True
         )
 
     st.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
+
+    if not authenticated:
+        _cta_c1, _cta_c2 = st.columns(2)
+        with _cta_c1:
+            if st.button("Continue as Guest", key="cta_guest_btn", use_container_width=True):
+                st.session_state["show_auth"] = True
+                st.rerun()
+        with _cta_c2:
+            if st.button("Create free account", key="cta_signup_btn", type="primary", use_container_width=True):
+                st.session_state["show_auth"] = True
+                st.rerun()
+        st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 
     _generating = st.session_state.get("_generating", False)
     go = st.button(
@@ -1872,14 +1450,33 @@ with right_col:
     st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0.8rem 0 1rem;'>",
                 unsafe_allow_html=True)
 
-    st.markdown(f'<div style="{_head}margin-bottom:0.6rem;">Account</div>',
+    st.markdown(f'<div style="{_head}margin-bottom:0.7rem;">Account</div>',
                 unsafe_allow_html=True)
     st.markdown(
-        '<div style="font-size:0.9rem;color:rgba(255,255,255,0.65);line-height:1.7;">'
-        '3 full reports free. Screener browsing always free, no login needed.'
+        '<div style="background:#111118;border:1px solid rgba(255,255,255,0.07);'
+        'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.5rem;">'
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
+        '<span style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.6);">Guest</span>'
+        '<span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">No signup</span>'
+        '</div>'
+        '<div style="font-size:0.8rem;color:rgba(255,255,255,0.45);line-height:1.6;">'
+        '1 report &middot; No history saved</div>'
+        '</div>'
+        '<div style="background:#111118;border:1px solid rgba(192,48,48,0.3);'
+        'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.6rem;">'
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
+        '<span style="font-size:0.82rem;font-weight:700;color:#fff;">Free account</span>'
+        '<span style="font-size:0.72rem;color:#c03030;font-weight:600;">3 reports</span>'
+        '</div>'
+        '<div style="font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.6;">'
+        'History saved &middot; Price alerts &middot; Always free</div>'
         '</div>',
         unsafe_allow_html=True
     )
+    if not authenticated:
+        if st.button("Sign up free →", key="rc_signup_btn", use_container_width=True):
+            st.session_state["show_auth"] = True
+            st.rerun()
 
 # ── QGLP Top Picks table ──────────────────────────────────────
 report_already_run = bool(st.session_state.get("cached_report"))
@@ -1906,6 +1503,7 @@ if go and not st.session_state.get("authenticated"):
     st.rerun()
 
 report_count = st.session_state.get("report_count", 0)
+_bar_is_admin = not is_guest and username.lower() in {"mayukhk"}
 if authenticated:
     if is_guest:
         st.markdown(f"""
@@ -1915,6 +1513,16 @@ if authenticated:
             <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
                 Guest report: <strong style="color:#fff">{report_count}/1</strong> used</span>
             <span style="font-size:0.75rem;color:#e03030;font-weight:700;">Create account for 3 reports</span>
+        </div>
+        """, unsafe_allow_html=True)
+    elif _bar_is_admin:
+        st.markdown(f"""
+        <div style="display:flex;align-items:center;gap:0.8rem;
+        background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.07);
+        border-radius:7px;padding:0.6rem 1rem;margin-bottom:0.6rem;">
+            <span style="font-size:0.8rem;color:rgba(255,255,255,0.45);">
+                Reports: <strong style="color:#fff">{report_count}/∞</strong></span>
+            <span style="font-size:0.72rem;color:#c084fc;font-weight:700;">Admin · Unlimited</span>
         </div>
         """, unsafe_allow_html=True)
     elif report_count > 0:
@@ -1951,12 +1559,12 @@ if (go or auto_gen) and resolved and st.session_state.get("authenticated"):
     st.session_state.pop("resolved", None)
     st.session_state.pop("resolved_source", None)
 elif go and not resolved and st.session_state.get("authenticated"):
-    with status_area:
-        st.warning("Select or enter a company first.")
+    st.toast("Select or enter a company first.", icon="👆")
 
 if should_generate and ticker:
     GUEST_LIMIT = 1
     USER_LIMIT  = 3
+    _is_admin   = not is_guest and username.lower() in {"mayukhk"}
 
     if not is_guest:
         try:
@@ -1986,11 +1594,10 @@ if should_generate and ticker:
             st.rerun()
         st.stop()
 
-    elif not is_guest and report_count >= USER_LIMIT:
+    elif not is_guest and not _is_admin and report_count >= USER_LIMIT:
         st.warning(f"You've used all {USER_LIMIT} free reports. Paid tiers are coming soon.")
         st.stop()
 
-    # Guest fingerprint check
     if is_guest:
         from auth import load_guest_counts, increment_guest_count
         fp     = st.session_state.get("guest_fingerprint", "unknown")
@@ -2103,9 +1710,15 @@ if should_generate and ticker:
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
     st.session_state["_generating"] = False
-
     st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
     st.session_state["_scroll_to_report"] = True
+    try:
+        st.query_params["ticker"] = ticker
+    except Exception:
+        pass
+
+    _rec_emoji = {"BUY": "✅", "PASS": "🔴", "WATCH": "🟡"}.get(rec.upper(), "📊")
+    st.toast(f"{_rec_emoji} {ticker}: {rec} — scroll down to view", icon=None)
 
 # ══════════════════════════════════════════════════════════════
 # RENDER FROM CACHE
@@ -2124,11 +1737,11 @@ if st.session_state.cached_report:
             from report_store import save_report
             save_report(username, c_ticker, c_m, c_a)
             st.session_state[save_key] = True
+            st.toast(f"{c_ticker} saved to history.", icon="💾")
         except Exception as e:
             print(f"Report save failed: {e}")
 
     with report_area:
-        # ── Scroll anchor + auto-scroll JS ──
         st.markdown('<div id="pickr-report-top"></div>', unsafe_allow_html=True)
         if st.session_state.pop("_scroll_to_report", False):
             _sc.html("""
@@ -2144,33 +1757,39 @@ if st.session_state.cached_report:
             </script>
             """, height=0, scrolling=False)
 
-        # UX: Clear bar at top with ticker + recommendation visible.
-        #     "Clear" button is prominent so user knows how to analyze another stock.
         _rec_now = c_a.get("recommendation","WATCH").upper()
         _rc_col  = {"BUY":"#4ade80","PASS":"#f87171"}.get(_rec_now,"#fbbf24")
-        st.markdown(
-            f'<div style="display:flex;align-items:center;justify-content:space-between;'
-            f'background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.08);'
-            f'border-radius:8px;padding:0.7rem 1.2rem;margin-bottom:1rem;">'
-            f'<span style="font-size:0.82rem;color:rgba(255,255,255,0.5);">'
-            f'Viewing: <strong style="color:#fff;">{c_ticker}</strong>'
-            f'&nbsp;&nbsp;<span style="color:{_rc_col};font-weight:700;">{_rec_now}</span>'
-            f'</span>'
-            f'<span style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Scroll up to search another</span>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-        if st.button("Clear and analyze a different stock", key="clear_report_btn"):
-            st.session_state.cached_report = None
-            st.session_state.pop("resolved", None)
-            st.session_state.pop("resolved_source", None)
-            st.rerun()
+
+        _report_bar_col, _new_search_col = st.columns([5, 1])
+        with _report_bar_col:
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:0.75rem;'
+                f'background:rgba(14,14,20,0.9);border:1px solid rgba(255,255,255,0.08);'
+                f'border-radius:8px;padding:0.55rem 1.2rem;margin-bottom:0.4rem;">'
+                f'<span style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Report:</span>'
+                f'<strong style="color:#fff;font-size:0.9rem;">{c_ticker}</strong>'
+                f'<span style="color:{_rc_col};font-weight:700;font-size:0.88rem;">{_rec_now}</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        with _new_search_col:
+            st.markdown('<div style="padding-top:0.05rem;">', unsafe_allow_html=True)
+            if st.button("← New Search", key="clear_report_btn", use_container_width=True):
+                st.session_state.cached_report = None
+                st.session_state.pop("resolved", None)
+                st.session_state.pop("resolved_source", None)
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    pass
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
         render(c_ticker, c_m, c_a, c_data)
         render_track_box(c_ticker, c_m, c_a)
 
-        st.markdown('<hr class="div">', unsafe_allow_html=True)
-        st.markdown('<div style="text-align:center;padding:1rem 0 0.5rem;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div></div>', unsafe_allow_html=True)
+        st.markdown('<hr class="div" style="margin-top:2rem;">', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center;padding:0.8rem 0 0.5rem;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div></div>', unsafe_allow_html=True)
 
         dl1, dl2 = st.columns(2)
         sm = c_a.get("scenario_math", {}); scenarios = sm.get("scenarios", {})

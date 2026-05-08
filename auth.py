@@ -1,12 +1,14 @@
 """PickR authentication — custom login/register with bcrypt + GitHub storage."""
 import json
-import base64
-import urllib.request
-import urllib.error
+import re
 import bcrypt
 import streamlit as st
 import hashlib
 import os
+
+from gh_api import gh_get_json, gh_put_json
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 
 USERS_FILE = "users.json"
 
@@ -28,15 +30,6 @@ def save_users(users, sha=None):
 
 # ── GitHub helpers ────────────────────────────────────────────
 
-def _gh_headers():
-    import config
-    return {
-        "Authorization": f"Bearer {config.GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-    }
-
 def _get_guest_fingerprint() -> str:
     try:
         from streamlit.web.server.websocket_headers import _get_websocket_headers
@@ -47,93 +40,28 @@ def _get_guest_fingerprint() -> str:
     return hashlib.sha256(ip.encode()).hexdigest()[:16]
 
 def load_guest_counts() -> dict:
-    import config
-    if not config.GITHUB_TOKEN or not config.GITHUB_REPO:
-        return {}
-    url = f"https://api.github.com/repos/{config.GITHUB_REPO}/contents/guest_counts.json"
-    try:
-        req = urllib.request.Request(url, headers=_gh_headers())
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-            return json.loads(base64.b64decode(data["content"]).decode())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {}
-    except Exception:
-        pass
-    return {}
+    counts, _ = gh_get_json("guest_counts.json")
+    return counts or {}
 
 def increment_guest_count(fingerprint: str) -> int:
-    import config
-    if not config.GITHUB_TOKEN or not config.GITHUB_REPO:
-        return 1
-    url = f"https://api.github.com/repos/{config.GITHUB_REPO}/contents/guest_counts.json"
-    counts = {}; sha = None
-    try:
-        req = urllib.request.Request(url, headers=_gh_headers())
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-            sha    = data["sha"]
-            counts = json.loads(base64.b64decode(data["content"]).decode())
-    except urllib.error.HTTPError as e:
-        if e.code != 404:
-            return 1
-    except Exception:
-        return 1
+    counts, sha = gh_get_json("guest_counts.json")
+    if counts is None:
+        counts = {}
     counts[fingerprint] = counts.get(fingerprint, 0) + 1
-    payload = {
-        "message": "guest count update",
-        "content": base64.b64encode(json.dumps(counts, indent=2).encode()).decode(),
-    }
-    if sha:
-        payload["sha"] = sha
-    try:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode(),
-                                     headers=_gh_headers(), method="PUT")
-        with urllib.request.urlopen(req, timeout=10): pass
-    except Exception:
-        pass
+    gh_put_json("guest_counts.json", counts, sha, message="guest count update")
     return counts[fingerprint]
 
 def _load_users():
     """Load users.json from GitHub. Returns (users_dict, sha)."""
-    import config
-    if not config.GITHUB_TOKEN or not config.GITHUB_REPO:
-        return {}, None
-    url = f"https://api.github.com/repos/{config.GITHUB_REPO}/contents/users.json"
-    try:
-        req = urllib.request.Request(url, headers=_gh_headers())
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data    = json.loads(resp.read().decode())
-            content = json.loads(base64.b64decode(data["content"]).decode())
-            return content, data["sha"]
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {}, None
-    except Exception:
-        pass
-    return {}, None
+    users, sha = gh_get_json("users.json")
+    return (users or {}), sha
 
 def _save_users(users, sha=None):
     """Save users.json to GitHub."""
-    import config
-    if not config.GITHUB_TOKEN or not config.GITHUB_REPO:
-        return False
-    url = f"https://api.github.com/repos/{config.GITHUB_REPO}/contents/users.json"
-    payload = {
-        "message": "auth: update users",
-        "content": base64.b64encode(json.dumps(users, indent=2).encode()).decode(),
-    }
-    if sha:
-        payload["sha"] = sha
-    try:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode(),
-                                     headers=_gh_headers(), method="PUT")
-        with urllib.request.urlopen(req, timeout=10): pass
-        return True
-    except Exception as e:
-        print(f"User save failed: {e}")
-        return False
+    ok, err = gh_put_json("users.json", users, sha, message="auth: update users")
+    if not ok and err:
+        print(f"User save failed: {err}")
+    return ok
 
 # ── Public aliases so app.py can import cleanly ──
 load_users_github  = _load_users
@@ -151,32 +79,16 @@ def _check_password(password, hashed):
 # AUTH MODAL
 # ══════════════════════════════════════════════════════════════
 
+@st.dialog("Sign in to PickR", width="small")
 def render_auth_modal():
-    """Inline login/register/guest UI."""
+    """Auth overlay using Streamlit's native dialog (true modal with backdrop)."""
     if st.session_state.get("authenticated"):
-        return (st.session_state.get("user_name"),
-                st.session_state.get("username"), True)
+        st.session_state["show_auth"] = False
+        st.rerun()
+        return
 
     st.markdown("""
     <style>
-    /* ── Auth page container ── */
-    .auth-modal-wrap {
-        max-width: 460px;
-        margin: 1rem auto 2rem;
-        background: #12121a;
-        border: 1px solid rgba(255,255,255,0.09);
-        border-radius: 14px;
-        padding: 2rem 2rem 1.5rem;
-        box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-    }
-    .auth-modal-title {
-        font-size: 1.15rem; font-weight: 800; color: #fff;
-        margin-bottom: 0.3rem; text-align: center;
-    }
-    .auth-modal-sub {
-        font-size: 0.85rem; color: rgba(255,255,255,0.4);
-        text-align: center; margin-bottom: 1.4rem; line-height: 1.6;
-    }
     /* ── Red primary buttons — override Streamlit's default blue ── */
     .stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #8b1a1a 0%, #c03030 100%) !important;
@@ -237,7 +149,7 @@ def render_auth_modal():
     </div>
     """, unsafe_allow_html=True)
 
-    login_tab, register_tab, guest_tab = st.tabs(["Sign In", "Create Account", "Guest"])
+    guest_tab, login_tab, register_tab = st.tabs(["Continue as Guest", "Sign In", "Create Account"])
 
     with login_tab:
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -258,6 +170,7 @@ def render_auth_modal():
                     # Load persisted report count from GitHub, not local file
                     st.session_state.report_count     = user.get("report_count", 0)
                     st.session_state["show_auth"]     = False
+                    st.session_state["_just_authed"]  = True
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
@@ -279,8 +192,8 @@ def render_auth_modal():
         if st.button("Create Account", key="reg_btn", type="primary", use_container_width=True):
             if not all([reg_name, reg_email, reg_user, reg_pass, reg_pass2]):
                 st.error("All fields are required.")
-            elif "@" not in reg_email:
-                st.error("Please enter a valid email address.")
+            elif not _EMAIL_RE.match(reg_email.strip()):
+                st.error("Please enter a valid email address (e.g. you@example.com).")
             elif len(reg_user.strip()) < 3:
                 st.error("Username must be at least 3 characters.")
             elif len(reg_pass) < 6:
@@ -306,6 +219,7 @@ def render_auth_modal():
                         st.session_state["user_email"]    = reg_email.strip()
                         st.session_state.report_count     = 0
                         st.session_state["show_auth"]     = False
+                        st.session_state["_just_authed"]  = True
                         st.rerun()
                     else:
                         st.error("Could not save account. Please try again.")
@@ -343,23 +257,18 @@ def render_auth_modal():
                 st.session_state["is_guest"]         = True
                 st.session_state["guest_fingerprint"] = fp
                 st.session_state["show_auth"]        = False
+                st.session_state["_just_authed"]     = True
                 st.rerun()
 
     st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-     if st.button("← Back to PickR", key="auth_back_btn", 
-                 use_container_width=True):
+    if st.button("← Back to PickR", key="auth_back_btn", use_container_width=True):
         st.session_state["show_auth"] = False
-        st.session_state["authenticated"] = False
         st.rerun()
-
-    return None, None, False
 
 
 # Alias for backward compatibility
 def render_auth():
-    return render_auth_modal()
+    render_auth_modal()
 
 
 def render_sidebar(username, name, authenticator_logout=None):

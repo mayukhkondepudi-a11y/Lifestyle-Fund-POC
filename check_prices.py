@@ -57,7 +57,7 @@ def main():
                 stock.get("original_metrics", {}),
                 stock.get("thesis_summary", ""),
                 current_metrics,
-                model="claude-haiku-4-5-20251001",
+                model="claude-opus-4-7",
                 free_models=FREE_MODELS_EXTENDED,
             )
             print(f"  Thesis: {'INTACT' if thesis_eval.get('thesis_intact') else 'CHANGED'} | "

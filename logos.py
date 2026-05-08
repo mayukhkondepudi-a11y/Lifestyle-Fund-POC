@@ -156,9 +156,11 @@ SECTOR_COLORS = {
 DEFAULT_COLOR = "#555555"
 
 
-def get_logo_url(ticker):
-    """Return a Clearbit logo URL for the ticker, or None if not in map."""
+def get_logo_url(ticker, website=""):
+    """Return a Clearbit logo URL for the ticker, or None if unavailable."""
     domain = TICKER_DOMAIN.get(ticker.upper())
+    if not domain and website:
+        domain = website.split("//")[-1].split("/")[0].replace("www.", "").strip()
     if domain:
         return f"https://logo.clearbit.com/{domain}"
     return None
@@ -183,11 +185,11 @@ def _monogram_svg(ticker, size, sector=""):
     )
 
 
-def get_logo_html(ticker, size=28, sector="", border_radius="6px", extra_style=""):
+def get_logo_html(ticker, size=28, sector="", border_radius="6px", extra_style="", website=""):
     """
     Return an HTML snippet for a stock logo, safe to pass to st.markdown.
 
-    - Known tickers  -> Clearbit <img> with SVG monogram onerror fallback.
+    - Known tickers or website provided -> Clearbit <img> with SVG monogram onerror fallback.
     - Unknown tickers -> SVG monogram rendered directly (no broken images ever).
 
     Args:
@@ -196,8 +198,10 @@ def get_logo_html(ticker, size=28, sector="", border_radius="6px", extra_style="
         sector        : Company sector string, used for fallback monogram color
         border_radius : CSS border-radius (default "6px"; use "50%" for circle)
         extra_style   : Additional inline CSS string
+        website       : Company website URL (e.g. "https://www.apple.com"), used to
+                        resolve domain for Clearbit when ticker not in hardcoded map
     """
-    logo_url = get_logo_url(ticker)
+    logo_url = get_logo_url(ticker, website=website)
     img_style = (
         f"width:{size}px;height:{size}px;border-radius:{border_radius};"
         f"object-fit:contain;background:#1c1c1c;flex-shrink:0;{extra_style}"
@@ -219,12 +223,12 @@ def get_logo_html(ticker, size=28, sector="", border_radius="6px", extra_style="
         return _monogram_svg(ticker, size, sector)
 
 
-def get_logo_and_name_html(ticker, company_name, size=32, sector="", gap="0.75rem"):
+def get_logo_and_name_html(ticker, company_name, size=32, sector="", gap="0.75rem", website=""):
     """
     Logo + company name + ticker in a horizontal flex row.
     Use in report headers and peer comparison tables.
     """
-    logo = get_logo_html(ticker, size=size, sector=sector, border_radius="8px")
+    logo = get_logo_html(ticker, size=size, sector=sector, border_radius="8px", website=website)
     display_ticker = ticker.replace(".NS", "").replace(".BO", "")
     return (
         f'<div style="display:flex;align-items:center;gap:{gap};">'

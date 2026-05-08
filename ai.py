@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from openai import OpenAI
 import anthropic
+from compute import clean_latex
 
 from config import (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, FREE_MODELS,
                     FREE_MODELS_EXTENDED)
@@ -143,42 +144,6 @@ def parse_json_response(raw, model="unknown"):
 # PASS 1: STRUCTURED ASSUMPTIONS
 # ══════════════════════════════════════════════════════════════
 
-def _build_pass1_messages(ticker, m, reverse_dcf_json):
-    ms = json.dumps(
-        {k: v for k, v in m.items()
-         if k not in ["description", "news", "revenue_history", "net_income_history"]},
-        indent=2, default=str)
-    description_snippet = (m.get("description") or "N/A")[:800]
-
-    replacements = {
-        "{ticker}": ticker,
-        "{company_name}": m.get("company_name", ticker),
-        "{metrics_json}": ms,
-        "{current_price}": str(m.get("current_price")),
-        "{trailing_pe}": str(m.get("trailing_pe")),
-        "{forward_pe}": str(m.get("forward_pe")),
-        "{ev_to_ebitda}": str(m.get("ev_to_ebitda")),
-        "{trailing_eps}": str(m.get("trailing_eps")),
-        "{forward_eps}": str(m.get("forward_eps")),
-        "{operating_margin}": str(m.get("operating_margin")),
-        "{profit_margin}": str(m.get("profit_margin")),
-        "{description}": description_snippet,
-        "{today_date}": datetime.now().strftime("%B %d, %Y"),
-        "{total_revenue}": fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
-        "{reverse_dcf_json}": reverse_dcf_json,
-        "{shares_outstanding}": str(m.get("shares_outstanding")),
-    }
-
-    user_prompt = PASS1_PROMPT
-    for key, val in replacements.items():
-        user_prompt = user_prompt.replace(key, val)
-
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user",   "content": user_prompt},
-    ]
-
-
 def run_pass1(ticker, m, reverse_dcf_json):
     msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
     """Pass 1: Get structured assumptions from LLM."""
@@ -235,6 +200,85 @@ def run_pass1(ticker, m, reverse_dcf_json):
                 }
     return a
 
+def _build_pass1_messages(ticker, m, reverse_dcf_json):
+    ms = json.dumps(
+        {k: v for k, v in m.items()
+         if k not in ["description", "news", "revenue_history", "net_income_history"]},
+        indent=2, default=str)
+    description_snippet = (m.get("description") or "N/A")[:800]
+
+    replacements = {
+        "{ticker}": ticker,
+        "{company_name}": m.get("company_name", ticker),
+        "{metrics_json}": ms,
+        "{current_price}": str(m.get("current_price")),
+        "{trailing_pe}": str(m.get("trailing_pe")),
+        "{forward_pe}": str(m.get("forward_pe")),
+        "{ev_to_ebitda}": str(m.get("ev_to_ebitda")),
+        "{trailing_eps}": str(m.get("trailing_eps")),
+        "{forward_eps}": str(m.get("forward_eps")),
+        "{operating_margin}": str(m.get("operating_margin")),
+        "{profit_margin}": str(m.get("profit_margin")),
+        "{description}": description_snippet,
+        "{today_date}": datetime.now().strftime("%B %d, %Y"),
+        "{total_revenue}": fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
+        "{reverse_dcf_json}": reverse_dcf_json,
+        "{shares_outstanding}": str(m.get("shares_outstanding")),
+    }
+
+    user_prompt = PASS1_PROMPT
+    for key, val in replacements.items():
+        user_prompt = user_prompt.replace(key, val)
+
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": user_prompt},
+    ]
+
+
+def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
+    """Pass 2: Get narrative from LLM seeing computed math."""
+    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
+    raw, model, errors = run_ai(msgs, max_tokens=6000)
+    if raw is None:
+        return {"error": True, "details": errors}
+    a, err = parse_json_response(raw, model)
+    if err:
+        return {"error": True, "details": [err]}
+
+    # ── Clean LaTeX/dollar signs from all narrative fields ──
+    NARRATIVE_KEYS = [
+        "investment_thesis", "business_overview", "revenue_architecture",
+        "growth_drivers", "margin_analysis", "financial_health",
+        "competitive_position", "headwind_narrative", "tailwind_narrative",
+        "market_pricing_commentary", "scenario_commentary", "conclusion"
+    ]
+    for key in NARRATIVE_KEYS:
+        if key in a and isinstance(a[key], str):
+            a[key] = clean_latex(a[key])
+
+    # ── Defaults ──
+    defaults = {
+        "recommendation": "WATCH", "conviction": "Medium",
+        "investment_thesis": "Analysis not available.",
+        "business_overview": "Analysis not available.",
+        "revenue_architecture": "Analysis not available.",
+        "growth_drivers": "Analysis not available.",
+        "margin_analysis": "Analysis not available.",
+        "financial_health": "Analysis not available.",
+        "competitive_position": "Analysis not available.",
+        "headwind_narrative": "Analysis not available.",
+        "tailwind_narrative": "Analysis not available.",
+        "market_pricing_commentary": "Analysis not available.",
+        "scenario_commentary": "Analysis not available.",
+        "conclusion": "Analysis not available.",
+    }
+    for k, v in defaults.items():
+        if k not in a:
+            a[k] = v
+    a["model_used"] = model
+    return a
+
 
 # ══════════════════════════════════════════════════════════════
 # PASS 2: NARRATIVE
@@ -287,6 +331,7 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_js
         "{headwinds_tailwinds_json}": json.dumps(hw_tw, indent=2, default=str),
         "{expected_return}": math_summary["expected_return"],
         "{prob_positive}": math_summary["prob_positive_return"],
+        "{base_implied_return}": math_summary.get("base_implied_return", "N/A"),
         "{risk_adjusted_score}": str(sm.get("risk_adjusted_score")),
         "{upside_downside_ratio}": str(sm.get("upside_downside_ratio")),
         "{implied_vs_base}": mkt.get("vs_base_case", "N/A"),
@@ -303,39 +348,6 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_js
     ]
 
 
-def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
-    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
-    """Pass 2: Get narrative from LLM seeing computed math."""
-    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
-    raw, model, errors = run_ai(msgs, max_tokens=6000)
-    if raw is None:
-        return {"error": True, "details": errors}
-    a, err = parse_json_response(raw, model)
-    if err:
-        return {"error": True, "details": [err]}
-
-    defaults = {
-        "recommendation": "WATCH", "conviction": "Medium",
-        "investment_thesis": "Analysis not available.",
-        "business_overview": "Analysis not available.",
-        "revenue_architecture": "Analysis not available.",
-        "growth_drivers": "Analysis not available.",
-        "margin_analysis": "Analysis not available.",
-        "financial_health": "Analysis not available.",
-        "competitive_position": "Analysis not available.",
-        "headwind_narrative": "Analysis not available.",
-        "tailwind_narrative": "Analysis not available.",
-        "market_pricing_commentary": "Analysis not available.",
-        "scenario_commentary": "Analysis not available.",
-        "conclusion": "Analysis not available.",
-    }
-    for k, v in defaults.items():
-        if k not in a:
-            a[k] = v
-    a["model_used"] = model
-    return a
-
-
 # ══════════════════════════════════════════════════════════════
 # TWO-PASS ORCHESTRATOR
 # (No @st.cache_data here - app.py wraps with caching)
@@ -345,13 +357,6 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
     """
     Full orchestration:
     1. Pass 1 (assumptions) -> 2. Python math -> 3. Pass 2 (narrative) -> 4. Merge
-
-    pass1_fn / pass2_fn allow app.py to inject @st.cache_data-wrapped versions.
-    Falls back to uncached run_pass1 / run_pass2 if not provided.
-
-    NOTE: compute_scenario_math now receives both `m` (metrics) and
-    `pass1` (llm_output).  The probability engine derives scenario
-    probabilities from the metrics signals, not from LLM driver estimates.
     """
     _pass1 = pass1_fn or (lambda t, m_dict: run_pass1(t, m_dict))
     _pass2 = pass2_fn or (lambda t, m_dict, sm, p1: run_pass2(t, m_dict, sm, p1))
@@ -361,8 +366,7 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
     if isinstance(pass1, dict) and pass1.get("error"):
         return pass1
 
-    # Python math  — m (metrics) is passed through so the probability
-    # engine can read financial signals directly.
+    # Python math
     scenario_math = compute_scenario_math(m, pass1)
 
     # Pass 2
@@ -392,6 +396,9 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
     exp_ret  = scenario_math.get("expected_return", 0)
     prob_pos = scenario_math.get("prob_positive_return", 0)
     rec      = final["recommendation"].upper()
+    base_ret = (scenario_math.get("scenarios", {})
+                              .get("base", {})
+                              .get("implied_return", 0))
 
     if rec == "BUY" and exp_ret < -0.20 and prob_pos < 0.25:
         final["recommendation"] = "PASS"
@@ -405,9 +412,22 @@ def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
         final["rec_override_reason"] = (
             f"Override: LLM recommended PASS despite expected return of "
             f"{exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return.")
+    elif rec == "BUY" and base_ret < -0.10:
+        # Most-likely outcome is a loss; positive EV alone doesn't justify BUY.
+        final["recommendation"] = "WATCH"
+        final["conviction"] = "Medium"
+        final["rec_override_reason"] = (
+            f"Override: LLM recommended BUY but base case implies a "
+            f"{base_ret*100:.1f}% drawdown (50%+ probability mass).")
+    elif rec == "WATCH" and base_ret < -0.15 and prob_pos <= 0.40:
+        # Already WATCH but the asymmetry is severe — surface it.
+        final["rec_override_reason"] = (
+            f"Note: base case implies {base_ret*100:.1f}% drawdown and only "
+            f"{prob_pos*100:.0f}% of probability mass sits above current price. "
+            f"Positive expected return ({exp_ret*100:+.1f}%) is driven entirely "
+            f"by the bull-case tail.")
 
     return final
-
 
 # ══════════════════════════════════════════════════════════════
 # THESIS CHECK (used by check_prices.py and app.py)
@@ -458,34 +478,3 @@ confidence: High, Medium, or Low."""}
     return result
 
 
-# ══════════════════════════════════════════════════════════════
-# HTML REPORT GENERATOR (legacy)
-# ══════════════════════════════════════════════════════════════
-
-def run_ai_html(ticker, m):
-    ms = json.dumps({k: v for k, v in m.items() if k not in ["news"]},
-                    indent=2, default=str)
-    msgs = [
-        {"role": "system", "content": (
-            "You are a senior equity research analyst producing a comprehensive "
-            "investment research report.\n\n"
-            "CRITICAL: Use ONLY the financial data provided. Do not invent any figures.\n"
-            "Output clean HTML with inline CSS. White background (#ffffff), "
-            "dark text (#1a1a2e), professional sans-serif font.\n"
-            "Use proper HTML tables with borders. Include a research masthead at the top.")},
-        {"role": "user", "content": (
-            f"Produce the full institutional research report for "
-            f"{ticker} ({m.get('company_name', ticker)}).\n\n"
-            f"VERIFIED FINANCIAL DATA:\n{ms}\n\n"
-            f"Generate the complete HTML report now.")}
-    ]
-    raw, model, errors = run_ai(msgs, max_tokens=5500)
-    if raw is None:
-        return None, errors
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-    if raw.endswith("```"):
-        raw = raw[:-3]
-    if raw.startswith("html"):
-        raw = raw[4:]
-    return raw.strip(), None

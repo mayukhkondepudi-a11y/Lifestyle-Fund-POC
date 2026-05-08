@@ -69,6 +69,44 @@ POPULAR = {
     "Infosys (INFY.NS)": "INFY.NS",
 }
 
+ADMIN_USERS = {"mayukhk"}  # unlimited reports; MayukhK lowercases to same key
+
+DOMAIN_MAP = {
+    # Tech
+    "NVDA":"nvidia.com","AAPL":"apple.com","MSFT":"microsoft.com","AMZN":"amazon.com",
+    "GOOGL":"google.com","META":"meta.com","TSLA":"tesla.com","NFLX":"netflix.com",
+    "ADBE":"adobe.com","INTU":"intuit.com","NOW":"servicenow.com","PYPL":"paypal.com",
+    "AVGO":"broadcom.com","ORCL":"oracle.com","CRM":"salesforce.com","PH":"parker.com",
+    "AMD":"amd.com","QCOM":"qualcomm.com","ASML":"asml.com","TSM":"tsmc.com",
+    # Financials
+    "V":"visa.com","MA":"mastercard.com","JPM":"jpmorganchase.com","BAC":"bankofamerica.com",
+    "GS":"goldmansachs.com","BLK":"blackrock.com","AXP":"americanexpress.com",
+    "PGR":"progressive.com","TRV":"travelers.com","HIG":"thehartford.com",
+    "SPGI":"spglobal.com","MCO":"moodys.com","ICE":"intercontinentalexchange.com",
+    # Healthcare
+    "UNH":"unitedhealthgroup.com","JNJ":"jnj.com","LLY":"lilly.com","MRK":"merck.com",
+    "ABBV":"abbvie.com","TMO":"thermofisher.com","ABT":"abbott.com","ISRG":"intuitive.com",
+    # Consumer / Industrials / Energy
+    "WMT":"walmart.com","COST":"costco.com","HD":"homedepot.com","NKE":"nike.com",
+    "MCD":"mcdonalds.com","SBUX":"starbucks.com","KO":"coca-cola.com","PEP":"pepsico.com",
+    "PG":"pg.com","XOM":"exxonmobil.com","CVX":"chevron.com","CAT":"caterpillar.com",
+    "HON":"honeywell.com","UNP":"union-pacific.com","RTX":"rtx.com","DE":"deere.com",
+    "LMT":"lockheedmartin.com","GE":"ge.com",
+    # India
+    "BHARTIARTL":"airtel.in","DRREDDY":"drreddys.com","RELIANCE":"ril.com","TCS":"tcs.com",
+    "INFY":"infosys.com","HDFCBANK":"hdfcbank.com","ICICIBANK":"icicibank.com",
+    "WIPRO":"wipro.com","HINDUNILVR":"hul.co.in","KOTAKBANK":"kotak.com",
+    "AXISBANK":"axisbank.com","TITAN":"titancompany.in","NESTLEIND":"nestle.in",
+    "SUNPHARMA":"sunpharma.com","BAJFINANCE":"bajajfinserv.in","LT":"larsentoubro.com",
+    "ASIANPAINT":"asianpaints.com",
+}
+
+# Recommendation / scenario colors used across the app
+COLOR_BULL  = "#4ade80"   # green - buy / positive / bull case
+COLOR_BEAR  = "#f87171"   # red   - pass / negative / bear case
+COLOR_BASE  = "#fbbf24"   # amber - watch / neutral / base case
+COLOR_ADMIN = "#c084fc"   # purple - admin badge
+
 SECTOR_PEERS = {
     "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "AVGO", "ADBE",
                    "CRM", "AMD", "INTC", "TSM", "ASML", "ORCL", "NOW"],

@@ -7,9 +7,19 @@ CRITICAL ANCHORING RULES:
 - The total of your segment revenues MUST approximately equal the total
   revenue figure provided below ({total_revenue}).
 - If the segment revenues you provide sum to a number that differs from
-  {total_revenue} by more than 15%, your analysis is wrong.
+  {total_revenue} by more than 5%, your analysis is wrong.
 - Do not confuse this company with any other company regardless of
   how the financial metrics may appear.
+
+- The financial data below reflects the most recent trailing twelve months
+  as reported. If you are aware that a major asset, operation, or revenue
+  stream has been SUSPENDED, DIVESTED, or SHUT DOWN after the reporting
+  period, you must note this but still use the reported figures as the
+  current_revenue baseline. Do NOT adjust current_revenue for post-period
+  events. Instead, reflect the impact through your scenario segment_builds
+  (projected_revenue) and headwind/tailwind impacts. This prevents
+  confusion between what was reported and what you project forward.
+
 
 VERIFIED FINANCIAL METRICS:
 {metrics_json}
@@ -56,8 +66,15 @@ least two meaningfully different revenue streams.
 SECTION 2: REVENUE CONCENTRATION AND DEPENDENCIES
 
 Identify the key concentration risks for this business:
-- Customer concentration (top 1, top 5, or top 10 share if known)
-- Geographic revenue exposure (major regions with approximate split)
+- Customer concentration (top 1, top 5, or top 10 share if disclosed
+  in public filings). If the company does not disclose customer
+  concentration, set top_customer_pct and top_5_customers_pct to null
+  and state "Not publicly disclosed" in a dependency note instead.
+- Geographic revenue exposure (must be derivable from your segment
+  structure in Section 1. If your segments are geographic, use those
+  percentages directly. If your segments are by business unit, provide
+  geography only if the company discloses a geographic breakdown in
+  filings. Otherwise set geographic_split to null.)
 - Critical supply chain or platform dependencies
 - Any key relationships at risk of change within 12 months
   (contract renewals, competitor displacement, insourcing,
@@ -86,6 +103,12 @@ For each headwind provide:
 The sum of headwind impacts in each scenario must be consistent
 with the scenario revenue builds in Section 6. These are not
 independent numbers. They are inputs to the scenario math.
+
+IMPORTANT: Headwind revenue and EPS impacts must be expressed as
+NEGATIVE numbers (they represent losses). Tailwind impacts must be
+POSITIVE numbers (they represent gains). The sign convention must be
+consistent in the JSON output.
+
 
 SECTION 4: TAILWINDS
 
@@ -144,6 +167,25 @@ a) Segment-level revenue projections:
    - Growth rate implied
    - One sentence explaining why this growth rate in this scenario
 
+   Growth rate reasonableness: For the bull case, no segment should
+   grow faster than 2x its current YoY growth rate (from Section 1)
+   unless you can cite a specific, named catalyst (new product launch,
+   acquisition close, capacity expansion with a known commissioning
+   date). For the bear case, no segment should decline more than 50%
+   unless a complete shutdown or loss of a dominant customer is the
+   explicit assumption. Extreme growth rates demand extreme specificity.
+
+   Bear case requirement: The bear scenario MUST model a genuinely
+   adverse outcome. A bear case where the stock declines less than
+   15% is not credible — real bear cases involve a combination of
+   revenue contraction (typically 10–35% below base case) AND P/E
+   multiple compression (the assigned P/E must be materially below
+   the current forward P/E, reflecting risk re-rating). Do not model
+   the bear case as "slightly slower growth than base." Model what
+   actually goes wrong: demand collapse, margin shock, competitive
+   disruption, or multiple de-rating on loss of confidence.
+
+
 b) Headwind and tailwind adjustments:
    - Total headwind revenue impact for this scenario (must match
      the per-scenario impacts from Sections 3 and 4)
@@ -177,6 +219,7 @@ e) Narrative:
 CRITICAL: The EPS in each scenario must be mathematically consistent
 with the revenue, margins, tax rate, and share count. Python will
 verify this. Do not round in ways that break the arithmetic.
+
 
 SECTION 7: MARKET EXPECTATIONS
 
@@ -226,6 +269,17 @@ OUTPUT FORMAT
 Return ONLY the following JSON structure. Every field is required.
 All dollar amounts are in the company's reporting currency.
 All percentages are decimals (0.15 = 15%).
+
+NOTE ON HEADWIND/TAILWIND FIELDS IN SCENARIOS: The total_headwind_revenue
+and total_tailwind_revenue fields document how much of your segment
+projections is attributable to the headwinds and tailwinds you identified.
+They are ALREADY BAKED INTO the segment_builds projected_revenue figures.
+Python will NOT add them on top. Example: if your Africa segment drops
+from $4.5B to $3.0B in the bear case, and $1.5B of that drop is due to
+the Mali headwind, then total_headwind_revenue = -1500000000 and the
+Africa segment_build projected_revenue = 3000000000. The segment already
+reflects it.
+
 
 {
   "segments": [
@@ -411,9 +465,16 @@ VALIDATION RULES (Python will check these):
 1. The sum of segment current_revenue values must approximately equal
    {total_revenue}. If it does not, you are analyzing the wrong company.
 
-2. The sum of segment projected revenues in each scenario plus
-   total_headwind_revenue plus total_tailwind_revenue must equal
-   total_revenue for that scenario.
+2. The sum of segment projected_revenue values in each scenario must
+   equal total_revenue for that scenario. Segment projected revenues
+   must ALREADY reflect your headwind and tailwind assumptions for
+   that scenario (e.g., if a headwind reduces a segment's revenue,
+   the segment's projected_revenue should show the reduced number).
+   The total_headwind_revenue and total_tailwind_revenue fields exist
+   for transparency and auditability only — they show the reader how
+   much of the segment movement is attributable to specific risks and
+   opportunities. They are NOT additive to segment totals.
+
 
 3. Each macro driver's three outcome probabilities must sum to 1.0.
 
@@ -425,6 +486,48 @@ VALIDATION RULES (Python will check these):
    / shares_outstanding. The shares outstanding for this company is
    approximately {shares_outstanding}. Show your work internally.
    If the numbers do not reconcile, adjust before outputting.
+
+7. Operating margin must not exceed gross margin. Net margin must not
+   exceed operating margin. If the metrics provided show op_margin >
+   gross_margin, use the lower of the two as your operating margin
+   assumption and note the discrepancy. This is a data quality issue,
+   not a real margin structure.
+
+8. DIVISION OF LABOR — WHAT YOU DO vs WHAT PYTHON DOES:
+
+   YOU (the LLM) provide:
+   - Segment breakdown: names, current_revenue (from latest filings),
+     and projected growth rates per scenario
+   - Operating margin and net margin ESTIMATES per scenario (as decimals)
+   - PE multiple per scenario with rationale
+   - Headwind/tailwind items with revenue_at_risk or revenue_opportunity
+   - Qualitative narratives, factor analysis, competitive moats
+
+   PYTHON computes (do NOT compute these yourself):
+   - EPS (from revenue × margin / shares)
+   - Price targets (from EPS × PE)
+   - Expected value and expected return
+   - Probability weights for bull/base/bear
+   - Headwind/tailwind EPS impact amounts
+   - Risk-adjusted scores
+
+   For projected_eps in each scenario: provide your ESTIMATE but know
+   that Python will recompute it from (total_revenue × net_margin / shares).
+   If your estimate diverges >10% from what the math produces, Python wins.
+   This is intentional — it prevents circular reasoning.
+
+9. DOLLAR AMOUNTS IN TEXT: Never use $ signs in narrative text fields.
+    Write "7.8 billion" or "7.8B" not "$7.8B". Write "1,500 per ounce"
+    not "$1,500/oz". The rendering layer adds currency symbols.
+    This applies to: narrative, margin_rationale, pe_rationale,
+    business_overview, revenue_architecture, growth_drivers,
+    margin_analysis, financial_health, competitive_position,
+    headwind_narrative, tailwind_narrative, conclusion.
+    
+    In STRUCTURED NUMERIC FIELDS (revenue, eps, revenue_at_risk),
+    provide raw numbers without currency symbols.
+
+
 
 Return ONLY valid JSON. No HTML. No markdown fences. No text before
 or after the JSON.

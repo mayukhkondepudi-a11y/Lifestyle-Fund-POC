@@ -18,13 +18,17 @@ from formatting import safe_float, fmt_n
 # ══════════════════════════════════════════════════════════════
 
 def clean_latex(text):
+    """Escape dollar-sign currency amounts so Streamlit doesn't parse them as LaTeX."""
     if not text or not isinstance(text, str):
         return text
+    # First: escape $NUMBER patterns (currency) → \$NUMBER
+    # This catches $7.8B, $1,500, $41.22, $3,200/oz etc.
+    text = re.sub(r'\$(\d)', r'\\$\1', text)
+    # Then strip any actual LaTeX the LLM injected
     text = re.sub(r'\\\((.+?)\\\)', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'\\\[(.+?)\\\]', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)
     text = re.sub(r'\\[a-zA-Z]+', ' ', text)
-    text = re.sub(r'\$([^$\d][^$]*?)\$', r'\1', text)
     text = re.sub(r'  +', ' ', text)
     return text.strip()
 
@@ -164,14 +168,7 @@ def calc(data):
         "shares_outstanding": g("sharesOutstanding"),
     }
 
-    # FCF yield
-    try:
-        m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
-            if m["free_cashflow"] and m["market_cap"] else None
-    except Exception:
-        m["fcf_yield"] = None
-    
-    # FCF yield  ← already exists, find this line
+    # FCF yield — computed once here; updated below after statement FCF override
     try:
         m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
             if m["free_cashflow"] and m["market_cap"] else None
@@ -189,6 +186,12 @@ def calc(data):
                       f"computed={computed_fcf:.0f} ({divergence:.0%}). "
                       f"Using computed.")
         m["free_cashflow"] = computed_fcf
+        # Recompute FCF yield with updated FCF
+        try:
+            m["fcf_yield"] = float(m["free_cashflow"]) / float(m["market_cap"]) \
+                if m["market_cap"] else None
+        except Exception:
+            pass
 
     # ── Reverse DCF (computed here so it's available for both prompts) ──
     m["reverse_dcf"] = compute_reverse_dcf(m)
@@ -838,6 +841,19 @@ def compute_scenario_probabilities(metrics, llm_output=None):
     final_base = round(raw_base / total, 3)
     final_bear = round(1.0 - final_bull - final_base, 3)
 
+    # Enforce minimum 10% bear probability
+    if final_bear < 0.10:
+        deficit    = 0.10 - final_bear
+        final_bear = 0.10
+        denom      = final_bull + final_base
+        if denom > 0:
+            final_bull -= deficit * (final_bull / denom)
+            final_base -= deficit * (final_base / denom)
+        total2     = final_bull + final_base + final_bear
+        final_bull = round(final_bull / total2, 3)
+        final_base = round(final_base / total2, 3)
+        final_bear = round(1.0 - final_bull - final_base, 3)
+
     print(f"  Probability engine v2: bull_score={bull_score:.1f} | "
           f"bull={final_bull:.2%}, base={final_base:.2%}, bear={final_bear:.2%}")
 
@@ -983,23 +999,41 @@ def stamp_headwind_tailwind_eps(llm_output, scenario_results, shares, op_margin,
     hw_items = llm_output.get("headwinds", [])
     tw_items = llm_output.get("tailwinds", [])
 
-    for items in [hw_items, tw_items]:
-        for item in items:
-            rev = safe_float(item.get("revenue_at_risk") or item.get("revenue_opportunity") or 0)
-            if rev == 0 or shares == 0 or op_margin == 0:
-                item["bull_eps_impact"] = 0.0
-                item["base_eps_impact"] = 0.0
-                item["bear_eps_impact"] = 0.0
-                continue
-            for sname in ["bull", "base", "bear"]:
-                s = scenario_results.get(sname, {})
-                s_margin = s.get("operating_margin", op_margin)
-                eps = round((rev * s_margin * (1 - tax_rate)) / shares, 2)
-                item[f"{sname}_eps_impact"] = eps
+    for item in hw_items:
+        rev = safe_float(
+            item.get("revenue_at_risk") or 0
+        )
+        if rev == 0 or shares == 0 or op_margin == 0:
+            item["bull_eps_impact"] = 0.0
+            item["base_eps_impact"] = 0.0
+            item["bear_eps_impact"] = 0.0
+            continue
+        for sname in ["bull", "base", "bear"]:
+            s = scenario_results.get(sname, {})
+            s_margin = s.get("operating_margin", op_margin)
+            # NEGATIVE for headwinds — this is EPS you LOSE
+            eps = -round((rev * s_margin * (1 - tax_rate)) / shares, 2)
+            item[f"{sname}_eps_impact"] = eps
+
+    for item in tw_items:
+        rev = safe_float(
+            item.get("revenue_opportunity") or 0
+        )
+        if rev == 0 or shares == 0 or op_margin == 0:
+            item["bull_eps_impact"] = 0.0
+            item["base_eps_impact"] = 0.0
+            item["bear_eps_impact"] = 0.0
+            continue
+        for sname in ["bull", "base", "bear"]:
+            s = scenario_results.get(sname, {})
+            s_margin = s.get("operating_margin", op_margin)
+            # POSITIVE for tailwinds — this is EPS you GAIN
+            eps = round((rev * s_margin * (1 - tax_rate)) / shares, 2)
+            item[f"{sname}_eps_impact"] = eps
 
 
 # ══════════════════════════════════════════════════════════════
-# SCENARIO MATH ENGINE (unchanged except _detect_gaap_suppression)
+# SCENARIO MATH ENGINE
 # ══════════════════════════════════════════════════════════════
 
 def _sum_item_eps(items):
@@ -1048,7 +1082,7 @@ def _apply_pe_guardrails(pe_mult, scenario_name, anchor_pe):
     elif scenario_name == "base":
         lo, hi = anchor_pe * 0.75, anchor_pe * 1.25
     else:
-        lo, hi = anchor_pe * 0.40, anchor_pe * 1.00
+        lo, hi = anchor_pe * 0.20, anchor_pe * 0.85
 
     clamped = max(lo, min(pe_mult, hi))
     if clamped != pe_mult:
@@ -1112,8 +1146,8 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
                 llm_op_margin = max(operating_margin * 0.3,
                                     min(llm_op_margin, operating_margin * 2.5))
 
-        op_margin_s  = llm_op_margin  if llm_op_margin  > 0 else operating_margin
-        net_margin = llm_net_margin if llm_net_margin > 0 else profit_margin
+        op_margin_s = llm_op_margin  if llm_op_margin  > 0 else operating_margin
+        net_margin  = llm_net_margin if llm_net_margin > 0 else profit_margin
 
         if net_margin == 0 and op_margin_s > 0:
             net_margin = op_margin_s * (1 - tax_rate)
@@ -1193,8 +1227,6 @@ def _compute_single_scenario(s, scenario_name, scenario_probs, current_price,
             eps_flag  = "Both computations failed. Using trailing EPS grown by revenue growth."
 
         # ── EPS SANITY CHECK (v3) ─────────────────────────────
-        # If final_eps is >3x trailing, something is likely wrong.
-        # Clamp to 3x trailing and flag.
         if trailing_eps > 0 and final_eps > trailing_eps * 3.0:
             old_eps = final_eps
             final_eps = trailing_eps * 3.0
@@ -1371,6 +1403,77 @@ def compute_scenario_math(metrics, llm_output):
             operating_margin, profit_margin, fcf_margin,
             anchor_pe=anchor_pe)
 
+    # ── Scenario monotonicity guard ──
+    # Enforce bear < base < bull on price targets. The LLM can produce
+    # internally inconsistent assumptions (e.g. bear preserves margin
+    # while base compresses, yielding bear_eps > base_eps). When the
+    # ordering breaks, scenario_math becomes effectively bimodal and
+    # the report misrepresents risk distribution.
+    def _enforce_below(result, ceiling_pt, gap, label):
+        if not result or ceiling_pt <= 0:
+            return
+        pt = result.get("price_target", 0)
+        pe = result.get("pe_multiple", 0)
+        if pt > 0 and pt >= ceiling_pt:
+            new_pt = round(ceiling_pt * (1 - gap), 2)
+            flag = (f"MONOTONICITY: {label} price target ({pt:.2f}) was "
+                    f">= ceiling ({ceiling_pt:.2f}); clamped to {new_pt:.2f}.")
+            result["price_target"] = new_pt
+            if pe > 0:
+                result["projected_eps"] = round(new_pt / pe, 2)
+            if current_price > 0:
+                result["implied_return"] = round(
+                    (new_pt - current_price) / current_price, 4)
+            existing = result.get("monotonicity_flag") or ""
+            result["monotonicity_flag"] = (existing + " " + flag).strip()
+            print(f"  {flag}")
+
+    bull_result = results.get("bull", {})
+    base_result = results.get("base", {})
+    bear_result = results.get("bear", {})
+
+    bull_pt_now = bull_result.get("price_target", 0) if bull_result else 0
+    _enforce_below(base_result, bull_pt_now, gap=0.10, label="base")
+    base_pt_now = base_result.get("price_target", 0) if base_result else 0
+    _enforce_below(bear_result, base_pt_now, gap=0.10, label="bear")
+
+    # ── Bear price target floor: must be below current price ──
+    if bear_result:
+        bear_pt = bear_result.get("price_target", 0)
+        if bear_pt >= current_price and current_price > 0:
+            new_pt = round(current_price * 0.70, 2)
+            bear_result["price_target"] = new_pt
+            pe = bear_result.get("pe_multiple", 0)
+            if pe > 0:
+                bear_result["projected_eps"] = round(new_pt / pe, 2)
+            bear_result["implied_return"] = round(
+                (new_pt - current_price) / current_price, 4)
+            existing = bear_result.get("monotonicity_flag") or ""
+            floor_flag = (f"BEAR FLOOR: target ({bear_pt:.2f}) was >= "
+                          f"current price; forced to {new_pt:.2f} "
+                          f"(current * 0.70).")
+            bear_result["monotonicity_flag"] = (existing + " " + floor_flag).strip()
+            print(f"  {floor_flag}")
+
+    # ── Bear minimum decline: a <12% bear case is implausibly mild ──
+    if bear_result and current_price > 0:
+        bear_ir = bear_result.get("implied_return", 0)
+        if bear_ir > -0.12:
+            min_bear_return = -0.20
+            new_bear_pt = round(current_price * (1 + min_bear_return), 2)
+            bear_result["price_target"] = new_bear_pt
+            bear_result["implied_return"] = round(min_bear_return, 4)
+            existing = bear_result.get("monotonicity_flag") or ""
+            min_flag = (f"BEAR MINIMUM: implied_return was {bear_ir:.3f} "
+                        f"(< -12%); forced to -20% ({new_bear_pt:.2f}).")
+            bear_result["monotonicity_flag"] = (existing + " " + min_flag).strip()
+            print(f"  {min_flag}")
+
+    stamp_headwind_tailwind_eps(llm_output, results, shares, operating_margin)
+
+    sensitivity_table = compute_sensitivity_table(
+        results.get("base", {}), current_price)
+
     # Aggregates
     expected_value  = sum(r["price_target"] * r["probability"] for r in results.values())
     expected_return = ((expected_value - current_price) / current_price
@@ -1390,11 +1493,6 @@ def compute_scenario_math(metrics, llm_output):
                         if r["price_target"] > current_price)
 
     bear = results.get("bear", {})
-
-    stamp_headwind_tailwind_eps(llm_output, results, shares, operating_margin)
-
-    sensitivity_table = compute_sensitivity_table(
-        results.get("base", {}), current_price)
 
     return {
         "scenarios":              results,
@@ -1429,21 +1527,11 @@ def validate_post_scenario(metrics, scenario_results):
 
     Called by app.py / pipeline AFTER compute_scenario_math.
     Returns (passes: bool, reasons: list[str]).
-
-    This function is the "throw out the possibility" gate.
-    It exists because the scenario engine can reveal problems
-    that the initial metrics alone could not:
-    - Base case shows negative return (stock is overvalued NOW)
-    - Expected return is negative (bad risk/reward)
-    - Scenario EPS was clamped (LLM hallucinated margins)
-    - Risk-adjusted score is negative (not enough reward for the risk)
     """
     reasons = []
 
     scenarios = scenario_results.get("scenarios", {})
     base = scenarios.get("base", {})
-    bull = scenarios.get("bull", {})
-    bear = scenarios.get("bear", {})
 
     if not base:
         reasons.append("No base scenario computed")
@@ -1475,7 +1563,7 @@ def validate_post_scenario(metrics, scenario_results):
 
     # ── Check 4: EPS sanity ───────────────────────────────────
     trailing_eps = safe_float(metrics.get("trailing_eps", 0))
-    base_eps = safe_float(base.get("projected_eps", 0))
+    base_eps     = safe_float(base.get("projected_eps", 0))
     if trailing_eps > 0 and base_eps > trailing_eps * 3.0:
         reasons.append(
             f"Base-case EPS ({base_eps:.2f}) is >3x trailing "
