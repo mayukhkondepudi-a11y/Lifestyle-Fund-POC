@@ -1,0 +1,1082 @@
+{
+  "ticker": "MELI",
+  "date": "2026-05-09",
+  "timestamp": "2026-05-09 10:58",
+  "company_name": "MercadoLibre, Inc.",
+  "recommendation": "WATCH",
+  "conviction": "Medium",
+  "expected_value": 2119.53,
+  "expected_return": 0.2983,
+  "risk_adjusted_score": 0.4,
+  "metrics": {
+    "company_name": "MercadoLibre, Inc.",
+    "sector": "Consumer Cyclical",
+    "industry": "Internet Retail",
+    "country": "Uruguay",
+    "currency": "USD",
+    "current_price": 1632.52,
+    "market_cap": 82764169216,
+    "enterprise_value": 99911237632,
+    "trailing_pe": 43.108532,
+    "forward_pe": 25.07,
+    "peg_ratio": null,
+    "price_to_sales": 2.864506,
+    "ev_to_ebitda": 24.86,
+    "gross_margin": 0.5068,
+    "operating_margin": 0.1015,
+    "profit_margin": 0.069120005,
+    "roe": 0.35985002,
+    "roa": 0.05896,
+    "trailing_eps": 37.87,
+    "forward_eps": 65.12934,
+    "earnings_growth": -0.125,
+    "total_revenue": 28892999680,
+    "revenue_growth": 0.446,
+    "free_cashflow": 10773000000.0,
+    "operating_cashflow": 12115999744,
+    "total_cash": 6312999936,
+    "total_debt": 11420000256,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.406,
+    "week_52_high": 2645.22,
+    "week_52_low": 1593.21,
+    "ma_50": 1757.223,
+    "ma_200": 2077.9897,
+    "insider_pct": 0.073,
+    "institution_pct": 0.8308,
+    "shares_outstanding": 50697182,
+    "fcf_yield": 0.1301650231259418,
+    "reverse_dcf": {
+      "available": true,
+      "implied_fcf_cagr": -0.1023,
+      "wacc_used": 0.1,
+      "terminal_growth": 0.03,
+      "sector": "Consumer Cyclical",
+      "base_fcf": 10773000000.0,
+      "target_ev": 87871163879.0,
+      "terminal_value_pct": 0.653,
+      "tv_pct_flag": false,
+      "note": "At 1632.52/share, market prices in -10.2% FCF CAGR over 5yr (10% WACC, 3.0% terminal growth). Terminal value is 65% of EV."
+    },
+    "stmt_trailing_eps": 39.4,
+    "stmt_eps_series": {
+      "2022": 9.53,
+      "2023": 19.46,
+      "2024": 37.69,
+      "2025": 39.4
+    },
+    "debt_to_equity": 1.688,
+    "current_ratio": 1.17,
+    "revenue_cagr": 0.3891,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6061,
+    "eps_cagr_raw": 0.605,
+    "net_income_cagr": 0.4,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.4,
+    "eps_cagr_years": 3,
+    "peg_growth_used": -12.5,
+    "peg_growth_source": "earnings_growth_negative",
+    "peg_growth_conflict": "Forward analyst growth (-12.5%) is negative but historical CAGR is 40.0%. Trough distortion in historical data.",
+    "peg_historical_cagr": 40.0,
+    "data_quality_warnings": [
+      "DATA QUALITY WARNING: revenue_growth (44.6%) and earnings_growth (-12.5%) diverge by 57.1pp. Likely stale or scope-mismatched yfinance data."
+    ],
+    "price_5y_return": 23.39,
+    "price_5y_high": 2584.92,
+    "price_5y_low": 635.22
+  },
+  "analysis": {
+    "recommendation": "WATCH",
+    "conviction": "Medium",
+    "investment_thesis": "MercadoLibre is the dominant Latin American e-commerce and fintech compounder, but at 1632.52 per share the math suggests patience over conviction buying. Our base case price target of 1551.78 implies a 5% drawdown, while the probability-weighted expected return of 29.8% is driven largely by a bull tail (37% probability, 104% upside) tied to advertising monetization and Mexico fintech scaling. The market is currently pricing roughly 25% sustained earnings growth via the 25x forward PE, which is fair given the franchise but leaves limited margin of safety against the Argentina FX, credit, and Shopee/Amazon competitive risks we quantify.",
+    "business_overview": "MercadoLibre operates the largest digital commerce and fintech ecosystem in Latin America, serving Brazil, Mexico, Argentina, and most other Spanish-speaking countries in the region. The company runs a two-sided marketplace where third-party sellers list goods that consumers buy, with MELI taking a commission on gross merchandise volume (GMV), charging for advertising placements, and earning logistics fees through its Mercado Envios fulfillment network. Approximately 57% of the 28.9B in trailing revenue comes from this Commerce segment.\n\nThe other 43% of revenue, roughly 12.4B, comes from Mercado Pago, the fintech arm. Mercado Pago started as the on-platform payment processor for the marketplace but has become a standalone digital wallet, payment acquirer, and consumer credit issuer that operates independently of the e-commerce business. Mercado Credito, the lending arm, originates working-capital loans to merchants and consumer credit (including a credit card product) using proprietary marketplace data for underwriting. The combined business is essentially the Amazon plus PayPal plus Affirm of Latin America.",
+    "revenue_architecture": "The Commerce segment generated 16.5B in trailing revenue at a 45% gross margin and is growing roughly 40% year over year. Growth is driven by unique active buyer expansion in Brazil and Mexico, increased frequency, and rising take rate as advertising and logistics monetization deepen. In the base case scenarios assume Commerce contributes the bulk of the projected 36.9B in total revenue, with a moderate moderation in growth as the comp base lifts and shipping subsidies in Mexico continue to be funded.\n\nMercado Pago contributed 12.4B in trailing revenue at a 55% gross margin and grew approximately 50% year over year. Growth is split between off-platform total payment volume (TPV) on the digital wallet and acquiring side, and the credit book through Mercado Credito. The bull case 46B revenue projection requires both segments to sustain accelerating growth, particularly fintech where Mexico is still in early innings.\n\nThe bear case revenue projection of 22.3B reflects a scenario where Argentina FX-related revenue compression, credit deceleration, and competitive share loss in Brazil all materialize together, shrinking the reported USD revenue base by roughly a quarter from current levels. The base case 36.9B sits between trailing 28.9B and the bull's 46B, implying mid-20s percentage forward growth versus the current 45% pace.",
+    "growth_drivers": "The most important structural driver is advertising monetization. MELI Ads is currently running at roughly 2% of GMV versus Amazon's 5-6%, and sponsored products plus display are growing well above 50% year-over-year. Each 50 basis points of incremental ad take-rate flows through at 80%+ contribution margin, which is the single largest lever for both EPS growth and operating margin expansion in the bull scenario. This is a Commerce segment driver but it shows up disproportionately in earnings.\n\nThe second driver is fintech expansion outside Argentina, particularly Mexico. Mexico is one of the most underbanked large economies in the world, and Mercado Pago has been scaling wallet users and pursuing a CNBV digital banking license. If credit card issuance and wallet adoption track Brazil's curve with a multi-year lag, the addressable revenue pool over the next three to five years is meaningful. The base case credits some of this; the bull case assumes Mexico fintech achieves Brazil-like unit economics faster than expected.\n\nThe third driver is credit book scaling. Mercado Credito has grown rapidly using proprietary marketplace data for underwriting, with NPLs over 90 days running near 8-9%, which is high in absolute terms but consistent with the high-yield nature of the book. Continued portfolio growth at stable or improving NPL ratios produces operating leverage; deterioration is the bear case risk.",
+    "margin_analysis": "Trailing operating margin is 10.15% and ROE is approximately 36%, reflecting a business that earns high returns on the equity invested but operates at moderate operating margin because of shipping subsidies, credit provisioning, and aggressive Mexico investment. The base case assumes operating margin expands modestly to 11.5% as advertising mix increases and offsets credit provisioning and Argentina FX drag. The bull case takes operating margin to 14% on the back of advertising operating leverage and credit book scaling, while the bear case sees compression to 6% on a provisioning surge combined with Argentina FX losses.\n\nThe sensitivity is significant. The spread between the bear case EPS of 29.71 and the bull case EPS of 95.27 is more than 3x, despite revenue ranging only from 22.3B to 46B (roughly 2x). That is because operating margin and credit provisioning move non-linearly with revenue, and the company's high incremental margins on advertising make EPS extremely sensitive to mix shift. Investors are essentially making a bet on which side of this margin equation dominates over the next 24 months.",
+    "financial_health": "The balance sheet shows 6.3B in cash against 11.4B in total debt, much of which funds the Mercado Credito loan book rather than corporate operations, so the headline debt-to-equity of 1.69 overstates true leverage. Free cash flow is exceptional at 10.77B, with an FCF yield of approximately 13%, and operating cash flow of 12.1B comfortably funds capex, working capital, and credit book growth. The current ratio of 1.17 is adequate for a company of this size and business mix.\n\nCapital allocation has been disciplined. Payout ratio is zero (no dividend), and management has historically reinvested cash into logistics, fintech infrastructure, and Mexico expansion rather than buybacks or M&A. Given the FCF generation and the reinvestment opportunity set, this is the right policy. There are no material goodwill or dilution concerns; insider ownership is 7.3% and institutional ownership is 83%, indicating the company is well-followed and the founders retain meaningful skin in the game.",
+    "competitive_position": "MercadoLibre's moat rests on three reinforcing assets: the largest seller and SKU base in Latin American e-commerce, the most extensive proprietary logistics network on the continent through Mercado Envios, and a payments and credit ecosystem that is uniquely difficult to replicate because it is built on top of the marketplace data flywheel. The company's primary competitors are Shopee (Sea Limited), which has gained share in Brazilian low-ticket categories, Amazon, which is investing in Mexico Prime and 1P logistics, and local payments players like Stone and PagSeguro on the fintech side.\n\nThe durability of the moat is real but not unlimited. Shopee competes by undercutting take rates and offering free shipping subsidized at the platform level; Amazon competes by leveraging global Prime infrastructure. MELI has so far defended share by matching shipping economics and continuing to build out fulfillment density, but this defense costs margin. The fintech moat is more durable because it relies on credit underwriting data that competitors cannot easily access, and because two-sided wallet network effects in Mexico are still building.",
+    "headwind_narrative": "The largest single headwind is Argentina, which contributes roughly 18% of revenue and historically generates outsized take rates because pricing has reset with inflation. The new Milei government's removal of currency controls (the cepo) and any sharp peso devaluation could compress USD-reported revenue by up to 3B in the bear scenario and crystalize FX losses on the local credit book. We assign 55% probability to a meaningful Argentina reset over the forecast horizon, with a base case EPS impact of roughly -3 to -5.\n\nThe other two headwinds are slower-moving but consequential. Mercado Credito's NPLs at 8-9% leave little room for a Brazilian or Mexican consumer credit cycle turn; we assign 40% probability to credit quality deterioration that forces 1.5B of revenue at risk in the bear case. Competitive intensity from Shopee and Amazon is the third risk, at 50% probability, with potential to compress Commerce take rate and shipping economics by up to 2B in revenue terms in the bear case. None of these headwinds individually break the thesis, but two of them hitting simultaneously is what produces the bear case.",
+    "tailwind_narrative": "Advertising monetization is the most important tailwind both in probability and in EPS impact. We assign 70% probability that MELI Ads continues to scale toward 3-4% of GMV, which would add up to 2.5B in incremental high-margin revenue in the bull case and roughly 1.2B in the base case. Because advertising flows through at 80%+ contribution margin, this is the single largest swing factor in the EPS bridge.\n\nMexico fintech expansion is the second tailwind, at 60% probability, with potential to add up to 1.5B in fintech revenue in the bull case as Mercado Pago scales wallet users and pursues credit card issuance under the CNBV digital banking framework. The base case credits 600M of Mexico fintech revenue and 1.8 EPS of upside; the bull case is roughly triple that. These tailwinds are the reason the upside-to-downside ratio is 4.41 despite the base case being slightly negative.",
+    "market_pricing_commentary": "The reverse DCF reveals an unusual setup: at 1632.52 per share, using a 10% WACC and 3% terminal growth, the market is implicitly pricing in a -10.2% FCF CAGR over the next five years, with terminal value comprising 65% of enterprise value. This negative implied growth is an artifact of the very high current FCF base of 10.77B (boosted by working capital dynamics in the credit book) rather than a genuine market expectation of FCF decline. A more useful reference is the 25x forward PE on 65 forward EPS, which implies the market is pricing roughly 25% sustained earnings growth, fairly aligned with our base case mid-20s percentage growth assumption. To justify the current price, an investor needs to believe that long-term FCF normalizes higher than current run-rate as Mexico investment moderates and the credit book matures, and that operating margin expands toward the 11-14% range in our base and bull scenarios.",
+    "scenario_commentary": "The bull case requires three things to go right simultaneously: advertising take-rate climbs toward 3-4% of GMV, Mexico fintech scales without major credit hiccups, and Argentina avoids a disorderly FX reset. Under those conditions, revenue reaches 46B, operating margin expands to 14%, EPS reaches 95.27, and a 35x multiple drives a 3334.50 price target, or 104% upside. We assign this 37% probability, which reflects strong execution track record but acknowledges the multiple things that need to compound favorably.\n\nThe base case, at 53% probability, is more sober. Revenue grows to 36.9B, operating margin expands modestly to 11.5%, EPS lands at 59.68 (slightly below sell-side consensus of 65), and a 26x multiple implies 1551.78, or a 5% drawdown. In this scenario, the headwinds (-5.38 Argentina, -2.69 credit, -3.58 competition in EPS terms) roughly offset the tailwinds (+4.48 ads, +2.69 Mexico fintech), and the stock essentially marks time as fundamentals catch up to the current valuation.\n\nThe bear case at 10% probability assumes Argentina FX losses, a credit cycle turn, and Shopee/Amazon competitive pressure all hit together. Revenue contracts to 22.3B, operating margin compresses to 6%, EPS falls to 29.71, and the stock derates to 21x for a 633.21 price target and -61% return. This is a low-probability tail but a plausible one given the concentration of macro and credit risks in the franchise.",
+    "conclusion": "MercadoLibre remains a high-quality compounder with durable franchise advantages, but at the current price the math does not support an unconditional buy. The single variable all scenarios hinge on is operating margin trajectory, which is itself driven by advertising mix shift versus shipping subsidy and credit provisioning costs. The most important catalyst to watch over the next two quarters is the advertising take-rate disclosure (currently around 2% of GMV) and the Mercado Credito NPL trajectory in Brazil and Mexico. A meaningful pullback toward the 1400-1500 range, or evidence of advertising acceleration combined with stable credit quality, would shift this from WATCH to BUY. Until then, patience is the right call given the negative base case implied return.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "Commerce (Marketplace)",
+        "current_revenue": 16500000000,
+        "pct_of_total": 0.571,
+        "gross_margin": 0.45,
+        "yoy_growth": 0.4,
+        "primary_driver": "GMV growth driven by unique active buyer expansion in Brazil and Mexico, plus higher take rate from advertising and logistics monetization via Mercado Envios.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Fintech (Mercado Pago)",
+        "current_revenue": 12393000000,
+        "pct_of_total": 0.429,
+        "gross_margin": 0.55,
+        "yoy_growth": 0.5,
+        "primary_driver": "Credit portfolio expansion (Mercado Credito) and rapid growth in off-platform TPV from digital wallet and acquiring services across Argentina, Brazil, and Mexico.",
+        "trajectory": "accelerating"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": null,
+      "top_5_customers_pct": null,
+      "geographic_split": {
+        "Brazil": 0.55,
+        "Mexico": 0.21,
+        "Argentina": 0.18,
+        "Other_LatAm": 0.06
+      },
+      "critical_dependencies": [
+        "Heavy reliance on Brazilian consumer health and credit cycle, which drives over half of consolidated revenue and most of credit book risk.",
+        "Argentine FX regime stability is critical given peso devaluation risk despite Milei reforms reducing distortion.",
+        "Payment network connectivity with local banks and card networks (Visa, Mastercard) underpins Mercado Pago acquiring economics."
+      ],
+      "relationships_at_risk": [
+        "Not publicly disclosed at customer level, but competitive pressure from Shopee, Amazon Brazil, and Nubank in fintech could erode share.",
+        "Regulatory scrutiny of fintech credit underwriting in Brazil (Banco Central) could alter capital and provisioning rules within 12 months."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "Argentina FX & Macro Reset",
+        "description": "Argentina represents roughly 18% of revenue and historically delivers outsized take rates due to inflation pass-through. A sharper-than-expected peso devaluation or end-of-cepo distortions could compress USD-reported revenue and crystalize FX losses on the credit book.",
+        "probability": 0.55,
+        "revenue_at_risk": 3000000000,
+        "bull_impact": {
+          "revenue": -200000000,
+          "eps": -0.5
+        },
+        "base_impact": {
+          "revenue": -1200000000,
+          "eps": -3.0
+        },
+        "bear_impact": {
+          "revenue": -3000000000,
+          "eps": -8.5
+        },
+        "bull_eps_impact": -6.54,
+        "base_eps_impact": -5.38,
+        "bear_eps_impact": -2.8
+      },
+      {
+        "name": "Credit Quality Deterioration",
+        "description": "Mercado Credito has scaled aggressively with NPLs over 90 days hovering near 8-9%. A consumer credit cycle turn in Brazil or Mexico, combined with rapid book expansion, could force higher provisions and compress fintech margins materially.",
+        "probability": 0.4,
+        "revenue_at_risk": 1500000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": -0.2
+        },
+        "base_impact": {
+          "revenue": -500000000,
+          "eps": -2.0
+        },
+        "bear_impact": {
+          "revenue": -1500000000,
+          "eps": -6.0
+        },
+        "bull_eps_impact": -3.27,
+        "base_eps_impact": -2.69,
+        "bear_eps_impact": -1.4
+      },
+      {
+        "name": "Competitive Intensity from Shopee/Amazon",
+        "description": "Shopee has gained share in Brazil low-ticket categories and Amazon is investing in 1P logistics and Prime Mexico expansion. Defending take rate and free-shipping economics could pressure commerce margins.",
+        "probability": 0.5,
+        "revenue_at_risk": 2000000000,
+        "bull_impact": {
+          "revenue": -100000000,
+          "eps": -0.3
+        },
+        "base_impact": {
+          "revenue": -700000000,
+          "eps": -2.0
+        },
+        "bear_impact": {
+          "revenue": -2000000000,
+          "eps": -5.5
+        },
+        "bull_eps_impact": -4.36,
+        "base_eps_impact": -3.58,
+        "bear_eps_impact": -1.87
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "Advertising Monetization Acceleration",
+        "description": "MELI Ads is scaling toward 2% of GMV (vs Amazon's 5-6%), with sponsored products and display growing well above 50% YoY. Each 50bps of ad take-rate adds high-margin incremental revenue with 80%+ contribution margins.",
+        "probability": 0.7,
+        "revenue_opportunity": 2500000000,
+        "bull_impact": {
+          "revenue": 2500000000,
+          "eps": 8.0
+        },
+        "base_impact": {
+          "revenue": 1200000000,
+          "eps": 4.0
+        },
+        "bear_impact": {
+          "revenue": 300000000,
+          "eps": 1.0
+        },
+        "bull_eps_impact": 5.45,
+        "base_eps_impact": 4.48,
+        "bear_eps_impact": 2.34
+      },
+      {
+        "name": "Mexico Fintech Expansion",
+        "description": "Mexico remains underbanked with Mercado Pago gaining traction post-CNBV digital banking license filings. Wallet user growth and credit card issuance could mirror Brazil's monetization curve, driving incremental fintech revenue.",
+        "probability": 0.6,
+        "revenue_opportunity": 1500000000,
+        "bull_impact": {
+          "revenue": 1500000000,
+          "eps": 4.5
+        },
+        "base_impact": {
+          "revenue": 600000000,
+          "eps": 1.8
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 3.27,
+        "base_eps_impact": 2.69,
+        "bear_eps_impact": 1.4
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "Brazil Consumer & Credit Cycle",
+        "measures": "The trajectory of Brazilian household consumption, Selic rate path, and credit card delinquency rates which drive both commerce GMV and Mercado Credito performance.",
+        "bull_outcome": {
+          "description": "Selic eases below 9%, real wage growth continues, and NPLs stabilize allowing accelerated credit book expansion at strong unit economics.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Selic stays elevated near 10-11% with moderating consumer spend; NPLs hover at current elevated levels but provisions are manageable.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Fiscal slippage triggers BRL weakness and Selic re-tightening; consumer credit cycle turns sharply, forcing aggressive provisioning.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Argentina Stabilization Path",
+        "measures": "Whether Milei reforms successfully reduce inflation and remove FX distortions without triggering a deeper recession that craters the local consumer.",
+        "bull_outcome": {
+          "description": "Disinflation continues, cepo lifted in orderly fashion, real recovery in Argentine consumer translates to record dollarized take rates.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Mixed outcome with continued peso weakness offset by share gains; real revenue contribution stable in USD terms.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Reform stalls, sharp devaluation event, FX losses on credit book and meaningful USD revenue compression.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Take Rate & Ad Monetization",
+        "measures": "Whether MELI can continue lifting blended marketplace take rate through advertising and logistics services without triggering seller backlash or share loss to Shopee.",
+        "bull_outcome": {
+          "description": "Ad load reaches 2.5%+ of GMV with seller adoption; logistics fees fully optimized, expanding commerce margins by 200bps+.",
+          "probability": 0.35
+        },
+        "base_outcome": {
+          "description": "Ads grow steadily to ~1.8% of GMV; take rate expands modestly while competitive pressure caps fee increases.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Shopee aggressively undercuts on fees forcing MELI to reduce commissions; ad growth decelerates as sellers pull back.",
+          "probability": 0.15
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "Commerce (Marketplace)",
+            "projected_revenue": 23500000000,
+            "growth_rate": 0.424,
+            "rationale": "GMV growth above 35% with take rate expansion from ads reaching ~2.3% of GMV plus logistics fee optimization."
+          },
+          {
+            "name": "Fintech (Mercado Pago)",
+            "projected_revenue": 18800000000,
+            "growth_rate": 0.517,
+            "rationale": "Credit book scales 60%+ with stable NPLs; Mexico wallet adoption accelerates; off-platform TPV doubles."
+          }
+        ],
+        "total_headwind_revenue": -300000000,
+        "total_headwind_eps": -1.0,
+        "total_tailwind_revenue": 4000000000,
+        "total_tailwind_eps": 12.5,
+        "total_revenue": 42300000000,
+        "operating_margin": 0.14,
+        "margin_rationale": "Operating leverage from ads (high incremental margin) and credit book scaling overcomes shipping subsidy investment.",
+        "net_margin": 0.105,
+        "tax_rate": 0.27,
+        "projected_eps": 87.6,
+        "pe_multiple": 35,
+        "pe_rationale": "Premium to 25x forward PE justified by re-acceleration of EPS growth above 40% and ad-driven margin expansion, in line with high-growth fintech-commerce hybrids.",
+        "price_target": 3066,
+        "narrative": "Brazil credit cycle stabilizes, ads scale to near 2.5% of GMV, Mexico fintech inflects, and Argentina recovery delivers dollarized upside. Take rate expansion drives 200bps of margin gains and EPS more than doubles forward consensus.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "Commerce (Marketplace)",
+            "projected_revenue": 21000000000,
+            "growth_rate": 0.273,
+            "rationale": "GMV grows ~25% with take rate uplift from ads partially offset by competitive pressure on fees."
+          },
+          {
+            "name": "Fintech (Mercado Pago)",
+            "projected_revenue": 16500000000,
+            "growth_rate": 0.331,
+            "rationale": "Credit book expands ~35% with stable NPLs; TPV growth ~30% as Mexico contribution builds gradually."
+          }
+        ],
+        "total_headwind_revenue": -2400000000,
+        "total_headwind_eps": -7.0,
+        "total_tailwind_revenue": 1800000000,
+        "total_tailwind_eps": 5.8,
+        "total_revenue": 37500000000,
+        "operating_margin": 0.115,
+        "margin_rationale": "Modest operating leverage as ad mix increases offsets credit provisioning and Argentina FX drag.",
+        "net_margin": 0.082,
+        "tax_rate": 0.28,
+        "projected_eps": 60.65,
+        "pe_multiple": 26,
+        "pe_rationale": "In line with 25x forward PE; reflects a high-quality compounder with mid-20s EPS growth and durable LatAm digital leadership.",
+        "price_target": 1577,
+        "narrative": "MELI continues compounding GMV in mid-20s and fintech in mid-30s with steady margin progression. Argentina remains a swing factor but Brazil and Mexico carry the franchise. Stock roughly tracks earnings growth with limited multiple expansion.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "Commerce (Marketplace)",
+            "projected_revenue": 16500000000,
+            "growth_rate": 0.0,
+            "rationale": "Shopee competition compresses take rate and Argentina FX shock cuts dollarized revenue; GMV growth stalls in USD terms."
+          },
+          {
+            "name": "Fintech (Mercado Pago)",
+            "projected_revenue": 12000000000,
+            "growth_rate": -0.032,
+            "rationale": "Credit cycle turn forces book contraction and elevated provisions; TPV growth slows materially."
+          }
+        ],
+        "total_headwind_revenue": -6500000000,
+        "total_headwind_eps": -20.0,
+        "total_tailwind_revenue": 300000000,
+        "total_tailwind_eps": 1.0,
+        "total_revenue": 28500000000,
+        "operating_margin": 0.06,
+        "margin_rationale": "Provisioning surge and Argentina FX losses compress margins; deleveraging on flat revenue.",
+        "net_margin": 0.035,
+        "tax_rate": 0.3,
+        "projected_eps": 19.67,
+        "pe_multiple": 22,
+        "pe_rationale": "Multiple compresses below current 25x forward as growth narrative breaks; still above value range given preserved long-term LatAm franchise.",
+        "price_target": 432.7,
+        "narrative": "Argentina suffers disorderly devaluation, Brazil credit cycle turns sharply forcing aggressive provisioning, and Shopee/Amazon force take-rate concessions. EPS halves and the multiple compresses on broken growth perception.",
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [
+      {
+        "date": "Q3 2026",
+        "event": "Q2 2026 earnings release",
+        "positive_signal": "Fintech NPLs stable or improving with credit book growth above 30%",
+        "negative_signal": "Provisions step up materially or take rate compression in commerce"
+      },
+      {
+        "date": "Q4 2026",
+        "event": "Argentina FX regime evolution",
+        "positive_signal": "Orderly cepo lifting with stabilizing peso",
+        "negative_signal": "Disorderly devaluation triggering FX loss disclosure"
+      },
+      {
+        "date": "Q4 2026",
+        "event": "MELI Ads disclosure update",
+        "positive_signal": "Ad penetration above 2% of GMV with 60%+ growth",
+        "negative_signal": "Ad growth decelerates below 40% or seller pushback"
+      },
+      {
+        "date": "Q1 2027",
+        "event": "Q4 2026 earnings and 2027 guidance framework",
+        "positive_signal": "Operating margin guide above 12% with credit cost contained",
+        "negative_signal": "Margin guide flat or down on rising shipping subsidies"
+      },
+      {
+        "date": "Q2 2027",
+        "event": "Mexico digital banking license/Mercado Pago credit card expansion",
+        "positive_signal": "Active credit users in Mexico cross 5M with stable NPLs",
+        "negative_signal": "Regulatory delay or weak credit metrics"
+      }
+    ],
+    "peer_tickers": [
+      "AMZN",
+      "SE",
+      "NU",
+      "SHOP",
+      "PDD"
+    ],
+    "market_expectations": {
+      "implied_growth_rate": 0.25,
+      "basis": "Forward PE of 25x against forward EPS of ~65 implies the market prices in roughly 25% sustained earnings growth, consistent with PEG near 1.0.",
+      "vs_base_case": "fairly valued",
+      "commentary": "Our base case EPS of ~60 is slightly below sell-side forward consensus of 65, suggesting near-term consensus may be optimistic. However the long-term compounding story remains intact and the bull/base blended EV approximates current price."
+    },
+    "sensitivity": {
+      "dominant_driver": "Brazil Consumer & Credit Cycle",
+      "current_bull_probability": 0.3,
+      "ev_if_bull_plus_10": 1850,
+      "ev_if_bull_minus_10": 1450,
+      "interpretation": "Brazil credit cycle dominates because it simultaneously affects fintech provisioning, commerce GMV, and multiple assignment. A 10pp shift in bull probability moves expected value by roughly 12-15%."
+    },
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.37,
+          "segment_builds": [
+            {
+              "name": "Commerce (Marketplace)",
+              "projected_revenue": 23500000000,
+              "growth_rate": 0.424,
+              "rationale": "GMV growth above 35% with take rate expansion from ads reaching ~2.3% of GMV plus logistics fee optimization."
+            },
+            {
+              "name": "Fintech (Mercado Pago)",
+              "projected_revenue": 18800000000,
+              "growth_rate": 0.517,
+              "rationale": "Credit book scales 60%+ with stable NPLs; Mexico wallet adoption accelerates; off-platform TPV doubles."
+            }
+          ],
+          "segment_revenue_total": 42300000000.0,
+          "total_headwind_revenue": -300000000.0,
+          "total_headwind_eps": -1.0,
+          "total_tailwind_revenue": 4000000000.0,
+          "total_tailwind_eps": 12.5,
+          "total_revenue": 46000000000.0,
+          "revenue_growth": 0.5921,
+          "operating_margin": 0.14,
+          "net_margin": 0.105,
+          "margin_rationale": "Operating leverage from ads (high incremental margin) and credit book scaling overcomes shipping subsidy investment.",
+          "projected_eps": 95.27,
+          "llm_eps": 87.6,
+          "eps_flag": null,
+          "pe_multiple": 35.0,
+          "pe_multiple_raw_llm": 35.0,
+          "pe_rationale": "Premium to 25x forward PE justified by re-acceleration of EPS growth above 40% and ad-driven margin expansion, in line with high-growth fintech-commerce hybrids.",
+          "price_target": 3334.5,
+          "implied_return": 1.0426,
+          "breakeven_pe": 17.14,
+          "fcf_yield_at_target": 0.1015,
+          "narrative": "Brazil credit cycle stabilizes, ads scale to near 2.5% of GMV, Mexico fintech inflects, and Argentina recovery delivers dollarized upside. Take rate expansion drives 200bps of margin gains and EPS more than doubles forward consensus."
+        },
+        "base": {
+          "probability": 0.53,
+          "segment_builds": [
+            {
+              "name": "Commerce (Marketplace)",
+              "projected_revenue": 21000000000,
+              "growth_rate": 0.273,
+              "rationale": "GMV grows ~25% with take rate uplift from ads partially offset by competitive pressure on fees."
+            },
+            {
+              "name": "Fintech (Mercado Pago)",
+              "projected_revenue": 16500000000,
+              "growth_rate": 0.331,
+              "rationale": "Credit book expands ~35% with stable NPLs; TPV growth ~30% as Mexico contribution builds gradually."
+            }
+          ],
+          "segment_revenue_total": 37500000000.0,
+          "total_headwind_revenue": -2400000000.0,
+          "total_headwind_eps": -7.0,
+          "total_tailwind_revenue": 1800000000.0,
+          "total_tailwind_eps": 5.8,
+          "total_revenue": 36900000000.0,
+          "revenue_growth": 0.2771,
+          "operating_margin": 0.115,
+          "net_margin": 0.082,
+          "margin_rationale": "Modest operating leverage as ad mix increases offsets credit provisioning and Argentina FX drag.",
+          "projected_eps": 59.68,
+          "llm_eps": 60.65,
+          "eps_flag": null,
+          "pe_multiple": 26.0,
+          "pe_multiple_raw_llm": 26.0,
+          "pe_rationale": "In line with 25x forward PE; reflects a high-quality compounder with mid-20s EPS growth and durable LatAm digital leadership.",
+          "price_target": 1551.78,
+          "implied_return": -0.0495,
+          "breakeven_pe": 27.35,
+          "fcf_yield_at_target": 0.1749,
+          "narrative": "MELI continues compounding GMV in mid-20s and fintech in mid-30s with steady margin progression. Argentina remains a swing factor but Brazil and Mexico carry the franchise. Stock roughly tracks earnings growth with limited multiple expansion."
+        },
+        "bear": {
+          "probability": 0.1,
+          "segment_builds": [
+            {
+              "name": "Commerce (Marketplace)",
+              "projected_revenue": 16500000000,
+              "growth_rate": 0.0,
+              "rationale": "Shopee competition compresses take rate and Argentina FX shock cuts dollarized revenue; GMV growth stalls in USD terms."
+            },
+            {
+              "name": "Fintech (Mercado Pago)",
+              "projected_revenue": 12000000000,
+              "growth_rate": -0.032,
+              "rationale": "Credit cycle turn forces book contraction and elevated provisions; TPV growth slows materially."
+            }
+          ],
+          "segment_revenue_total": 28500000000.0,
+          "total_headwind_revenue": -6500000000.0,
+          "total_headwind_eps": -20.0,
+          "total_tailwind_revenue": 300000000.0,
+          "total_tailwind_eps": 1.0,
+          "total_revenue": 22300000000.0,
+          "revenue_growth": -0.2282,
+          "operating_margin": 0.06,
+          "net_margin": 0.035,
+          "margin_rationale": "Provisioning surge and Argentina FX losses compress margins; deleveraging on flat revenue.",
+          "projected_eps": 29.71,
+          "llm_eps": 19.67,
+          "eps_flag": "GAAP EPS suppressed by acquisition amortisation (Python GAAP=15.40, LLM=19.67, forward_eps non-GAAP consensus=65.13). Scaled to non-GAAP using forward_eps x rev_growth (0.77x) x margin ratio (0.59x) = 29.71.",
+          "pe_multiple": 21.3,
+          "pe_multiple_raw_llm": 22.0,
+          "pe_rationale": "Multiple compresses below current 25x forward as growth narrative breaks; still above value range given preserved long-term LatAm franchise.",
+          "price_target": 633.21,
+          "implied_return": -0.6121,
+          "breakeven_pe": 54.94,
+          "fcf_yield_at_target": 0.259,
+          "narrative": "Argentina suffers disorderly devaluation, Brazil credit cycle turns sharply forcing aggressive provisioning, and Shopee/Amazon force take-rate concessions. EPS halves and the multiple compresses on broken growth perception."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.37,
+        "base": 0.53,
+        "bear": 0.1,
+        "method": "signal_derived_v2",
+        "bull_score": 84.0,
+        "signal_detail": [
+          {
+            "signal": "EPS revision momentum",
+            "value": 0.72,
+            "delta": 15.0,
+            "note": "fwd=65.13 vs trail=37.87"
+          },
+          {
+            "signal": "Revenue CAGR",
+            "value": 0.389,
+            "delta": 15.0,
+            "note": "38.9%"
+          },
+          {
+            "signal": "EPS / NI CAGR",
+            "value": 0.4,
+            "delta": 12.0,
+            "note": "40.0%"
+          },
+          {
+            "signal": "Operating margin",
+            "value": 0.102,
+            "delta": 3.0,
+            "note": "10.2%"
+          },
+          {
+            "signal": "PEG ratio",
+            "value": null,
+            "delta": 0.0,
+            "note": "PEG not available -- neutral"
+          },
+          {
+            "signal": "Debt/Equity",
+            "value": 1.69,
+            "delta": -5.0,
+            "note": "1.69x"
+          },
+          {
+            "signal": "Price vs 200-day MA",
+            "value": 0.786,
+            "delta": -6.0,
+            "note": "price=1632.5 / MA200=2078.0"
+          },
+          {
+            "signal": "Beta",
+            "value": 1.41,
+            "delta": 0.0,
+            "note": "beta=1.41"
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.378,
+          "bear": 0.08
+        },
+        "correlation_multipliers": {
+          "bull": 1.0,
+          "bear": 1.0
+        },
+        "driver_detail": []
+      },
+      "expected_value": 2119.53,
+      "expected_return": 0.2983,
+      "std_dev": 0.5933,
+      "risk_adjusted_score": 0.4,
+      "upside_downside_ratio": 4.41,
+      "prob_positive_return": 0.37,
+      "max_drawdown_prob": 0.1,
+      "max_drawdown_magnitude": -0.6121,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 25.07,
+      "trailing_eps_used": 37.87,
+      "forward_eps_used": 65.13,
+      "fcf_margin_used": 0.3729,
+      "market_expectations": {
+        "implied_growth_rate": 0.25,
+        "basis": "Forward PE of 25x against forward EPS of ~65 implies the market prices in roughly 25% sustained earnings growth, consistent with PEG near 1.0.",
+        "vs_base_case": "fairly valued",
+        "commentary": "Our base case EPS of ~60 is slightly below sell-side forward consensus of 65, suggesting near-term consensus may be optimistic. However the long-term compounding story remains intact and the bull/base blended EV approximates current price."
+      },
+      "sensitivity": {
+        "dominant_driver": "Brazil Consumer & Credit Cycle",
+        "current_bull_probability": 0.3,
+        "ev_if_bull_plus_10": 1850,
+        "ev_if_bull_minus_10": 1450,
+        "interpretation": "Brazil credit cycle dominates because it simultaneously affects fintech provisioning, commerce GMV, and multiple assignment. A 10pp shift in bull probability moves expected value by roughly 12-15%."
+      },
+      "sensitivity_table": {
+        "rows": [
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -8,
+            "adj_eps": 30.57,
+            "adj_pe": 18.0,
+            "price_target": 550.22,
+            "implied_return": -0.663
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -4,
+            "adj_eps": 30.57,
+            "adj_pe": 22.0,
+            "price_target": 672.49,
+            "implied_return": -0.5881
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -2,
+            "adj_eps": 30.57,
+            "adj_pe": 24.0,
+            "price_target": 733.63,
+            "implied_return": -0.5506
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 0,
+            "adj_eps": 30.57,
+            "adj_pe": 26.0,
+            "price_target": 794.76,
+            "implied_return": -0.5132
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 2,
+            "adj_eps": 30.57,
+            "adj_pe": 28.0,
+            "price_target": 855.9,
+            "implied_return": -0.4757
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 4,
+            "adj_eps": 30.57,
+            "adj_pe": 30.0,
+            "price_target": 917.03,
+            "implied_return": -0.4383
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 8,
+            "adj_eps": 30.57,
+            "adj_pe": 34.0,
+            "price_target": 1039.31,
+            "implied_return": -0.3634
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -8,
+            "adj_eps": 45.12,
+            "adj_pe": 18.0,
+            "price_target": 812.23,
+            "implied_return": -0.5025
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -4,
+            "adj_eps": 45.12,
+            "adj_pe": 22.0,
+            "price_target": 992.73,
+            "implied_return": -0.3919
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -2,
+            "adj_eps": 45.12,
+            "adj_pe": 24.0,
+            "price_target": 1082.97,
+            "implied_return": -0.3366
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 0,
+            "adj_eps": 45.12,
+            "adj_pe": 26.0,
+            "price_target": 1173.22,
+            "implied_return": -0.2813
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 2,
+            "adj_eps": 45.12,
+            "adj_pe": 28.0,
+            "price_target": 1263.47,
+            "implied_return": -0.2261
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 4,
+            "adj_eps": 45.12,
+            "adj_pe": 30.0,
+            "price_target": 1353.72,
+            "implied_return": -0.1708
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 8,
+            "adj_eps": 45.12,
+            "adj_pe": 34.0,
+            "price_target": 1534.21,
+            "implied_return": -0.0602
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -8,
+            "adj_eps": 52.4,
+            "adj_pe": 18.0,
+            "price_target": 943.24,
+            "implied_return": -0.4222
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -4,
+            "adj_eps": 52.4,
+            "adj_pe": 22.0,
+            "price_target": 1152.84,
+            "implied_return": -0.2938
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -2,
+            "adj_eps": 52.4,
+            "adj_pe": 24.0,
+            "price_target": 1257.65,
+            "implied_return": -0.2296
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 0,
+            "adj_eps": 52.4,
+            "adj_pe": 26.0,
+            "price_target": 1362.45,
+            "implied_return": -0.1654
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 2,
+            "adj_eps": 52.4,
+            "adj_pe": 28.0,
+            "price_target": 1467.25,
+            "implied_return": -0.1012
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 4,
+            "adj_eps": 52.4,
+            "adj_pe": 30.0,
+            "price_target": 1572.06,
+            "implied_return": -0.037
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 8,
+            "adj_eps": 52.4,
+            "adj_pe": 34.0,
+            "price_target": 1781.67,
+            "implied_return": 0.0914
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -8,
+            "adj_eps": 59.68,
+            "adj_pe": 18.0,
+            "price_target": 1074.24,
+            "implied_return": -0.342
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -4,
+            "adj_eps": 59.68,
+            "adj_pe": 22.0,
+            "price_target": 1312.96,
+            "implied_return": -0.1957
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -2,
+            "adj_eps": 59.68,
+            "adj_pe": 24.0,
+            "price_target": 1432.32,
+            "implied_return": -0.1226
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 0,
+            "adj_eps": 59.68,
+            "adj_pe": 26.0,
+            "price_target": 1551.68,
+            "implied_return": -0.0495
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 2,
+            "adj_eps": 59.68,
+            "adj_pe": 28.0,
+            "price_target": 1671.04,
+            "implied_return": 0.0236
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 4,
+            "adj_eps": 59.68,
+            "adj_pe": 30.0,
+            "price_target": 1790.4,
+            "implied_return": 0.0967
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 8,
+            "adj_eps": 59.68,
+            "adj_pe": 34.0,
+            "price_target": 2029.12,
+            "implied_return": 0.2429
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -8,
+            "adj_eps": 66.96,
+            "adj_pe": 18.0,
+            "price_target": 1205.24,
+            "implied_return": -0.2617
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -4,
+            "adj_eps": 66.96,
+            "adj_pe": 22.0,
+            "price_target": 1473.08,
+            "implied_return": -0.0977
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -2,
+            "adj_eps": 66.96,
+            "adj_pe": 24.0,
+            "price_target": 1606.99,
+            "implied_return": -0.0156
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 0,
+            "adj_eps": 66.96,
+            "adj_pe": 26.0,
+            "price_target": 1740.91,
+            "implied_return": 0.0664
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 2,
+            "adj_eps": 66.96,
+            "adj_pe": 28.0,
+            "price_target": 1874.83,
+            "implied_return": 0.1484
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 4,
+            "adj_eps": 66.96,
+            "adj_pe": 30.0,
+            "price_target": 2008.74,
+            "implied_return": 0.2305
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 8,
+            "adj_eps": 66.96,
+            "adj_pe": 34.0,
+            "price_target": 2276.57,
+            "implied_return": 0.3945
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -8,
+            "adj_eps": 74.24,
+            "adj_pe": 18.0,
+            "price_target": 1336.25,
+            "implied_return": -0.1815
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -4,
+            "adj_eps": 74.24,
+            "adj_pe": 22.0,
+            "price_target": 1633.19,
+            "implied_return": 0.0004
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -2,
+            "adj_eps": 74.24,
+            "adj_pe": 24.0,
+            "price_target": 1781.67,
+            "implied_return": 0.0914
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 0,
+            "adj_eps": 74.24,
+            "adj_pe": 26.0,
+            "price_target": 1930.14,
+            "implied_return": 0.1823
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 2,
+            "adj_eps": 74.24,
+            "adj_pe": 28.0,
+            "price_target": 2078.61,
+            "implied_return": 0.2733
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 4,
+            "adj_eps": 74.24,
+            "adj_pe": 30.0,
+            "price_target": 2227.08,
+            "implied_return": 0.3642
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 8,
+            "adj_eps": 74.24,
+            "adj_pe": 34.0,
+            "price_target": 2524.03,
+            "implied_return": 0.5461
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -8,
+            "adj_eps": 88.79,
+            "adj_pe": 18.0,
+            "price_target": 1598.26,
+            "implied_return": -0.021
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -4,
+            "adj_eps": 88.79,
+            "adj_pe": 22.0,
+            "price_target": 1953.43,
+            "implied_return": 0.1966
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -2,
+            "adj_eps": 88.79,
+            "adj_pe": 24.0,
+            "price_target": 2131.01,
+            "implied_return": 0.3054
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 0,
+            "adj_eps": 88.79,
+            "adj_pe": 26.0,
+            "price_target": 2308.6,
+            "implied_return": 0.4141
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 2,
+            "adj_eps": 88.79,
+            "adj_pe": 28.0,
+            "price_target": 2486.18,
+            "implied_return": 0.5229
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 4,
+            "adj_eps": 88.79,
+            "adj_pe": 30.0,
+            "price_target": 2663.77,
+            "implied_return": 0.6317
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 8,
+            "adj_eps": 88.79,
+            "adj_pe": 34.0,
+            "price_target": 3018.93,
+            "implied_return": 0.8492
+          }
+        ],
+        "base_eps": 59.68,
+        "base_pe": 26.0,
+        "base_net_margin": 0.082,
+        "margin_deltas": [
+          -0.04,
+          -0.02,
+          -0.01,
+          0.0,
+          0.01,
+          0.02,
+          0.04
+        ],
+        "pe_deltas": [
+          -8,
+          -4,
+          -2,
+          0,
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+}
