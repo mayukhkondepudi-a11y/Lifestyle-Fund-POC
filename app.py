@@ -372,6 +372,61 @@ def run_analysis(ticker, m):
     return final
 
 # ══════════════════════════════════════════════════════════════
+# RENDER — FINANCIAL STATEMENTS TAB
+# ══════════════════════════════════════════════════════════════
+
+def _render_stmt(df, sym, scale=1e9, scale_label="$B"):
+    if df is None or df.empty:
+        st.markdown('<div style="color:rgba(255,255,255,0.35);padding:1rem 0;">No data available.</div>', unsafe_allow_html=True)
+        return
+    cols = sorted(df.columns)
+    headers = "<tr><th>Metric</th>" + "".join(
+        f"<th>{str(c.year) if hasattr(c, 'year') else str(c)}</th>" for c in cols
+    ) + "</tr>"
+    rows = ""
+    for label in df.index:
+        cells = f"<td style='font-weight:600;white-space:nowrap;'>{label}</td>"
+        for c in cols:
+            v = df.loc[label, c]
+            try:
+                n = float(v)
+                if abs(n) >= scale:
+                    formatted = f"{sym}{n/scale:.2f}{scale_label[1:]}"
+                elif abs(n) >= 1e6:
+                    formatted = f"{sym}{n/1e6:.2f}M"
+                elif n == 0:
+                    formatted = "—"
+                else:
+                    formatted = f"{sym}{n:,.0f}"
+                color = "color:#f87171;" if n < 0 else ""
+                cells += f"<td class='nowrap' style='{color}'>{formatted}</td>"
+            except (TypeError, ValueError):
+                cells += "<td>—</td>"
+        rows += f"<tr>{cells}</tr>"
+    st.markdown(f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;">Values in {scale_label} where applicable</div>', unsafe_allow_html=True)
+    st.markdown(pt_table(headers, rows), unsafe_allow_html=True)
+
+
+def _render_financials(data, cur="USD"):
+    sym = get_sym(cur)
+    inc = data.get("inc")
+    bs  = data.get("bs")
+    cf  = data.get("cf")
+    if inc is None and bs is None and cf is None:
+        st.markdown(
+            '<div style="color:rgba(255,255,255,0.35);padding:2rem 0;text-align:center;">'
+            'Financial statement data is not available for saved reports. '
+            'Generate a fresh report to view statements.</div>',
+            unsafe_allow_html=True
+        )
+        return
+    itab, btab, ctab = st.tabs(["Income Statement", "Balance Sheet", "Cash Flow"])
+    with itab: _render_stmt(inc, sym)
+    with btab: _render_stmt(bs,  sym)
+    with ctab: _render_stmt(cf,  sym)
+
+
+# ══════════════════════════════════════════════════════════════
 # RENDER — MAIN REPORT
 # ══════════════════════════════════════════════════════════════
 
@@ -491,7 +546,7 @@ def render(ticker, m, a, data):
         st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="prose">{clean_latex(strip_html(a["business_overview"]))}</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sec">Key Metrics <span class="vtag">Python-Verified</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Key Metrics</div>', unsafe_allow_html=True)
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.metric("Market Cap", fmt_c(m.get("market_cap"), cur))
     with c2: st.metric("Price", fmt_c(m.get("current_price"), cur))
@@ -537,17 +592,55 @@ def render(ticker, m, a, data):
     h = data.get("hist")
     if h is not None and not h.empty:
         st.markdown('<div class="sec">5-Year Price History</div>', unsafe_allow_html=True)
-        cd = h[["Close"]].copy(); cd.columns = ["Price"]
-        st.line_chart(cd, height=250, color="#4ade80")
+        try:
+            import altair as alt
+            _ph = h[["Close"]].reset_index(); _ph.columns = ["Date", "Price"]
+            _color = "#4ade80" if _ph["Price"].iloc[-1] >= _ph["Price"].iloc[0] else "#f87171"
+            _pc = (alt.Chart(_ph)
+                .mark_line(color=_color, strokeWidth=1.8)
+                .encode(
+                    x=alt.X("Date:T", axis=alt.Axis(format="%Y", labelColor="#666", grid=False)),
+                    y=alt.Y("Price:Q", scale=alt.Scale(zero=False),
+                            axis=alt.Axis(labelColor="#666", gridColor="rgba(255,255,255,0.04)")),
+                    tooltip=[alt.Tooltip("Date:T", format="%b %d, %Y"),
+                             alt.Tooltip("Price:Q", format=",.2f", title=f"Price ({sym})")]
+                ).properties(height=250, background="transparent").interactive())
+            st.altair_chart(_pc, use_container_width=True)
+        except Exception:
+            cd = h[["Close"]].copy(); cd.columns = ["Price"]
+            st.line_chart(cd, height=250, color="#4ade80")
 
     rh = m.get("revenue_history", {}); nh = m.get("net_income_history", {})
     if rh or nh:
         st.markdown('<div class="sec">Revenue &amp; Earnings Trend (Billions)</div>', unsafe_allow_html=True)
         cc1, cc2 = st.columns(2)
-        with cc1:
-            if rh: st.bar_chart(pd.DataFrame({"Revenue": rh}), height=200, color="#4ade80")
-        with cc2:
-            if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#81c784")
+        try:
+            import altair as alt
+            with cc1:
+                if rh:
+                    _rd = pd.DataFrame([{"Year": k, "Revenue": v/1e9} for k, v in rh.items()])
+                    st.altair_chart(
+                        alt.Chart(_rd).mark_bar(color="#4ade80", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#666", grid=False)),
+                                y=alt.Y("Revenue:Q", axis=alt.Axis(labelColor="#666", title="$B", gridColor="rgba(255,255,255,0.04)")),
+                                tooltip=["Year:O", alt.Tooltip("Revenue:Q", format=".2f", title="Revenue ($B)")])
+                        .properties(height=200, background="transparent").interactive(),
+                        use_container_width=True)
+            with cc2:
+                if nh:
+                    _nd = pd.DataFrame([{"Year": k, "Net Income": v/1e9} for k, v in nh.items()])
+                    st.altair_chart(
+                        alt.Chart(_nd).mark_bar(color="#81c784", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#666", grid=False)),
+                                y=alt.Y("Net Income:Q", axis=alt.Axis(labelColor="#666", title="$B", gridColor="rgba(255,255,255,0.04)")),
+                                tooltip=["Year:O", alt.Tooltip("Net Income:Q", format=".2f", title="Net Income ($B)")])
+                        .properties(height=200, background="transparent").interactive(),
+                        use_container_width=True)
+        except Exception:
+            with cc1:
+                if rh: st.bar_chart(pd.DataFrame({"Revenue": rh}), height=200, color="#4ade80")
+            with cc2:
+                if nh: st.bar_chart(pd.DataFrame({"Net Income": nh}), height=200, color="#81c784")
 
     segments = a.get("segments", [])
     if segments:
@@ -576,31 +669,33 @@ def render(ticker, m, a, data):
 
     if a.get("revenue_architecture"):
         st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["revenue_architecture"]))}</div>', unsafe_allow_html=True)
+        with st.expander("Show detail", expanded=False):
+            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["revenue_architecture"]))}</div>', unsafe_allow_html=True)
 
     conc = a.get("concentration", {})
     if conc:
         st.markdown('<div class="sec">Concentration &amp; Dependencies</div>', unsafe_allow_html=True)
-        conc_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">'
-        geo = conc.get("geographic_split", {})
-        if geo:
-            geo_items = "".join(f'<div class="params-row"><span class="params-key">{r.replace("_"," ")}</span><span class="params-val">{fmt_p(p)}</span></div>' for r, p in geo.items())
-            conc_html += f'<div class="params-card" style="margin-bottom:0;"><div class="thesis-title">Geographic Exposure</div>{geo_items}</div>'
-        dep_items = ""
-        if conc.get("top_customer_pct"):
-            dep_items += f'<div class="params-row"><span class="params-key">Top Customer</span><span class="params-val">{fmt_p(conc["top_customer_pct"])}</span></div>'
-        if conc.get("top_5_customers_pct"):
-            dep_items += f'<div class="params-row"><span class="params-key">Top 5 Customers</span><span class="params-val">{fmt_p(conc["top_5_customers_pct"])}</span></div>'
-        for dep in conc.get("critical_dependencies", []):
-            dep_items += f'<div class="params-row"><span class="params-key">Dependency</span><span class="params-val" style="font-size:0.82rem;">{strip_html(dep)}</span></div>'
-        if dep_items:
-            conc_html += f'<div class="params-card" style="margin-bottom:0;"><div class="thesis-title">Customer &amp; Supply Chain</div>{dep_items}</div>'
-        conc_html += '</div>'
-        st.markdown(conc_html, unsafe_allow_html=True)
-        at_risk = conc.get("relationships_at_risk", [])
-        if at_risk:
-            risk_items = "".join(f'<div style="padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.88rem;color:rgba(255,255,255,0.55);">{strip_html(r)}</div>' for r in at_risk)
-            st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:6px;padding:0.8rem 1.2rem;margin-top:0.8rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">Relationships At Risk</div>{risk_items}</div>', unsafe_allow_html=True)
+        with st.expander("Show detail", expanded=False):
+            conc_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">'
+            geo = conc.get("geographic_split", {})
+            if geo:
+                geo_items = "".join(f'<div class="params-row"><span class="params-key">{r.replace("_"," ")}</span><span class="params-val">{fmt_p(p)}</span></div>' for r, p in geo.items())
+                conc_html += f'<div class="params-card" style="margin-bottom:0;"><div class="thesis-title">Geographic Exposure</div>{geo_items}</div>'
+            dep_items = ""
+            if conc.get("top_customer_pct"):
+                dep_items += f'<div class="params-row"><span class="params-key">Top Customer</span><span class="params-val">{fmt_p(conc["top_customer_pct"])}</span></div>'
+            if conc.get("top_5_customers_pct"):
+                dep_items += f'<div class="params-row"><span class="params-key">Top 5 Customers</span><span class="params-val">{fmt_p(conc["top_5_customers_pct"])}</span></div>'
+            for dep in conc.get("critical_dependencies", []):
+                dep_items += f'<div class="params-row"><span class="params-key">Dependency</span><span class="params-val" style="font-size:0.82rem;">{strip_html(dep)}</span></div>'
+            if dep_items:
+                conc_html += f'<div class="params-card" style="margin-bottom:0;"><div class="thesis-title">Customer &amp; Supply Chain</div>{dep_items}</div>'
+            conc_html += '</div>'
+            st.markdown(conc_html, unsafe_allow_html=True)
+            at_risk = conc.get("relationships_at_risk", [])
+            if at_risk:
+                risk_items = "".join(f'<div style="padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.88rem;color:rgba(255,255,255,0.55);">{strip_html(r)}</div>' for r in at_risk)
+                st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:6px;padding:0.8rem 1.2rem;margin-top:0.8rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">Relationships At Risk</div>{risk_items}</div>', unsafe_allow_html=True)
 
     if a.get("growth_drivers"):
         st.markdown('<div class="sec">Growth Drivers &amp; Competitive Moats</div>', unsafe_allow_html=True)
@@ -635,7 +730,8 @@ def render(ticker, m, a, data):
 
     if a.get("competitive_position"):
         st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["competitive_position"]))}</div>', unsafe_allow_html=True)
+        with st.expander("Show detail", expanded=False):
+            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["competitive_position"]))}</div>', unsafe_allow_html=True)
 
     # ── Headwinds & Tailwinds ──
     # FIX: This block was dedented out of render() in the original, making a, cur, sym
@@ -912,17 +1008,18 @@ def render(ticker, m, a, data):
         ev_minus    = safe_float(sensitivity.get("ev_if_bull_minus_10"))
         interp      = strip_html(sensitivity.get("interpretation", ""))
         st.markdown('<div class="sec">What If? <span class="vtag">Sensitivity Check</span></div>', unsafe_allow_html=True)
-        st.markdown(f'''<div style="background:#0e0e14;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
-            <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
-                What happens to the expected value if we change the bull probability on <strong style="color:#fff;">{driver_name}</strong>?
-            </div>
-            <div style="display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;">
-                <div style="text-align:center;"><div style="font-size:0.82rem;color:#f87171;font-weight:600;">Bull Prob -10pp ({current_p-10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div></div>
-                <div style="text-align:center;"><div style="font-size:0.82rem;color:rgba(255,255,255,0.5);font-weight:600;">Current ({current_p:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div></div>
-                <div style="text-align:center;"><div style="font-size:0.82rem;color:#4ade80;font-weight:600;">Bull Prob +10pp ({current_p+10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div></div>
-            </div>
-            <div style="text-align:center;font-size:0.85rem;font-style:italic;color:rgba(255,255,255,0.4);margin-top:1rem;">{interp}</div>
-        </div>''', unsafe_allow_html=True)
+        with st.expander("Show sensitivity", expanded=False):
+            st.markdown(f'''<div style="background:#0e0e14;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
+                <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
+                    What happens to the expected value if we change the bull probability on <strong style="color:#fff;">{driver_name}</strong>?
+                </div>
+                <div style="display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;">
+                    <div style="text-align:center;"><div style="font-size:0.82rem;color:#f87171;font-weight:600;">Bull Prob -10pp ({current_p-10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div></div>
+                    <div style="text-align:center;"><div style="font-size:0.82rem;color:rgba(255,255,255,0.5);font-weight:600;">Current ({current_p:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div></div>
+                    <div style="text-align:center;"><div style="font-size:0.82rem;color:#4ade80;font-weight:600;">Bull Prob +10pp ({current_p+10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div></div>
+                </div>
+                <div style="text-align:center;font-size:0.85rem;font-style:italic;color:rgba(255,255,255,0.4);margin-top:1rem;">{interp}</div>
+            </div>''', unsafe_allow_html=True)
 
     catalysts = a.get("catalysts", [])
     if catalysts:
@@ -946,6 +1043,16 @@ def render(ticker, m, a, data):
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")} &nbsp;/&nbsp;
         Math computed in Python (segment-level) &nbsp;/&nbsp; Report #{st.session_state.report_count}</div>''', unsafe_allow_html=True)
+
+    _sc.html("""
+<button onclick="window.parent.print()"
+  style="display:block;margin:0.8rem auto 0;background:rgba(255,255,255,0.05);
+         border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);
+         font-size:0.78rem;padding:0.35rem 1rem;border-radius:5px;cursor:pointer;
+         font-family:inherit;letter-spacing:0.02em;">
+  &#8595; Save as PDF
+</button>""", height=48, scrolling=False)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
@@ -1028,35 +1135,25 @@ def render_track_box(ticker, m, a):
 # MAIN UI
 # ══════════════════════════════════════════════════════════════
 
-header_left, header_right = st.columns([2.5, 1.5])
+header_left, _hspace, header_signin = st.columns([2.5, 1.2, 0.85])
 with header_left:
     st.markdown(
         '<div style="display:flex;align-items:center;gap:0.7rem;">'
         '<span style="font-size:2.3rem;font-weight:900;letter-spacing:-0.025em;color:#fff;">'
         'Pick<span style="color:#e74c3c;">R</span></span>'
         '<span style="font-size:0.9rem;color:rgba(255,255,255,0.55);font-weight:500;">'
-        'QGLP equity research</span>'
+        'equity research, free.</span>'
         '</div>',
         unsafe_allow_html=True
     )
 
-with header_right:
-    metrics = "24 Metrics · 3 Scenarios · 5yr Data"
-    if not st.session_state.get("authenticated"):
-        st.markdown(
-            f'<div style="display:flex;align-items:center;justify-content:flex-end;gap:1.2rem;height:2.4rem">'
-            f'<span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:rgba(255,255,255,0.7)">{metrics}</span>'
-            f'</div>',
-            unsafe_allow_html=True)
-        if st.button("Sign in", key="elegantsignin"):
+if not authenticated:
+    with header_signin:
+        st.markdown('<div class="pickr-signout-col" style="padding-top:0.05rem;">', unsafe_allow_html=True)
+        if st.button("Sign in", key="elegantsignin", use_container_width=True):
             st.session_state.show_auth = True
             st.rerun()
-    else:
-        st.markdown(
-            f'<div style="text-align:right;height:2.4rem;display:flex;align-items:center;justify-content:flex-end">'
-            f'<span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:rgba(255,255,255,0.7)">{metrics}</span>'
-            f'</div>',
-            unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── PEG tape ──────────────────────────────────────────────────
 def render_peg_tape(screener_data):
@@ -1179,22 +1276,17 @@ def render_picks_table(picks, market_label, select_key):
         unsafe_allow_html=True
     )
 
-    btn_cols = st.columns(len(picks))
-    for i, (pick, col) in enumerate(zip(picks, btn_cols)):
-        tk       = pick.get("ticker", "")
-        tk_clean = clean_ticker(tk)
-        with col:
-            if st.button(f"{tk_clean} →", key=f"{select_key}_btn_{i}",
-                         type="secondary", use_container_width=True,
-                         help=f"Generate full report for {tk_clean}"):
-                st.session_state["resolved"] = tk
-                st.session_state["resolved_source"] = "picks_table"
-                if st.session_state.get("authenticated"):
-                    st.session_state["auto_generate"] = True
-                    st.rerun()
-                else:
-                    st.session_state["show_auth"] = True
-                    st.rerun()
+    links_html = "".join(
+        f'<a href="?_qt={pick.get("ticker","")}" target="_self"'
+        f' style="display:inline-block;font-size:0.78rem;font-weight:700;'
+        f'color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);'
+        f'border:1px solid rgba(255,255,255,0.10);border-radius:4px;'
+        f'padding:0.15rem 0.55rem;text-decoration:none;white-space:nowrap;'
+        f'margin:0.15rem 0.2rem 0 0;">'
+        f'{clean_ticker(pick.get("ticker",""))} →</a>'
+        for pick in picks
+    )
+    st.markdown(f'<div style="margin-top:0.5rem;line-height:2;">{links_html}</div>', unsafe_allow_html=True)
 
 # ── Load screener data ──
 screener_data = None
@@ -1214,11 +1306,11 @@ with left_col:
         'border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem">'
         '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.5rem;'
         'line-height:1.25;letter-spacing:-0.02em;">'
-        'Institutional-grade equity research. <span style="color:#c03030">In 120 seconds.</span></h1>'
+        'The research your broker <span style="color:#c03030">won\'t write</span> for you.</h1>'
         '<p style="font-size:1.02rem;color:rgba(255,255,255,0.55);line-height:1.8;'
         'max-width:620px;margin:0 0 1rem;">'
-        'QGLP scoring across 24 verified metrics, three probability-weighted scenarios, '
-        'and a full analyst narrative — for any listed company.</p>'
+        'Sell-side research is biased. Reddit is noise. PickR runs a structured quality, '
+        'growth, and valuation analysis across three price scenarios — for any US or Indian stock.</p>'
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">'
         '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
         'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
@@ -1332,41 +1424,52 @@ with left_col:
                 unsafe_allow_html=True
             )
             if len(sq) <= 8 and sq.replace(".", "").replace("-", "").isalnum():
-                if st.button(f"Try '{sq.upper()}' as a ticker anyway",
-                             key=f"try_{sq}"):
-                    st.session_state["resolved"] = sq.strip().upper()
-                    st.session_state.pop("resolved_source", None)
-                    st.rerun()
+                st.markdown(
+                    f'<a href="?_qt={sq.upper()}" target="_self"'
+                    f' style="font-size:0.82rem;color:rgba(255,255,255,0.45);'
+                    f'text-decoration:underline;text-underline-offset:3px;">'
+                    f'Try \'{sq.upper()}\' as a ticker anyway</a>',
+                    unsafe_allow_html=True
+                )
     else:
         pop_keys   = [k for k in POPULAR if k]
         recent_rev = list(reversed(st.session_state.recent[-6:]))
 
-        if pop_keys and recent_rev:
-            qc1, qc2 = st.columns([1, 1])
-            with qc1:
-                sp = st.selectbox("Popular", ["Popular stocks"] + pop_keys,
-                                  label_visibility="collapsed", key="s3")
-                if sp and sp != "Popular stocks" and POPULAR.get(sp):
-                    st.session_state["resolved"] = POPULAR[sp]
-                    st.session_state["resolved_source"] = "popular"
-            with qc2:
-                sr = st.selectbox("Recent", ["Recent searches"] + recent_rev,
-                                  label_visibility="collapsed", key="s_recent")
-                if sr and sr != "Recent searches":
-                    st.session_state["resolved"] = sr
-                    st.session_state["resolved_source"] = "recent"
-        elif pop_keys:
-            sp = st.selectbox("Popular stocks", ["Popular stocks"] + pop_keys,
-                              label_visibility="collapsed", key="s3")
-            if sp and sp != "Popular stocks" and POPULAR.get(sp):
-                st.session_state["resolved"] = POPULAR[sp]
-                st.session_state["resolved_source"] = "popular"
-        elif recent_rev:
-            sr = st.selectbox("Recent searches", ["Recent searches"] + recent_rev,
-                              label_visibility="collapsed", key="s_recent")
-            if sr and sr != "Recent searches":
-                st.session_state["resolved"] = sr
-                st.session_state["resolved_source"] = "recent"
+        _chip_css = """
+<style>
+.nav-chip-label{font-size:0.65rem;font-weight:800;text-transform:uppercase;
+    letter-spacing:0.14em;color:rgba(255,255,255,0.4);margin:0.8rem 0 0.4rem;display:block;}
+.nav-chip{color:rgba(255,255,255,0.7);font-weight:600;
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    border-radius:4px;padding:0.15rem 0.55rem;text-decoration:none;
+    font-size:0.82rem;white-space:nowrap;}
+.nav-chip:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.nav-chips{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.3rem;}
+</style>"""
+
+        if pop_keys:
+            chips_html = "".join(
+                f'<a href="?_qt={POPULAR[k]}" target="_self" class="nav-chip">'
+                f'{k.split("(")[0].strip()}</a>'
+                for k in pop_keys[:10]
+            )
+            st.markdown(
+                f'{_chip_css}<span class="nav-chip-label">Popular</span>'
+                f'<div class="nav-chips">{chips_html}</div>',
+                unsafe_allow_html=True
+            )
+            _chip_css = ""  # inject CSS only once
+
+        if recent_rev:
+            recent_chips = "".join(
+                f'<a href="?_qt={r}" target="_self" class="nav-chip">{clean_ticker(r)}</a>'
+                for r in recent_rev
+            )
+            st.markdown(
+                f'{_chip_css}<span class="nav-chip-label" style="margin-top:0.6rem;">Recent</span>'
+                f'<div class="nav-chips">{recent_chips}</div>',
+                unsafe_allow_html=True
+            )
 
     resolved_now = st.session_state.get("resolved")
     if resolved_now:
@@ -1390,7 +1493,7 @@ with left_col:
                 st.session_state["show_auth"] = True
                 st.rerun()
         with _cta_c2:
-            if st.button("Create free account", key="cta_signup_btn", type="primary", use_container_width=True):
+            if st.button("Create free account →", key="cta_signup_btn", type="primary", use_container_width=True):
                 st.session_state["show_auth"] = True
                 st.rerun()
         st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
@@ -1450,33 +1553,35 @@ with right_col:
     st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0.8rem 0 1rem;'>",
                 unsafe_allow_html=True)
 
-    st.markdown(f'<div style="{_head}margin-bottom:0.7rem;">Account</div>',
-                unsafe_allow_html=True)
-    st.markdown(
-        '<div style="background:#111118;border:1px solid rgba(255,255,255,0.07);'
-        'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.5rem;">'
-        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
-        '<span style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.6);">Guest</span>'
-        '<span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">No signup</span>'
-        '</div>'
-        '<div style="font-size:0.8rem;color:rgba(255,255,255,0.45);line-height:1.6;">'
-        '1 report &middot; No history saved</div>'
-        '</div>'
-        '<div style="background:#111118;border:1px solid rgba(192,48,48,0.3);'
-        'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.6rem;">'
-        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
-        '<span style="font-size:0.82rem;font-weight:700;color:#fff;">Free account</span>'
-        '<span style="font-size:0.72rem;color:#c03030;font-weight:600;">3 reports</span>'
-        '</div>'
-        '<div style="font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.6;">'
-        'History saved &middot; Price alerts &middot; Always free</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
     if not authenticated:
+        st.markdown(f'<div style="{_head}margin-bottom:0.7rem;">Account</div>',
+                    unsafe_allow_html=True)
+        st.markdown(
+            '<div style="background:#111118;border:1px solid rgba(255,255,255,0.07);'
+            'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.5rem;">'
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
+            '<span style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.6);">Guest</span>'
+            '<span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">No signup</span>'
+            '</div>'
+            '<div style="font-size:0.8rem;color:rgba(255,255,255,0.45);line-height:1.6;">'
+            '1 report &middot; No history saved</div>'
+            '</div>'
+            '<div style="background:#111118;border:1px solid rgba(192,48,48,0.3);'
+            'border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.6rem;">'
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.35rem;">'
+            '<span style="font-size:0.82rem;font-weight:700;color:#fff;">Free account</span>'
+            '<span style="font-size:0.72rem;color:#c03030;font-weight:600;">3 reports</span>'
+            '</div>'
+            '<div style="font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.6;">'
+            'History saved &middot; Price alerts &middot; Always free</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown('<div class="pickr-textlink">', unsafe_allow_html=True)
         if st.button("Sign up free →", key="rc_signup_btn", use_container_width=True):
             st.session_state["show_auth"] = True
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── QGLP Top Picks table ──────────────────────────────────────
 report_already_run = bool(st.session_state.get("cached_report"))
@@ -1628,9 +1733,8 @@ if should_generate and ticker:
     with status_area:
         with st.status(f"Analyzing {ticker}...", expanded=True) as status:
             st.markdown(
-                "This analysis may take up to 2 minutes. "
-                "We're computing 24 financial metrics and running "
-                "AI-driven scenario analysis across bull, base, and bear cases."
+                "This may take 60–90 seconds. We're fetching live financials and "
+                "building a scenario model across bull, base, and bear cases."
             )
 
             st.write("Step 1 of 6 - Fetching financial data...")
@@ -1646,7 +1750,7 @@ if should_generate and ticker:
             st.write(f"Loaded **{company_name}** (via {data_source})")
 
             status.update(label=f"Analyzing {ticker}... (Step 2 of 6)")
-            st.write("Step 2 of 6 - Computing 24 verified financial metrics...")
+            st.write("Step 2 of 6 - Computing financial metrics...")
             m = calc(sd)
             if "error" in m:
                 st.error(m["error"]); st.stop()
@@ -1785,7 +1889,15 @@ if st.session_state.cached_report:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        render(c_ticker, c_m, c_a, c_data)
+        _has_stmts = any(c_data.get(k) is not None for k in ("inc", "bs", "cf"))
+        if _has_stmts:
+            _analysis_tab, _fin_tab = st.tabs(["Analysis", "Financials"])
+            with _analysis_tab:
+                render(c_ticker, c_m, c_a, c_data)
+            with _fin_tab:
+                _render_financials(c_data, cur=c_m.get("currency", "USD"))
+        else:
+            render(c_ticker, c_m, c_a, c_data)
         render_track_box(c_ticker, c_m, c_a)
 
         st.markdown('<hr class="div" style="margin-top:2rem;">', unsafe_allow_html=True)

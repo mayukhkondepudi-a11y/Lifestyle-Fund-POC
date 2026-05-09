@@ -144,7 +144,7 @@ def render_auth_modal():
             </span>
         </div>
         <div style="font-size:0.9rem;color:rgba(255,255,255,0.4);line-height:1.6;">
-            Sign in to generate reports &nbsp;&middot;&nbsp; 3 free · Save history · Price alerts
+            Your research, saved. &nbsp;&middot;&nbsp; 3 free reports &nbsp;&middot;&nbsp; History &amp; alerts
         </div>
     </div>
     """, unsafe_allow_html=True)

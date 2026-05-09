@@ -345,7 +345,7 @@ APP_CSS = """
         .rb-label { font-size: 0.58rem !important; }
         .ev-bar  { gap: 1.2rem !important; flex-wrap: wrap !important; padding: 1rem !important; }
         .ev-val  { font-size: 1rem !important; }
-        .pt-wrap { border-radius: 4px; }
+        .pt-wrap { border-radius: 4px; overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
         .pt { font-size: 0.78rem !important; }
         .pt th { font-size: 0.55rem !important; padding: 0.5rem 0.5rem !important; }
         .pt td { padding: 0.5rem 0.5rem !important; }
@@ -354,11 +354,36 @@ APP_CSS = """
         .rpt-head h2 { font-size: 1.6rem !important; }
         .rpt-head .meta { font-size: 0.72rem !important; }
         div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+        [data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; }
+        .stHorizontalBlock { flex-wrap: wrap !important; }
+        [data-testid="metric-container"] { min-width: 120px; }
+        .stTabs [data-baseweb="tab"] { font-size: 0.78rem !important; padding: 0.4rem 0.5rem !important; }
+        .nav-chips, .sr-wrap { max-width: 100%; }
     }
     @media (max-width: 480px) {
         .rb-val  { font-size: 1rem !important; }
         .ev-val  { font-size: 0.9rem !important; }
         .rpt-head h2 { font-size: 1.3rem !important; }
+        .rec-bar { grid-template-columns: 1fr 1fr !important; }
+        h2 { font-size: 1.1rem !important; }
+    }
+    @media print {
+        [data-testid="stToolbar"], [data-testid="stSidebar"],
+        [data-testid="stDecoration"], [data-testid="stHeader"],
+        [data-testid="stSidebarCollapsedControl"],
+        .stButton, .stTextInput, .stSelectbox, .stDownloadButton,
+        iframe[title="st_html"] { display: none !important; }
+        body, [data-testid="stAppViewContainer"], .stApp {
+            background: #fff !important;
+            color: #111 !important;
+        }
+        .rpt-card { box-shadow: none !important; border: 1px solid #ddd !important; background: #fff !important; color: #111 !important; }
+        .sec { color: #111 !important; border-color: #ddd !important; page-break-before: auto; }
+        .prose, .exec-summary { color: #222 !important; background: transparent !important; }
+        .pt { color: #111 !important; }
+        .pt th { color: #333 !important; background: #f5f5f5 !important; }
+        .pt td { color: #111 !important; }
+        .block-container { max-width: 100% !important; padding: 0 !important; }
     }
 
     [data-testid="stSidebar"],
@@ -383,6 +408,31 @@ APP_CSS = """
     .picks-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.045); transition: background 0.12s; }
     .picks-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
     .picks-table .co-name { font-size: 0.78rem; color: rgba(255,255,255,0.4); overflow: hidden; text-overflow: ellipsis; max-width: 160px; display: inline-block; vertical-align: middle; white-space: nowrap; }
+
+    /* Text-link style buttons */
+    .pickr-textlink .stButton > button {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(255,255,255,0.25) !important;
+        border-radius: 0 !important;
+        color: rgba(255,255,255,0.6) !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        padding: 0.1rem 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        box-shadow: none !important;
+        transform: none !important;
+        letter-spacing: 0.01em !important;
+    }
+    .pickr-textlink .stButton > button:hover {
+        color: #fff !important;
+        border-bottom-color: rgba(255,255,255,0.65) !important;
+        background: transparent !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .pickr-textlink .stButton > button::before { display: none !important; }
 
     /* Sign-out button */
     .pickr-signout-col .stButton > button {
