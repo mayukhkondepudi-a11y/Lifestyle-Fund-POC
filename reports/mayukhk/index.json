@@ -130,8 +130,8 @@
     "ticker": "CLS",
     "company_name": "Celestica, Inc.",
     "date": "2026-05-09",
-    "timestamp": "2026-05-09 06:06",
-    "recommendation": "WATCH",
-    "expected_return": 0.0412
+    "timestamp": "2026-05-09 16:21",
+    "recommendation": "PASS",
+    "expected_return": -0.4017
   }
 ]
