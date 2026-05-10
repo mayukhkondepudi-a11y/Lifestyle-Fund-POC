@@ -1,0 +1,926 @@
+{
+  "ticker": "CLS",
+  "date": "2026-05-10",
+  "timestamp": "2026-05-10 08:41",
+  "company_name": "Celestica, Inc.",
+  "recommendation": "PASS",
+  "conviction": "Low",
+  "expected_value": 198.45,
+  "expected_return": -0.4716,
+  "risk_adjusted_score": null,
+  "metrics": {
+    "company_name": "Celestica, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Components",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 375.55,
+    "market_cap": 43178147840,
+    "enterprise_value": 43741851648,
+    "trailing_pe": 45.4661,
+    "forward_pe": 25.01,
+    "peg_ratio": null,
+    "price_to_sales": 3.1312792,
+    "ev_to_ebitda": 31.69,
+    "gross_margin": 0.12019,
+    "operating_margin": 0.066199996,
+    "profit_margin": 0.069520004,
+    "roe": 0.52454,
+    "roa": 0.10663,
+    "trailing_eps": 8.26,
+    "forward_eps": 15.01876,
+    "earnings_growth": 1.473,
+    "total_revenue": 13789299712,
+    "revenue_growth": 0.528,
+    "free_cashflow": 458300000.0,
+    "operating_cashflow": 885500032,
+    "total_cash": 378000000,
+    "total_debt": 941699968,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.478,
+    "week_52_high": 435.0,
+    "week_52_low": 95.67,
+    "ma_50": 327.4948,
+    "ma_200": 287.175,
+    "insider_pct": 0.01087,
+    "institution_pct": 0.72121,
+    "shares_outstanding": 114973107,
+    "fcf_yield": 0.01061416533423959,
+    "reverse_dcf": {
+      "available": true,
+      "implied_fcf_cagr": 0.5433,
+      "wacc_used": 0.1,
+      "terminal_growth": 0.03,
+      "sector": "Technology",
+      "base_fcf": 458300000.0,
+      "target_ev": 43741850302.0,
+      "terminal_value_pct": 0.8381,
+      "tv_pct_flag": true,
+      "note": "At 375.55/share, market prices in 54.3% FCF CAGR over 5yr (10% WACC, 3.0% terminal growth). Terminal value is 84% of EV \u2014 high sensitivity to terminal assumptions."
+    },
+    "stmt_trailing_eps": 7.16,
+    "stmt_eps_series": {
+      "2022": 1.18,
+      "2023": 2.03,
+      "2024": 3.61,
+      "2025": 7.16
+    },
+    "debt_to_equity": 0.35,
+    "current_ratio": 1.44,
+    "revenue_cagr": 0.1956,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6658,
+    "eps_cagr_raw": 0.8239,
+    "net_income_cagr": 0.4,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.4,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 38.5pp from historical CAGR (40.0%). Treat historical with caution.",
+    "peg_historical_cagr": 40.0,
+    "data_quality_warnings": [
+      "DATA QUALITY WARNING: revenue_growth (52.8%) and earnings_growth (1.5%) diverge by 51.3pp. Likely stale or scope-mismatched yfinance data."
+    ],
+    "price_5y_return": 4365.52,
+    "price_5y_high": 418.93,
+    "price_5y_low": 7.35,
+    "latest_quarter": {
+      "period_label": "Q1 2026",
+      "period_end_date": "2026-03-31",
+      "revenue": 4047000000.0,
+      "operating_income": 267700000.0,
+      "operating_margin": 0.0661,
+      "net_income": 212300000.0,
+      "diluted_eps": 1.83
+    },
+    "multi_year_financials": {
+      "revenue": {
+        "2023": 7.96,
+        "2024": 9.65,
+        "2025": 12.39
+      },
+      "op_income": {
+        "2023": 0.35,
+        "2024": 0.62,
+        "2025": 1.07
+      },
+      "net_income": {
+        "2023": 0.24,
+        "2024": 0.43,
+        "2025": 0.83
+      },
+      "ocf": {
+        "2023": 0.33,
+        "2024": 0.47,
+        "2025": 0.66
+      },
+      "fcf": {
+        "2023": 0.2,
+        "2024": 0.3,
+        "2025": 0.46
+      },
+      "debt": {
+        "2023": 0.68,
+        "2024": 0.8,
+        "2025": 0.78
+      },
+      "equity": {
+        "2023": 1.77,
+        "2024": 1.9,
+        "2025": 2.22
+      }
+    },
+    "capex_3y": [
+      125100000.0,
+      170900000.0,
+      201200000.0
+    ],
+    "capex_to_revenue": 0.0166,
+    "sbc_3y": [
+      55600000.0,
+      57400000.0,
+      69800000.0
+    ],
+    "sbc_to_revenue": 0.0062,
+    "shares_outstanding_3y": [
+      118952174.0,
+      116100000.0,
+      114906818.0
+    ],
+    "dilution_rate_3y": -0.0172,
+    "goodwill": 333100000.0,
+    "goodwill_to_equity": 0.1503,
+    "op_margin_5y_band": {
+      "min": 0.0408,
+      "max": 0.0864,
+      "median": 0.0541,
+      "n": 4
+    },
+    "tax_rate_3y_band": {
+      "min": 0.1533,
+      "max": 0.2013,
+      "median": 0.1958,
+      "n": 3
+    },
+    "pe_5y_band": {
+      "min": 9.6,
+      "max": 42.2,
+      "median": 20.6,
+      "n": 4
+    }
+  },
+  "analysis": {
+    "recommendation": "PASS",
+    "conviction": "Low",
+    "model_used": "claude-opus-4-7",
+    "investment_thesis": "Celestica is a PASS at current levels because the deterministic scenario math produces an expected value of 198.45 against an expected return of -47.2%, with a 0% probability of positive return and an upside/downside ratio of 0.0. The driver-weighted bull case price target of 292.41 itself sits below the current price, meaning even the favorable outcome does not clear the hurdle.\n\nThe company is operating from a position of genuine fundamental strength: the Connectivity & Cloud Solutions segment is benefiting from hyperscaler AI/ML compute and networking infrastructure spend, with the Hardware Platform Solutions sub-segment driving the 400G/800G switch ramp. Bull-case revenue of 16.79 billion paired with a 7.5% operating margin and 9.14 EPS describes a credible operational outcome. The problem is not the business; it is the price relative to the distribution of outcomes that the drivers actually support.\n\nThe risk/reward is asymmetric in the wrong direction. With base case implied return of -55.8% and a bear price target of 66.45 carrying 17% probability, the downside tail dominates. Expected value of 198.45 anchors the recommendation: the market is pricing in a forward trajectory that the driver outcomes, even when probability-weighted toward the bull, cannot validate.",
+    "business_overview": "Celestica operates as a global electronics manufacturing and design services provider organized into two reporting segments: Connectivity & Cloud Solutions (CCS), which carries the hyperscaler-facing Hardware Platform Solutions (HPS) sub-segment, and Advanced Technology Solutions (ATS), which serves aerospace & defense, industrial, capital equipment, and HealthTech end-markets. The company's manufacturing footprint spans Mexico, Thailand, and China, serving primarily US-domiciled customers.\n\nThe business mix has shifted materially toward hyperscaler AI infrastructure, with CCS now representing 66% of revenue. This concentration is both the source of the recent re-rating and the central risk: top 10 customer concentration sits at approximately 73% of revenue per the FY2025 annual filing, and the top 2 customers are estimated at over 35% combined.",
+    "revenue_architecture": "Connectivity & Cloud Solutions (CCS) generates 9.10 billion in current revenue, representing 66% of total, at a 11.5% gross margin. The primary driver is hyperscaler AI/ML compute and networking infrastructure spend, with the Hardware Platform Solutions sub-segment driving the 400G/800G switch ramp at top-3 hyperscaler customers rumored to include Meta, Google, and AWS.\n\nAdvanced Technology Solutions (ATS) generates 4.69 billion in current revenue, representing 34% of total, at a 10.5% gross margin. The primary driver is A&D, industrial, capital equipment, and HealthTech demand, tied to defense budgets and the semicap equipment cycle.",
+    "growth_drivers": "Five drivers govern the scenario distribution. The hyperscaler AI networking ramp is the dominant force at 40% importance, with revenue impact ranging from -700 million in bear to +2.2 billion in bull, driven by the pace of 800G switch and custom AI server rack deployments. Customer concentration risk at 30% importance is qualitative on revenue but governs whether the AI tailwind compounds or unwinds, with bear scenario implying roughly 1.5 billion of revenue at risk if a top hyperscaler shifts to Foxconn or Quanta or insources.\n\nATS segment recovery at 18% importance contributes -400 million to +600 million across the range, driven by the WFE (wafer fab equipment) cycle and A&D program acceleration. Operating margin expansion at 20% importance governs whether HPS mix lifts the company structurally above the EMS industry's 4-5% norm. Tariff and trade policy at 12% importance contributes -500 million to +200 million, depending on whether Mexico/Thailand-origin goods face Section 232/301 actions or whether reshoring dynamics route share toward Celestica's footprint.",
+    "margin_analysis": "Operating margin spans 5.5% in bear, 6.6% in base, and 7.5% in bull. The base case holds Q1 2026's 6.6% run rate, reflecting modest mix benefit from HPS scaling offset by component cost inflation. The bull case at 7.5% requires sustained pricing power on AI programs and continued CCS mix lift. The bear at 5.5% reflects customer pricing concessions and negative leverage if hyperscaler digestion materializes, compressing margins back toward EMS industry norms.",
+    "financial_health": "Stock-based compensation: not reported. Three-year dilution rate: not reported. Capex-to-revenue: not reported. Goodwill: not reported. Goodwill-to-equity: not reported. Debt-to-equity: not reported. Free cash flow: 458 million on a TTM basis through Q1 2026, per the monitoring KPI baseline.",
+    "competitive_position": "Competitive context data was not provided in the structured inputs. The driver narratives reference Foxconn and Quanta as the primary competitive threats in the hyperscaler ODM space, particularly relevant under the customer concentration risk driver where one top hyperscaler shifting a portion of its program to a competitor represents the principal bear case mechanism.\n\nThe Mexico and Thailand manufacturing footprint is positioned as a potential beneficiary of US-China decoupling under the tariff driver, where reshoring share gains could deliver 200 million in incremental revenue in the bull outcome. This positioning depends on whether US customers actively dual-source away from Asian ODMs.",
+    "driver_narratives": {
+      "Hyperscaler AI networking ramp": "This is the highest-importance driver at 40% weight. The bull outcome at 50% probability delivers 2.2 billion of incremental revenue if the 800G switch program ramps faster than plan and a second hyperscaler design win begins shipping in H2 2026, driving HPS up 60%+ YoY. The base outcome at 35% probability delivers 900 million as HPS grows 25-30% with 800G transitions on schedule. The bear outcome at 15% probability subtracts 700 million if hyperscaler digestion sets in or one customer pulls networking in-house.",
+      "Customer concentration risk": "Weighted at 30% importance, this driver governs the qualitative tail rather than direct revenue. The bull outcome at 20% probability sees top customers expand programs and award incremental SKUs. The base at 45% probability holds concentration steady with pricing pressure offset by mix shift to higher-value AI rack assemblies. The bear at 35% probability \u2014 the highest bear weight in the driver set \u2014 reflects one top hyperscaler shifting a portion of its program to Foxconn or Quanta or insourcing, with approximately 1.5 billion of revenue at risk.",
+      "ATS segment recovery": "Weighted at 18% importance, this driver tracks the cyclical recovery in industrial, capital equipment, and HealthTech. The bull at 30% probability adds 600 million if the WFE cycle inflects and A&D programs accelerate, with ATS growing 12%+ and margins expanding to 7%+. The base at 50% probability adds 150 million on mid-single-digit ATS growth. The bear at 20% probability subtracts 400 million if industrial recession deepens and semicap orders push to 2027.",
+      "Operating margin expansion": "Weighted at 20% importance, this driver determines whether Celestica sustains margins above the EMS industry's 4-5% norm. The bull at 35% probability sees op margin expand to 7.5%+ on HPS scaling and CCS mix lift. The base at 50% probability holds 6.5-7.0%. The bear at 15% probability sees compression to 5.5% on customer pricing concessions and negative leverage.",
+      "Tariff and trade policy impact": "Weighted at 12% importance, this driver captures the asymmetric impact of US-China tariff escalation and Section 232/301 actions on the Mexico, Thailand, and China footprint. The bull at 25% probability adds 200 million as customers dual-source away from Asian ODMs toward Celestica's Mexico/Thailand capacity. The base at 50% probability subtracts 100 million on modest demand friction. The bear at 25% probability subtracts 500 million if broad tariffs hit Mexico/Thailand-origin goods."
+    },
+    "scenario_commentary": {
+      "bull": "The bull case carries 39% probability and a 292.41 price target on 9.1379 EPS, a 7.5% operating margin, a 32.0x P/E multiple, and 16.79 billion of revenue. This outcome is primarily determined by the hyperscaler AI networking ramp delivering a second design win and HPS growing 60%+ YoY, combined with operating margin expansion to 7.5% and a constructive tariff outcome. Even at this favorable outcome the price target sits below the current price, which is the central problem with the setup.",
+      "base": "The base case carries 44% probability and a 166.16 price target on 6.9235 EPS, a 6.6% operating margin, a 24.0x P/E multiple, and 14.74 billion of revenue. This outcome reflects HPS growing 25-30% on schedule with current hyperscaler customers, ATS recovering modestly, and operating margin holding the Q1 2026 run rate. The base implied return is -55.8%, indicating the market is pricing well above what the central scenario supports.",
+      "bear": "The bear case carries 17% probability and a 66.45 price target on 4.7465 EPS, a 5.5% operating margin, a 14.0x P/E multiple, and 12.19 billion of revenue. This outcome is determined by the customer concentration driver manifesting \u2014 one hyperscaler insourcing or shifting share \u2014 combined with HPS deceleration, margin compression, and EMS multiple compression toward the historical 12-15x norm."
+    },
+    "reverse_dcf_commentary": "The current price implies a forward free cash flow CAGR of 54.33%, a rate that materially exceeds the base case revenue trajectory which is anchored by HPS growing 25-30% off the implied 5 billion run-rate and ATS growing mid-single-digits. Even the bull case, which assumes a second hyperscaler design win and 16.79 billion of revenue, does not require an FCF CAGR of this magnitude to justify itself at sensible multiples. The implied growth rate is demanding to the point of being inconsistent with the operational outcomes the drivers describe.",
+    "monitoring_dashboard_intro": "The monitoring dashboard tracks seven KPIs that resolve which scenario is materializing. The CCS segment quarterly revenue print, the HPS sub-segment annualized run-rate, non-IFRS operating margin, top 10 customer concentration disclosure, TTM free cash flow, ATS segment operating margin, and forward FY revenue guidance together cover the hyperscaler ramp, concentration risk, margin sustainability, and ATS recovery drivers.",
+    "catalysts_intro": "The near-term catalyst that will move the probability distribution materially is the next earnings release and guidance update.",
+    "recommendation_rationale": "The recommendation is PASS with Low conviction. The math is unambiguous: expected value of 198.45 versus current price implies -47.2% expected return, prob_positive of 0%, and an upside/downside ratio of 0.0. Even the bull case price target of 292.41 sits below the current price, which the degraded_sections flag explicitly notes (bull_below_current). The base implied return of -55.8% confirms the central scenario is also unfavorable. There is no probability-weighted path to a positive outcome at the current price, and the implied FCF CAGR of 54.33% required to justify the price is inconsistent with even the bull operational scenario. PASS is the deterministic conclusion regardless of the qualitative strength of the AI networking story.",
+    "conclusion": "Celestica is a fundamentally interesting business riding a genuine hyperscaler AI tailwind, but at the current price the scenario distribution does not support a long position. Expected value of 198.45 sits well below the price, prob_positive is 0%, and even the 39%-probability bull case at 292.41 does not clear the hurdle.\n\nThe monitoring framework focuses on whether the bull-case mechanics materialize at a faster pace than the price already discounts. The CCS segment revenue (quarterly) and Hardware Platform Solutions (HPS) revenue KPIs track the AI networking ramp directly. Operating margin (non-IFRS) tracks margin sustainability above the EMS norm. Top 10 customer concentration tracks the central tail risk. Free cash flow (TTM), ATS segment operating margin, and forward FY revenue guidance round out the dashboard.\n\nThe key catalyst is the July 2026 Q2 2026 earnings release and FY2026 guidance update. A bull signal would be the FY2026 revenue guide raised above 14 billion with HPS commentary indicating a second hyperscaler ramp; a bear signal would be guidance maintained or trimmed with references to customer order timing or pricing concessions. We acknowledge that pass1_validation_partial and bull_below_current flags indicate degraded inputs, and that competitive context, SBC, dilution, capex, goodwill, and debt-to-equity disclosures were not available for this analysis.",
+    "segments": [
+      {
+        "name": "Connectivity & Cloud Solutions (CCS)",
+        "current_revenue": 9100000000.0,
+        "pct_of_total": 0.66,
+        "gross_margin": 0.115,
+        "primary_driver": "Hyperscaler AI/ML compute and networking infrastructure spend (Hardware Platform Solutions sub-segment driving 400G/800G switch ramp)."
+      },
+      {
+        "name": "Advanced Technology Solutions (ATS)",
+        "current_revenue": 4690000000.0,
+        "pct_of_total": 0.34,
+        "gross_margin": 0.105,
+        "primary_driver": "A&D, industrial, capital equipment, and HealthTech demand; tied to defense budgets and semicap equipment cycle."
+      }
+    ],
+    "drivers": [
+      {
+        "name": "Hyperscaler AI networking ramp",
+        "description": "Pace of 800G switch and custom AI server rack deployments at top-3 hyperscaler customers (rumored to include Meta, Google, AWS) within HPS sub-segment.",
+        "outcomes": {
+          "bull": {
+            "probability": 0.5,
+            "revenue_impact": 2200000000,
+            "description": "800G switch program ramps faster than plan; second hyperscaler design win begins shipping in H2 2026 driving HPS up 60%+ YoY.",
+            "eps_impact": 1.1974
+          },
+          "base": {
+            "probability": 0.35,
+            "revenue_impact": 900000000,
+            "description": "HPS grows 25-30% as 800G transitions on schedule; existing customers ramp to plan.",
+            "eps_impact": 0.4228
+          },
+          "bear": {
+            "probability": 0.15,
+            "revenue_impact": -700000000,
+            "description": "Hyperscaler digestion period or one customer pulls in-house networking; HPS growth decelerates to single digits.",
+            "eps_impact": -0.2726
+          }
+        },
+        "importance": 0.4,
+        "correlation_group": "ai_capex"
+      },
+      {
+        "name": "Customer concentration risk",
+        "description": "Risk that top 2 customers (estimated >35% of revenue combined) reduce share-of-wallet, push pricing, or vertically integrate ODM functions.",
+        "outcomes": {
+          "bull": {
+            "probability": 0.2,
+            "revenue_impact": 0.0,
+            "description": "Top customers expand programs and award incremental SKUs; concentration becomes share gain.",
+            "eps_impact": 0.0
+          },
+          "base": {
+            "probability": 0.45,
+            "revenue_impact": 0.0,
+            "description": "Concentration steady; pricing pressure offset by mix shift to higher-value AI rack assemblies.",
+            "eps_impact": 0.0
+          },
+          "bear": {
+            "probability": 0.35,
+            "revenue_impact": 0.0,
+            "description": "One top hyperscaler shifts portion of program to a competitor (Foxconn, Quanta) or insources; ~$1.5B revenue at risk.",
+            "eps_impact": 0.0
+          }
+        },
+        "importance": 0.3,
+        "correlation_group": "ai_capex",
+        "_redundant": true
+      },
+      {
+        "name": "ATS segment recovery",
+        "description": "Recovery trajectory in industrial, capital equipment, and HealthTech end-markets after a soft 2024-2025; ties to semicap rebound and defense funding.",
+        "outcomes": {
+          "bull": {
+            "probability": 0.3,
+            "revenue_impact": 600000000,
+            "description": "Capital equipment cycle inflects with WFE recovery; A&D programs accelerate; ATS grows 12%+ with margin expansion to 7%+.",
+            "eps_impact": 0.3266
+          },
+          "base": {
+            "probability": 0.5,
+            "revenue_impact": 150000000,
+            "description": "ATS grows mid-single-digits; industrial weakness offset by A&D and HealthTech strength.",
+            "eps_impact": 0.0705
+          },
+          "bear": {
+            "probability": 0.2,
+            "revenue_impact": -400000000,
+            "description": "Industrial recession deepens; semicap orders pushed to 2027; ATS revenue declines 5-8%.",
+            "eps_impact": -0.1558
+          }
+        },
+        "importance": 0.18,
+        "correlation_group": null
+      },
+      {
+        "name": "Operating margin expansion",
+        "description": "Ability to sustain margin expansion above 6.5% as HPS mix increases and operating leverage builds, against EMS industry historical 4-5% norm.",
+        "outcomes": {
+          "bull": {
+            "probability": 0.35,
+            "revenue_impact": 0,
+            "description": "Op margin expands to 7.5%+ as HPS scales and CCS mix lifts; sustained pricing power on AI programs.",
+            "eps_impact": 0.0
+          },
+          "base": {
+            "probability": 0.5,
+            "revenue_impact": 0,
+            "description": "Op margin holds 6.5-7.0%; modest mix benefit offset by component cost inflation.",
+            "eps_impact": 0.0
+          },
+          "bear": {
+            "probability": 0.15,
+            "revenue_impact": 0,
+            "description": "Margin compresses to 5.5% on customer pricing concessions and negative leverage if revenue decelerates.",
+            "eps_impact": 0.0
+          }
+        },
+        "importance": 0.2,
+        "correlation_group": null
+      },
+      {
+        "name": "Tariff and trade policy impact",
+        "description": "Effect of US-China tariff escalation and Section 232/301 actions on Celestica's Mexico, Thailand, and China manufacturing footprint serving US customers.",
+        "outcomes": {
+          "bull": {
+            "probability": 0.25,
+            "revenue_impact": 200000000,
+            "description": "Trade tensions drive customers to dual-source away from Asian ODMs; Celestica's Mexico/Thailand footprint wins reshoring share.",
+            "eps_impact": 0.1089
+          },
+          "base": {
+            "probability": 0.5,
+            "revenue_impact": -100000000,
+            "description": "Tariffs largely passed through to customers with modest demand friction; minimal net impact.",
+            "eps_impact": -0.047
+          },
+          "bear": {
+            "probability": 0.25,
+            "revenue_impact": -500000000,
+            "description": "Broad tariffs on Mexico/Thailand-origin goods compress margins or trigger customer order delays.",
+            "eps_impact": -0.1947
+          }
+        },
+        "importance": 0.12,
+        "correlation_group": null
+      }
+    ],
+    "scenario_inputs": {
+      "bull": {
+        "op_margin": 0.075,
+        "tax_rate": 0.18,
+        "pe_multiple_pick": 32.0,
+        "narrative_stub": "AI networking ramp accelerates with second hyperscaler win, HPS revenue exceeds $5B and op margin expands to 7.5% as CCS mix lifts."
+      },
+      "base": {
+        "op_margin": 0.066,
+        "tax_rate": 0.1958,
+        "pe_multiple_pick": 24.0,
+        "narrative_stub": "HPS grows 25-30% on schedule with current hyperscaler customers, ATS recovers modestly, and op margin holds at Q1 2026's 6.6% run rate."
+      },
+      "bear": {
+        "op_margin": 0.055,
+        "tax_rate": 0.2,
+        "pe_multiple_pick": 14.0,
+        "narrative_stub": "Customer concentration manifests with one hyperscaler insourcing or shifting share, HPS decelerates, and EMS multiple compresses toward historical 12-15x norm."
+      }
+    },
+    "monitoring_kpis": [
+      {
+        "name": "CCS segment revenue (quarterly)",
+        "fy_baseline": "~$2.7B (Q1 2026, ~67% of $4.05B total)",
+        "constructive_trajectory": "Sequential growth above 8% with HPS sub-segment growing 40%+ YoY",
+        "adverse_trajectory": "Sequential decline or HPS YoY growth dropping below 20%"
+      },
+      {
+        "name": "Hardware Platform Solutions (HPS) revenue",
+        "fy_baseline": "Annualized ~$5B run-rate implied from 2026 guidance",
+        "constructive_trajectory": "Management raises HPS outlook above $5.5B for FY2026; commentary on second hyperscaler 800G ramp",
+        "adverse_trajectory": "HPS guidance held or trimmed; commentary on hyperscaler digestion or pricing pressure"
+      },
+      {
+        "name": "Operating margin (non-IFRS)",
+        "fy_baseline": "6.6% (Q1 2026)",
+        "constructive_trajectory": "Sustained expansion above 7.0% over consecutive quarters",
+        "adverse_trajectory": "Compression below 6.0% suggesting mix or pricing deterioration"
+      },
+      {
+        "name": "Top 10 customer concentration (10-K disclosure)",
+        "fy_baseline": "~73% of revenue (FY2025 annual filing)",
+        "constructive_trajectory": "Concentration declines as new hyperscaler wins diversify base",
+        "adverse_trajectory": "Concentration rises above 78% or single-customer commentary indicates wallet-share risk"
+      },
+      {
+        "name": "Free cash flow (TTM)",
+        "fy_baseline": "$458M (TTM through Q1 2026)",
+        "constructive_trajectory": "FCF/share expanding above $5 with working capital discipline",
+        "adverse_trajectory": "FCF compresses on inventory build or receivables stretch"
+      },
+      {
+        "name": "ATS segment operating margin",
+        "fy_baseline": "~5% (FY2025 disclosed level)",
+        "constructive_trajectory": "Expansion toward 6-7% with capital equipment recovery",
+        "adverse_trajectory": "Compression below 4.5% on industrial weakness"
+      },
+      {
+        "name": "Forward FY revenue guidance",
+        "fy_baseline": "FY2026 guide ~$13.5-14.0B (management's most recent outlook)",
+        "constructive_trajectory": "Mid-year raise to $14.5B+ with HPS-led commentary",
+        "adverse_trajectory": "Guidance held flat or trimmed; references customer push-outs"
+      }
+    ],
+    "catalysts": [
+      {
+        "date": "July 2026",
+        "event": "Q2 2026 earnings release and FY2026 guidance update",
+        "bull_signal": "FY2026 revenue guide raised above $14B with HPS commentary indicating second hyperscaler ramp",
+        "bear_signal": "Guide maintained or trimmed; commentary on customer order timing or pricing concessions"
+      }
+    ],
+    "concentration": {},
+    "competitive_context": {},
+    "peer_tickers": [],
+    "scenario_math": {
+      "final_probabilities": {
+        "bull": 0.39,
+        "base": 0.44,
+        "bear": 0.17
+      },
+      "scenario_revenue": {
+        "bull": 16789299712.0,
+        "base": 14739299712.0,
+        "bear": 12189299712.0
+      },
+      "future_shares": 112995570.0,
+      "eps": {
+        "bull": 9.1379,
+        "base": 6.9235,
+        "bear": 4.7465
+      },
+      "price_target": {
+        "bull": 292.41,
+        "base": 166.16,
+        "bear": 66.45
+      },
+      "expected_value": 198.45,
+      "expected_return": -0.4716,
+      "base_implied_return": -0.5576,
+      "prob_positive": 0,
+      "upside_downside_ratio": 0.0,
+      "monotonicity_violation": false,
+      "violation_msg": null,
+      "bull_below_current": true,
+      "bull_below_msg": "Bull-case price target 292.41 is BELOW current price 375.55. Your bull-case revenue (16.79B) and/or operating margin (7.5%) may be anchored on stale forward baselines (e.g. outdated revenue guidance). Reconsider bull-case revenue/margin against the LATEST QUARTERLY DISCLOSURE and any recent guidance updates in RECENT NEWS HEADLINES \u2014 bull revenue should be consistent with or above management's most recent annual guidance.",
+      "drivers_with_impacts": [
+        {
+          "name": "Hyperscaler AI networking ramp",
+          "description": "Pace of 800G switch and custom AI server rack deployments at top-3 hyperscaler customers (rumored to include Meta, Google, AWS) within HPS sub-segment.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.5,
+              "revenue_impact": 2200000000,
+              "description": "800G switch program ramps faster than plan; second hyperscaler design win begins shipping in H2 2026 driving HPS up 60%+ YoY.",
+              "eps_impact": 1.1974
+            },
+            "base": {
+              "probability": 0.35,
+              "revenue_impact": 900000000,
+              "description": "HPS grows 25-30% as 800G transitions on schedule; existing customers ramp to plan.",
+              "eps_impact": 0.4228
+            },
+            "bear": {
+              "probability": 0.15,
+              "revenue_impact": -700000000,
+              "description": "Hyperscaler digestion period or one customer pulls in-house networking; HPS growth decelerates to single digits.",
+              "eps_impact": -0.2726
+            }
+          },
+          "importance": 0.4,
+          "correlation_group": "ai_capex"
+        },
+        {
+          "name": "Customer concentration risk",
+          "description": "Risk that top 2 customers (estimated >35% of revenue combined) reduce share-of-wallet, push pricing, or vertically integrate ODM functions.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.2,
+              "revenue_impact": 0.0,
+              "description": "Top customers expand programs and award incremental SKUs; concentration becomes share gain.",
+              "eps_impact": 0.0
+            },
+            "base": {
+              "probability": 0.45,
+              "revenue_impact": 0.0,
+              "description": "Concentration steady; pricing pressure offset by mix shift to higher-value AI rack assemblies.",
+              "eps_impact": 0.0
+            },
+            "bear": {
+              "probability": 0.35,
+              "revenue_impact": 0.0,
+              "description": "One top hyperscaler shifts portion of program to a competitor (Foxconn, Quanta) or insources; ~$1.5B revenue at risk.",
+              "eps_impact": 0.0
+            }
+          },
+          "importance": 0.3,
+          "correlation_group": "ai_capex",
+          "_redundant": true
+        },
+        {
+          "name": "ATS segment recovery",
+          "description": "Recovery trajectory in industrial, capital equipment, and HealthTech end-markets after a soft 2024-2025; ties to semicap rebound and defense funding.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.3,
+              "revenue_impact": 600000000,
+              "description": "Capital equipment cycle inflects with WFE recovery; A&D programs accelerate; ATS grows 12%+ with margin expansion to 7%+.",
+              "eps_impact": 0.3266
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": 150000000,
+              "description": "ATS grows mid-single-digits; industrial weakness offset by A&D and HealthTech strength.",
+              "eps_impact": 0.0705
+            },
+            "bear": {
+              "probability": 0.2,
+              "revenue_impact": -400000000,
+              "description": "Industrial recession deepens; semicap orders pushed to 2027; ATS revenue declines 5-8%.",
+              "eps_impact": -0.1558
+            }
+          },
+          "importance": 0.18,
+          "correlation_group": null
+        },
+        {
+          "name": "Operating margin expansion",
+          "description": "Ability to sustain margin expansion above 6.5% as HPS mix increases and operating leverage builds, against EMS industry historical 4-5% norm.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.35,
+              "revenue_impact": 0,
+              "description": "Op margin expands to 7.5%+ as HPS scales and CCS mix lifts; sustained pricing power on AI programs.",
+              "eps_impact": 0.0
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": 0,
+              "description": "Op margin holds 6.5-7.0%; modest mix benefit offset by component cost inflation.",
+              "eps_impact": 0.0
+            },
+            "bear": {
+              "probability": 0.15,
+              "revenue_impact": 0,
+              "description": "Margin compresses to 5.5% on customer pricing concessions and negative leverage if revenue decelerates.",
+              "eps_impact": 0.0
+            }
+          },
+          "importance": 0.2,
+          "correlation_group": null
+        },
+        {
+          "name": "Tariff and trade policy impact",
+          "description": "Effect of US-China tariff escalation and Section 232/301 actions on Celestica's Mexico, Thailand, and China manufacturing footprint serving US customers.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.25,
+              "revenue_impact": 200000000,
+              "description": "Trade tensions drive customers to dual-source away from Asian ODMs; Celestica's Mexico/Thailand footprint wins reshoring share.",
+              "eps_impact": 0.1089
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": -100000000,
+              "description": "Tariffs largely passed through to customers with modest demand friction; minimal net impact.",
+              "eps_impact": -0.047
+            },
+            "bear": {
+              "probability": 0.25,
+              "revenue_impact": -500000000,
+              "description": "Broad tariffs on Mexico/Thailand-origin goods compress margins or trigger customer order delays.",
+              "eps_impact": -0.1947
+            }
+          },
+          "importance": 0.12,
+          "correlation_group": null
+        }
+      ],
+      "guard_warnings": [],
+      "recommendation": "PASS",
+      "conviction": "Low",
+      "diagnostic": {
+        "signal_implied_probabilities": {
+          "bull": 0.395,
+          "base": 0.505,
+          "bear": 0.1
+        },
+        "divergence_flag": false,
+        "bull_score": 95.0,
+        "signal_log": []
+      },
+      "degraded_sections": [
+        "pass1_validation_partial",
+        "bull_below_current"
+      ],
+      "pe_ranges": {
+        "bull": [
+          25.0,
+          42.2
+        ],
+        "base": [
+          20.0,
+          30.0
+        ],
+        "bear": [
+          10.0,
+          21.3
+        ]
+      },
+      "pass1_validation_errors": [
+        "no driver has bear.probability > base.probability",
+        "catalysts count 1 not in [3, 6]"
+      ]
+    },
+    "python_outputs": {
+      "final_probabilities": {
+        "bull": 0.39,
+        "base": 0.44,
+        "bear": 0.17
+      },
+      "scenario_revenue": {
+        "bull": 16789299712.0,
+        "base": 14739299712.0,
+        "bear": 12189299712.0
+      },
+      "future_shares": 112995570.0,
+      "eps": {
+        "bull": 9.1379,
+        "base": 6.9235,
+        "bear": 4.7465
+      },
+      "price_target": {
+        "bull": 292.41,
+        "base": 166.16,
+        "bear": 66.45
+      },
+      "expected_value": 198.45,
+      "expected_return": -0.4716,
+      "base_implied_return": -0.5576,
+      "prob_positive": 0,
+      "upside_downside_ratio": 0.0,
+      "monotonicity_violation": false,
+      "violation_msg": null,
+      "bull_below_current": true,
+      "bull_below_msg": "Bull-case price target 292.41 is BELOW current price 375.55. Your bull-case revenue (16.79B) and/or operating margin (7.5%) may be anchored on stale forward baselines (e.g. outdated revenue guidance). Reconsider bull-case revenue/margin against the LATEST QUARTERLY DISCLOSURE and any recent guidance updates in RECENT NEWS HEADLINES \u2014 bull revenue should be consistent with or above management's most recent annual guidance.",
+      "drivers_with_impacts": [
+        {
+          "name": "Hyperscaler AI networking ramp",
+          "description": "Pace of 800G switch and custom AI server rack deployments at top-3 hyperscaler customers (rumored to include Meta, Google, AWS) within HPS sub-segment.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.5,
+              "revenue_impact": 2200000000,
+              "description": "800G switch program ramps faster than plan; second hyperscaler design win begins shipping in H2 2026 driving HPS up 60%+ YoY.",
+              "eps_impact": 1.1974
+            },
+            "base": {
+              "probability": 0.35,
+              "revenue_impact": 900000000,
+              "description": "HPS grows 25-30% as 800G transitions on schedule; existing customers ramp to plan.",
+              "eps_impact": 0.4228
+            },
+            "bear": {
+              "probability": 0.15,
+              "revenue_impact": -700000000,
+              "description": "Hyperscaler digestion period or one customer pulls in-house networking; HPS growth decelerates to single digits.",
+              "eps_impact": -0.2726
+            }
+          },
+          "importance": 0.4,
+          "correlation_group": "ai_capex"
+        },
+        {
+          "name": "Customer concentration risk",
+          "description": "Risk that top 2 customers (estimated >35% of revenue combined) reduce share-of-wallet, push pricing, or vertically integrate ODM functions.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.2,
+              "revenue_impact": 0.0,
+              "description": "Top customers expand programs and award incremental SKUs; concentration becomes share gain.",
+              "eps_impact": 0.0
+            },
+            "base": {
+              "probability": 0.45,
+              "revenue_impact": 0.0,
+              "description": "Concentration steady; pricing pressure offset by mix shift to higher-value AI rack assemblies.",
+              "eps_impact": 0.0
+            },
+            "bear": {
+              "probability": 0.35,
+              "revenue_impact": 0.0,
+              "description": "One top hyperscaler shifts portion of program to a competitor (Foxconn, Quanta) or insources; ~$1.5B revenue at risk.",
+              "eps_impact": 0.0
+            }
+          },
+          "importance": 0.3,
+          "correlation_group": "ai_capex",
+          "_redundant": true
+        },
+        {
+          "name": "ATS segment recovery",
+          "description": "Recovery trajectory in industrial, capital equipment, and HealthTech end-markets after a soft 2024-2025; ties to semicap rebound and defense funding.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.3,
+              "revenue_impact": 600000000,
+              "description": "Capital equipment cycle inflects with WFE recovery; A&D programs accelerate; ATS grows 12%+ with margin expansion to 7%+.",
+              "eps_impact": 0.3266
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": 150000000,
+              "description": "ATS grows mid-single-digits; industrial weakness offset by A&D and HealthTech strength.",
+              "eps_impact": 0.0705
+            },
+            "bear": {
+              "probability": 0.2,
+              "revenue_impact": -400000000,
+              "description": "Industrial recession deepens; semicap orders pushed to 2027; ATS revenue declines 5-8%.",
+              "eps_impact": -0.1558
+            }
+          },
+          "importance": 0.18,
+          "correlation_group": null
+        },
+        {
+          "name": "Operating margin expansion",
+          "description": "Ability to sustain margin expansion above 6.5% as HPS mix increases and operating leverage builds, against EMS industry historical 4-5% norm.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.35,
+              "revenue_impact": 0,
+              "description": "Op margin expands to 7.5%+ as HPS scales and CCS mix lifts; sustained pricing power on AI programs.",
+              "eps_impact": 0.0
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": 0,
+              "description": "Op margin holds 6.5-7.0%; modest mix benefit offset by component cost inflation.",
+              "eps_impact": 0.0
+            },
+            "bear": {
+              "probability": 0.15,
+              "revenue_impact": 0,
+              "description": "Margin compresses to 5.5% on customer pricing concessions and negative leverage if revenue decelerates.",
+              "eps_impact": 0.0
+            }
+          },
+          "importance": 0.2,
+          "correlation_group": null
+        },
+        {
+          "name": "Tariff and trade policy impact",
+          "description": "Effect of US-China tariff escalation and Section 232/301 actions on Celestica's Mexico, Thailand, and China manufacturing footprint serving US customers.",
+          "outcomes": {
+            "bull": {
+              "probability": 0.25,
+              "revenue_impact": 200000000,
+              "description": "Trade tensions drive customers to dual-source away from Asian ODMs; Celestica's Mexico/Thailand footprint wins reshoring share.",
+              "eps_impact": 0.1089
+            },
+            "base": {
+              "probability": 0.5,
+              "revenue_impact": -100000000,
+              "description": "Tariffs largely passed through to customers with modest demand friction; minimal net impact.",
+              "eps_impact": -0.047
+            },
+            "bear": {
+              "probability": 0.25,
+              "revenue_impact": -500000000,
+              "description": "Broad tariffs on Mexico/Thailand-origin goods compress margins or trigger customer order delays.",
+              "eps_impact": -0.1947
+            }
+          },
+          "importance": 0.12,
+          "correlation_group": null
+        }
+      ],
+      "guard_warnings": [],
+      "recommendation": "PASS",
+      "conviction": "Low",
+      "diagnostic": {
+        "signal_implied_probabilities": {
+          "bull": 0.395,
+          "base": 0.505,
+          "bear": 0.1
+        },
+        "divergence_flag": false,
+        "bull_score": 95.0,
+        "signal_log": []
+      },
+      "degraded_sections": [
+        "pass1_validation_partial",
+        "bull_below_current"
+      ],
+      "pe_ranges": {
+        "bull": [
+          25.0,
+          42.2
+        ],
+        "base": [
+          20.0,
+          30.0
+        ],
+        "bear": [
+          10.0,
+          21.3
+        ]
+      },
+      "pass1_validation_errors": [
+        "no driver has bear.probability > base.probability",
+        "catalysts count 1 not in [3, 6]"
+      ]
+    },
+    "pass3": {
+      "consistency_flags": [
+        {
+          "field": "driver_narratives.Hyperscaler AI networking ramp",
+          "issue": "States bull outcome at 50% probability delivers 2.2B; pass1 confirms 50% but bull/base/bear outcome probabilities (50/35/15) sum correctly. No contradiction, but base outcome impact stated as 900M matches source.",
+          "severity": "info"
+        },
+        {
+          "field": "growth_drivers",
+          "issue": "States ATS recovery contributes '-400 million to +600 million' which matches pass1, but describes operating margin expansion driver as governing whether HPS mix lifts company above 4-5% norm \u2014 consistent with source.",
+          "severity": "info"
+        },
+        {
+          "field": "revenue_architecture",
+          "issue": "CCS revenue cited as 9.10B and ATS as 4.69B; sum = 13.79B which matches total_revenue. Internally consistent.",
+          "severity": "info"
+        }
+      ],
+      "numbers_outside_source": [
+        {
+          "number": "73%",
+          "field": "business_overview",
+          "context": "top 10 customer concentration sits at approximately 73%"
+        },
+        {
+          "number": "35%",
+          "field": "business_overview",
+          "context": "top 2 customers are estimated at over 35% combined"
+        },
+        {
+          "number": "60%+ YoY",
+          "field": "driver_narratives.Hyperscaler AI networking ramp",
+          "context": "driving HPS up 60%+ YoY"
+        },
+        {
+          "number": "25-30%",
+          "field": "driver_narratives.Hyperscaler AI networking ramp",
+          "context": "HPS grows 25-30% with 800G transitions"
+        },
+        {
+          "number": "12%+",
+          "field": "driver_narratives.ATS segment recovery",
+          "context": "ATS growing 12%+ and margins expanding"
+        },
+        {
+          "number": "7%+",
+          "field": "driver_narratives.ATS segment recovery",
+          "context": "margins expanding to 7%+"
+        },
+        {
+          "number": "4-5%",
+          "field": "driver_narratives.Operating margin expansion",
+          "context": "EMS industry's 4-5% norm"
+        },
+        {
+          "number": "12-15x",
+          "field": "scenario_commentary.bear",
+          "context": "EMS multiple compression toward the historical 12-15x norm"
+        },
+        {
+          "number": "5 billion",
+          "field": "reverse_dcf_commentary",
+          "context": "implied 5 billion run-rate"
+        },
+        {
+          "number": "1.5 billion",
+          "field": "growth_drivers",
+          "context": "1.5 billion of revenue at risk if a top hyperscaler shifts"
+        },
+        {
+          "number": "14 billion",
+          "field": "conclusion",
+          "context": "FY2026 revenue guide raised above 14 billion"
+        },
+        {
+          "number": "$5.5B",
+          "field": "monitoring_dashboard_intro",
+          "context": "(implicit via HPS context, though not directly cited)"
+        }
+      ],
+      "tone_label_mismatch": false,
+      "tone_label_evidence": null,
+      "model_used": "claude-opus-4-7"
+    },
+    "headwind_narrative": "",
+    "tailwind_narrative": "",
+    "market_pricing_commentary": "",
+    "scenarios": {},
+    "headwinds": [],
+    "tailwinds": [],
+    "macro_drivers": [],
+    "market_expectations": {},
+    "sensitivity": {},
+    "data_quality_warnings": [
+      "pass1_validation_partial",
+      "bull_below_current",
+      "pass1_validation: no driver has bear.probability > base.probability",
+      "pass1_validation: catalysts count 1 not in [3, 6]"
+    ]
+  }
+}
