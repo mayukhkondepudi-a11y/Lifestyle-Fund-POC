@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-09 11:03 UTC",
+  "last_updated": "2026-05-10 11:05 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -155,9 +155,9 @@
       "roe": 0.4336,
       "earnings_cagr": 0.2275,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0551,
-      "debt_equity": 0.9974,
-      "qglp_score": 78.4
+      "fcf_yield": 0.0487,
+      "debt_equity": 0.9464,
+      "qglp_score": 78.6
     },
     {
       "ticker": "ZM",
@@ -205,9 +205,9 @@
       "roe": 0.1262,
       "earnings_cagr": 0.1515,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0145,
+      "fcf_yield": 0.0136,
       "debt_equity": 0.012,
-      "qglp_score": 62.2
+      "qglp_score": 62.0
     }
   ]
 }
