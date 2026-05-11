@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-10 11:05 UTC",
+  "last_updated": "2026-05-11 12:44 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -181,33 +181,33 @@
       "ticker": "MASTEK.NS",
       "name": "MASTEK LTD",
       "sector": "Technology",
-      "price": 1683.1,
-      "market_cap": 52171620352,
-      "trailing_pe": 13.0,
-      "peg_ratio": 0.844,
+      "price": 1658.6,
+      "market_cap": 51412189184,
+      "trailing_pe": 12.81,
+      "peg_ratio": 0.832,
       "peg_source": "stmt_eps_cagr_2yr",
       "roe": 0.1481,
       "earnings_cagr": 0.154,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0782,
+      "fcf_yield": 0.0794,
       "debt_equity": 0.1465,
-      "qglp_score": 69.4
+      "qglp_score": 69.6
     },
     {
       "ticker": "BAJAJHLDNG.NS",
       "name": "BAJAJ HOLDINGS & INVS LTD",
       "sector": "Financial Services",
-      "price": 10632.0,
-      "market_cap": 1183272665088,
-      "trailing_pe": 12.28,
-      "peg_ratio": 0.811,
+      "price": 10425.0,
+      "market_cap": 1160234926080,
+      "trailing_pe": 12.04,
+      "peg_ratio": 0.795,
       "peg_source": "stmt_eps_cagr_2yr",
       "roe": 0.1262,
       "earnings_cagr": 0.1515,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0136,
+      "fcf_yield": 0.0139,
       "debt_equity": 0.012,
-      "qglp_score": 62.0
+      "qglp_score": 62.4
     }
   ]
 }
