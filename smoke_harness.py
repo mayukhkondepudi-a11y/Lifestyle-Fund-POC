@@ -107,12 +107,98 @@ def check_nvda_bull_above_current(fixture: dict, ticker: str) -> CheckResult:
     return True, None
 
 
+# ── Phase B: baseline contract checks ───────────────────────────────────────
+
+# Required keys and expected types for the §5.1 baseline shape.
+# Value is (type_or_tuple_of_types, required=True|False).
+_BASELINE_CONTRACT: dict[str, tuple] = {
+    "ticker":        (str,   True),
+    "company_name":  (str,   True),
+    "current_price": (float, True),
+    "shares_out":    ((float, type(None)), True),
+    "market_cap":    ((float, type(None)), True),
+    "net_debt":      ((float, type(None)), True),
+    "currency":      (str,   True),
+    "fy_revenue":    ((float, type(None)), True),
+    "fy_revenue_yoy":((float, type(None)), True),
+    "fy_gross_margin":((float, type(None)), True),
+    "fy_op_margin":  ((float, type(None)), True),
+    "fy_net_income": ((float, type(None)), True),
+    "fy_eps_non_gaap":((float, type(None)), True),
+    "fy_fcf":        ((float, type(None)), True),
+    "fy_fcf_margin": ((float, type(None)), True),
+    "fy_sbc":        ((float, type(None)), True),
+    "fy_contract_assets":    ((float, type(None)), True),
+    "prior_contract_assets": ((float, type(None)), True),
+    "fy_software_revenue":   ((float, type(None)), True),
+    "fy_dso":        ((float, type(None)), True),
+    "prior_dso":     ((float, type(None)), True),
+    "fy_ocf":        ((float, type(None)), True),
+    "fy_net_income_gaap":    ((float, type(None)), True),
+    "tax_rate_guidance":     (float, True),
+    "beta":          (float, True),
+    "fwd_pe":        ((float, type(None)), True),
+    "trailing_pe":   ((float, type(None)), True),
+    "peg":           ((float, type(None)), True),
+    "consensus_eps_fy1":     ((dict, type(None)), True),
+    "consensus_eps_fy2":     ((dict, type(None)), True),
+    "consensus_eps_fy3":     ((dict, type(None)), True),
+    "consensus_revenue_fy1": ((dict, type(None)), True),
+    "consensus_revenue_fy2": ((dict, type(None)), True),
+    "consensus_price_target":((dict, type(None)), True),
+    "n_analysts":            ((int, type(None)), True),
+    "five_yr_eps_growth_est":((float, type(None)), True),
+    "segments":      ((list, type(None)), True),
+    "history_3y":    (list, True),
+    "peer_set":      (list,  True),
+    "recent_news":   (list,  True),
+    "data_quality_warnings": (list, True),
+}
+
+
+def check_baseline_contract(fixture: dict) -> CheckResult:
+    """Phase B: baseline dict contains all required keys with correct types."""
+    baseline = fixture.get("baseline")
+    if baseline is None:
+        return None, "no baseline key (Phase B not landed)"
+    if "error" in baseline:
+        return False, f"baseline has error field: {baseline['error']}"
+    missing = []
+    wrong_type = []
+    for key, (expected_type, required) in _BASELINE_CONTRACT.items():
+        if key not in baseline:
+            if required:
+                missing.append(key)
+        else:
+            val = baseline[key]
+            if not isinstance(val, expected_type):
+                wrong_type.append(f"{key}={type(val).__name__} (expected {expected_type})")
+    if missing:
+        return False, f"baseline missing required keys: {missing}"
+    if wrong_type:
+        return False, f"baseline type mismatches: {wrong_type}"
+    return True, None
+
+
+def check_baseline_no_crash(fixture: dict) -> CheckResult:
+    """Phase B: baseline.current_price is a positive float (pipeline didn't crash)."""
+    baseline = fixture.get("baseline")
+    if baseline is None:
+        return None, "no baseline key (Phase B not landed)"
+    price = baseline.get("current_price")
+    if price is None or not isinstance(price, (int, float)) or price <= 0:
+        return False, f"baseline.current_price={price!r} (must be positive float)"
+    return True, None
+
+
 GENERIC_CHECKS: list[tuple[str, Check]] = [
-    ("pipeline_runs",    check_pipeline_runs),
-    ("joint_probs_sum",  check_joint_probs_sum),
-    ("word_count",       check_word_count),
-    ("forbidden_tokens", check_forbidden_tokens),
-    ("reverse_dcf",      check_reverse_dcf),
+    ("pipeline_runs",       check_pipeline_runs),
+    ("baseline_contract",   check_baseline_contract),
+    ("baseline_no_crash",   check_baseline_no_crash),
+    ("joint_probs_sum",     check_joint_probs_sum),
+    ("word_count",          check_word_count),
+    ("forbidden_tokens",    check_forbidden_tokens),
+    ("reverse_dcf",         check_reverse_dcf),
 ]
 
 

@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from typing import Optional
 
 try:
     import yfinance as yf
@@ -375,9 +376,21 @@ def fetch_full(ticker):
                 print(f"  fetch_full({ticker}): yfinance returned error, "
                       f"trying FMP fallback")
 
-    # ── FMP fallback (US stocks only, won't work for .NS etc.) ──
+    # ── FMP profile+quote fallback for Indian tickers ──
     if ticker.endswith(".NS") or ticker.endswith(".BO"):
-        print(f"  fetch_full({ticker}): no FMP fallback for Indian stocks")
+        print(f"  fetch_full({ticker}): yfinance failed; trying FMP profile/quote only")
+        profile = get_profile(ticker)
+        if profile and isinstance(profile, dict) and "error" not in profile:
+            profile["_source"] = profile.get("_source", "fmp")
+            print(f"  fetch_full({ticker}): FMP profile fallback OK "
+                  f"(statements unavailable — report will be DEGRADED)")
+            return {
+                "info":  profile,
+                "inc":   None, "qinc": None,
+                "bs":    None, "cf":   None,
+                "hist":  None, "news": [],
+            }
+        print(f"  fetch_full({ticker}): all sources failed")
         return None
 
     return _fmp_full_fetch(ticker)
@@ -443,7 +456,42 @@ def _yf_full_fetch(ticker, existing_info=None):
         except Exception:
             return []
 
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    def _get_analyst_consensus():
+        """Extract forward analyst consensus from yfinance.
+        Returns dict with revenue/EPS estimates and price targets, or None.
+        Free data, refreshed within days of earnings beats/raises."""
+        out = {}
+        try:
+            re_df = getattr(s, "revenue_estimate", None)
+            if re_df is not None and not re_df.empty and "0y" in re_df.index:
+                r = re_df.loc["0y"]
+                out["revenue_fy_avg"]        = float(r.get("avg") or 0)
+                out["revenue_fy_low"]        = float(r.get("low") or 0)
+                out["revenue_fy_high"]       = float(r.get("high") or 0)
+                out["revenue_fy_n_analysts"] = int(r.get("numberOfAnalysts") or 0)
+        except Exception:
+            pass
+        try:
+            ee_df = getattr(s, "earnings_estimate", None)
+            if ee_df is not None and not ee_df.empty and "0y" in ee_df.index:
+                e = ee_df.loc["0y"]
+                out["eps_fy_avg"]  = float(e.get("avg") or 0)
+                out["eps_fy_low"]  = float(e.get("low") or 0)
+                out["eps_fy_high"] = float(e.get("high") or 0)
+        except Exception:
+            pass
+        try:
+            pt = getattr(s, "analyst_price_targets", None)
+            if isinstance(pt, dict):
+                out["price_target_mean"]   = float(pt.get("mean") or 0)
+                out["price_target_median"] = float(pt.get("median") or 0)
+                out["price_target_low"]    = float(pt.get("low") or 0)
+                out["price_target_high"]   = float(pt.get("high") or 0)
+        except Exception:
+            pass
+        return out or None
+
+    with ThreadPoolExecutor(max_workers=7) as pool:
         futures = {
             pool.submit(_get_attr, "income_stmt"):           "inc",
             pool.submit(_get_attr, "quarterly_income_stmt"): "qinc",
@@ -451,6 +499,7 @@ def _yf_full_fetch(ticker, existing_info=None):
             pool.submit(_get_attr, "cashflow"):              "cf",
             pool.submit(_get_history):                       "hist",
             pool.submit(_get_news):                          "news",
+            pool.submit(_get_analyst_consensus):             "analyst_consensus",
         }
         for future in as_completed(futures):
             key = futures[future]
@@ -465,6 +514,8 @@ def _yf_full_fetch(ticker, existing_info=None):
             d[key] = None
     if "news" not in d:
         d["news"] = []
+    if "analyst_consensus" not in d:
+        d["analyst_consensus"] = None
 
     print(f"  _yf_full_fetch({ticker}): complete "
           f"(inc={'OK' if d['inc'] is not None else 'None'}, "
@@ -553,6 +604,7 @@ def _fmp_full_fetch(ticker):
     return {
         "info": info, "inc": inc, "qinc": None,
         "bs": bs, "cf": cf, "hist": results.get("hist"), "news": [],
+        "analyst_consensus": None,
     }
 
 
@@ -653,3 +705,370 @@ def get_current_metrics(ticker):
 
 def get_peers(ticker):
     return []
+
+
+# ══════════════════════════════════════════════════════════════
+# §8.1 NEW BEST-EFFORT FETCHES (Phase B)
+# All return None on any miss — never raise.
+# ══════════════════════════════════════════════════════════════
+
+def _row_latest(df, labels):
+    """Return the most recent value from the first matching row in a DataFrame."""
+    if df is None or df.empty:
+        return None
+    for lb in labels:
+        if lb in df.index:
+            row = df.loc[lb].dropna().sort_index()
+            if not row.empty:
+                return float(row.iloc[-1])
+    return None
+
+
+def _row_prior(df, labels):
+    """Return the second-most-recent value from the first matching row."""
+    if df is None or df.empty:
+        return None
+    for lb in labels:
+        if lb in df.index:
+            row = df.loc[lb].dropna().sort_index()
+            if len(row) >= 2:
+                return float(row.iloc[-2])
+    return None
+
+
+def fetch_sbc(data) -> Optional[float]:
+    """Stock-based compensation: cashflow primary, FMP fallback via data dict."""
+    cf = data.get("cf")
+    sbc = _row_latest(cf, [
+        "Stock Based Compensation", "StockBasedCompensation",
+        "Share Based Compensation", "ShareBasedCompensation",
+    ])
+    if sbc is not None:
+        return sbc
+    # FMP raw statements fallback
+    for stmt in (data.get("cf_raw") or []):
+        val = stmt.get("stockBasedCompensation")
+        if val is not None:
+            try:
+                return float(val)
+            except Exception:
+                pass
+    return None
+
+
+def fetch_contract_assets(data) -> tuple:
+    """
+    Current and prior-year contract assets from balance sheet.
+    Returns (current, prior) — either may be None.
+    """
+    bs = data.get("bs")
+    labels = [
+        "Contract Assets", "ContractAssets",
+        "Contract Asset", "Contracts Receivable", "ContractsReceivable",
+    ]
+    current = _row_latest(bs, labels)
+    prior   = _row_prior(bs, labels)
+
+    # FMP raw fallback
+    if current is None:
+        for stmt in (data.get("bs_raw") or [])[:2]:
+            val = stmt.get("contractAssets") or stmt.get("contractAssetsCurrentAssets")
+            if val is not None:
+                try:
+                    current = float(val)
+                    break
+                except Exception:
+                    pass
+
+    return current, prior
+
+
+def fetch_dso(data) -> tuple:
+    """
+    Days Sales Outstanding (current and prior year).
+    DSO = accounts_receivable / revenue × 365.
+    Returns (dso_current, dso_prior) — either may be None.
+    """
+    inc = data.get("inc")
+    bs  = data.get("bs")
+
+    rev_labels = ["Total Revenue", "TotalRevenue", "Revenue"]
+    ar_labels  = [
+        "Accounts Receivable", "Net Receivables", "AccountsReceivable",
+        "Receivables", "Trade And Other Receivables",
+    ]
+
+    rev_latest = _row_latest(inc, rev_labels)
+    rev_prior  = _row_prior(inc, rev_labels)
+    ar_latest  = _row_latest(bs, ar_labels)
+    ar_prior   = _row_prior(bs, ar_labels)
+
+    dso_current = round(ar_latest / rev_latest * 365, 1) \
+        if ar_latest and rev_latest and rev_latest > 0 else None
+    dso_prior = round(ar_prior / rev_prior * 365, 1) \
+        if ar_prior and rev_prior and rev_prior > 0 else None
+
+    return dso_current, dso_prior
+
+
+def fetch_software_revenue(data, ticker: str) -> Optional[float]:
+    """
+    Software / subscription revenue: FMP revenue-product-segmentation primary.
+    Returns the largest software-like segment revenue, or None.
+    """
+    raw = _fmp_get("/revenue-product-segmentation", {"symbol": ticker})
+    if not raw or not isinstance(raw, list):
+        return None
+    software_keys = {"software", "subscription", "saas", "cloud", "services"}
+    try:
+        latest = raw[0]
+        if isinstance(latest, dict):
+            for key, val in latest.items():
+                if any(sw in key.lower() for sw in software_keys):
+                    return float(val) if val is not None else None
+    except Exception:
+        pass
+    return None
+
+
+def fetch_segment_revenue(ticker: str) -> Optional[list]:
+    """
+    Revenue by product/geographic segment from FMP.
+    Returns [{name, revenue, share_pct}] or None.
+    """
+    raw = _fmp_get("/revenue-product-segmentation", {"symbol": ticker})
+    if not raw or not isinstance(raw, list):
+        return None
+    try:
+        latest = raw[0]
+        if not isinstance(latest, dict):
+            return None
+        items = {k: v for k, v in latest.items()
+                 if k not in ("date", "symbol") and v is not None}
+        total = sum(float(v) for v in items.values() if v)
+        if total <= 0:
+            return None
+        segs = []
+        for name, val in items.items():
+            try:
+                rev = float(val)
+                segs.append({
+                    "name":      name,
+                    "revenue":   rev,
+                    "share_pct": round(rev / total, 4),
+                })
+            except Exception:
+                pass
+        return segs or None
+    except Exception:
+        return None
+
+
+def fetch_peer_enriched(peer_tickers: list[str]) -> list[dict]:
+    """
+    Fetch fwd_pe, growth, op_margin, fcf_margin for each peer.
+    Best-effort: missing fields set to None; failed tickers skipped.
+    """
+    if not HAS_YF:
+        return [{"ticker": t, "fwd_pe": None, "growth": None,
+                 "op_margin": None, "fcf_margin": None}
+                for t in peer_tickers]
+
+    def _fetch_one(ticker: str) -> dict:
+        out = {"ticker": ticker, "fwd_pe": None, "growth": None,
+               "op_margin": None, "fcf_margin": None}
+        try:
+            import yfinance as yf
+            info = yf.Ticker(ticker).info
+            out["fwd_pe"]    = info.get("forwardPE")
+            out["growth"]    = info.get("earningsGrowth") or info.get("revenueGrowth")
+            out["op_margin"] = info.get("operatingMargins")
+            fcf  = info.get("freeCashflow")
+            rev  = info.get("totalRevenue")
+            if fcf and rev and rev > 0:
+                out["fcf_margin"] = round(float(fcf) / float(rev), 4)
+        except Exception:
+            pass
+        return out
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(len(peer_tickers), 6)) as pool:
+        futures = {pool.submit(_fetch_one, t): t for t in peer_tickers}
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception:
+                results.append({"ticker": futures[future], "fwd_pe": None,
+                                 "growth": None, "op_margin": None, "fcf_margin": None})
+    # Preserve input order
+    order = {t: i for i, t in enumerate(peer_tickers)}
+    return sorted(results, key=lambda x: order.get(x["ticker"], 999))
+
+
+# ══════════════════════════════════════════════════════════════
+# §8.2 CONSENSUS PACK (Phase B)
+# ══════════════════════════════════════════════════════════════
+
+def fetch_consensus_pack(ticker: str) -> dict:
+    """
+    Returns consensus_eps_fy1/2/3, consensus_revenue_fy1/2,
+    consensus_price_target, n_analysts.
+
+    Never raises. Missing fields are None.
+    Sources: yfinance primary, FMP analyst-estimates fallback.
+    """
+    out = {
+        "consensus_eps_fy1":       None,
+        "consensus_eps_fy2":       None,
+        "consensus_eps_fy3":       None,
+        "consensus_revenue_fy1":   None,
+        "consensus_revenue_fy2":   None,
+        "consensus_price_target":  None,
+        "n_analysts":              None,
+    }
+
+    # ── yfinance primary ────────────────────────────────────────
+    if HAS_YF:
+        try:
+            import yfinance as yf
+            s = yf.Ticker(ticker)
+
+            # EPS estimates (earnings_estimate table: rows = "0q","1q","0y","1y","2y")
+            try:
+                ee = getattr(s, "earnings_estimate", None)
+                if ee is not None and not ee.empty:
+                    _yf_fy_map = {"0y": "consensus_eps_fy1", "1y": "consensus_eps_fy2",
+                                  "2y": "consensus_eps_fy3"}
+                    for row_idx, key in _yf_fy_map.items():
+                        if row_idx in ee.index:
+                            r = ee.loc[row_idx]
+                            lo  = r.get("low")
+                            mid = r.get("avg")
+                            hi  = r.get("high")
+                            n   = r.get("numberOfAnalysts")
+                            if mid is not None:
+                                out[key] = {
+                                    "low":  float(lo)  if lo  is not None else None,
+                                    "mid":  float(mid),
+                                    "high": float(hi)  if hi  is not None else None,
+                                }
+                                if n is not None and out["n_analysts"] is None:
+                                    try:
+                                        out["n_analysts"] = int(n)
+                                    except Exception:
+                                        pass
+            except Exception:
+                pass
+
+            # Revenue estimates (revenue_estimate table)
+            try:
+                re = getattr(s, "revenue_estimate", None)
+                if re is not None and not re.empty:
+                    _yf_rev_map = {"0y": "consensus_revenue_fy1", "1y": "consensus_revenue_fy2"}
+                    for row_idx, key in _yf_rev_map.items():
+                        if row_idx in re.index:
+                            r = re.loc[row_idx]
+                            lo  = r.get("low")
+                            mid = r.get("avg")
+                            hi  = r.get("high")
+                            if mid is not None:
+                                out[key] = {
+                                    "low":  float(lo)  if lo  is not None else None,
+                                    "mid":  float(mid),
+                                    "high": float(hi)  if hi  is not None else None,
+                                }
+            except Exception:
+                pass
+
+            # Price targets
+            try:
+                pt = getattr(s, "analyst_price_targets", None)
+                if isinstance(pt, dict):
+                    lo  = pt.get("low")
+                    med = pt.get("median") or pt.get("mean")
+                    hi  = pt.get("high")
+                    if med:
+                        out["consensus_price_target"] = {
+                            "low":    float(lo)  if lo  is not None else None,
+                            "median": float(med),
+                            "high":   float(hi)  if hi  is not None else None,
+                        }
+                n_analysts_pt = getattr(s, "analyst_price_targets", {})
+                if isinstance(n_analysts_pt, dict) and out["n_analysts"] is None:
+                    count = n_analysts_pt.get("numberOfAnalysts")
+                    if count is not None:
+                        try:
+                            out["n_analysts"] = int(count)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # If yfinance gave us anything useful, return now
+            if any(out[k] is not None for k in (
+                    "consensus_eps_fy1", "consensus_eps_fy2",
+                    "consensus_revenue_fy1", "consensus_price_target")):
+                return out
+
+        except Exception:
+            pass
+
+    # ── FMP analyst-estimates fallback ─────────────────────────
+    try:
+        data = _fmp_get("/analyst-estimates", {"symbol": ticker, "limit": 4})
+        if data and isinstance(data, list):
+            fy_entries = [d for d in data if d.get("period") == "annual"]
+            fy_entries.sort(key=lambda x: x.get("date", ""), reverse=True)
+
+            fy_keys = ["consensus_eps_fy1", "consensus_eps_fy2", "consensus_eps_fy3"]
+            rv_keys = ["consensus_revenue_fy1", "consensus_revenue_fy2"]
+
+            for i, entry in enumerate(fy_entries[:3]):
+                if i < len(fy_keys) and out[fy_keys[i]] is None:
+                    lo  = entry.get("estimatedEpsLow")
+                    mid = entry.get("estimatedEpsAvg")
+                    hi  = entry.get("estimatedEpsHigh")
+                    if mid:
+                        out[fy_keys[i]] = {
+                            "low":  float(lo) if lo is not None else None,
+                            "mid":  float(mid),
+                            "high": float(hi) if hi is not None else None,
+                        }
+                if i < len(rv_keys) and out[rv_keys[i]] is None:
+                    lo  = entry.get("estimatedRevenueLow")
+                    mid = entry.get("estimatedRevenueAvg")
+                    hi  = entry.get("estimatedRevenueHigh")
+                    if mid:
+                        out[rv_keys[i]] = {
+                            "low":  float(lo) / 1e9 if lo is not None else None,
+                            "mid":  float(mid) / 1e9,
+                            "high": float(hi) / 1e9 if hi is not None else None,
+                        }
+                if out["n_analysts"] is None:
+                    n = entry.get("numberAnalystEstimatedEps")
+                    if n:
+                        try:
+                            out["n_analysts"] = int(n)
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+    # FMP price-target-consensus fallback
+    try:
+        ptc = _fmp_get("/price-target-consensus", {"symbol": ticker})
+        if ptc and isinstance(ptc, list) and ptc:
+            p = ptc[0]
+            lo  = p.get("priceTargetLow")
+            med = p.get("priceTargetConsensus") or p.get("priceTargetMedian")
+            hi  = p.get("priceTargetHigh")
+            if med and out["consensus_price_target"] is None:
+                out["consensus_price_target"] = {
+                    "low":    float(lo)  if lo  is not None else None,
+                    "median": float(med),
+                    "high":   float(hi)  if hi  is not None else None,
+                }
+    except Exception:
+        pass
+
+    return out

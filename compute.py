@@ -262,7 +262,338 @@ def calc(data):
     m = _compute_price_history(m, data)
     m["news"] = [{"title": n.get("title", ""), "publisher": n.get("publisher", "")}
                  for n in data.get("news", [])]
+    _add_depth_metrics(m, data)
     return m
+
+
+# ══════════════════════════════════════════════════════════════
+# §7.1  calc_baseline  (Phase B — built ALONGSIDE calc(), not replacing it)
+# Produces the §5.1 baseline dict consumed by run_methodology_math and pass1.
+# calc() remains intact; deletion deferred to Phase H.
+# ══════════════════════════════════════════════════════════════
+
+def calc_baseline(data, consensus_pack=None, peer_tickers=None,
+                  sector_peers=None) -> dict:
+    """
+    Build the §5.1 baseline dict from the raw fetch bundle.
+
+    Parameters
+    ----------
+    data            : output of fmp_api.fetch_full(ticker)
+    consensus_pack  : output of fmp_api.fetch_consensus_pack(ticker) | None
+    peer_tickers    : list[str] — tickers for peer_set (enriched if available)
+    sector_peers    : list[dict] enriched peers from fmp_api.fetch_peer_enriched | None
+
+    Returns
+    -------
+    §5.1 baseline dict.  Optional fields are None where data is missing.
+    Never raises — logs warnings into data_quality_warnings.
+    """
+    from fmp_api import (
+        fetch_sbc, fetch_contract_assets, fetch_dso,
+        fetch_segment_revenue, fetch_peer_enriched,
+    )
+
+    info = data.get("info", {})
+    if isinstance(info, dict) and "error" in info:
+        return {"error": info["error"], "data_quality_warnings": []}
+
+    warnings: list[str] = []
+    g = lambda k, d=None: info.get(k, d)
+
+    # ── Identifiers ────────────────────────────────────────────
+    ticker      = g("symbol", "")
+    company     = g("shortName", g("longName", "Unknown"))
+    currency    = g("currency", "USD")
+
+    # ── Price & market ─────────────────────────────────────────
+    current_price = safe_float(g("currentPrice") or g("regularMarketPrice"))
+    shares_out    = safe_float(g("sharesOutstanding"))
+    market_cap    = safe_float(g("marketCap"))
+
+    total_cash  = safe_float(g("totalCash"))
+    total_debt  = safe_float(g("totalDebt"))
+    net_debt    = None
+    if total_debt is not None and total_cash is not None:
+        net_debt = total_debt - total_cash
+
+    # ── Income statement metrics ───────────────────────────────
+    inc = data.get("inc")
+    cf  = data.get("cf")
+    bs  = data.get("bs")
+
+    def _inc_row_latest(labels):
+        if inc is None or inc.empty:
+            return None
+        for lb in labels:
+            if lb in inc.index:
+                row = inc.loc[lb].dropna().sort_index()
+                if not row.empty:
+                    return float(row.iloc[-1])
+        return None
+
+    def _inc_row_prior(labels):
+        if inc is None or inc.empty:
+            return None
+        for lb in labels:
+            if lb in inc.index:
+                row = inc.loc[lb].dropna().sort_index()
+                if len(row) >= 2:
+                    return float(row.iloc[-2])
+        return None
+
+    fy_revenue_raw = _inc_row_latest(
+        ["Total Revenue", "TotalRevenue", "Revenue", "revenue", "totalRevenue"])
+    fy_revenue_prior = _inc_row_prior(
+        ["Total Revenue", "TotalRevenue", "Revenue", "revenue", "totalRevenue"])
+    fy_gross_profit = _inc_row_latest(["Gross Profit", "GrossProfit"])
+    fy_op_income    = _inc_row_latest(
+        ["Operating Income", "OperatingIncome", "EBIT"])
+    fy_net_income_gaap = _inc_row_latest(
+        ["Net Income", "NetIncome", "Net Income Common Stockholders",
+         "Net Income From Continuing Operation Net Minority Interest"])
+
+    fy_revenue       = fy_revenue_raw / 1e9 if fy_revenue_raw else None
+    fy_revenue_yoy   = None
+    if fy_revenue_raw and fy_revenue_prior and fy_revenue_prior > 0:
+        fy_revenue_yoy = round((fy_revenue_raw - fy_revenue_prior) / fy_revenue_prior, 4)
+
+    fy_gross_margin  = round(fy_gross_profit / fy_revenue_raw, 4) \
+        if fy_gross_profit and fy_revenue_raw and fy_revenue_raw > 0 else \
+        safe_float(g("grossMargins"))
+    fy_op_margin     = round(fy_op_income / fy_revenue_raw, 4) \
+        if fy_op_income and fy_revenue_raw and fy_revenue_raw > 0 else \
+        safe_float(g("operatingMargins"))
+    fy_net_income    = fy_net_income_gaap / 1e9 if fy_net_income_gaap else None
+
+    # Non-GAAP EPS: statement-derived EPS (more reliable than info field)
+    stmt_eps, _ = _get_statement_eps(data)
+    fy_eps_non_gaap = stmt_eps or safe_float(g("trailingEps"))
+
+    # FCF
+    computed_fcf = _compute_base_fcf(data)
+    info_fcf     = safe_float(g("freeCashflow", 0))
+    fy_fcf_raw   = computed_fcf
+    if computed_fcf is not None and info_fcf and info_fcf != 0:
+        divergence = abs(computed_fcf - info_fcf) / abs(info_fcf)
+        if divergence > 0.20:
+            warnings.append(
+                f"FCF DIVERGENCE: info={info_fcf:.0f} vs computed={computed_fcf:.0f} "
+                f"({divergence:.0%}); using computed value."
+            )
+
+    fy_fcf        = fy_fcf_raw / 1e9 if fy_fcf_raw else None
+    fy_fcf_margin = round(fy_fcf_raw / fy_revenue_raw, 4) \
+        if fy_fcf_raw and fy_revenue_raw and fy_revenue_raw > 0 else None
+
+    ocf_raw = None
+    if cf is not None and not cf.empty:
+        for lb in ["Operating Cash Flow", "Cash Flow From Operations",
+                   "Total Cash From Operating Activities"]:
+            if lb in cf.index:
+                row = cf.loc[lb].dropna().sort_index()
+                if not row.empty:
+                    ocf_raw = float(row.iloc[-1])
+                    break
+    if ocf_raw is None:
+        ocf_raw = safe_float(g("operatingCashflow"))
+    fy_ocf = ocf_raw / 1e9 if ocf_raw else None
+
+    fy_net_income_gaap_b = fy_net_income_gaap / 1e9 if fy_net_income_gaap else None
+
+    # ── Tax rate ───────────────────────────────────────────────
+    tax_rate_guidance = safe_float(g("effectiveTaxRate")) or DEFAULT_TAX_RATE
+
+    # ── P/E, beta ─────────────────────────────────────────────
+    beta        = safe_float(g("beta", 1.0))
+    trailing_pe = safe_float(g("trailingPE"))
+    fwd_pe      = safe_float(g("forwardPE"))
+    peg         = safe_float(g("pegRatio"))
+
+    # Recompute trailing PE from statement EPS if API value is suspect
+    if fy_eps_non_gaap and current_price and current_price > 0:
+        computed_tpe = round(current_price / fy_eps_non_gaap, 2)
+        if trailing_pe and abs(computed_tpe - trailing_pe) / trailing_pe > 0.30:
+            warnings.append(
+                f"PEG CONFLICT: API trailing PE={trailing_pe:.1f} vs "
+                f"computed={computed_tpe:.1f}; using computed."
+            )
+            trailing_pe = computed_tpe
+
+    # ── §8.1 SBC ──────────────────────────────────────────────
+    fy_sbc_raw = fetch_sbc(data)
+    fy_sbc     = fy_sbc_raw / 1e9 if fy_sbc_raw else None
+
+    # ── §8.1 Contract assets ───────────────────────────────────
+    ca_current, ca_prior = fetch_contract_assets(data)
+    fy_contract_assets    = ca_current / 1e9 if ca_current else None
+    prior_contract_assets = ca_prior   / 1e9 if ca_prior   else None
+
+    # ── §8.1 Software revenue (FMP segments) ──────────────────
+    fy_software_revenue = None
+    try:
+        sw = fetch_software_revenue(data, ticker) if ticker else None
+        fy_software_revenue = sw / 1e9 if sw else None
+    except Exception:
+        pass
+
+    # ── §8.1 DSO ──────────────────────────────────────────────
+    fy_dso, prior_dso = fetch_dso(data)
+
+    # ── §8.1 Consensus pack ────────────────────────────────────
+    cp = consensus_pack or {}
+    consensus_eps_fy1       = cp.get("consensus_eps_fy1")
+    consensus_eps_fy2       = cp.get("consensus_eps_fy2")
+    consensus_eps_fy3       = cp.get("consensus_eps_fy3")
+    consensus_revenue_fy1   = cp.get("consensus_revenue_fy1")
+    consensus_revenue_fy2   = cp.get("consensus_revenue_fy2")
+    consensus_price_target  = cp.get("consensus_price_target")
+    n_analysts              = cp.get("n_analysts")
+
+    # ── Five-year EPS growth estimate ─────────────────────────
+    five_yr_eps_growth_est = safe_float(g("longTermPotentialGrowthRate")) or \
+                             safe_float(g("earningsGrowth"))
+
+    # ── Segments (FMP) ────────────────────────────────────────
+    segments = None
+    try:
+        segments = fetch_segment_revenue(ticker) if ticker else None
+    except Exception:
+        pass
+
+    # ── 3-year financials history ──────────────────────────────
+    history_3y = _build_3y_history(data)
+
+    # ── Peer set ──────────────────────────────────────────────
+    if sector_peers is not None:
+        peer_set = sector_peers
+    elif peer_tickers:
+        try:
+            peer_set = fetch_peer_enriched(peer_tickers)
+        except Exception:
+            peer_set = [{"ticker": t, "fwd_pe": None, "growth": None,
+                         "op_margin": None, "fcf_margin": None}
+                        for t in peer_tickers]
+    else:
+        peer_set = []
+
+    # ── Recent news ────────────────────────────────────────────
+    recent_news = []
+    for n in data.get("news", [])[:8]:
+        title = n.get("title", "") or ""
+        if not title:
+            continue
+        recent_news.append({
+            "date":    n.get("providerPublishTime", n.get("date", "")),
+            "title":   title,
+            "summary": n.get("summary", ""),
+        })
+
+    # ── Data-quality warnings from log-only checks (§8.3) ────
+    if fy_revenue is None:
+        warnings.append("DATA QUALITY WARNING: revenue unavailable from all sources.")
+    if fy_eps_non_gaap is None:
+        warnings.append("DATA QUALITY WARNING: EPS unavailable from all sources.")
+    if consensus_eps_fy1 is None and consensus_eps_fy2 is None:
+        warnings.append("DATA QUALITY WARNING: analyst EPS consensus unavailable.")
+
+    return {
+        "ticker":        ticker,
+        "company_name":  company,
+        "current_price": current_price,
+        "shares_out":    shares_out / 1e9 if shares_out else None,  # in billions
+        "market_cap":    market_cap / 1e9 if market_cap else None,
+        "net_debt":      net_debt / 1e9 if net_debt else None,
+        "currency":      currency,
+
+        "fy_revenue":      fy_revenue,
+        "fy_revenue_yoy":  fy_revenue_yoy,
+        "fy_gross_margin": fy_gross_margin,
+        "fy_op_margin":    fy_op_margin,
+        "fy_net_income":   fy_net_income,
+        "fy_eps_non_gaap": fy_eps_non_gaap,
+        "fy_fcf":          fy_fcf,
+        "fy_fcf_margin":   fy_fcf_margin,
+        "fy_sbc":          fy_sbc,
+        "fy_contract_assets":    fy_contract_assets,
+        "prior_contract_assets": prior_contract_assets,
+        "fy_software_revenue":   fy_software_revenue,
+        "fy_dso":          fy_dso,
+        "prior_dso":       prior_dso,
+        "fy_ocf":          fy_ocf,
+        "fy_net_income_gaap": fy_net_income_gaap_b,
+
+        "tax_rate_guidance": tax_rate_guidance,
+        "beta":              beta,
+        "fwd_pe":            fwd_pe,
+        "trailing_pe":       trailing_pe,
+        "peg":               peg,
+
+        "consensus_eps_fy1":      consensus_eps_fy1,
+        "consensus_eps_fy2":      consensus_eps_fy2,
+        "consensus_eps_fy3":      consensus_eps_fy3,
+        "consensus_revenue_fy1":  consensus_revenue_fy1,
+        "consensus_revenue_fy2":  consensus_revenue_fy2,
+        "consensus_price_target": consensus_price_target,
+        "n_analysts":             n_analysts,
+
+        "five_yr_eps_growth_est": five_yr_eps_growth_est,
+        "segments":               segments,
+        "history_3y":             history_3y,
+        "peer_set":               peer_set,
+        "recent_news":            recent_news,
+
+        "data_quality_warnings":  warnings,
+    }
+
+
+def _build_3y_history(data) -> list[dict]:
+    """Build [{fy, revenue, op_margin, fcf, eps}] for up to 3 most recent years."""
+    inc = data.get("inc")
+    cf  = data.get("cf")
+    if inc is None or inc.empty:
+        return []
+
+    def _row(df, labels):
+        if df is None or df.empty:
+            return None
+        for lb in labels:
+            if lb in df.index:
+                row = df.loc[lb].dropna().sort_index()
+                if not row.empty:
+                    return row
+        return None
+
+    rev_row = _row(inc, ["Total Revenue", "TotalRevenue", "Revenue"])
+    op_row  = _row(inc, ["Operating Income", "OperatingIncome", "EBIT"])
+    eps_row = _row(inc, ["Diluted EPS", "Basic EPS", "DilutedEPS"])
+    fcf_row = _row(cf,  ["Free Cash Flow", "FreeCashFlow"])
+
+    if rev_row is None:
+        return []
+
+    history = []
+    dates = list(rev_row.index[-3:])
+    for dt in dates:
+        fy = str(dt.year) if hasattr(dt, "year") else str(dt)
+        rev = float(rev_row.get(dt, 0) or 0)
+        op  = float(op_row.get(dt, 0) or 0) if op_row is not None else None
+        eps = float(eps_row.get(dt, 0) or 0) if eps_row is not None else None
+        fcf = float(fcf_row.get(dt, 0) or 0) if fcf_row is not None else None
+        history.append({
+            "fy":        fy,
+            "revenue":   round(rev / 1e9, 2) if rev else None,
+            "op_margin": round(op / rev, 4) if op and rev and rev > 0 else None,
+            "fcf":       round(fcf / 1e9, 2) if fcf else None,
+            "eps":       round(eps, 2) if eps else None,
+        })
+    return history
+
+
+# The following import is deferred inside calc_baseline to avoid circular imports
+def fetch_software_revenue(data, ticker: str):  # noqa: F811 — shim until fmp_api re-export
+    from fmp_api import fetch_software_revenue as _fsw
+    return _fsw(data, ticker)
 
 
 def _compute_debt_equity(m, info, data):
