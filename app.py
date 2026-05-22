@@ -10,6 +10,10 @@ from compute import clean_latex
 st.set_page_config(page_title="PickR", page_icon="P", layout="wide", initial_sidebar_state="collapsed")
 
 import streamlit.components.v1 as _sc
+assert hasattr(_sc, "html"), (
+    "_sc must be the streamlit.components.v1 module (has .html); "
+    "if you're seeing this, a local variable has shadowed _sc somewhere."
+)
 _sc.html("""
 <script>
 (function(){
@@ -496,10 +500,10 @@ def render(ticker, m, a, data):
                     f"{int(i / (len(_sample) - 1) * 118)},{int(26 - (_p - _mn) / _rng * 22)}"
                     for i, _p in enumerate(_sample)
                 )
-                _sc = "#4ade80" if _sample[-1] >= _sample[0] else "#f87171"
+                _spark_color = "#4ade80" if _sample[-1] >= _sample[0] else "#f87171"
                 _spark = (
                     f'<svg width="120" height="30" viewBox="0 0 120 30" style="opacity:0.6;flex-shrink:0;">'
-                    f'<polyline points="{_pts}" fill="none" stroke="{_sc}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
+                    f'<polyline points="{_pts}" fill="none" stroke="{_spark_color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
                     f'</svg>'
                 )
     except Exception:
