@@ -14,6 +14,41 @@ from formatting import safe_float, fmt_n
 
 
 # ══════════════════════════════════════════════════════════════
+# v3 METHODOLOGY CALIBRATION CONSTANTS  (§7.3 + C2)
+# Changing any constant requires regenerating the AVGO regression fixture.
+# ══════════════════════════════════════════════════════════════
+
+# Correlation multipliers (§8.3) — weight independent driver probs into joint probs
+BULL_CORRELATION_MULTIPLIER = 3.0
+BEAR_CORRELATION_MULTIPLIER = 4.5
+
+# PEG-anchored P/E band (§7)
+PEG_FLOOR_BULL   = 0.7
+PEG_CEILING_BULL = 1.0
+PEG_BASE_LOW     = 1.3
+PEG_BASE_HIGH    = 1.7
+
+# Bear P/E floors (B3: conditional on FRANCHISE_QUALITY_REQUIRED_FOR_BEAR_FLOOR)
+BEAR_PE_NOMINAL_FLOOR = 25.0
+BEAR_PE_STRESS_FLOOR  = 15.0
+
+# Consensus backstop calibration (B2)
+ANALYST_CONSENSUS_BULL_FLOOR_FRAC = 0.95   # bull EPS ≥ 95% of consensus high
+ANALYST_CONSENSUS_HARD_GAP_FRAC   = 0.75   # bear EPS ≤ 75% of consensus low
+
+# DCF defaults
+DEFAULT_TAX_RATE            = 0.21
+DEFAULT_TERMINAL_GROWTH     = 0.04
+DEFAULT_RISK_FREE_RATE      = 0.045
+DEFAULT_EQUITY_RISK_PREMIUM = 0.055
+
+# C2 — named calibration switches
+FRANCHISE_QUALITY_REQUIRED_FOR_BEAR_FLOOR = True   # B3: bear floor only for quality franchises
+SHARE_COUNT_PROJECTION = "trailing_net_change"      # B4: shares evolve via trailing dilution rate
+HEADLINE_METRIC = "implied_fcf_cagr"                # B1: reverse-DCF leads the report
+
+
+# ══════════════════════════════════════════════════════════════
 # LATEX SANITIZER (unchanged)
 # ══════════════════════════════════════════════════════════════
 

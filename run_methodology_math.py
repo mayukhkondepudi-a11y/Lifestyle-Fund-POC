@@ -1,0 +1,167 @@
+"""
+Phase A orchestrator: run_methodology_math(pass1, baseline) → math dict (§5.3).
+
+Takes the frozen pass1 and baseline dicts, calls all pure functions in order,
+and returns the complete math contract dict. No LLM calls, no I/O.
+"""
+from __future__ import annotations
+
+import statistics
+from typing import Any
+
+from compute import HEADLINE_METRIC
+from compute_methodology_v2 import (
+    scenario_revenue,
+    scenario_eps,
+    pe_band,
+    breakeven_pe,
+    driver_probabilities,
+    joint_probabilities,
+    expected_value,
+    risk_metrics,
+    implied_fcf_cagr,
+    projected_shares,
+    dcf_intrinsic_value,
+    project_fcf,
+    wacc as compute_wacc,
+    recommendation,
+    DEFAULT_TAX_RATE,
+    DEFAULT_TERMINAL_GROWTH,
+    DEFAULT_RISK_FREE_RATE,
+    DEFAULT_EQUITY_RISK_PREMIUM,
+)
+
+
+def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    """
+    Orchestrate all math-layer computations and return the §5.3 math dict.
+
+    Inputs:
+      pass1    — §5.2 contract: events, drivers, revenue/margin/growth estimates
+      baseline — §5.1 contract: current_price, shares_out, trailing metrics
+
+    Output: §5.3 math contract dict.
+    """
+    # ── Pull required baseline fields ───────────────────────────────────────
+    current_price  = float(baseline["current_price"])
+    shares_out     = float(baseline["shares_out"])           # billions
+    fy_revenue     = float(baseline["fy_revenue"])           # trailing/forward base
+    base_op_margin = float(baseline.get("base_op_margin", 0.30))
+    tax_rate       = float(baseline.get("tax_rate", DEFAULT_TAX_RATE))
+    beta           = float(baseline.get("beta", 1.0))
+    net_debt       = float(baseline.get("net_debt", 0.0))
+    horizon_years  = int(baseline.get("horizon_years", 5))
+    franchise_q    = bool(baseline.get("franchise_quality", True))
+    trailing_dilution = float(baseline.get("trailing_net_dilution_rate", 0.0))
+    base_fcf       = float(baseline.get("base_fcf", fy_revenue * base_op_margin * 0.9))
+    growth_rate    = float(baseline.get("earnings_cagr", 0.15))
+    peer_pes: list[float] = baseline.get("peer_pes", [])
+
+    # ── Pull pass1 events ────────────────────────────────────────────────────
+    events: list[dict] = pass1.get("events", [])
+
+    # ── B4: project shares ───────────────────────────────────────────────────
+    shares_proj = projected_shares(shares_out, horizon_years, trailing_dilution)
+
+    # ── Per-scenario EPS ─────────────────────────────────────────────────────
+    bull_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bull",  tax_rate, shares_proj)
+    base_eps  = scenario_eps(fy_revenue, base_op_margin, events, "base",  tax_rate, shares_proj)
+    bear_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bear",  tax_rate, shares_proj)
+
+    # ── PEG-anchored P/E band per scenario (B3 bear floor conditional) ─────────
+    peer_median = statistics.median(peer_pes) if len(peer_pes) >= 3 else None
+    bull_band = pe_band("bull", growth_rate, franchise_q, peer_median)
+    base_band = pe_band("base", growth_rate, franchise_q, peer_median)
+    bear_band = pe_band("bear", growth_rate, franchise_q, peer_median)
+
+    # Midpoint of each band → per-scenario P/E
+    bull_pe = (bull_band[0] + bull_band[1]) / 2
+    base_pe = (base_band[0] + base_band[1]) / 2
+    bear_pe = (bear_band[0] + bear_band[1]) / 2
+
+    price_targets = {
+        "bull": round(bull_eps * bull_pe, 2),
+        "base": round(base_eps * base_pe, 2),
+        "bear": round(bear_eps * bear_pe, 2),
+    }
+
+    # Assemble band dict for the math output (for renderers / Pass 2 reference)
+    band = {
+        "bull_low": bull_band[0], "bull_high": bull_band[1],
+        "base_low": base_band[0], "base_high": base_band[1],
+        "bear_low": bear_band[0], "bear_high": bear_band[1],
+    }
+
+    # ── Driver & joint probabilities ─────────────────────────────────────────
+    driver_probs = driver_probabilities(events)
+    joint_probs  = joint_probabilities(driver_probs)
+
+    # ── EV, risk metrics ─────────────────────────────────────────────────────
+    ev    = expected_value(price_targets, joint_probs)
+    risks = risk_metrics(price_targets, joint_probs, current_price)
+
+    # ── Breakeven P/E ────────────────────────────────────────────────────────
+    trailing_eps = baseline.get("trailing_eps")
+    bkev_pe = breakeven_pe(current_price, trailing_eps) if trailing_eps else None
+
+    # ── Reverse-DCF: implied FCF CAGR (B1 headline metric) ───────────────────
+    dr = compute_wacc(
+        equity_weight=0.85, debt_weight=0.15,
+        beta=beta, tax_rate=tax_rate,
+    )
+    implied_cagr = implied_fcf_cagr(
+        current_price=current_price,
+        base_fcf=base_fcf,
+        shares_projected=shares_proj,
+        horizon_years=horizon_years,
+        terminal_growth=DEFAULT_TERMINAL_GROWTH,
+        discount_rate=dr,
+        net_debt=net_debt,
+        beta=beta,
+    )
+
+    # ── Scenario DCF intrinsic values ────────────────────────────────────────
+    def _dcf_for_scenario(eps_val: float, pe_val: float) -> dict:
+        # Use implied CAGR from EPS ratio vs trailing as proxy growth for FCF projection
+        trailing = max(base_eps, 0.01)
+        cagr_proxy = (eps_val / trailing) ** (1.0 / max(horizon_years, 1)) - 1.0
+        cagr_proxy = max(min(cagr_proxy, 0.80), -0.30)
+        series = project_fcf(base_fcf, cagr_proxy, horizon_years)
+        return dcf_intrinsic_value(series, DEFAULT_TERMINAL_GROWTH, dr, shares_proj, net_debt)
+
+    bull_dcf = _dcf_for_scenario(bull_eps, bull_pe)
+    base_dcf = _dcf_for_scenario(base_eps, base_pe)
+    bear_dcf = _dcf_for_scenario(bear_eps, bear_pe)
+
+    # ── Recommendation ────────────────────────────────────────────────────────
+    rec = recommendation(ev, current_price, joint_probs)
+
+    # ── Assemble §5.3 math dict ──────────────────────────────────────────────
+    return {
+        "headline_metric": HEADLINE_METRIC,
+        "implied_fcf_cagr": implied_cagr,
+        "discount_rate": round(dr, 4),
+        "shares_projected": round(shares_proj, 4),
+        "scenario_eps": {
+            "bull": round(bull_eps, 2),
+            "base": round(base_eps, 2),
+            "bear": round(bear_eps, 2),
+        },
+        "pe_band": band,
+        "price_target": {
+            "bull_high": price_targets["bull"],
+            "base_mid":  price_targets["base"],
+            "bear_low":  price_targets["bear"],
+        },
+        "joint_probs": joint_probs,
+        "driver_probs": driver_probs,
+        "expected_value": ev,
+        "risk": risks,
+        "breakeven_pe": bkev_pe,
+        "dcf": {
+            "bull": bull_dcf,
+            "base": base_dcf,
+            "bear": bear_dcf,
+        },
+        "recommendation": rec,
+    }
