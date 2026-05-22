@@ -46,7 +46,7 @@ _sc.html("""
 
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
-                    RESEND_API_KEY, DOMAIN_MAP)
+                    RESEND_API_KEY, DOMAIN_MAP, METHODOLOGY_VERSION)
 from formatting import (safe_float, get_sym, fmt_n, fmt_p, fmt_r, fmt_c,
                          strip_html, clean_ticker)
 
@@ -340,7 +340,16 @@ def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, rever
     p1 = json.loads(pass1_json_str)
     return ai.run_pass2(ticker, m, sm, p1, reverse_dcf_json)
 
+def _run_analysis_v2(ticker, m):
+    raise NotImplementedError(
+        "v2 analytical pipeline not yet built. Phase G cutover wires this. "
+        "Set METHODOLOGY_VERSION back to 'v1' in config.py to use the existing pipeline."
+    )
+
+
 def run_analysis(ticker, m):
+    if METHODOLOGY_VERSION == "v2":
+        return _run_analysis_v2(ticker, m)
     metrics_json_str = json.dumps(
         {k: v for k, v in m.items() if k not in ["description", "news"]},
         sort_keys=True, default=str)
@@ -373,6 +382,7 @@ def run_analysis(ticker, m):
     elif rec == "PASS" and exp_ret > 0.20 and prob_pos > 0.70:
         final["recommendation"] = "BUY"; final["conviction"] = "Medium"
         final["rec_override_reason"] = f"Override: LLM recommended PASS despite expected return of {exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return."
+    final["methodology_version"] = "v1"
     return final
 
 # ══════════════════════════════════════════════════════════════
@@ -434,7 +444,18 @@ def _render_financials(data, cur="USD"):
 # RENDER — MAIN REPORT
 # ══════════════════════════════════════════════════════════════
 
+def _render_v2(ticker, m, a, data):
+    raise NotImplementedError(
+        "v2 renderer not yet built. Phase H delivers this. "
+        "Set METHODOLOGY_VERSION back to 'v1' in config.py to use the existing renderer."
+    )
+
+
 def render(ticker, m, a, data):
+    version = a.get("methodology_version", "v1") if isinstance(a, dict) else "v1"
+    if version == "v2":
+        return _render_v2(ticker, m, a, data)
+    # ── v1 render below ──
     company  = m.get("company_name", ticker)
     date     = datetime.now().strftime("%B %d, %Y")
     cur      = m.get("currency", "USD")
