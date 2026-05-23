@@ -739,14 +739,242 @@ class TestC4BullCaseTooLowMath:
     def test_bull_eps_far_below_consensus(self):
         from run_methodology_math import run_methodology_math
         math = run_methodology_math(self.C4_PASS1, self.C4_BASELINE)
-        bull_eps = math["scenario_eps"]["bull"]
         consensus_high = 50.0
-        # Bull EPS should be << consensus_high (gap_frac << 0.75)
-        gap_frac = bull_eps / consensus_high
-        assert gap_frac < 0.75, (
-            f"Expected bull EPS far below consensus_high=${consensus_high}; "
-            f"got bull_eps=${bull_eps:.4f} (gap_frac={gap_frac:.3f})"
+
+        # Step A must fire: bottom-up bull EPS (~$0.40) is far below consensus floor ($47.5)
+        step_a = [e for e in math["calibration_log"] if "Step A" in e]
+        assert len(step_a) == 1, (
+            f"Step A should fire (bottom-up << consensus); calibration_log={math['calibration_log']}"
         )
-        # Confirm BullCaseTooLowError WOULD fire (values are in range)
-        assert bull_eps > 0, "bull_eps should be positive"
-        assert bull_eps < 5.0, f"bull_eps=${bull_eps} is unreasonably high for this fixture"
+
+        # After Step A, bull_eps is floored to exactly 0.95 × consensus_high
+        bull_eps = math["scenario_eps"]["bull"]
+        expected_floor = 0.95 * consensus_high   # = 47.5
+        assert abs(bull_eps - expected_floor) < 0.01, (
+            f"bull_eps=${bull_eps:.4f} should equal floor=${expected_floor:.2f}"
+        )
+
+        # The gap that *would* have triggered BullCaseTooLowError (pre-floor) is confirmed
+        # by Step A firing: bottom-up was < 0.95 × $50 = $47.5 << $50 (far below consensus)
+        assert "0.95" in step_a[0] or "→" in step_a[0], (
+            f"Step A log entry should show floor arrow: {step_a[0]!r}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE D — §5.1 field wiring, §6 calibration, NVDA exit criterion
+# ════════════════════════════════════════════════════════════════════════════
+
+# D2: AVGO fixture using §5.1 canonical field names.
+# Values are identical to AVGO_BASELINE but keys are renamed to §5.1 names.
+# No consensus_eps_fy2 → Step A does not fire; targets should match §7.4.
+AVGO_V2_BASELINE = {
+    "current_price":              320.0,
+    "shares_out":                 1.43,
+    "fy_revenue":                 28.5,
+    "fy_op_margin":               0.62,        # §5.1 name (was base_op_margin)
+    "tax_rate_guidance":          0.13,         # §5.1 name (was tax_rate)
+    "beta":                       1.15,
+    "net_debt":                   30.0,
+    "horizon_years":              5,
+    "franchise_quality":          True,
+    "trailing_net_dilution_rate": 0.005,
+    "fy_fcf":                     14.5,         # §5.1 name (was base_fcf)
+    "five_yr_eps_growth_est":     0.18,         # §5.1 name (was earnings_cagr)
+    "peer_set": [                               # §5.1 name (was peer_pes flat list)
+        {"ticker": "MRVL", "fwd_pe": 36.0},
+        {"ticker": "QCOM", "fwd_pe": 38.0},
+        {"ticker": "BRCM", "fwd_pe": 40.0},
+        {"ticker": "TXN",  "fwd_pe": 38.0},
+        {"ticker": "ADI",  "fwd_pe": 38.0},
+    ],
+    "fy_eps_non_gaap": 10.50,                   # §5.1 name (was trailing_eps)
+}
+
+
+class TestD2AVGOFieldNames:
+    """D2: §5.1 field names feed the same §7.4 targets as Phase A AVGO_BASELINE."""
+
+    def _math(self):
+        return run_methodology_math({"events": AVGO_EVENTS}, AVGO_V2_BASELINE)
+
+    def test_bull_eps_within_target(self):
+        m = self._math()
+        eps = m["scenario_eps"]["bull"]
+        assert abs(eps - 14.50) <= 0.50, f"bull EPS={eps:.2f}, expected 14.50±0.50"
+
+    def test_base_eps_within_target(self):
+        m = self._math()
+        eps = m["scenario_eps"]["base"]
+        assert abs(eps - 10.74) <= 0.50, f"base EPS={eps:.2f}, expected 10.74±0.50"
+
+    def test_ev_within_target(self):
+        m = self._math()
+        ev = m["expected_value"]
+        assert abs(ev - 348.0) <= 10.0, f"EV={ev:.1f}, expected 348±10"
+
+    def test_bull_price_high_above_current(self):
+        m = self._math()
+        assert m["price_target"]["bull_high"] > AVGO_V2_BASELINE["current_price"], (
+            f"bull_high={m['price_target']['bull_high']} not > {AVGO_V2_BASELINE['current_price']}"
+        )
+
+    def test_calibration_log_present(self):
+        m = self._math()
+        assert "calibration_log" in m
+        assert isinstance(m["calibration_log"], list)
+
+    def test_no_step_a_without_consensus(self):
+        m = self._math()
+        # No consensus_eps_fy2 in AVGO_V2_BASELINE → Step A must not fire
+        assert not any("Step A" in entry for entry in m["calibration_log"]), (
+            "Step A should not fire when consensus_eps_fy2 is absent"
+        )
+
+    def test_consensus_divergent_false(self):
+        m = self._math()
+        # No consensus → consensus_divergent must stay False
+        assert m["consensus_divergent"] is False
+
+    def test_breakeven_pe_uses_fy_eps_non_gaap(self):
+        m = self._math()
+        # fy_eps_non_gaap = 10.50, current_price = 320 → expected breakeven PE ≈ 30.5
+        bkev = m["breakeven_pe"]
+        assert bkev is not None
+        assert abs(bkev - (320.0 / 10.50)) < 0.2, f"breakeven_pe={bkev:.1f}, expected ~30.5"
+
+
+# ── D3 NVDA synthetic fixture ────────────────────────────────────────────────
+# Post-split NVDA: current_price=$110, consensus_eps_fy2.high=$4.5, growth=35%.
+# peer_set median fwd_pe=25 → bull pe_high=35 (PEG 1.0×35).
+# Bottom-up bull EPS << 4.275 (0.95×4.5) for all event sets → Step A always floors.
+# bull_price_high = 4.275 × 35 = $149.6 > $110 on all variants.
+
+NVDA_BASELINE = {
+    "current_price":              110.0,
+    "shares_out":                 24.5,          # billions (post-split)
+    "fy_revenue":                 60.0,          # $B FY2024
+    "fy_op_margin":               0.55,
+    "tax_rate_guidance":          0.15,
+    "beta":                       1.7,
+    "net_debt":                   -16.0,         # net cash
+    "horizon_years":              5,
+    "franchise_quality":          True,
+    "trailing_net_dilution_rate": -0.03,         # buyback
+    "fy_fcf":                     25.0,
+    "five_yr_eps_growth_est":     0.35,
+    "peer_set": [
+        {"ticker": "AMD",  "fwd_pe": 20.0},
+        {"ticker": "MU",   "fwd_pe": 25.0},
+        {"ticker": "AVGO", "fwd_pe": 30.0},
+    ],
+    "fy_eps_non_gaap": 2.50,
+    "consensus_eps_fy2": {"low": 3.5, "mid": 4.0, "high": 4.5},
+}
+
+# Three distinct pass1 event sets — all produce bottom-up bull EPS << 4.275
+def _nvda_pass1_variant(bull_rev_mid: float, bull_op_margin: float) -> dict:
+    return {
+        "events": [
+            {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.40,
+             "revenue_at_risk_low":  bull_rev_mid * 0.8, "revenue_at_risk_high": bull_rev_mid * 1.2,
+             "op_margin_to_apply": bull_op_margin, "tax_rate_to_apply": 0.15, "evidence": "test"},
+            {"id": "A2", "driver": "A", "outcome": "bear", "probability": 0.60,
+             "revenue_at_risk_low": -4.0, "revenue_at_risk_high": -2.0,
+             "op_margin_to_apply": 0.55, "tax_rate_to_apply": 0.15, "evidence": "test"},
+            {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.70,
+             "revenue_at_risk_low":  0.0, "revenue_at_risk_high":  2.0,
+             "op_margin_to_apply": 0.55, "tax_rate_to_apply": 0.15, "evidence": "test"},
+            {"id": "B2", "driver": "B", "outcome": "bear", "probability": 0.30,
+             "revenue_at_risk_low": -5.0, "revenue_at_risk_high": -2.0,
+             "op_margin_to_apply": 0.55, "tax_rate_to_apply": 0.15, "evidence": "test"},
+            {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.65,
+             "revenue_at_risk_low":  0.0, "revenue_at_risk_high":  1.0,
+             "op_margin_to_apply": 0.55, "tax_rate_to_apply": 0.15, "evidence": "test"},
+            {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.35,
+             "revenue_at_risk_low": -6.0, "revenue_at_risk_high": -3.0,
+             "op_margin_to_apply": 0.55, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        ],
+    }
+
+NVDA_PASS1_V1 = _nvda_pass1_variant(bull_rev_mid=10.0, bull_op_margin=0.65)   # big AI upcycle
+NVDA_PASS1_V2 = _nvda_pass1_variant(bull_rev_mid= 5.0, bull_op_margin=0.60)   # moderate upside
+NVDA_PASS1_V3 = _nvda_pass1_variant(bull_rev_mid= 2.0, bull_op_margin=0.56)   # muted bull
+
+
+class TestD3NVDABullAboveCurrent:
+    """D3 exit: all 3 NVDA pass1 variants produce bull_price_high > current_price."""
+
+    def _math(self, pass1):
+        return run_methodology_math(pass1, NVDA_BASELINE)
+
+    def test_variant1_bull_high_above_current(self):
+        m = self._math(NVDA_PASS1_V1)
+        bh = m["price_target"]["bull_high"]
+        assert bh > NVDA_BASELINE["current_price"], f"V1 bull_high={bh} not > {NVDA_BASELINE['current_price']}"
+
+    def test_variant2_bull_high_above_current(self):
+        m = self._math(NVDA_PASS1_V2)
+        bh = m["price_target"]["bull_high"]
+        assert bh > NVDA_BASELINE["current_price"], f"V2 bull_high={bh} not > {NVDA_BASELINE['current_price']}"
+
+    def test_variant3_bull_high_above_current(self):
+        m = self._math(NVDA_PASS1_V3)
+        bh = m["price_target"]["bull_high"]
+        assert bh > NVDA_BASELINE["current_price"], f"V3 bull_high={bh} not > {NVDA_BASELINE['current_price']}"
+
+    def test_step_a_fires_on_all_variants(self):
+        for i, p1 in enumerate([NVDA_PASS1_V1, NVDA_PASS1_V2, NVDA_PASS1_V3], 1):
+            m = self._math(p1)
+            assert any("Step A" in e for e in m["calibration_log"]), (
+                f"V{i}: expected Step A to fire (bottom-up bull EPS << consensus)"
+            )
+
+    def test_consensus_divergent_false_when_bull_above_current(self):
+        for p1 in [NVDA_PASS1_V1, NVDA_PASS1_V2, NVDA_PASS1_V3]:
+            m = self._math(p1)
+            # bull_high > current_price → consensus_divergent must be False
+            assert m["consensus_divergent"] is False
+
+    def test_implied_fcf_cagr_finite_and_bounded(self):
+        for i, p1 in enumerate([NVDA_PASS1_V1, NVDA_PASS1_V2, NVDA_PASS1_V3], 1):
+            m = self._math(p1)
+            cagr = m["implied_fcf_cagr"]
+            assert math.isfinite(cagr), f"V{i}: implied_fcf_cagr={cagr!r} is not finite"
+            assert -0.5 <= cagr <= 1.0, f"V{i}: implied_fcf_cagr={cagr:.3f} out of [-0.5, 1.0]"
+
+
+class TestD3ConsensusCalibration:
+    """D3: calibration_log and consensus_divergent behave correctly."""
+
+    def _math_with_consensus(self, consensus_high: float, current_price: float = 110.0) -> dict:
+        bl = dict(NVDA_BASELINE, current_price=current_price,
+                  consensus_eps_fy2={"low": 3.0, "mid": 3.5, "high": consensus_high})
+        return run_methodology_math(NVDA_PASS1_V1, bl)
+
+    def test_step_a_log_entry_format(self):
+        m = self._math_with_consensus(4.5)
+        step_a = [e for e in m["calibration_log"] if "Step A" in e]
+        assert len(step_a) == 1
+        assert "→" in step_a[0] and "consensus_high" in step_a[0]
+
+    def test_no_step_a_when_bottomup_exceeds_floor(self):
+        # Tiny consensus_high → floor = 0.95 × 0.01 ≈ 0 → Step A never fires
+        m = self._math_with_consensus(consensus_high=0.01)
+        assert not any("Step A" in e for e in m["calibration_log"])
+
+    def test_consensus_divergent_true_when_bull_below_price(self):
+        # Absurdly high current_price to force bull_high < current_price
+        m = self._math_with_consensus(consensus_high=4.5, current_price=10_000.0)
+        assert m["consensus_divergent"] is True
+        assert any("Step D" in e for e in m["calibration_log"])
+
+    def test_price_target_has_bull_mid_key(self):
+        m = self._math_with_consensus(4.5)
+        assert "bull_mid" in m["price_target"], "price_target must include bull_mid (EV-based)"
+
+    def test_price_target_bull_high_ge_bull_mid(self):
+        m = self._math_with_consensus(4.5)
+        assert m["price_target"]["bull_high"] >= m["price_target"]["bull_mid"], (
+            f"bull_high={m['price_target']['bull_high']} < bull_mid={m['price_target']['bull_mid']}"
+        )

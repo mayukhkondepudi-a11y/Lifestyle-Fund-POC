@@ -9,7 +9,7 @@ from __future__ import annotations
 import statistics
 from typing import Any
 
-from compute import HEADLINE_METRIC
+from compute import HEADLINE_METRIC, ANALYST_CONSENSUS_BULL_FLOOR_FRAC
 from compute_methodology_v2 import (
     scenario_revenue,
     scenario_eps,
@@ -72,16 +72,29 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     current_price  = float(baseline["current_price"])
     shares_out     = float(baseline["shares_out"])           # billions
     fy_revenue     = float(baseline["fy_revenue"])           # trailing/forward base
-    base_op_margin = float(baseline.get("base_op_margin", 0.30))
-    tax_rate       = float(baseline.get("tax_rate", DEFAULT_TAX_RATE))
+
+    # §5.1 canonical field names; fall back to Phase A synthetic names for legacy fixtures
+    base_op_margin = float(baseline.get("fy_op_margin") or baseline.get("base_op_margin", 0.30))
+    tax_rate       = float(baseline.get("tax_rate_guidance") or baseline.get("tax_rate", DEFAULT_TAX_RATE))
+    growth_rate    = float(baseline.get("five_yr_eps_growth_est") or baseline.get("earnings_cagr", 0.15))
+
     beta           = float(baseline.get("beta", 1.0))
     net_debt       = float(baseline.get("net_debt", 0.0))
     horizon_years  = int(baseline.get("horizon_years", 5))
     franchise_q    = bool(baseline.get("franchise_quality", True))
     trailing_dilution = float(baseline.get("trailing_net_dilution_rate", 0.0))
-    base_fcf       = float(baseline.get("base_fcf", fy_revenue * base_op_margin * 0.9))
-    growth_rate    = float(baseline.get("earnings_cagr", 0.15))
-    peer_pes: list[float] = baseline.get("peer_pes", [])
+
+    _raw_fcf  = baseline.get("fy_fcf") or baseline.get("base_fcf")
+    base_fcf  = float(_raw_fcf) if _raw_fcf is not None else fy_revenue * base_op_margin * 0.9
+
+    # peer_pes: §5.1 peer_set[].fwd_pe preferred; fallback to flat peer_pes list
+    _peer_set = baseline.get("peer_set", [])
+    _from_set = [float(p["fwd_pe"]) for p in _peer_set if p.get("fwd_pe") is not None]
+    peer_pes: list[float] = _from_set if _from_set else baseline.get("peer_pes", [])
+
+    # consensus pack for §6 calibration (Step A + Step D)
+    _consensus = baseline.get("consensus_eps_fy2") or {}
+    consensus_high = float(_consensus.get("high", 0)) if _consensus else 0.0
 
     # ── Pull pass1 events (normalise §5.2 → internal format) ────────────────
     events: list[dict] = _normalize_events(pass1.get("events", []))
@@ -94,22 +107,44 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     base_eps  = scenario_eps(fy_revenue, base_op_margin, events, "base",  tax_rate, shares_proj)
     bear_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bear",  tax_rate, shares_proj)
 
+    # ── §6 Step A: consensus bull EPS floor ─────────────────────────────────
+    calibration_log: list[str] = []
+    if consensus_high > 0 and bull_eps < ANALYST_CONSENSUS_BULL_FLOOR_FRAC * consensus_high:
+        floored = ANALYST_CONSENSUS_BULL_FLOOR_FRAC * consensus_high
+        calibration_log.append(
+            f"Step A: bull EPS floored ${bull_eps:.2f}→${floored:.2f} "
+            f"(0.95×consensus_high=${consensus_high:.2f})"
+        )
+        bull_eps = floored
+
     # ── PEG-anchored P/E band per scenario (B3 bear floor conditional) ─────────
     peer_median = statistics.median(peer_pes) if len(peer_pes) >= 3 else None
     bull_band = pe_band("bull", growth_rate, franchise_q, peer_median)
     base_band = pe_band("base", growth_rate, franchise_q, peer_median)
     bear_band = pe_band("bear", growth_rate, franchise_q, peer_median)
 
-    # Midpoint of each band → per-scenario P/E
-    bull_pe = (bull_band[0] + bull_band[1]) / 2
-    base_pe = (base_band[0] + base_band[1]) / 2
-    bear_pe = (bear_band[0] + bear_band[1]) / 2
+    # EV uses band midpoints; bull_high / bear_low use band extremes for price range
+    bull_pe_mid = (bull_band[0] + bull_band[1]) / 2
+    base_pe     = (base_band[0] + base_band[1]) / 2
+    bear_pe     = (bear_band[0] + bear_band[1]) / 2
 
     price_targets = {
-        "bull": round(bull_eps * bull_pe, 2),
-        "base": round(base_eps * base_pe, 2),
-        "bear": round(bear_eps * bear_pe, 2),
+        "bull": round(bull_eps * bull_pe_mid, 2),
+        "base": round(base_eps * base_pe,     2),
+        "bear": round(bear_eps * bear_pe,     2),
     }
+
+    bull_price_high = round(bull_eps * bull_band[1], 2)   # pe_high for smoke harness
+    bear_price_low  = round(bear_eps * bear_band[0], 2)   # pe_low for stress check
+
+    # ── §6 Step D: consensus_divergent flag ──────────────────────────────────
+    consensus_divergent = False
+    if consensus_high > 0 and bull_price_high <= current_price:
+        consensus_divergent = True
+        calibration_log.append(
+            f"Step D: consensus_divergent=True — bull_high=${bull_price_high:.2f} "
+            f"≤ current_price=${current_price:.2f}"
+        )
 
     # Assemble band dict for the math output (for renderers / Pass 2 reference)
     band = {
@@ -127,7 +162,7 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     risks = risk_metrics(price_targets, joint_probs, current_price)
 
     # ── Breakeven P/E ────────────────────────────────────────────────────────
-    trailing_eps = baseline.get("trailing_eps")
+    trailing_eps = baseline.get("fy_eps_non_gaap") or baseline.get("trailing_eps")
     bkev_pe = breakeven_pe(current_price, trailing_eps) if trailing_eps else None
 
     # ── Reverse-DCF: implied FCF CAGR (B1 headline metric) ───────────────────
@@ -157,7 +192,7 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         series = project_fcf(base_fcf, cagr_proxy, horizon_years)
         return dcf_intrinsic_value(series, DEFAULT_TERMINAL_GROWTH, dr, shares_proj, net_debt)
 
-    bull_dcf = _dcf_for_scenario(bull_eps, bull_pe)
+    bull_dcf = _dcf_for_scenario(bull_eps, bull_pe_mid)
     base_dcf = _dcf_for_scenario(base_eps, base_pe)
     bear_dcf = _dcf_for_scenario(bear_eps, bear_pe)
 
@@ -177,9 +212,10 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         },
         "pe_band": band,
         "price_target": {
-            "bull_high": price_targets["bull"],
+            "bull_high": bull_price_high,
+            "bull_mid":  price_targets["bull"],
             "base_mid":  price_targets["base"],
-            "bear_low":  price_targets["bear"],
+            "bear_low":  bear_price_low,
         },
         "joint_probs": joint_probs,
         "driver_probs": driver_probs,
@@ -192,4 +228,6 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
             "bear": bear_dcf,
         },
         "recommendation": rec,
+        "calibration_log": calibration_log,
+        "consensus_divergent": consensus_divergent,
     }
