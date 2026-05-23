@@ -1562,3 +1562,266 @@ class TestPass3CallCeiling:
         result = run_pass3_audit(ticker, baseline, pass1, math, pass2, calls_remaining=0)
         assert result["audit_skipped"] is True
         assert any(h["token"] == "capture" for h in result["forbidden_vocab"])
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE G — run_pipeline orchestration
+# ════════════════════════════════════════════════════════════════════════════
+
+import json as _json
+from ai import run_pipeline, Pass1ValidationError
+
+_G_TICKER   = "TSTK"
+_G_BASELINE = {
+    "ticker": "TSTK", "company_name": "Test Co", "current_price": 100.0,
+    "shares_out": 1.0, "fy_revenue": 10.0, "fy_op_margin": 0.20,
+    "tax_rate_guidance": 0.21, "beta": 1.0, "net_debt": 1.0,
+    "franchise_quality": True, "trailing_net_dilution_rate": 0.0,
+    "fy_fcf": 2.0, "fy_eps_non_gaap": 5.0, "consensus_eps_fy2": None,
+    "peer_set": [], "data_quality_warnings": [],
+}
+_G_MATH = {
+    "implied_fcf_cagr": 0.08,
+    "joint_probs":   {"bull": 0.25, "base": 0.55, "bear": 0.20},
+    "scenario_eps":  {"bull": 8.0,  "base": 6.0,  "bear": 4.0},
+    "price_target":  {"bull_high": 150.0, "bull_mid": 130.0, "base_mid": 110.0, "bear_low": 70.0},
+    "pe_band":       {"bull_low": 18, "bull_high": 22, "base_low": 16, "base_high": 20, "bear_low": 12, "bear_high": 16},
+    "risk":          {"prob_loss": 0.20, "max_drawdown_pct": 0.30, "expected_return_pct": 0.10, "ev": 110.0},
+    "expected_value": 110.0, "recommendation": "BUY",
+    "calibration_log": [], "consensus_divergent": False,
+}
+_G_PASS2 = {
+    "investment_thesis": "The implied FCF CAGR of 8.0% suggests reasonable pricing.",
+    "reverse_dcf_commentary": "At 8% implied FCF CAGR the buyer bets on continued growth.",
+    "scenario_commentary": {
+        "bull": "Bull (25%): 130.00.",
+        "base": "Base (55%): 110.00.",
+        "bear": "Bear (20%): 70.00.",
+    },
+    "driver_narratives": {"A": "Driver A.", "B": "Driver B.", "C": "Driver C."},
+    "financial_health": "FCF of 2.0B with net_debt 1.0B supports the thesis.",
+    "recommendation_rationale": "BUY with medium conviction.",
+    "conclusion": "BUY.",
+    "body": "The implied FCF CAGR of 8.0%.",
+    "model_used": "claude-opus-4-7",
+}
+_G_PASS3 = {
+    "audit_skipped": False, "citation_errors": [], "b1_compliant": True,
+    "tone_label_ok": True, "tone_label_evidence": None,
+    "forbidden_vocab": [], "audit_clean": True, "calls_remaining": 6,
+}
+
+_REQUIRED_REPORT_KEYS = (
+    "recommendation", "conviction", "model_used", "investment_thesis",
+    "scenario_math", "pass3", "data_quality_warnings",
+    "catalysts", "segments", "peer_tickers", "scenario_inputs",
+    "drivers", "headwinds", "tailwinds", "concentration",
+)
+_REQUIRED_SM_KEYS = (
+    "final_probabilities", "eps", "price_target", "expected_value",
+    "expected_return", "base_implied_return", "prob_positive",
+    "monotonicity_violation", "bull_below_current", "diagnostic", "degraded_sections",
+)
+
+
+def _pipeline_mocks(
+    pass1=None, math=None, pass2=None, pass3=None,
+    pass1_raises=None, math_raises=None, pass2_raises=None,
+):
+    """Return a context-manager stack that patches all four pipeline sub-functions."""
+    p1 = pass1 if pass1 is not None else _minimal_valid_pass1()
+    ma = math  if math  is not None else _G_MATH
+    p2 = pass2 if pass2 is not None else _G_PASS2
+    p3 = pass3 if pass3 is not None else _G_PASS3
+
+    def _p1(*a, **kw):
+        if pass1_raises:
+            raise pass1_raises
+        return p1
+
+    def _ma(*a, **kw):
+        if math_raises:
+            raise math_raises
+        return ma
+
+    import contextlib
+    @contextlib.contextmanager
+    def _ctx():
+        with mock.patch("ai.run_pass1_foundation", side_effect=_p1), \
+             mock.patch("ai.run_methodology_math", side_effect=_ma), \
+             mock.patch("ai.run_pass2_report",     return_value=p2), \
+             mock.patch("ai.run_pass3_audit",       return_value=p3):
+            yield
+
+    return _ctx()
+
+
+class TestPipelineOrchestrator:
+    """Phase G: run_pipeline orchestration, field bridging, and error handling."""
+
+    def test_required_keys_present(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        for key in _REQUIRED_REPORT_KEYS:
+            assert key in result, f"missing key: {key}"
+
+    def test_scenario_math_has_render_aliases(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        sm = result["scenario_math"]
+        for key in _REQUIRED_SM_KEYS:
+            assert key in sm, f"scenario_math missing key: {key}"
+
+    def test_price_target_has_bull_base_bear_aliases(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        pt = result["scenario_math"]["price_target"]
+        assert "bull" in pt and "base" in pt and "bear" in pt
+        assert pt["bull"] == _G_MATH["price_target"]["bull_mid"]
+        assert pt["base"] == _G_MATH["price_target"]["base_mid"]
+        assert pt["bear"] == _G_MATH["price_target"]["bear_low"]
+
+    def test_final_probabilities_equals_joint_probs(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        fp = result["scenario_math"]["final_probabilities"]
+        assert fp == _G_MATH["joint_probs"]
+
+    def test_eps_alias_equals_scenario_eps(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert result["scenario_math"]["eps"] == _G_MATH["scenario_eps"]
+
+    def test_prob_positive_in_unit_interval(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        pp = result["scenario_math"]["prob_positive"]
+        assert 0.0 <= pp <= 1.0, f"prob_positive={pp} out of [0,1]"
+
+    def test_prob_positive_is_one_minus_prob_loss(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        expected = round(1.0 - _G_MATH["risk"]["prob_loss"], 4)
+        assert abs(result["scenario_math"]["prob_positive"] - expected) < 1e-6
+
+    def test_conviction_valid_value(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert result["conviction"] in ("High", "Medium", "Low")
+
+    def test_recommendation_valid_value(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert result["recommendation"] in ("BUY", "WATCH", "PASS")
+
+    def test_pass1_failure_returns_error_dict(self):
+        exc = Pass1ValidationError(["missing macro_drivers"])
+        with _pipeline_mocks(pass1_raises=exc):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert "error" in result
+        assert result.get("recommendation") == "WATCH"
+        assert "scenario_math" in result
+
+    def test_math_failure_returns_error_dict(self):
+        with _pipeline_mocks(math_raises=ValueError("bad math")):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert "error" in result
+        assert "Math layer failed" in result["error"]
+
+    def test_bull_below_triggers_retry(self):
+        bull_below_math  = {**_G_MATH, "price_target": {
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+        }, "risk": {**_G_MATH["risk"]}}
+        bull_above_math  = _G_MATH
+
+        call_count = {"n": 0}
+        def _alt_p1(*a, retry_hint="", **kw):
+            call_count["n"] += 1
+            return _minimal_valid_pass1()
+
+        def _alt_math(p1, bl):
+            return bull_above_math if call_count["n"] >= 2 else bull_below_math
+
+        with mock.patch("ai.run_pass1_foundation", side_effect=_alt_p1), \
+             mock.patch("ai.run_methodology_math", side_effect=_alt_math), \
+             mock.patch("ai.run_pass2_report",     return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit",       return_value=_G_PASS3):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+
+        assert call_count["n"] >= 2, "retry was not called when bull < current"
+        assert not result["scenario_math"]["bull_below_current"]
+
+    def test_bull_below_flag_set_when_retry_fails(self):
+        bull_below_math = {**_G_MATH, "price_target": {
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+        }, "risk": {**_G_MATH["risk"]}}
+
+        with mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
+             mock.patch("ai.run_methodology_math", return_value=bull_below_math), \
+             mock.patch("ai.run_pass2_report",     return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit",       return_value=_G_PASS3):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+
+        assert result["scenario_math"]["bull_below_current"] is True
+        assert "90.00" in result["scenario_math"]["bull_below_msg"]
+
+    def test_pass2_failure_uses_stub_narrative(self):
+        with mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
+             mock.patch("ai.run_pass2_report",     side_effect=Pass1ValidationError(["gen error"])), \
+             mock.patch("ai.run_pass3_audit",       return_value=_G_PASS3):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert "Narrative unavailable" in result["investment_thesis"]
+        assert result["model_used"] == "N/A"
+
+    def test_catalysts_bridged_with_bull_signal(self):
+        p1 = {**_minimal_valid_pass1(), "catalysts": [
+            {"date": "Q2 FY2026", "event": "Earnings", "what_to_watch": "Rev growth > 20%"},
+        ]}
+        with _pipeline_mocks(pass1=p1):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        cats = result["catalysts"]
+        assert len(cats) == 1
+        assert cats[0]["bull_signal"] == "Rev growth > 20%"
+        assert cats[0]["bear_signal"] == ""
+
+    def test_segments_bridged_from_segments_enriched(self):
+        p1 = {**_minimal_valid_pass1(), "segments_enriched": [
+            {"name": "Core", "fy_revenue": 8.0, "share_pct": 0.80, "growth_yoy": 0.10, "gross_margin": 0.65},
+        ]}
+        with _pipeline_mocks(pass1=p1):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        segs = result["segments"]
+        assert len(segs) == 1
+        assert segs[0]["name"] == "Core"
+        assert segs[0]["current_revenue"] == 8.0
+
+    def test_pass3_tone_mismatch_inverted(self):
+        p3_mismatch = {**_G_PASS3, "tone_label_ok": False, "tone_label_evidence": "BUY but text says sell"}
+        with _pipeline_mocks(pass3=p3_mismatch):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert result["pass3"]["tone_label_mismatch"] is True
+        assert "BUY but text says sell" in result["pass3"]["tone_label_evidence"]
+
+    def test_pass3_citation_errors_mapped_to_consistency_flags(self):
+        p3 = {**_G_PASS3, "citation_errors": [
+            {"field": "investment_thesis", "issue": "wrong number", "severity": "warn"}
+        ]}
+        with _pipeline_mocks(pass3=p3):
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        flags = result["pass3"]["consistency_flags"]
+        assert len(flags) == 1
+        assert flags[0]["field"] == "investment_thesis"
+        assert flags[0]["severity"] == "warn"
+
+    def test_no_error_key_on_success(self):
+        with _pipeline_mocks():
+            result = run_pipeline(_G_TICKER, _G_BASELINE)
+        assert "error" not in result, f"unexpected error key: {result.get('error')}"
+
+    def test_empty_scenario_math_has_all_render_keys(self):
+        """_empty_scenario_math() must contain every key render() accesses on sm."""
+        from ai import _empty_scenario_math as _esm
+        sm = _esm()
+        for key in _REQUIRED_SM_KEYS:
+            assert key in sm, f"_empty_scenario_math missing key: {key}"

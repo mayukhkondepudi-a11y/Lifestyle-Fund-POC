@@ -21,6 +21,7 @@ from compute import (
     _compute_pe_ranges_per_scenario,
     MAX_PIPELINE_AI_CALLS,
 )
+from run_methodology_math import run_methodology_math
 
 
 # ── Clients ──────────────────────────────────────────────────
@@ -1345,6 +1346,300 @@ def run_pass3_audit(
         "audit_clean":       (not forbidden_hits and not severe_citations
                               and b1_compliant and tone_ok),
         "model_used":        model,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# v2 PIPELINE ORCHESTRATOR (Phase G)
+# ══════════════════════════════════════════════════════════════
+
+def run_pipeline(ticker: str, baseline: dict) -> dict:
+    """
+    v2 three-pass pipeline orchestrator.
+
+    Args:
+        ticker:   stock ticker
+        baseline: §5.1 baseline dict from calc_baseline() — all units per §5.1 contract
+                  (fy_revenue in billions, shares_out in billions, etc.)
+
+    Returns:
+        Final report dict compatible with app.py render() under METHODOLOGY_VERSION='v2'.
+    """
+    current_price = safe_float(baseline.get("current_price", 0))
+    calls_used    = 0
+
+    # ── Pass 1: §5.2 qualitative input pack ─────────────────────────────────
+    try:
+        pass1      = run_pass1_foundation(ticker, baseline)
+        calls_used += 2   # up to 2 LLM calls internally
+    except Pass1ValidationError as exc:
+        return {
+            "error":   "Pass 1 failed — check baseline data quality",
+            "details": [str(exc)],
+            "recommendation": "WATCH", "conviction": "Low", "model_used": "N/A",
+            "scenario_math": _empty_scenario_math(),
+            "pass3": {}, "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
+        }
+
+    # ── Math: deterministic, no LLM ─────────────────────────────────────────
+    try:
+        math = run_methodology_math(pass1, baseline)
+    except Exception as exc:
+        return {
+            "error":   f"Math layer failed: {type(exc).__name__}: {exc}",
+            "details": [str(exc)],
+            "recommendation": "WATCH", "conviction": "Low", "model_used": "N/A",
+            "scenario_math": _empty_scenario_math(),
+            "pass3": {}, "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
+        }
+
+    # ── B1/B5 sanity: bull-below-current retry (1 extra LLM call) ────────────
+    pt           = math.get("price_target", {})
+    bull_mid_val = safe_float(pt.get("bull_mid", 0))
+    bull_below   = current_price > 0 and bull_mid_val < current_price
+
+    if bull_below and calls_used + 1 < MAX_PIPELINE_AI_CALLS:
+        hint = (
+            f"IMPORTANT: your bull-case scenario produced a price target "
+            f"({bull_mid_val:.2f}) below the current price ({current_price:.2f}). "
+            "In a genuine bull case the primary growth driver (A) must resolve with "
+            "meaningfully higher EPS or P/E re-rating. Revise driver A's bull-outcome "
+            "so the resulting price target exceeds the current price."
+        )
+        try:
+            pass1_retry = run_pass1_foundation(ticker, baseline, max_passes=1, retry_hint=hint)
+            calls_used += 1
+            math_retry  = run_methodology_math(pass1_retry, baseline)
+            if safe_float(math_retry.get("price_target", {}).get("bull_mid", 0)) > current_price:
+                pass1, math = pass1_retry, math_retry
+                bull_below  = False
+        except (Pass1ValidationError, Exception):
+            pass   # keep original
+
+    pt   = math.get("price_target", {})
+    risk = math.get("risk", {})
+
+    # ── Pass 2: §5.4 narrative ───────────────────────────────────────────────
+    try:
+        pass2      = run_pass2_report(ticker, baseline, pass1, math)
+        calls_used += 2
+    except Pass1ValidationError as exc:
+        print(f"  run_pipeline: Pass 2 failed ({exc}) — stub narrative")
+        pass2 = {
+            "investment_thesis": "Narrative unavailable due to generation error.",
+            "reverse_dcf_commentary": "", "scenario_commentary": {},
+            "driver_narratives": {}, "financial_health": "",
+            "recommendation_rationale": "",
+            "conclusion": "Analysis complete. Full narrative could not be generated.",
+            "body": "", "model_used": "N/A",
+        }
+
+    # ── Pass 3: §5.5 audit ───────────────────────────────────────────────────
+    remaining = max(0, MAX_PIPELINE_AI_CALLS - calls_used)
+    pass3_raw = run_pass3_audit(ticker, baseline, pass1, math, pass2,
+                                calls_remaining=remaining)
+
+    return _assemble_pipeline_output(ticker, baseline, pass1, math, pass2, pass3_raw, bull_below)
+
+
+def _empty_scenario_math() -> dict:
+    """Minimal scenario_math dict for error-path returns."""
+    return {
+        "final_probabilities": {"bull": 0.0, "base": 0.0, "bear": 0.0},
+        "eps": {}, "price_target": {}, "scenario_revenue": {},
+        "expected_value": 0, "expected_return": 0,
+        "base_implied_return": 0, "prob_positive": 0,
+        "upside_downside_ratio": None,
+        "monotonicity_violation": False, "violation_msg": "",
+        "bull_below_current": False, "bull_below_msg": "",
+        "diagnostic": {}, "degraded_sections": [],
+    }
+
+
+def _assemble_pipeline_output(
+    ticker: str,
+    baseline: dict,
+    pass1: dict,
+    math: dict,
+    pass2: dict,
+    pass3_raw: dict,
+    bull_below: bool,
+) -> dict:
+    """Assemble all pipeline layers into the final report dict render() expects."""
+    current_price = safe_float(baseline.get("current_price", 0))
+    pt            = math.get("price_target", {})
+    risk          = math.get("risk", {})
+    joint_probs   = math.get("joint_probs", {})
+    pe_band_d     = math.get("pe_band", {})
+
+    # ── Derived scalars ──────────────────────────────────────────────────────
+    bull_mid  = safe_float(pt.get("bull_mid", 0))
+    base_mid  = safe_float(pt.get("base_mid", 0))
+    bear_low  = safe_float(pt.get("bear_low", 0))
+
+    ev_val          = safe_float(risk.get("ev", math.get("expected_value", 0)))
+    expected_return = safe_float(risk.get("expected_return_pct", 0))
+    prob_loss       = safe_float(risk.get("prob_loss", 0))
+    prob_positive   = round(max(0.0, 1.0 - prob_loss), 4)
+    base_implied    = round(base_mid / current_price - 1, 4) if current_price > 0 and base_mid > 0 else 0.0
+
+    # Upside/downside ratio (matches v1 derivation in compute.py)
+    price_map    = {"bull": bull_mid, "base": base_mid, "bear": bear_low}
+    upside_sum   = sum(
+        joint_probs.get(s, 0) * (price_map[s] / current_price - 1)
+        for s in ("bull", "base", "bear")
+        if current_price > 0 and price_map.get(s, 0) > current_price
+    )
+    downside_sum = sum(
+        joint_probs.get(s, 0) * (price_map[s] / current_price - 1)
+        for s in ("bull", "base", "bear")
+        if current_price > 0 and price_map.get(s, 0) < current_price
+    )
+    if downside_sum < 0:
+        ud_ratio = round(abs(upside_sum / downside_sum), 4)
+    elif upside_sum > 0:
+        ud_ratio = None   # effectively infinite
+    else:
+        ud_ratio = 0
+
+    # ── Sanity flags ─────────────────────────────────────────────────────────
+    mono_viol = (
+        bull_mid > 0 and base_mid > 0 and bear_low > 0
+        and not (bull_mid > base_mid > bear_low)
+    )
+    mono_msg      = (f"Non-monotonic targets: bull={bull_mid:.2f} / base={base_mid:.2f} / bear={bear_low:.2f}." if mono_viol else "")
+    bull_below_msg = (f"Bull target ({bull_mid:.2f}) below current price ({current_price:.2f})." if bull_below else "")
+
+    # ── Recommendation + conviction (deterministic) ──────────────────────────
+    rec_label, conviction = derive_recommendation({
+        "expected_return":    expected_return,
+        "base_implied_return": base_implied,
+        "prob_positive":      prob_positive,
+        "upside_downside_ratio": ud_ratio,
+    })
+
+    # ── P/E midpoints per scenario (for scenario_inputs) ─────────────────────
+    bull_pe_mid = round((pe_band_d.get("bull_low", 0) + pe_band_d.get("bull_high", 0)) / 2, 2)
+    base_pe_mid = round((pe_band_d.get("base_low", 0) + pe_band_d.get("base_high", 0)) / 2, 2)
+    bear_pe_mid = round((pe_band_d.get("bear_low", 0) + pe_band_d.get("bear_high", 0)) / 2, 2)
+
+    baseline_om  = safe_float(baseline.get("fy_op_margin") or baseline.get("operating_margin") or 0.20)
+    events_v2    = pass1.get("events", [])
+
+    def _avg_margin(outcome: str) -> float:
+        evs = [e for e in events_v2 if e.get("outcome") == outcome]
+        if not evs:
+            return baseline_om
+        rev = sum(abs(safe_float(e.get("revenue_at_risk_high", 0))) for e in evs)
+        if not rev:
+            return baseline_om
+        return round(
+            sum(safe_float(e.get("op_margin_to_apply") or baseline_om) * abs(safe_float(e.get("revenue_at_risk_high", 0))) for e in evs) / rev,
+            4,
+        )
+
+    scenario_inputs = {
+        "bull": {"op_margin": _avg_margin("bull"), "pe_multiple_pick": bull_pe_mid},
+        "base": {"op_margin": _avg_margin("base"), "pe_multiple_pick": base_pe_mid},
+        "bear": {"op_margin": _avg_margin("bear"), "pe_multiple_pick": bear_pe_mid},
+    }
+
+    # ── scenario_math subdict (render accesses as `sm`) ──────────────────────
+    scenario_math = {
+        **math,                          # v2 native fields
+        "final_probabilities": joint_probs,
+        "eps":                 math.get("scenario_eps", {}),
+        "price_target": {
+            **pt,
+            "bull": bull_mid,            # alias: render EV reconciliation + scenario tabs
+            "base": base_mid,            # alias: render_track_box + scenario tabs
+            "bear": bear_low,            # alias: scenario tabs
+        },
+        "scenario_revenue":    {},       # v2 doesn't aggregate segment revenue; Phase H
+        "expected_value":      ev_val,
+        "expected_return":     expected_return,
+        "base_implied_return": base_implied,
+        "prob_positive":       prob_positive,
+        "upside_downside_ratio": ud_ratio,
+        "monotonicity_violation": mono_viol,
+        "violation_msg":       mono_msg,
+        "bull_below_current":  bull_below,
+        "bull_below_msg":      bull_below_msg,
+        "diagnostic":          {},       # stub; Phase H wires fundamentals signal check
+        "degraded_sections":   [],
+    }
+
+    # ── Bridge pass3 v2 keys → render field names ─────────────────────────────
+    citation_errors = (pass3_raw or {}).get("citation_errors", [])
+    pass3 = {
+        **(pass3_raw or {}),
+        "consistency_flags": [
+            {"field": e.get("field", ""), "issue": e.get("issue", e.get("context", "")), "severity": e.get("severity", "warn")}
+            for e in citation_errors
+        ],
+        "numbers_outside_source": [],
+        "tone_label_mismatch":    not (pass3_raw or {}).get("tone_label_ok", True),
+        "tone_label_evidence":    (pass3_raw or {}).get("tone_label_evidence", ""),
+    }
+
+    # ── Bridge pass1 catalysts → render format (adds bull_signal / bear_signal) ─
+    catalysts = [
+        {**cat, "bull_signal": cat.get("what_to_watch", ""), "bear_signal": ""}
+        for cat in pass1.get("catalysts", []) if isinstance(cat, dict)
+    ]
+
+    # ── Bridge segments_enriched → render segments format ────────────────────
+    segments = [
+        {
+            "name":            s.get("name", ""),
+            "current_revenue": s.get("fy_revenue"),
+            "pct_of_total":    s.get("share_pct"),
+            "gross_margin":    s.get("gross_margin"),
+            "yoy_growth":      s.get("growth_yoy"),
+            "trajectory":      "",
+            "primary_driver":  "",
+        }
+        for s in pass1.get("segments_enriched", []) if isinstance(s, dict)
+    ]
+
+    peer_tickers = [p.get("ticker", "") for p in pass1.get("peer_set_enriched", []) if isinstance(p, dict)]
+
+    return {
+        # Deterministic
+        "recommendation": rec_label,
+        "conviction":     conviction,
+        "model_used":     pass2.get("model_used", ""),
+        # Narrative (v2 pass2 output schema)
+        "investment_thesis":          _cl(pass2.get("investment_thesis", "")),
+        "reverse_dcf_commentary":     _cl(pass2.get("reverse_dcf_commentary", "")),
+        "recommendation_rationale":   _cl(pass2.get("recommendation_rationale", "")),
+        "conclusion":                 _cl(pass2.get("conclusion", "")),
+        "financial_health":           _cl(pass2.get("financial_health", "")),
+        "scenario_commentary":        {k: _cl(v) for k, v in (pass2.get("scenario_commentary") or {}).items()},
+        "driver_narratives":          {k: _cl(v) for k, v in (pass2.get("driver_narratives") or {}).items()},
+        # Sections not produced by v2 pass2; Phase H will wire these into the renderer
+        "business_overview": "", "revenue_architecture": "", "growth_drivers": "",
+        "margin_analysis": "", "competitive_position": "", "monitoring_dashboard_intro": "",
+        "catalysts_intro": "", "headwind_narrative": "", "tailwind_narrative": "",
+        "market_pricing_commentary": "",
+        # Structured from pass1
+        "segments":        segments,
+        "peer_tickers":    peer_tickers,
+        "catalysts":       catalysts,
+        "scenario_inputs": scenario_inputs,
+        "macro_drivers":   pass1.get("macro_drivers", []),
+        "drivers":         [],    # Phase H: render v2 events as driver cards
+        "headwinds":       [],
+        "tailwinds":       [],
+        "concentration":   {},
+        "monitoring_kpis": [],
+        # Math + audit
+        "scenario_math":   scenario_math,
+        "python_outputs":  {},
+        "pass3":           pass3,
+        # QA
+        "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
+        "rec_override_reason":   "",
     }
 
 

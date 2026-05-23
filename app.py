@@ -72,7 +72,7 @@ def pt_table(header_html, rows_html):
 from github_store import (add_tracked_stock, load_screener_results_raw,
                           load_tracker)
 from email_service import send_email, email_confirmation
-from compute import calc, compute_scenario_math
+from compute import calc, calc_baseline
 import ai
 import fmp_api
 from logos import get_logo_html, get_logo_and_name_html
@@ -112,7 +112,9 @@ if "initialized" not in st.session_state:
 if st.session_state.get("show_auth"):
     render_auth_modal()
     if st.session_state.pop("_just_authed", False):
+        st.session_state["_generating"] = False  # clear any stuck state from pre-auth button press
         st.rerun()
+    st.stop()  # halt the rest of the page so it doesn't paint behind the auth UI
 
 if st.query_params.get("_si") == "1":
     try:
@@ -126,6 +128,11 @@ authenticated = st.session_state.get("authenticated", False)
 name     = st.session_state.get("user_name", "")
 username = st.session_state.get("username", "")
 is_guest = st.session_state.get("is_guest", False)
+
+# Diagnostic: log when auth state is observed (helps detect session loss across reruns)
+if authenticated and not st.session_state.get("_auth_logged"):
+    print(f"  auth: user '{username}' authenticated, session active")
+    st.session_state["_auth_logged"] = True
 
 # ══════════════════════════════════════════════════════════════
 # TOP BAR
@@ -291,6 +298,7 @@ def fetch_peers(ticker, sector, llm_peers=None):
     else:
         peer_tickers = [p for p in SECTOR_PEERS.get(sector, []) if p.upper() != ticker.upper()][:4]
     out = []
+    warnings = []
     for pt in peer_tickers:
         try:
             profile = fmp_api.get_profile(pt)
@@ -320,70 +328,23 @@ def fetch_peers(ticker, sector, llm_peers=None):
                     "ROE": fmt_p(i.get("returnOnEquity")),
                     "Rev Gr.": fmt_p(i.get("revenueGrowth")),
                 })
-        except Exception:
+        except Exception as e:
+            warnings.append(f"peer_fetch_failed:{pt}:{type(e).__name__}")
             continue
-    return out
+    return out, warnings
 
 # ══════════════════════════════════════════════════════════════
 # CACHED AI PASSES
 # ══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_pass1(ticker, metrics_json_str, reverse_dcf_json):
-    m = json.loads(metrics_json_str)
-    return ai.run_pass1(ticker, m, reverse_dcf_json)
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json):
-    m  = json.loads(metrics_json_str)
-    sm = json.loads(math_json_str)
-    p1 = json.loads(pass1_json_str)
-    return ai.run_pass2(ticker, m, sm, p1, reverse_dcf_json)
-
-def _run_analysis_v2(ticker, m):
-    raise NotImplementedError(
-        "v2 analytical pipeline not yet built. Phase G cutover wires this. "
-        "Set METHODOLOGY_VERSION back to 'v1' in config.py to use the existing pipeline."
-    )
+def _cached_analysis(ticker, analysis_input_str, methodology_version="v1"):
+    data = json.loads(analysis_input_str)
+    if methodology_version == "v2":
+        return ai.run_pipeline(ticker, data)
+    return ai.run_two_pass(ticker, data)
 
 
-def run_analysis(ticker, m):
-    if METHODOLOGY_VERSION == "v2":
-        return _run_analysis_v2(ticker, m)
-    metrics_json_str = json.dumps(
-        {k: v for k, v in m.items() if k not in ["description", "news"]},
-        sort_keys=True, default=str)
-    reverse_dcf_json = json.dumps(m.get("reverse_dcf", {"available": False, "reason": "Not computed"}), indent=2)
-    pass1 = _cached_pass1(ticker, metrics_json_str, reverse_dcf_json)
-    if isinstance(pass1, dict) and pass1.get("error"):
-        return pass1
-    scenario_math = compute_scenario_math(m, pass1)
-    math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
-    pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
-    pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json)
-    if isinstance(pass2, dict) and pass2.get("error"):
-        return pass2
-    final = {}
-    for key in ["recommendation","conviction","investment_thesis","business_overview",
-                "revenue_architecture","growth_drivers","margin_analysis","financial_health",
-                "competitive_position","headwind_narrative","tailwind_narrative",
-                "market_pricing_commentary","scenario_commentary","conclusion","model_used"]:
-        final[key] = pass2.get(key, "")
-    for key in ["segments","concentration","headwinds","tailwinds","macro_drivers",
-                "scenarios","catalysts","peer_tickers","market_expectations","sensitivity"]:
-        final[key] = pass1.get(key, {} if key in ["concentration","market_expectations","sensitivity"] else [])
-    final["scenario_math"] = scenario_math
-    exp_ret  = scenario_math.get("expected_return", 0)
-    prob_pos = scenario_math.get("prob_positive_return", 0)
-    rec      = final["recommendation"].upper()
-    if rec == "BUY" and exp_ret < -0.20 and prob_pos < 0.25:
-        final["recommendation"] = "PASS"; final["conviction"] = "High"
-        final["rec_override_reason"] = f"Override: LLM recommended BUY despite expected return of {exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return."
-    elif rec == "PASS" and exp_ret > 0.20 and prob_pos > 0.70:
-        final["recommendation"] = "BUY"; final["conviction"] = "Medium"
-        final["rec_override_reason"] = f"Override: LLM recommended PASS despite expected return of {exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return."
-    final["methodology_version"] = "v1"
-    return final
 
 # ══════════════════════════════════════════════════════════════
 # RENDER — FINANCIAL STATEMENTS TAB
@@ -460,8 +421,12 @@ def render(ticker, m, a, data):
     date     = datetime.now().strftime("%B %d, %Y")
     cur      = m.get("currency", "USD")
     sym      = get_sym(cur)
-    sm       = a.get("scenario_math", {})
-    prob_out = sm.get("scenario_probabilities", {})
+    sm               = a.get("scenario_math", {})
+    final_probs      = sm.get("final_probabilities", {})
+    pt_dict          = sm.get("price_target", {})
+    eps_dict         = sm.get("eps", {})
+    rev_dict         = sm.get("scenario_revenue", {})
+    scenario_inputs  = a.get("scenario_inputs", {})
 
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
@@ -500,8 +465,8 @@ def render(ticker, m, a, data):
     rc       = "buy" if rec == "BUY" else ("pass" if rec == "PASS" else "watch")
     ev       = sm.get("expected_value", 0)
     exp_ret  = sm.get("expected_return", 0)
-    base_ret = sm.get("scenarios", {}).get("base", {}).get("implied_return", exp_ret)
-    prob_pos = sm.get("prob_positive_return", 0)
+    base_ret = sm.get("base_implied_return", exp_ret)
+    prob_pos = sm.get("prob_positive", 0)
     try:
         _price = float(m.get("current_price") or 0)
     except (ValueError, TypeError):
@@ -563,6 +528,29 @@ def render(ticker, m, a, data):
         <div class="rb-item" title="Probability mass of scenarios whose price target exceeds today's price. With 3 discrete scenarios this only takes values in &#123;0, P(bull), P(bull)+P(base), 1&#125; — it is NOT a continuous probability of a positive 12-month return."><div class="rb-label">P(Target &gt; Today)</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
     </div>''', unsafe_allow_html=True)
 
+    # ── Top-of-report DEGRADED banner — visible without expanding math notes ──
+    _persistent_caveats = []
+    if sm.get("bull_below_current"):
+        _persistent_caveats.append(
+            "Bull-case scenario could not be calibrated against current price after retry — "
+            "recent management guidance or analyst-consensus updates may not be fully reflected."
+        )
+    _deg = sm.get("degraded_sections", []) or []
+    if "pass1_validation_partial" in _deg:
+        _persistent_caveats.append(
+            "Pass-1 inputs failed validation; some sections (drivers, scenarios, KPIs, catalysts) may be incomplete."
+        )
+    if _persistent_caveats:
+        _bullets = "<br>".join(f"&bull; {c}" for c in _persistent_caveats)
+        st.markdown(
+            f'<div style="background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.35);'
+            f'border-radius:8px;padding:0.9rem 1.1rem;margin:0.8rem 0;font-size:0.86rem;'
+            f'color:#fbbf24;line-height:1.65;">'
+            f'<strong>&#9888; Analysis caveat</strong><br>{_bullets}'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
     if a.get("investment_thesis"):
         st.markdown(f'<div class="exec-summary">{clean_latex(strip_html(a["investment_thesis"]))}</div>', unsafe_allow_html=True)
     if a.get("rec_override_reason"):
@@ -577,7 +565,8 @@ def render(ticker, m, a, data):
     with c2: st.metric("Price", fmt_c(m.get("current_price"), cur))
     with c3: st.metric("Trailing P/E", fmt_r(m.get("trailing_pe")))
     with c4: st.metric("Forward P/E", fmt_r(m.get("forward_pe")))
-    with c5: st.metric("PEG", fmt_r(m.get("peg_ratio")))
+    _peg = m.get("peg_ratio")
+    with c5: st.metric("PEG", fmt_r(_peg) if _peg is not None else "N/A")
     with c6: st.metric("EV/EBITDA", fmt_r(m.get("ev_to_ebitda")))
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"), cur))
@@ -620,19 +609,23 @@ def render(ticker, m, a, data):
         try:
             import altair as alt
             _ph = h[["Close"]].reset_index(); _ph.columns = ["Date", "Price"]
+            _ph = _ph.dropna(subset=["Price"])     # drop NaN rows that auto-expand the y-axis
+            _ph = _ph[_ph["Price"] > 0]            # drop zero/negative outliers (split artifacts)
+            if _ph.empty:
+                raise ValueError("no valid price data")
             _color = "#4ade80" if _ph["Price"].iloc[-1] >= _ph["Price"].iloc[0] else "#f87171"
             _pc = (alt.Chart(_ph)
                 .mark_line(color=_color, strokeWidth=1.8)
                 .encode(
                     x=alt.X("Date:T", axis=alt.Axis(format="%Y", labelColor="#666", grid=False)),
-                    y=alt.Y("Price:Q", scale=alt.Scale(zero=False),
+                    y=alt.Y("Price:Q", scale=alt.Scale(zero=False, nice=True),
                             axis=alt.Axis(labelColor="#666", gridColor="rgba(255,255,255,0.04)")),
                     tooltip=[alt.Tooltip("Date:T", format="%b %d, %Y"),
                              alt.Tooltip("Price:Q", format=",.2f", title=f"Price ({sym})")]
-                ).properties(height=250, background="transparent").interactive())
+                ).properties(height=250, background="transparent"))
             st.altair_chart(_pc, use_container_width=True)
         except Exception:
-            cd = h[["Close"]].copy(); cd.columns = ["Price"]
+            cd = h[["Close"]].dropna().copy(); cd.columns = ["Price"]
             st.line_chart(cd, height=250, color="#4ade80")
 
     rh = m.get("revenue_history", {}); nh = m.get("net_income_history", {})
@@ -643,23 +636,31 @@ def render(ticker, m, a, data):
             import altair as alt
             with cc1:
                 if rh:
-                    _rd = pd.DataFrame([{"Year": k, "Revenue": v/1e9} for k, v in rh.items()])
+                    _rd = pd.DataFrame([{"Year": str(k), "Revenue": v} for k, v in rh.items()])
                     st.altair_chart(
-                        alt.Chart(_rd).mark_bar(color="#4ade80", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#666", grid=False)),
-                                y=alt.Y("Revenue:Q", axis=alt.Axis(labelColor="#666", title="$B", gridColor="rgba(255,255,255,0.04)")),
+                        alt.Chart(_rd).mark_bar(size=44, color="#4ade80",
+                                                cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#aaa", grid=False, labelAngle=0)),
+                                y=alt.Y("Revenue:Q",
+                                        scale=alt.Scale(zero=True, nice=True),
+                                        axis=alt.Axis(labelColor="#aaa", title="$B",
+                                                      gridColor="rgba(255,255,255,0.04)")),
                                 tooltip=["Year:O", alt.Tooltip("Revenue:Q", format=".2f", title="Revenue ($B)")])
-                        .properties(height=200, background="transparent").interactive(),
+                        .properties(height=200, background="transparent"),
                         use_container_width=True)
             with cc2:
                 if nh:
-                    _nd = pd.DataFrame([{"Year": k, "Net Income": v/1e9} for k, v in nh.items()])
+                    _nd = pd.DataFrame([{"Year": str(k), "Net Income": v} for k, v in nh.items()])
                     st.altair_chart(
-                        alt.Chart(_nd).mark_bar(color="#81c784", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#666", grid=False)),
-                                y=alt.Y("Net Income:Q", axis=alt.Axis(labelColor="#666", title="$B", gridColor="rgba(255,255,255,0.04)")),
+                        alt.Chart(_nd).mark_bar(size=44, color="#81c784",
+                                                cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                        .encode(x=alt.X("Year:O", axis=alt.Axis(labelColor="#aaa", grid=False, labelAngle=0)),
+                                y=alt.Y("Net Income:Q",
+                                        scale=alt.Scale(zero=True, nice=True),
+                                        axis=alt.Axis(labelColor="#aaa", title="$B",
+                                                      gridColor="rgba(255,255,255,0.04)")),
                                 tooltip=["Year:O", alt.Tooltip("Net Income:Q", format=".2f", title="Net Income ($B)")])
-                        .properties(height=200, background="transparent").interactive(),
+                        .properties(height=200, background="transparent"),
                         use_container_width=True)
         except Exception:
             with cc1:
@@ -737,7 +738,8 @@ def render(ticker, m, a, data):
     if sector in SECTOR_PEERS or llm_peers:
         st.markdown('<div class="sec">Peer Comparison</div>', unsafe_allow_html=True)
         with st.spinner("Loading peers..."):
-            peers = fetch_peers(ticker, sector, llm_peers=llm_peers)
+            peers, peer_warnings = fetch_peers(ticker, sector, llm_peers=llm_peers)
+            m.setdefault("data_quality_warnings", []).extend(peer_warnings)
         if peers:
             cur_row = {"Ticker": ticker, "Company": m.get("company_name", ticker),
                        "Mkt Cap": fmt_c(m.get("market_cap"), cur), "P/E": fmt_r(m.get("trailing_pe")),
@@ -801,144 +803,209 @@ def render(ticker, m, a, data):
             )
             st.markdown(pt_table(tw_header, tw_rows), unsafe_allow_html=True)
 
-    macro_drivers = a.get("macro_drivers", [])
-    if macro_drivers:
-        st.markdown('<div class="sec">Key Factors That Drive This Stock <span class="vtag">Factor-by-Factor Analysis</span></div>', unsafe_allow_html=True)
+    # ── Driver cards (new schema: a["drivers"] from pass1) ──
+    drivers_list = a.get("drivers", [])
+    driver_narratives = a.get("driver_narratives", {})
+    if drivers_list:
+        st.markdown('<div class="sec">Key Drivers <span class="vtag">Bottom-Up Scenario Inputs</span></div>', unsafe_allow_html=True)
         st.markdown('''<div class="plain-callout">
             <div class="plain-callout-label">How this works</div>
-            We identified the most important factors that will determine where this stock goes.
-            For each factor, we assessed three possible outcomes: optimistic (green), neutral (yellow), and pessimistic (red).
-            The percentages show how likely each outcome is.
+            Each driver is a forward variable that resolves into one of three outcomes.
+            Importance-weighted averages of driver outcome probabilities produce the final scenario weights below.
+            The probabilities shown in the scenario bars are the only numbers used in the expected-value formula.
         </div>''', unsafe_allow_html=True)
-        for d in macro_drivers:
-            dname     = strip_html(d.get("name", ""))
-            dmeasures = strip_html(d.get("measures", ""))
-            bull_p    = safe_float(d.get("bull_outcome", {}).get("probability"))
-            base_p    = safe_float(d.get("base_outcome", {}).get("probability"))
-            bear_p    = safe_float(d.get("bear_outcome", {}).get("probability"))
-            bull_n    = strip_html(d.get("bull_outcome", {}).get("description", ""))[:120]
-            base_n    = strip_html(d.get("base_outcome", {}).get("description", ""))[:120]
-            bear_n    = strip_html(d.get("bear_outcome", {}).get("description", ""))[:120]
-            bw   = max(2, min(100, round(bull_p*100)))
-            basew = max(2, min(100, round(base_p*100)))
-            bearw = max(2, min(100, round(bear_p*100)))
+        # Compact summary table — restores the OLD report's "Headwinds & Tailwinds" density
+        ei_fmt = lambda v: (f'<span style="color:#4ade80;">+{sym}{v:.2f}</span>' if v > 0
+                            else f'<span style="color:#f87171;">{sym}{v:.2f}</span>' if v < 0
+                            else '<span style="color:rgba(255,255,255,0.35);">—</span>')
+        sorted_drivers = sorted(
+            [d for d in drivers_list if not d.get("_redundant")],
+            key=lambda d: abs(
+                safe_float(d.get("outcomes", {}).get("bull", {}).get("eps_impact", 0)) -
+                safe_float(d.get("outcomes", {}).get("bear", {}).get("eps_impact", 0))
+            ),
+            reverse=True,
+        )
+        if sorted_drivers and any(
+            d.get("outcomes", {}).get("bull", {}).get("eps_impact") is not None
+            for d in sorted_drivers
+        ):
+            sum_header = "<tr><th>Driver</th><th>Importance</th><th>Bull EPS</th><th>Base EPS</th><th>Bear EPS</th></tr>"
+            sum_rows = "".join(
+                f'<tr>'
+                f'<td style="font-weight:600;">{strip_html(d.get("name", ""))}</td>'
+                f'<td class="nowrap">{safe_float(d.get("importance", 0))*100:.0f}%</td>'
+                f'<td class="nowrap">{ei_fmt(safe_float(d.get("outcomes", {}).get("bull", {}).get("eps_impact", 0)))}</td>'
+                f'<td class="nowrap">{ei_fmt(safe_float(d.get("outcomes", {}).get("base", {}).get("eps_impact", 0)))}</td>'
+                f'<td class="nowrap">{ei_fmt(safe_float(d.get("outcomes", {}).get("bear", {}).get("eps_impact", 0)))}</td>'
+                f'</tr>'
+                for d in sorted_drivers
+            )
+            st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.55);margin:1rem 0 0.5rem;">Drivers — EPS Impact Summary</div>', unsafe_allow_html=True)
+            st.markdown(pt_table(sum_header, sum_rows), unsafe_allow_html=True)
+
+        for d in drivers_list:
+            dname  = strip_html(d.get("name", ""))
+            ddesc  = strip_html(d.get("description", ""))
+            imp    = safe_float(d.get("importance", 0))
+            outs   = d.get("outcomes", {})
+            bull_p = safe_float(outs.get("bull", {}).get("probability", 0))
+            base_p = safe_float(outs.get("base", {}).get("probability", 0))
+            bear_p = safe_float(outs.get("bear", {}).get("probability", 0))
+            bull_ri = safe_float(outs.get("bull", {}).get("revenue_impact", 0))
+            base_ri = safe_float(outs.get("base", {}).get("revenue_impact", 0))
+            bear_ri = safe_float(outs.get("bear", {}).get("revenue_impact", 0))
+            bull_ei = safe_float(outs.get("bull", {}).get("eps_impact", 0))
+            base_ei = safe_float(outs.get("base", {}).get("eps_impact", 0))
+            bear_ei = safe_float(outs.get("bear", {}).get("eps_impact", 0))
+            bull_n  = strip_html(outs.get("bull", {}).get("description", ""))[:130]
+            base_n  = strip_html(outs.get("base", {}).get("description", ""))[:130]
+            bear_n  = strip_html(outs.get("bear", {}).get("description", ""))[:130]
+            bw   = max(2, min(100, round(bull_p * 100)))
+            basew = max(2, min(100, round(base_p * 100)))
+            bearw = max(2, min(100, round(bear_p * 100)))
+            ri_fmt = lambda v: (f'+{fmt_c(v, cur)}' if v > 0 else fmt_c(v, cur)) if v else ''
+            ei_inline = lambda v: (f' · EPS {sym}{v:+.2f}' if v else '')
+            dnarr = strip_html(driver_narratives.get(dname, ""))
+            redundant = d.get("_redundant", False)
+            redundant_badge = '<span style="font-size:0.68rem;color:#fbbf24;margin-left:0.5rem;">[correlated — impact zeroed]</span>' if redundant else ''
             st.markdown(f'''<div class="driver-card">
-                <div class="driver-card-name">{dname}</div>
-                <div class="driver-card-desc">{dmeasures}</div>
-                <div style="margin:0.3rem 0;">
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
-                        <div style="width:{bw}%;height:6px;background:#22703a;border-radius:3px;min-width:4px;"></div>
-                        <span style="font-size:0.78rem;color:#4ade80;min-width:2.5rem;">{bull_p*100:.0f}%</span>
-                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{bull_n}</span>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+                    <div>
+                        <div class="driver-card-name">{dname}{redundant_badge}</div>
+                        <div class="driver-card-desc">{ddesc}</div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
-                        <div style="width:{basew}%;height:6px;background:#92681a;border-radius:3px;min-width:4px;"></div>
-                        <span style="font-size:0.78rem;color:#fbbf24;min-width:2.5rem;">{base_p*100:.0f}%</span>
-                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{base_n}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0;">
-                        <div style="width:{bearw}%;height:6px;background:#8b2020;border-radius:3px;min-width:4px;"></div>
-                        <span style="font-size:0.78rem;color:#f87171;min-width:2.5rem;">{bear_p*100:.0f}%</span>
-                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);">{bear_n}</span>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.4);">Importance</div>
+                        <div style="font-size:1.1rem;font-weight:800;color:#fff;">{imp*100:.0f}%</div>
                     </div>
                 </div>
+                <div style="margin:0.5rem 0;">
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.3rem 0;">
+                        <div style="width:{bw}%;height:6px;background:#22703a;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#4ade80;min-width:2.5rem;flex-shrink:0;">{bull_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);flex:1;">{bull_n}</span>
+                        <span style="font-size:0.72rem;color:#4ade80;flex-shrink:0;">{ri_fmt(bull_ri)}{ei_inline(bull_ei)}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.3rem 0;">
+                        <div style="width:{basew}%;height:6px;background:#92681a;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#fbbf24;min-width:2.5rem;flex-shrink:0;">{base_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);flex:1;">{base_n}</span>
+                        <span style="font-size:0.72rem;color:#fbbf24;flex-shrink:0;">{ri_fmt(base_ri)}{ei_inline(base_ei)}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.3rem 0;">
+                        <div style="width:{bearw}%;height:6px;background:#8b2020;border-radius:3px;min-width:4px;"></div>
+                        <span style="font-size:0.78rem;color:#f87171;min-width:2.5rem;flex-shrink:0;">{bear_p*100:.0f}%</span>
+                        <span style="font-size:0.78rem;color:rgba(255,255,255,0.5);flex:1;">{bear_n}</span>
+                        <span style="font-size:0.72rem;color:#f87171;flex-shrink:0;">{ri_fmt(bear_ri)}{ei_inline(bear_ei)}</span>
+                    </div>
+                </div>
+                {f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.55);line-height:1.7;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.06);">{dnarr}</div>' if dnarr else ''}
             </div>''', unsafe_allow_html=True)
 
-    fb  = prob_out.get("bull", 0)
-    fba = prob_out.get("base", 0)
-    fbe = prob_out.get("bear", 0)
+    # ── Scenario probability bars (derived from drivers) ──
+    fb  = final_probs.get("bull", 0)
+    fba = final_probs.get("base", 0)
+    fbe = final_probs.get("bear", 0)
     if fb or fba or fbe:
-        st.markdown('<div class="sec">How We Weighted the Scenarios</div>', unsafe_allow_html=True)
-        bull_score = prob_out.get("bull_score")
-        signal_detail = prob_out.get("signal_detail", []) or []
-        active_signals = [s for s in signal_detail
-                          if isinstance(s, dict) and s.get("delta") not in (0, 0.0, None)]
-        score_str = f"{bull_score:.1f}/100" if bull_score is not None else "N/A"
-        st.markdown(f'''<div class="plain-callout">
-            <div class="plain-callout-label">Weights derived from fundamentals scoring</div>
-            Scenario weights come from an 8-signal scoring engine on the company's fundamentals
-            (EPS revision momentum, revenue and earnings CAGR, operating margin, PEG, debt-to-equity,
-            beta, and price vs 200-day MA). Bull score: <strong>{score_str}</strong>
-            ({len(active_signals)} of {len(signal_detail)} signals materially active).
-            The qualitative factor distributions shown above are narrative context; they do not
-            mathematically drive the weights below.
-        </div>''', unsafe_allow_html=True)
-        if active_signals:
-            with st.expander("Show signal breakdown"):
-                for sig in active_signals:
-                    name  = strip_html(str(sig.get("signal", "")))
-                    delta = sig.get("delta", 0) or 0
-                    note  = strip_html(str(sig.get("note", "")))
-                    color = "#4ade80" if delta > 0 else "#f87171"
-                    sign  = "+" if delta > 0 else ""
-                    st.markdown(
-                        f'<div style="display:flex;justify-content:space-between;'
-                        f'font-size:0.82rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
-                        f'<span style="color:rgba(255,255,255,0.7);">{name}</span>'
-                        f'<span style="color:rgba(255,255,255,0.45);font-size:0.78rem;">{note}</span>'
-                        f'<span style="color:{color};font-weight:700;min-width:3rem;text-align:right;">{sign}{delta:.1f}</span>'
-                        f'</div>',
-                        unsafe_allow_html=True
-                    )
+        st.markdown('<div class="sec">Scenario Probabilities <span class="vtag">Driver-Derived</span></div>', unsafe_allow_html=True)
         bull_pct = f"{fb*100:.0f}"; base_pct = f"{fba*100:.0f}"; bear_pct = f"{fbe*100:.0f}"
-        _bw  = max(2, min(96, round(fb*100)))
-        _baw = max(2, min(96, round(fba*100)))
-        _bew = max(2, min(96, round(fbe*100)))
+        _bw  = max(2, min(96, round(fb * 100)))
+        _baw = max(2, min(96, round(fba * 100)))
+        _bew = max(2, min(96, round(fbe * 100)))
         st.markdown(
             f'<div style="margin:1.2rem 0 1.4rem;">'
             f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">'
             f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#4ade80;text-align:right;flex-shrink:0;">Bull</div>'
             f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;"><div style="width:{_bw}%;height:100%;border-radius:4px;background:linear-gradient(90deg,#22703a,#4ade80);"></div></div>'
             f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#4ade80;text-align:right;flex-shrink:0;">{bull_pct}%</div>'
-            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Better than expected</div></div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Driver-weighted average</div></div>'
             f'<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">'
             f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#fbbf24;text-align:right;flex-shrink:0;">Base</div>'
             f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;"><div style="width:{_baw}%;height:100%;border-radius:4px;background:linear-gradient(90deg,#92681a,#fbbf24);"></div></div>'
             f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#fbbf24;text-align:right;flex-shrink:0;">{base_pct}%</div>'
-            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Consensus plays out</div></div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Driver-weighted average</div></div>'
             f'<div style="display:flex;align-items:center;gap:0.75rem;">'
             f'<div style="width:3.5rem;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;text-align:right;flex-shrink:0;">Bear</div>'
             f'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:10px;"><div style="width:{_bew}%;height:100%;border-radius:4px;background:linear-gradient(90deg,#8b2020,#f87171);"></div></div>'
             f'<div style="width:2.8rem;font-size:0.88rem;font-weight:800;color:#f87171;text-align:right;flex-shrink:0;">{bear_pct}%</div>'
-            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Worse than expected</div></div>'
+            f'<div style="width:9rem;font-size:0.72rem;color:rgba(255,255,255,0.4);flex-shrink:0;line-height:1.4;">Driver-weighted average</div></div>'
             f'<div style="margin-top:0.9rem;font-size:0.88rem;color:rgba(255,255,255,0.55);line-height:1.7;">'
-            f'There is a <strong style="color:#4ade80;">{bull_pct}% chance</strong> things go better than expected, '
-            f'a <strong style="color:#fbbf24;">{base_pct}% chance</strong> they play out as expected, and a '
-            f'<strong style="color:#f87171;">{bear_pct}% chance</strong> of a worse-than-expected outcome.'
+            f'Probabilities are importance-weighted averages of the driver outcome probabilities above, '
+            f'rounded to integer percent. These exact weights drive the expected-value calculation.'
             f'</div></div>',
             unsafe_allow_html=True
         )
+        # Diagnostics panel: fundamentals signals vs driver-derived
+        diagnostic = sm.get("diagnostic") or a.get("python_outputs", {}).get("diagnostic", {})
+        if diagnostic:
+            sig_probs = diagnostic.get("signal_implied_probabilities", {})
+            diverge   = diagnostic.get("divergence_flag", False)
+            div_color = "#fbbf24" if diverge else "rgba(255,255,255,0.35)"
+            with st.expander("Fundamentals signal check" + (" — divergence detected" if diverge else ""), expanded=False):
+                st.markdown(f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-bottom:0.5rem;">'
+                            f'Comparison of driver-derived probabilities vs an independent 8-signal fundamentals engine. '
+                            f'This is a cross-check only — it does not alter any numbers in the report.</div>',
+                            unsafe_allow_html=True)
+                for sname, scolor in [("bull","#4ade80"),("base","#fbbf24"),("bear","#f87171")]:
+                    drv_p = final_probs.get(sname, 0) * 100
+                    sig_p = sig_probs.get(sname, 0) * 100
+                    diff  = drv_p - sig_p
+                    diff_str = f'{diff:+.0f}pp' if abs(diff) >= 1 else 'matches'
+                    st.markdown(
+                        f'<div style="display:flex;justify-content:space-between;font-size:0.82rem;'
+                        f'padding:0.2rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        f'<span style="color:{scolor};font-weight:700;width:3rem;">{sname.capitalize()}</span>'
+                        f'<span style="color:rgba(255,255,255,0.6);">Driver: <strong style="color:#fff;">{drv_p:.0f}%</strong></span>'
+                        f'<span style="color:rgba(255,255,255,0.6);">Signals: <strong style="color:#fff;">{sig_p:.0f}%</strong></span>'
+                        f'<span style="color:{div_color};">{diff_str}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
 
     # ── Scenario tabs ──
-    st.markdown('<div class="sec">Scenario Analysis <span class="vtag">Segment-Level Builds</span></div>', unsafe_allow_html=True)
-    if a.get("scenario_commentary"):
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["scenario_commentary"]))}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Scenario Analysis</div>', unsafe_allow_html=True)
+    sc_commentary = a.get("scenario_commentary", {})
+    # scenario_commentary is now a dict {bull, base, bear}; string form kept for compat
+    if isinstance(sc_commentary, str) and sc_commentary:
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(sc_commentary))}</div>', unsafe_allow_html=True)
 
-    scenarios = sm.get("scenarios", {})
-    bull_s = scenarios.get("bull", {}); base_s = scenarios.get("base", {}); bear_s = scenarios.get("bear", {})
-    bull_label = f"Bull ({bull_s.get('probability',0)*100:.0f}%) / {sym}{bull_s.get('price_target',0):,.0f}" if bull_s else "Bull"
-    base_label = f"Base ({base_s.get('probability',0)*100:.0f}%) / {sym}{base_s.get('price_target',0):,.0f}" if base_s else "Base"
-    bear_label = f"Bear ({bear_s.get('probability',0)*100:.0f}%) / {sym}{bear_s.get('price_target',0):,.0f}" if bear_s else "Bear"
+    # Reconstruct per-scenario data from new flat schema
+    _cp = safe_float(m.get("current_price", 0))
+    _scenarios_built = {}
+    for _sn in ("bull", "base", "bear"):
+        _si  = scenario_inputs.get(_sn, {})
+        _pt  = safe_float(pt_dict.get(_sn, 0))
+        _eps_v = safe_float(eps_dict.get(_sn, 0))
+        _rev = safe_float(rev_dict.get(_sn, 0))
+        _op_m = safe_float(_si.get("op_margin", 0))
+        _pe   = safe_float(_si.get("pe_multiple_pick", 0))
+        _prob = safe_float(final_probs.get(_sn, 0))
+        _ret  = (_pt / _cp - 1) if _cp > 0 and _pt > 0 else 0
+        _narr = sc_commentary.get(_sn, "") if isinstance(sc_commentary, dict) else ""
+        _scenarios_built[_sn] = {
+            "probability": _prob, "price_target": _pt, "eps": _eps_v,
+            "revenue": _rev, "op_margin": _op_m, "pe": _pe,
+            "implied_return": _ret, "narrative": _narr,
+        }
+
+    bull_s = _scenarios_built.get("bull", {}); base_s = _scenarios_built.get("base", {}); bear_s = _scenarios_built.get("bear", {})
+    bull_label = f"Bull ({bull_s.get('probability',0)*100:.0f}%) / {sym}{bull_s.get('price_target',0):,.0f}" if bull_s.get("price_target") else "Bull"
+    base_label = f"Base ({base_s.get('probability',0)*100:.0f}%) / {sym}{base_s.get('price_target',0):,.0f}" if base_s.get("price_target") else "Base"
+    bear_label = f"Bear ({bear_s.get('probability',0)*100:.0f}%) / {sym}{bear_s.get('price_target',0):,.0f}" if bear_s.get("price_target") else "Bear"
 
     bull_tab, base_tab, bear_tab = st.tabs([f":green[{bull_label}]", f":orange[{base_label}]", f":red[{bear_label}]"])
     for tab, sname, slabel, scolor in [(bull_tab,"bull","Bull Case","#4ade80"),(base_tab,"base","Base Case","#fbbf24"),(bear_tab,"bear","Bear Case","#f87171")]:
-        s = scenarios.get(sname, {})
-        if not s: continue
+        s = _scenarios_built.get(sname, {})
         with tab:
             prob      = s.get("probability", 0) * 100
             pt        = s.get("price_target", 0)
             ret       = s.get("implied_return", 0) * 100
-            eps       = s.get("projected_eps", 0)
-            pe        = s.get("pe_multiple", 0)
-            bpe       = s.get("breakeven_pe")
-            op_m      = s.get("operating_margin", 0)
-            total_rev = s.get("total_revenue", 0)
-            fcf_y     = s.get("fcf_yield_at_target")
-            # FIX: narrative and pe_rat were on a broken split line — now correct single assignments
+            eps_val   = s.get("eps", 0)
+            pe        = s.get("pe", 0)
+            op_m      = s.get("op_margin", 0)
+            total_rev = s.get("revenue", 0)
             narrative  = clean_latex(strip_html(s.get("narrative", "")))
-            pe_rat     = strip_html(s.get("pe_rationale", ""))
-            margin_rat = strip_html(s.get("margin_rationale", ""))
-            eps_flag   = s.get("eps_flag")
 
             st.markdown(f'''<div style="text-align:center;padding:1.5rem 0 1rem;">
                 <div style="font-size:2.2rem;font-weight:900;color:#fff;">{sym}{pt:,.2f}</div>
@@ -947,119 +1014,170 @@ def render(ticker, m, a, data):
             </div>''', unsafe_allow_html=True)
             m1,m2,m3,m4 = st.columns(4)
             with m1: st.metric("Revenue", fmt_c(total_rev, cur))
-            with m2: st.metric("EPS", f"{sym}{eps:.2f}")
+            with m2: st.metric("EPS", f"{sym}{eps_val:.2f}")
             with m3: st.metric("P/E Multiple", f"{pe:.1f}x")
             with m4: st.metric("Op. Margin", f"{op_m*100:.1f}%")
-            seg_builds = s.get("segment_builds", [])
-            if seg_builds:
-                st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.65);margin:1rem 0 0.5rem;">Segment Revenue Builds</div>', unsafe_allow_html=True)
-                for seg in seg_builds:
-                    sr = safe_float(seg.get("projected_revenue")); sg = safe_float(seg.get("growth_rate"))
-                    pct_of_total = (sr / total_rev * 100) if total_rev > 0 else 0
-                    bar_width = max(2, min(100, pct_of_total))
-                    st.markdown(f'''<div style="margin:0.3rem 0;">
-                        <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">
-                            <span style="color:rgba(255,255,255,0.6);">{strip_html(seg.get("name",""))}</span>
-                            <span style="color:#fff;font-weight:600;">{fmt_c(sr, cur)} <span style="color:{scolor};font-size:0.75rem;">{sg*100:+.0f}%</span></span>
-                        </div>
-                        <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
-                            <div style="width:{bar_width}%;height:100%;background:{scolor};opacity:0.4;border-radius:2px;"></div>
-                        </div>
-                    </div>''', unsafe_allow_html=True)
+            # Driver revenue impacts for this scenario
+            driver_impacts = [
+                (strip_html(d.get("name", "")),
+                 safe_float(d.get("outcomes", {}).get(sname, {}).get("revenue_impact", 0)))
+                for d in drivers_list
+                if not d.get("_redundant") and d.get("outcomes", {}).get(sname, {}).get("revenue_impact")
+            ]
+            if driver_impacts and total_rev:
+                st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.65);margin:1rem 0 0.5rem;">Driver Revenue Impacts</div>', unsafe_allow_html=True)
+                for dname_i, ri in sorted(driver_impacts, key=lambda x: abs(x[1]), reverse=True):
+                    ri_color = scolor if ri >= 0 else "#f87171"
+                    st.markdown(f'<div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:0.15rem 0;">'
+                                f'<span style="color:rgba(255,255,255,0.6);">{dname_i}</span>'
+                                f'<span style="color:{ri_color};font-weight:600;">{fmt_c(ri, cur)}</span>'
+                                f'</div>', unsafe_allow_html=True)
             if narrative:
-                st.markdown(f'<div style="font-size:0.95rem;color:rgba(255,255,255,0.78);line-height:1.8;font-style:italic;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
-            with st.expander("Valuation & margin rationale"):
-                if margin_rat: st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:0.5rem;"><strong style="color:rgba(255,255,255,0.7);">Margin:</strong> {margin_rat}</div>', unsafe_allow_html=True)
-                if pe_rat:     st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.7;"><strong style="color:rgba(255,255,255,0.7);">Valuation:</strong> {pe_rat}</div>', unsafe_allow_html=True)
-                if bpe:        st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:0.5rem;">Breakeven P/E: <strong style="color:#fff;">{bpe:.1f}x</strong></div>', unsafe_allow_html=True)
-                if fcf_y:      st.markdown(f'<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);">FCF Yield at target: <strong style="color:#fff;">{fcf_y*100:.1f}%</strong></div>', unsafe_allow_html=True)
-                # FIX: was `{clean_latex(strip_html(eps_flag)}</div>` — mismatched brackets, now fixed
-                if eps_flag:   st.markdown(f'<div style="font-size:0.82rem;color:#fbbf24;margin-top:0.5rem;font-style:italic;">{clean_latex(strip_html(eps_flag))}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:0.95rem;color:rgba(255,255,255,0.78);line-height:1.8;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
 
-    # ── EV reconciliation: show the actual probability-weighted math ──
-    # Resolves the apparent mismatch where displayed integer probabilities
-    # (e.g. 40%/50%/10%) don't quite reproduce the displayed EV when the
-    # underlying probabilities carry 3-decimal precision.
-    if bull_s and base_s and bear_s:
-        bu_p = bull_s.get("probability", 0); bu_t = bull_s.get("price_target", 0)
-        ba_p = base_s.get("probability", 0); ba_t = base_s.get("price_target", 0)
-        be_p = bear_s.get("probability", 0); be_t = bear_s.get("price_target", 0)
+    # ── EV reconciliation ──
+    if pt_dict.get("bull") and pt_dict.get("base") and pt_dict.get("bear"):
+        bu_p = final_probs.get("bull", 0); bu_t = pt_dict.get("bull", 0)
+        ba_p = final_probs.get("base", 0); ba_t = pt_dict.get("base", 0)
+        be_p = final_probs.get("bear", 0); be_t = pt_dict.get("bear", 0)
         ev_check = bu_p * bu_t + ba_p * ba_t + be_p * be_t
         st.markdown(
             f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.55);'
             f'margin:0.6rem 0 1rem;padding:0.6rem 0.9rem;'
             f'background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.15);'
             f'border-radius:4px;font-family:ui-monospace,monospace;">'
-            f'Probability-weighted EV = '
-            f'{bu_p:.3f}×{sym}{bu_t:,.2f} + '
-            f'{ba_p:.3f}×{sym}{ba_t:,.2f} + '
-            f'{be_p:.3f}×{sym}{be_t:,.2f} = '
+            f'EV = {bu_p:.2f}×{sym}{bu_t:,.2f} + {ba_p:.2f}×{sym}{ba_t:,.2f} + {be_p:.2f}×{sym}{be_t:,.2f} = '
             f'<strong style="color:rgba(255,255,255,0.85);">{sym}{ev_check:,.2f}</strong>'
+            f'&nbsp;— integer-percent weights, single source of truth'
             f'</div>',
             unsafe_allow_html=True
         )
 
-    if a.get("market_pricing_commentary"):
-        st.markdown('<div class="sec">Valuation vs Expectations</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["market_pricing_commentary"]))}</div>', unsafe_allow_html=True)
-
-    ras      = sm.get("risk_adjusted_score", 0)
-    ud_ratio = sm.get("upside_downside_ratio", 0)
-    mdd      = abs(sm.get("max_drawdown_magnitude", 0)) * 100
-    mdd_prob = sm.get("max_drawdown_prob", 0) * 100
-    rfr      = sm.get("risk_free_rate", 0.06) * 100
-    std_dev  = sm.get("std_dev", 0) * 100
-    ras_color  = "#4ade80" if ras > 1.0 else ("#fbbf24" if ras > 0.3 else "#f87171")
+    ud_ratio   = sm.get("upside_downside_ratio") or 0
     ret_color  = "positive" if exp_ret > 0.05 else ("neutral" if exp_ret > 0 else "negative")
-    ud_display = "inf" if ud_ratio == float("inf") else f"{ud_ratio:.2f}x"
-    ud_color   = "#4ade80" if ud_ratio > 1.5 or ud_ratio == float("inf") else ("#fbbf24" if ud_ratio > 1.0 else "#f87171")
+    ud_display = "∞" if (ud_ratio == float("inf") or ud_ratio is None) else f"{ud_ratio:.2f}x"
+    ud_color   = "#4ade80" if (ud_ratio and ud_ratio > 1.5) else ("#fbbf24" if (ud_ratio and ud_ratio > 1.0) else "#f87171")
     st.markdown('<div class="sec">The Bottom Line</div>', unsafe_allow_html=True)
     st.markdown(f'''<div class="ev-bar">
         <div class="ev-item"><div class="ev-label">Expected Value</div><div class="ev-val">{sym}{ev:,.2f}</div></div>
         <div class="ev-item"><div class="ev-label">Base Case</div><div class="ev-val {ret_color}">{base_ret*100:+.1f}%</div></div>
-        <div class="ev-item"><div class="ev-label">Volatility</div><div class="ev-val">{std_dev:.1f}%</div></div>
-        <div class="ev-item"><div class="ev-label">Risk-Adjusted Return</div><div class="ev-val" style="color:{ras_color};">{ras:.2f}</div>
-            <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">above a safe {rfr:.0f}% return</div></div>
+        <div class="ev-item"><div class="ev-label">P(Positive)</div><div class="ev-val">{prob_pos*100:.0f}%</div></div>
         <div class="ev-item"><div class="ev-label">Upside vs Downside</div><div class="ev-val" style="color:{ud_color};">{ud_display}</div></div>
-        <div class="ev-item"><div class="ev-label">Worst Case Drop</div><div class="ev-val" style="color:#f87171;">{mdd:.1f}%</div>
-            <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">{mdd_prob:.0f}% chance of this</div></div>
     </div>''', unsafe_allow_html=True)
 
-    sensitivity = sm.get("sensitivity", {})
-    if sensitivity and sensitivity.get("dominant_driver"):
-        driver_name = strip_html(sensitivity.get("dominant_driver", ""))
-        current_p   = safe_float(sensitivity.get("current_bull_probability")) * 100
-        ev_plus     = safe_float(sensitivity.get("ev_if_bull_plus_10"))
-        ev_minus    = safe_float(sensitivity.get("ev_if_bull_minus_10"))
-        interp      = strip_html(sensitivity.get("interpretation", ""))
-        st.markdown('<div class="sec">What If? <span class="vtag">Sensitivity Check</span></div>', unsafe_allow_html=True)
-        with st.expander("Show sensitivity", expanded=False):
-            st.markdown(f'''<div style="background:#0e0e14;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1.2rem 1.5rem;margin:0.8rem 0;">
-                <div style="font-size:0.9rem;color:rgba(255,255,255,0.55);margin-bottom:1rem;">
-                    What happens to the expected value if we change the bull probability on <strong style="color:#fff;">{driver_name}</strong>?
+    # ── Analyst Reference Range (yfinance forward consensus) ──
+    ac = m.get("analyst_consensus") or {}
+    if ac.get("revenue_fy_avg") or ac.get("price_target_mean"):
+        n_an = ac.get("revenue_fy_n_analysts", 0)
+        rev_low  = ac.get("revenue_fy_low", 0)  / 1e9
+        rev_avg  = ac.get("revenue_fy_avg", 0)  / 1e9
+        rev_high = ac.get("revenue_fy_high", 0) / 1e9
+        eps_low, eps_avg, eps_high = ac.get("eps_fy_low", 0), ac.get("eps_fy_avg", 0), ac.get("eps_fy_high", 0)
+        pt_low, pt_med, pt_high   = ac.get("price_target_low", 0), ac.get("price_target_median", 0), ac.get("price_target_high", 0)
+        st.markdown(f'<div class="sec">Analyst Reference Range <span class="vtag">FY Consensus · {n_an} analysts</span></div>', unsafe_allow_html=True)
+        st.markdown(f'''<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1rem 1.2rem;margin:0.6rem 0 1rem;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;font-size:0.86rem;">
+                <div>
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Revenue (current FY)</div>
+                    <div style="color:rgba(255,255,255,0.55);"><span style="color:#f87171;">{sym}{rev_low:.2f}B</span> low / <strong style="color:#fff;">{sym}{rev_avg:.2f}B</strong> avg / <span style="color:#4ade80;">{sym}{rev_high:.2f}B</span> high</div>
                 </div>
-                <div style="display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;">
-                    <div style="text-align:center;"><div style="font-size:0.82rem;color:#f87171;font-weight:600;">Bull Prob -10pp ({current_p-10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#f87171;">{sym}{ev_minus:,.2f}</div></div>
-                    <div style="text-align:center;"><div style="font-size:0.82rem;color:rgba(255,255,255,0.5);font-weight:600;">Current ({current_p:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#fff;">{sym}{ev:,.2f}</div></div>
-                    <div style="text-align:center;"><div style="font-size:0.82rem;color:#4ade80;font-weight:600;">Bull Prob +10pp ({current_p+10:.0f}%)</div><div style="font-size:1.3rem;font-weight:800;color:#4ade80;">{sym}{ev_plus:,.2f}</div></div>
+                <div>
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">EPS (current FY)</div>
+                    <div style="color:rgba(255,255,255,0.55);"><span style="color:#f87171;">{sym}{eps_low:.2f}</span> low / <strong style="color:#fff;">{sym}{eps_avg:.2f}</strong> avg / <span style="color:#4ade80;">{sym}{eps_high:.2f}</span> high</div>
                 </div>
-                <div style="text-align:center;font-size:0.85rem;font-style:italic;color:rgba(255,255,255,0.4);margin-top:1rem;">{interp}</div>
-            </div>''', unsafe_allow_html=True)
+                <div>
+                    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.3rem;">Price Target</div>
+                    <div style="color:rgba(255,255,255,0.55);"><span style="color:#f87171;">{sym}{pt_low:.0f}</span> low / <strong style="color:#fff;">{sym}{pt_med:.0f}</strong> median / <span style="color:#4ade80;">{sym}{pt_high:.0f}</span> high</div>
+                </div>
+            </div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-top:0.7rem;">Source: yfinance — forward consensus from sell-side analysts, refreshed within days of earnings. Used as a HARD floor for our bull/base/bear scenario revenue.</div>
+        </div>''', unsafe_allow_html=True)
 
+    if a.get("reverse_dcf_commentary"):
+        st.markdown('<div class="sec">Reverse DCF <span class="vtag">Implied Growth Check</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["reverse_dcf_commentary"]))}</div>', unsafe_allow_html=True)
+
+    # ── Monitoring KPI dashboard ──
+    monitoring_kpis = a.get("monitoring_kpis", [])
+    if a.get("monitoring_dashboard_intro") or monitoring_kpis:
+        st.markdown('<div class="sec">Monitoring Dashboard <span class="vtag">KPI Framework</span></div>', unsafe_allow_html=True)
+        if a.get("monitoring_dashboard_intro"):
+            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["monitoring_dashboard_intro"]))}</div>', unsafe_allow_html=True)
+        if monitoring_kpis:
+            kpi_header = "<tr><th>KPI</th><th>Baseline</th><th>Constructive</th><th>Adverse</th></tr>"
+            kpi_rows = "".join(
+                f'<tr>'
+                f'<td style="font-weight:600;">{strip_html(k.get("name",""))}</td>'
+                f'<td style="color:rgba(255,255,255,0.6);">{strip_html(k.get("fy_baseline",""))}</td>'
+                f'<td style="color:#4ade80;">{strip_html(k.get("constructive_trajectory",""))}</td>'
+                f'<td style="color:#f87171;">{strip_html(k.get("adverse_trajectory",""))}</td>'
+                f'</tr>'
+                for k in monitoring_kpis
+            )
+            st.markdown(pt_table(kpi_header, kpi_rows), unsafe_allow_html=True)
+
+    # ── Catalysts ──
     catalysts = a.get("catalysts", [])
     if catalysts:
-        st.markdown('<div class="sec">What to Watch</div>', unsafe_allow_html=True)
-        cat_header = "<tr><th>Date</th><th>Event</th><th>Positive Signal</th><th>Negative Signal</th></tr>"
+        st.markdown('<div class="sec">Catalysts to Watch</div>', unsafe_allow_html=True)
+        if a.get("catalysts_intro"):
+            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["catalysts_intro"]))}</div>', unsafe_allow_html=True)
+        cat_header = "<tr><th>Date</th><th>Event</th><th>Bull Signal</th><th>Bear Signal</th></tr>"
         cat_rows = "".join(
             f'<tr>'
             f'<td class="nowrap" style="font-weight:600;">{strip_html(c.get("date",""))}</td>'
             f'<td>{strip_html(c.get("event",""))}</td>'
-            f'<td style="color:#4ade80;">{strip_html(c.get("positive_signal", c.get("bull_signal", "")))}</td>'
-            f'<td style="color:#f87171;">{strip_html(c.get("negative_signal", c.get("bear_signal", "")))}</td>'
+            f'<td style="color:#4ade80;">{strip_html(c.get("bull_signal", c.get("positive_signal", "")))}</td>'
+            f'<td style="color:#f87171;">{strip_html(c.get("bear_signal", c.get("negative_signal", "")))}</td>'
             f'</tr>'
             for c in catalysts
         )
         st.markdown(pt_table(cat_header, cat_rows), unsafe_allow_html=True)
+
+    # ── Math notes footer ──
+    pass3       = a.get("pass3", {})
+    flags       = pass3.get("consistency_flags", []) if isinstance(pass3, dict) else []
+    nums_out    = pass3.get("numbers_outside_source", []) if isinstance(pass3, dict) else []
+    tone_mismatch = pass3.get("tone_label_mismatch", False) if isinstance(pass3, dict) else False
+    dq_warns    = [w for w in (a.get("data_quality_warnings", []) or []) if w]
+    mono_viol   = sm.get("monotonicity_violation", False)
+    bull_below  = sm.get("bull_below_current", False)
+    div_flag    = (sm.get("diagnostic") or {}).get("divergence_flag", False)
+    deg_sections = sm.get("degraded_sections", []) or []
+
+    all_notes = []
+    if mono_viol:
+        all_notes.append(("warn", "Monotonicity", sm.get("violation_msg", "Non-monotonic price targets — review driver inputs.")))
+    if bull_below:
+        all_notes.append(("warn", "Bull < Current", sm.get("bull_below_msg", "Bull-case target below current price — scenario set may be anchored on stale forward baselines.")))
+    if div_flag:
+        all_notes.append(("info", "Divergence", "Fundamentals signals diverge from driver-derived probabilities by >15pp — see diagnostic panel."))
+    for f in flags:
+        all_notes.append((f.get("severity","info"), f.get("field",""), f.get("issue","")))
+    for n in nums_out:
+        all_notes.append(("warn", n.get("field",""), f"Number outside source: {n.get('number','')} — {n.get('context','')}"))
+    if tone_mismatch:
+        ev_str = pass3.get("tone_label_evidence","") if isinstance(pass3, dict) else ""
+        all_notes.append(("warn", "Tone/Label", f"Narrative tone may contradict recommendation label. {ev_str}"))
+    for w in dq_warns:
+        all_notes.append(("info", "Data quality", str(w)))
+    for s in deg_sections:
+        all_notes.append(("warn", "Degraded", f"Section unavailable: {s}"))
+
+    if all_notes:
+        with st.expander(f"Math notes & audit flags ({len(all_notes)})", expanded=False):
+            sev_color = {"error": "#f87171", "warn": "#fbbf24", "info": "rgba(255,255,255,0.4)"}
+            for sev, field, msg in all_notes:
+                color = sev_color.get(sev, "rgba(255,255,255,0.4)")
+                st.markdown(
+                    f'<div style="display:flex;gap:0.75rem;font-size:0.8rem;padding:0.2rem 0;'
+                    f'border-bottom:1px solid rgba(255,255,255,0.04);">'
+                    f'<span style="color:{color};font-weight:700;min-width:3.5rem;flex-shrink:0;">{sev.upper()}</span>'
+                    f'<span style="color:rgba(255,255,255,0.45);min-width:6rem;flex-shrink:0;">{strip_html(field)}</span>'
+                    f'<span style="color:rgba(255,255,255,0.65);">{strip_html(msg)}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
 
     if a.get("conclusion"):
         st.markdown('<div class="sec">Conclusion</div>', unsafe_allow_html=True)
@@ -1067,7 +1185,7 @@ def render(ticker, m, a, data):
 
     st.markdown(f'''<div style="text-align:center;padding:1rem 0 0.5rem;font-size:0.7rem;color:rgba(255,255,255,0.18);">
         Data as of {date} &nbsp;/&nbsp; Analysis by {a.get("model_used","")} &nbsp;/&nbsp;
-        Math computed in Python (segment-level) &nbsp;/&nbsp; Report #{st.session_state.report_count}</div>''', unsafe_allow_html=True)
+        Math: Python deterministic (driver-derived probabilities) &nbsp;/&nbsp; Report #{st.session_state.report_count}</div>''', unsafe_allow_html=True)
 
     _sc.html("""
 <button onclick="window.parent.print()"
@@ -1093,8 +1211,7 @@ def render_track_box(ticker, m, a):
     try: cp = float(m.get("current_price")) if m.get("current_price") else 0.0
     except: cp = 0.0
     sm = a.get("scenario_math", {})
-    base_scenario = sm.get("scenarios", {}).get("base", {})
-    suggested_target = base_scenario.get("price_target", 0.0)
+    suggested_target = sm.get("price_target", {}).get("base", 0.0)
     try:
         if not suggested_target or float(suggested_target) == 0.0:
             suggested_target = round(cp * 1.15, 2)
@@ -1531,7 +1648,13 @@ with left_col:
         key="generate_btn"
     )
     if go:
-        st.session_state["_generating"] = True
+        if st.session_state.get("authenticated"):
+            st.session_state["_generating"] = True
+        else:
+            # Save the generate intent so it fires after login, then redirect to auth
+            st.session_state["auto_generate"] = True
+            st.session_state["show_auth"] = True
+            st.rerun()
 
 # ── Right column — How It Scores ──────────────────────────────
 with right_col:
@@ -1627,10 +1750,7 @@ if screener_data and not report_already_run:
     render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
     render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
 
-# ── Auth redirect on Generate ──
-if go and not st.session_state.get("authenticated"):
-    st.session_state["show_auth"] = True
-    st.rerun()
+# (auth redirect is now handled inline in the generate button block above)
 
 report_count = st.session_state.get("report_count", 0)
 _bar_is_admin = not is_guest and username.lower() in {"mayukhk"}
@@ -1779,62 +1899,30 @@ if should_generate and ticker:
             m = calc(sd)
             if "error" in m:
                 st.error(m["error"]); st.stop()
-            reverse_dcf_json = json.dumps(m.get("reverse_dcf", {"available": False, "reason": "Not computed"}), indent=2)
             st.write("Metrics computed")
 
-            status.update(label=f"Analyzing {ticker}... (Step 3 of 6)")
-            st.write("Step 3 of 6 - AI is building scenario assumptions...")
-            metrics_json_str = json.dumps(
-                {k: v for k, v in m.items() if k not in ["description","news"]},
-                sort_keys=True, default=str)
-            pass1 = _cached_pass1(ticker, metrics_json_str, reverse_dcf_json)
-            if isinstance(pass1, dict) and pass1.get("error"):
-                status.update(label="Analysis failed (Pass 1)", state="error")
-                for d in pass1.get("details", []): st.code(d)
+            # For v2: build §5.1 baseline (units in billions, §5.1 field names)
+            if METHODOLOGY_VERSION == "v2":
+                consensus_pack   = fmp_api.fetch_consensus_pack(ticker)
+                baseline         = calc_baseline(sd, consensus_pack=consensus_pack)
+                if "error" in baseline:
+                    st.error(baseline["error"]); st.stop()
+                analysis_input_str = json.dumps(
+                    {k: v for k, v in baseline.items() if k not in ["recent_news", "history_3y"]},
+                    sort_keys=True, default=str)
+            else:
+                analysis_input_str = json.dumps(
+                    {k: v for k, v in m.items() if k not in ["description", "news"]},
+                    sort_keys=True, default=str)
+
+            status.update(label=f"Analyzing {ticker}... (Step 3–6 of 6: AI + compute)")
+            st.write("Step 3 of 6 - Running three-pass analysis (drivers → math → narrative → self-check)...")
+            a = _cached_analysis(ticker, analysis_input_str, METHODOLOGY_VERSION)
+            if isinstance(a, dict) and a.get("error"):
+                status.update(label="Analysis failed", state="error")
+                for d in a.get("details", []): st.code(d)
                 st.stop()
-            st.write("Assumptions locked in")
-
-            status.update(label=f"Analyzing {ticker}... (Step 4 of 6)")
-            st.write("Step 4 of 6 - Running probability math...")
-            scenario_math = compute_scenario_math(m, pass1)
-            st.write("Scenarios computed")
-
-            status.update(label=f"Analyzing {ticker}... (Step 5 of 6)")
-            st.write("Step 5 of 6 - AI is writing the final analysis...")
-            math_json_str  = json.dumps(scenario_math, sort_keys=True, default=str)
-            pass1_json_str = json.dumps(pass1, sort_keys=True, default=str)
-            pass2 = _cached_pass2(ticker, metrics_json_str, math_json_str, pass1_json_str, reverse_dcf_json)
-            if isinstance(pass2, dict) and pass2.get("error"):
-                status.update(label="Analysis failed (Pass 2)", state="error")
-                for d in pass2.get("details", []): st.code(d)
-                st.stop()
-            st.write("Narrative complete")
-
-            status.update(label=f"Analyzing {ticker}... (Step 6 of 6)")
-            st.write("Step 6 of 6 - Finalizing report...")
-
-            final = {}
-            for key in ["recommendation","conviction","investment_thesis","business_overview",
-                        "revenue_architecture","growth_drivers","margin_analysis","financial_health",
-                        "competitive_position","headwind_narrative","tailwind_narrative",
-                        "market_pricing_commentary","scenario_commentary","conclusion","model_used"]:
-                final[key] = pass2.get(key, "")
-            for key in ["segments","concentration","headwinds","tailwinds","macro_drivers",
-                        "scenarios","catalysts","peer_tickers","market_expectations","sensitivity"]:
-                final[key] = pass1.get(key, {} if key in ["concentration","market_expectations","sensitivity"] else [])
-            final["scenario_math"] = scenario_math
-
-            exp_ret  = scenario_math.get("expected_return", 0)
-            prob_pos = scenario_math.get("prob_positive_return", 0)
-            rec      = final["recommendation"].upper()
-            if rec == "BUY" and exp_ret < -0.20 and prob_pos < 0.25:
-                final["recommendation"] = "PASS"; final["conviction"] = "High"
-                final["rec_override_reason"] = f"Override: LLM recommended BUY despite expected return of {exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return."
-            elif rec == "PASS" and exp_ret > 0.20 and prob_pos > 0.70:
-                final["recommendation"] = "BUY"; final["conviction"] = "Medium"
-                final["rec_override_reason"] = f"Override: LLM recommended PASS despite expected return of {exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return."
-
-            a   = final
+            st.write("Analysis complete")
             rec = a.get("recommendation", "WATCH")
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
 
@@ -1929,7 +2017,7 @@ if st.session_state.cached_report:
         st.markdown('<div style="text-align:center;padding:0.8rem 0 0.5rem;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:rgba(255,255,255,0.2);margin-bottom:0.8rem;">Download Options</div></div>', unsafe_allow_html=True)
 
         dl1, dl2 = st.columns(2)
-        sm = c_a.get("scenario_math", {}); scenarios = sm.get("scenarios", {})
+        sm = c_a.get("scenario_math", {})
         with dl1:
             md_lines = [
                 f"# {c_m.get('company_name', c_ticker)} ({c_ticker})",
@@ -1947,8 +2035,9 @@ if st.session_state.cached_report:
                 "ticker": c_ticker, "date": datetime.now().strftime("%Y-%m-%d"),
                 "recommendation": c_a.get("recommendation"), "conviction": c_a.get("conviction"),
                 "expected_value": sm.get("expected_value"), "expected_return": sm.get("expected_return"),
-                "risk_adjusted_score": sm.get("risk_adjusted_score"), "prob_positive": sm.get("prob_positive_return"),
-                "scenarios": sm.get("scenarios"),
+                "prob_positive": sm.get("prob_positive"),
+                "price_target": sm.get("price_target"), "eps": sm.get("eps"),
+                "final_probabilities": sm.get("final_probabilities"),
                 "metrics": {k: v for k, v in c_m.items() if k not in ["description","news","revenue_history","net_income_history"]},
             }
             st.download_button("Download (JSON)", json.dumps(export_data, indent=2, default=str), f"PickR_{c_ticker}.json", "application/json")
