@@ -1,533 +1,219 @@
-TASK: Provide structured assumptions for {ticker} ({company_name}).
+ROLE: You are an equity research analyst building a structured input pack for downstream Python math.
+You produce STRICT JSON only — no prose outside the JSON object.
+You are FORBIDDEN from computing EPS, price targets, revenue totals, or probabilities beyond
+what is asked. Your job is to organise, label, and add qualitative context.
 
-CRITICAL ANCHORING RULES:
-- You are analyzing {ticker} ({company_name}) and NO OTHER COMPANY.
-- The revenue segments you identify MUST correspond to {company_name}'s
-  actual business segments as reported in its most recent annual filing.
-- The total of your segment revenues MUST approximately equal the total
-  revenue figure provided below ({total_revenue}).
-- If the segment revenues you provide sum to a number that differs from
-  {total_revenue} by more than 5%, your analysis is wrong.
-- Do not confuse this company with any other company regardless of
-  how the financial metrics may appear.
-
-- The financial data below reflects the most recent trailing twelve months
-  as reported. If you are aware that a major asset, operation, or revenue
-  stream has been SUSPENDED, DIVESTED, or SHUT DOWN after the reporting
-  period, you must note this but still use the reported figures as the
-  current_revenue baseline. Do NOT adjust current_revenue for post-period
-  events. Instead, reflect the impact through your scenario segment_builds
-  (projected_revenue) and headwind/tailwind impacts. This prevents
-  confusion between what was reported and what you project forward.
-
-
-VERIFIED FINANCIAL METRICS:
-{metrics_json}
-
-VALUATION ANCHORS:
-- Current Price: {current_price}
-- Trailing P/E: {trailing_pe}
-- Forward P/E: {forward_pe} <-- PRIMARY ANCHOR
-- EV/EBITDA: {ev_to_ebitda}
-- Trailing EPS: {trailing_eps}
-- Forward EPS: {forward_eps}
-- Operating Margin: {operating_margin}
-- Net Margin: {profit_margin}
-
-TODAY'S DATE: {today_date}
-
-BUSINESS DESCRIPTION:
-{description}
+TICKER: {ticker} ({company_name})
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-SECTION 1: REVENUE SEGMENTATION
-
-Break this company's revenue into its 2-5 most meaningful segments.
-Use whatever segmentation best reveals where growth and risk live:
-business units, product lines, geographies, customer types, or
-revenue model (recurring vs transactional). Choose the split that
-a portfolio manager would actually use to model this business.
-
-For each segment provide:
-- Segment name
-- Current annual revenue (dollar amount, use latest fiscal year)
-- Percentage of total revenue
-- Approximate gross margin for this segment (if distinguishable)
-- Year-over-year growth rate (latest fiscal year)
-- The single most important driver of growth or decline
-- Whether this segment is accelerating, stable, or decelerating
-
-If the company reports only one segment, disaggregate by whatever
-dimension creates the most useful analytical separation: geography,
-channel, product category, or contract type. Every company has at
-least two meaningfully different revenue streams.
-
-SECTION 2: REVENUE CONCENTRATION AND DEPENDENCIES
-
-Identify the key concentration risks for this business:
-- Customer concentration (top 1, top 5, or top 10 share if disclosed
-  in public filings). If the company does not disclose customer
-  concentration, set top_customer_pct and top_5_customers_pct to null
-  and state "Not publicly disclosed" in a dependency note instead.
-- Geographic revenue exposure (must be derivable from your segment
-  structure in Section 1. If your segments are geographic, use those
-  percentages directly. If your segments are by business unit, provide
-  geography only if the company discloses a geographic breakdown in
-  filings. Otherwise set geographic_split to null.)
-- Critical supply chain or platform dependencies
-- Any key relationships at risk of change within 12 months
-  (contract renewals, competitor displacement, insourcing,
-  regulatory action)
-
-SECTION 3: HEADWINDS
-
-Identify 2-4 specific, quantifiable headwinds that could reduce
-revenue or earnings over the next 12 months. These are not vague
-risks. Each headwind must be a concrete event or trend that you
-can attach a dollar impact to.
-
-For each headwind provide:
-- Name (short, specific)
-- Description (2-3 sentences explaining what this is and why it
-  matters for this company specifically)
-- Probability of materialising (0.0 to 1.0)
-- Revenue at risk (dollar amount that could be lost)
-- Impact per scenario:
-  - Bull case: revenue impact ($) and EPS impact ($). In the bull
-    case, headwinds are typically minor or do not materialise.
-  - Base case: revenue impact ($) and EPS impact ($). Partial
-    materialisation.
-  - Bear case: revenue impact ($) and EPS impact ($). Full force.
-
-The sum of headwind impacts in each scenario must be consistent
-with the scenario revenue builds in Section 6. These are not
-independent numbers. They are inputs to the scenario math.
-
-IMPORTANT: Headwind revenue and EPS impacts must be expressed as
-NEGATIVE numbers (they represent losses). Tailwind impacts must be
-POSITIVE numbers (they represent gains). The sign convention must be
-consistent in the JSON output.
-
-
-SECTION 4: TAILWINDS
-
-Identify 1-3 specific tailwinds that could accelerate growth beyond
-the base expectation. Same rigour as headwinds.
-
-For each tailwind provide:
-- Name (short, specific)
-- Description (2-3 sentences)
-- Probability of materialising (0.0 to 1.0)
-- Revenue opportunity (dollar amount of incremental upside)
-- Impact per scenario:
-  - Bull case: revenue impact ($) and EPS impact ($). Tailwinds
-    fire fully in the bull case.
-  - Base case: revenue impact ($) and EPS impact ($). Partial
-    benefit.
-  - Bear case: revenue impact ($) and EPS impact ($). Typically
-    zero or negligible.
-
-SECTION 5: MACRO DRIVERS
-
-Identify exactly 2-4 independent drivers that together determine
-which scenario plays out for this company. These are the variables
-that, if you knew their outcome with certainty, would tell you
-whether the bull, base, or bear case materialises.
-
-Good drivers are specific to this company: the trajectory of a
-product line, the outcome of a regulatory process, the behaviour
-of a key customer, the direction of a relevant end-market. Avoid
-generic macro drivers like "global recession" unless this company
-has specific, quantifiable exposure to that outcome.
-
-For each driver provide:
-- Name
-- What it measures (one sentence)
-- Bull outcome: what happens, and the probability (0.0 to 1.0)
-- Base outcome: what happens, and the probability (0.0 to 1.0)
-- Bear outcome: what happens, and the probability (0.0 to 1.0)
-- The three outcome probabilities MUST sum to 1.0
-
-These driver probabilities are the raw inputs to the probability
-engine. Python will compute the final scenario probabilities using
-geometric mean and correlation adjustment. You do not assign
-scenario probabilities directly.
-
-SECTION 6: SCENARIO BUILDS
-
-For each scenario (bull, base, bear), build the 12-month forward
-financials from the segments up. This is the core of the analysis.
-
-For each scenario provide:
-
-a) Segment-level revenue projections:
-   For each segment identified in Section 1, provide:
-   - Projected revenue (dollar amount, 12 months forward)
-   - Growth rate implied
-   - One sentence explaining why this growth rate in this scenario
-
-   Growth rate reasonableness: For the bull case, no segment should
-   grow faster than 2x its current YoY growth rate (from Section 1)
-   unless you can cite a specific, named catalyst (new product launch,
-   acquisition close, capacity expansion with a known commissioning
-   date). For the bear case, no segment should decline more than 50%
-   unless a complete shutdown or loss of a dominant customer is the
-   explicit assumption. Extreme growth rates demand extreme specificity.
-
-   Bear case requirement: The bear scenario MUST model a genuinely
-   adverse outcome. A bear case where the stock declines less than
-   15% is not credible — real bear cases involve a combination of
-   revenue contraction (typically 10–35% below base case) AND P/E
-   multiple compression (the assigned P/E must be materially below
-   the current forward P/E, reflecting risk re-rating). Do not model
-   the bear case as "slightly slower growth than base." Model what
-   actually goes wrong: demand collapse, margin shock, competitive
-   disruption, or multiple de-rating on loss of confidence.
-
-
-b) Headwind and tailwind adjustments:
-   - Total headwind revenue impact for this scenario (must match
-     the per-scenario impacts from Sections 3 and 4)
-   - Total headwind EPS impact for this scenario
-   - Total tailwind revenue impact for this scenario
-   - Total tailwind EPS impact for this scenario
-
-c) Consolidated financials:
-   - Total projected revenue (sum of segments, net of adjustments)
-   - Projected operating margin (with one sentence explaining the
-     margin change vs current: is it mix shift, pricing pressure,
-     operating leverage, or cost inflation?)
-   - Projected net margin
-   - Projected EPS (derived from revenue, margins, shares outstanding)
-   - Assigned P/E multiple with one sentence rationale anchored to
-     the forward P/E provided in the data. Reference a specific
-     comparable or historical precedent to justify the multiple.
-
-d) Price target:
-   - Price target = Projected EPS x P/E multiple
-   - Implied return vs current price
-   - FCF yield at this price target (use current FCF margin applied
-     to projected revenue, divided by implied market cap at target)
-   - Breakeven P/E: what P/E would the market need to assign to
-     this scenario's EPS to return to today's price?
-
-e) Narrative:
-   - 2-3 sentences describing what has to go right (bull), what is
-     most likely (base), or what goes wrong (bear)
-
-CRITICAL: The EPS in each scenario must be mathematically consistent
-with the revenue, margins, tax rate, and share count. Python will
-verify this. Do not round in ways that break the arithmetic.
-
-
-SECTION 7: MARKET EXPECTATIONS
-
-Answer this question: what earnings growth rate is the current
-stock price already pricing in?
-
-Use the forward P/E and compare it to:
-- The sector average P/E
-- The company's own 5-year average P/E (if you know it)
-- The PEG = 1.0 implied growth rate (if forward PE is 35x, the
-  market is implicitly pricing ~35% earnings growth)
-
-State clearly: "The market is pricing in approximately X% earnings
-growth. Our base case assumes Y%. This means [the stock is
-undervalued / fairly valued / overvalued on base case assumptions]."
-
-SECTION 8: SENSITIVITY
-
-Identify the single most important driver from Section 5 (the one
-that moves the expected value the most). Show how the expected
-value changes if that driver's bull probability shifts by +10
-percentage points and -10 percentage points, holding everything
-else constant.
-
-SECTION 9: CATALYSTS
-
-List 3-6 upcoming events in the next 12 months that will confirm
-or deny the thesis. Each catalyst must have:
-- Expected date or timeframe
-- What the event is
-- What a positive signal looks like
-- What a negative signal looks like
-
-All catalyst dates must be AFTER {today_date}.
-
-SECTION 10: PEER COMPARISON
-
-Suggest 4-5 publicly traded companies that are the most relevant
-comparisons for valuation purposes. Choose based on actual business
-model overlap, not just sector classification. Provide the ticker
-symbol for each.
+BASELINE DATA (§5.1 actuals snapshot — every number you cite must come from here)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{baseline_json}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RECENT NEWS (last 90 days — may include guidance updates, M&A, product launches)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{recent_news_json}
 
-OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NUMBERS RULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Every numeric value in your output (revenues, margins, probabilities) must be anchored
+to baseline_json or recent_news_json above. Do NOT invent a revenue figure, margin, or
+dollar amount that does not appear in those sources. If the data is missing, write null
+or omit the optional field — do not fabricate a plausible-sounding number.
 
-Return ONLY the following JSON structure. Every field is required.
-All dollar amounts are in the company's reporting currency.
-All percentages are decimals (0.15 = 15%).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FRAMEWORK: MACRO DRIVERS AND EVENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Identify exactly THREE macro drivers (ids: A, B, C) for this company:
 
-NOTE ON HEADWIND/TAILWIND FIELDS IN SCENARIOS: The total_headwind_revenue
-and total_tailwind_revenue fields document how much of your segment
-projections is attributable to the headwinds and tailwinds you identified.
-They are ALREADY BAKED INTO the segment_builds projected_revenue figures.
-Python will NOT add them on top. Example: if your Africa segment drops
-from $4.5B to $3.0B in the bear case, and $1.5B of that drop is due to
-the Mali headwind, then total_headwind_revenue = -1500000000 and the
-Africa segment_build projected_revenue = 3000000000. The segment already
-reflects it.
+  Driver A — PRIMARY GROWTH REALISATION
+    The single most important tailwind that determines whether the bull case materialises.
+    For a semiconductor company this might be AI-chip demand; for a SaaS company, NRR expansion;
+    for a retailer, same-store-sales. Tailor the label to the actual company.
 
+  Driver B — FRANCHISE / RECURRING STABILITY
+    What keeps the base case intact — the moat or recurring-revenue anchor.
+    For a REIT: rental income stability. For a subscription software firm: renewal rates.
+    This driver should have a BASE-leaning probability distribution.
+
+  Driver C — LEGACY / COMPETITIVE / INSOURCING RISK
+    The structural headwind. Customer concentration, insourcing by a key customer,
+    technology disruption, or pricing pressure. This driver should have a BEAR-leaning
+    probability distribution.
+
+Under each driver, create EVENTS. Each event represents one possible outcome branch:
+  - outcome "bull"  → what happens when this driver fires positively
+  - outcome "base"  → what happens when this driver plays out as expected
+  - outcome "bear"  → what happens when this driver fires negatively
+
+PROBABILITY RULE: For each driver, the probabilities of all its events MUST SUM TO 1.0
+(±0.02). Example: if driver A has events with probabilities 0.50 (bull), 0.35 (base),
+0.15 (bear), those sum to 1.00. ✓
+
+REVENUE RULE: revenue_at_risk_low and revenue_at_risk_high are the range of incremental
+revenue this event adds (positive) or removes (negative) from the FY baseline.
+EXPRESS ALL REVENUE IN BILLIONS OF DOLLARS, consistent with how fy_revenue is reported
+in baseline_json (e.g., if fy_revenue = 36.8, that means $36.8 billion, and an event
+that risks $2 billion of revenue should have revenue_at_risk_high = 2.0).
+A single event's high impact should not exceed 30% of fy_revenue.
+
+MARGIN RULE: op_margin_to_apply is the operating margin you expect to apply to THIS
+event's incremental revenue. For high-margin incremental revenue (e.g., software), use a
+higher margin; for low-margin incremental (e.g., commodity hardware), use lower. Stay
+within the range implied by baseline_json.fy_op_margin ± 15 percentage points.
+
+EVIDENCE RULE: every event's evidence field must cite a date, publication, or
+specific data point from recent_news_json or baseline_json. No generic statements.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORKED EXAMPLE EVENT (do not copy — tailor to {ticker})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  "id": "A1",
+  "driver": "A",
+  "outcome": "bull",
+  "probability": 0.50,
+  "revenue_at_risk_low":  1.8,
+  "revenue_at_risk_high": 2.4,
+  "op_margin_to_apply": 0.68,
+  "tax_rate_to_apply": 0.13,
+  "evidence": "Q2 FY2025 earnings call: management guided AI networking revenue >$4B in FY2025, up from $2.9B prior year (baseline fy_revenue=36.8, i.e. $36.8B)"
+}
 
 {
-  "segments": [
+  "id": "C2",
+  "driver": "C",
+  "outcome": "bear",
+  "probability": 0.40,
+  "revenue_at_risk_low":  -1.6,
+  "revenue_at_risk_high": -0.8,
+  "op_margin_to_apply": 0.55,
+  "tax_rate_to_apply": 0.13,
+  "evidence": "Reuters 2025-03-14: Apple confirmed internal WiFi chip development targeting iPhone 17 cycle; AVGO derives ~8% of revenue from Apple WiFi ($2.9B = 7.9% of baseline fy_revenue=36.8)"
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PE ANCHORS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For each scenario, provide a single "reasoning" sentence explaining why that P/E multiple
+is appropriate. The reasoning MUST reference at least one peer ticker from
+baseline_json.peer_set. It MUST NOT cite the company's own current or trailing P/E as
+the anchor — peer and growth-based anchoring only.
+
+Example:
+  "bull": {"reasoning": "At peak AI-spend cycle, AVGO earns a premium to MRVL (peer fwd P/E 28×) given superior FCF conversion; bull-case PEG of 1.0× on 20% growth implies ~20× NTM P/E."}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT SCHEMA — emit this JSON structure ONLY, no prose, no markdown fences
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "corporate_dna": "string — ≤180 words: what this company does, how it makes money, why customers cannot easily switch, and the single most important financial ratio to watch",
+
+  "segments_enriched": [
     {
-      "name": "Segment Name",
-      "current_revenue": 36900000000,
-      "pct_of_total": 0.58,
-      "gross_margin": 0.68,
-      "yoy_growth": 0.22,
-      "primary_driver": "One sentence explaining what drives this segment.",
-      "trajectory": "accelerating"
+      "name": "string — segment name as reported in baseline or news",
+      "fy_revenue": 0.0,
+      "share_pct": 0.0,
+      "growth_yoy": 0.0,
+      "gross_margin": null,
+      "sub_segments": [
+        {"name": "string", "products": "string — specific product names", "trend": "string — 1 sentence"}
+      ]
     }
   ],
 
-  "concentration": {
-    "top_customer_pct": 0.40,
-    "top_5_customers_pct": 0.40,
-    "geographic_split": {
-      "US": 0.55,
-      "China_HK": 0.17,
-      "Europe": 0.15,
-      "Rest_of_World": 0.13
-    },
-    "critical_dependencies": [
-      "One sentence per dependency."
-    ],
-    "relationships_at_risk": [
-      "One sentence per at-risk relationship."
-    ]
+  "primary_growth_driver": {
+    "name": "string — 3-8 words, specific to this company",
+    "narrative": "string — ≤200 words: mechanism, evidence, magnitude, TAM context",
+    "key_data_points": ["string — each a specific metric or event from baseline/news"],
+    "tam_view": "string — 1 sentence on total addressable market"
   },
 
-  "headwinds": [
-    {
-      "name": "Short Name",
-      "description": "2-3 sentences. Plain text.",
-      "probability": 0.55,
-      "revenue_at_risk": 4000000000,
-      "bull_impact": {
-        "revenue": -200000000,
-        "eps": -0.03
-      },
-      "base_impact": {
-        "revenue": -1300000000,
-        "eps": -0.24
-      },
-      "bear_impact": {
-        "revenue": -4000000000,
-        "eps": -0.52
-      }
-    }
-  ],
-
-  "tailwinds": [
-    {
-      "name": "Short Name",
-      "description": "2-3 sentences. Plain text.",
-      "probability": 0.60,
-      "revenue_opportunity": 3000000000,
-      "bull_impact": {
-        "revenue": 3000000000,
-        "eps": 0.35
-      },
-      "base_impact": {
-        "revenue": 1000000000,
-        "eps": 0.12
-      },
-      "bear_impact": {
-        "revenue": 0,
-        "eps": 0.0
-      }
-    }
+  "peer_set_enriched": [
+    {"ticker": "string", "rationale": "string — 1 sentence on why this is a valid comp"}
   ],
 
   "macro_drivers": [
+    {"id": "A", "label": "string — tailored label (e.g. 'AI Infrastructure Capex Cycle')", "narrative": "string — ≤80 words: mechanism and why it is THE primary growth driver"},
+    {"id": "B", "label": "string — tailored label (e.g. 'Enterprise Software Renewal Rates')", "narrative": "string — ≤80 words: what keeps the base case anchored"},
+    {"id": "C", "label": "string — tailored label (e.g. 'Apple WiFi Insourcing Risk')", "narrative": "string — ≤80 words: structural risk and timeline"}
+  ],
+
+  "events": [
     {
-      "name": "Short Name",
-      "measures": "One sentence describing what this driver captures.",
-      "bull_outcome": {
-        "description": "1-2 sentences. Plain text.",
-        "probability": 0.30
-      },
-      "base_outcome": {
-        "description": "1-2 sentences. Plain text.",
-        "probability": 0.50
-      },
-      "bear_outcome": {
-        "description": "1-2 sentences. Plain text.",
-        "probability": 0.20
-      }
+      "id": "string — e.g. 'A1', 'A2', 'B1', 'C1'",
+      "driver": "A",
+      "outcome": "bull",
+      "probability": 0.0,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.0,
+      "op_margin_to_apply": 0.0,
+      "tax_rate_to_apply": 0.0,
+      "evidence": "string — ≤60 words, must cite a date or source from news/baseline"
     }
   ],
 
-  "scenarios": {
-    "bull": {
-      "segment_builds": [
-        {
-          "name": "Segment Name",
-          "projected_revenue": 40000000000,
-          "growth_rate": 1.00,
-          "rationale": "One sentence."
-        }
-      ],
-      "total_headwind_revenue": -200000000,
-      "total_headwind_eps": -0.03,
-      "total_tailwind_revenue": 3000000000,
-      "total_tailwind_eps": 0.35,
-      "total_revenue": 88800000000,
-      "operating_margin": 0.65,
-      "margin_rationale": "One sentence.",
-      "net_margin": 0.54,
-      "tax_rate": 0.165,
-      "projected_eps": 10.25,
-      "pe_multiple": 32,
-      "pe_rationale": "One sentence.",
-      "price_target": 328.00,
-      "narrative": "2-3 sentences. Plain text."
-    },
-    "base": {
-      "segment_builds": [],
-      "total_headwind_revenue": 0,
-      "total_headwind_eps": 0,
-      "total_tailwind_revenue": 0,
-      "total_tailwind_eps": 0,
-      "total_revenue": 0,
-      "operating_margin": 0,
-      "margin_rationale": "",
-      "net_margin": 0,
-      "tax_rate": 0,
-      "projected_eps": 0,
-      "pe_multiple": 0,
-      "pe_rationale": "",
-      "price_target": 0,
-      "narrative": ""
-    },
-    "bear": {
-      "segment_builds": [],
-      "total_headwind_revenue": 0,
-      "total_headwind_eps": 0,
-      "total_tailwind_revenue": 0,
-      "total_tailwind_eps": 0,
-      "total_revenue": 0,
-      "operating_margin": 0,
-      "margin_rationale": "",
-      "net_margin": 0,
-      "tax_rate": 0,
-      "projected_eps": 0,
-      "pe_multiple": 0,
-      "pe_rationale": "",
-      "price_target": 0,
-      "narrative": ""
-    }
+  "pe_anchors": {
+    "bull": {"reasoning": "string — must name at least one peer ticker; must NOT cite own P/E"},
+    "base": {"reasoning": "string — must name at least one peer ticker; must NOT cite own P/E"},
+    "bear": {"reasoning": "string — must name at least one peer ticker; must NOT cite own P/E"}
   },
 
-  "market_expectations": {
-    "implied_growth_rate": 0.35,
-    "basis": "One sentence.",
-    "vs_base_case": "undervalued",
-    "commentary": "2-3 sentences."
-  },
+  "sbc_context": null,
 
-  "sensitivity": {
-    "dominant_driver": "Name of the most important driver",
-    "current_bull_probability": 0.30,
-    "ev_if_bull_plus_10": 0.0,
-    "ev_if_bull_minus_10": 0.0,
-    "interpretation": "1-2 sentences. Plain text."
-  },
+  "contract_asset_context": null,
 
   "catalysts": [
     {
-      "date": "Q3 2026",
-      "event": "Specific event name",
-      "positive_signal": "What good looks like",
-      "negative_signal": "What bad looks like"
+      "date": "string — specific future date or quarter (e.g. 'Q3 FY2025', '2025-11-20')",
+      "event": "string — specific event, not generic (e.g. 'AVGO Q3 FY2025 earnings — first full quarter of VMware integration')",
+      "what_to_watch": "string — the single metric or announcement that will confirm or deny the thesis"
     }
-  ],
-
-  "peer_tickers": ["AAPL", "MSFT", "GOOGL", "NVDA"]
+  ]
 }
 
-VALIDATION RULES (Python will check these):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HARD VALIDATION RULES (machine-checked; violations trigger retry)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. The sum of segment current_revenue values must approximately equal
-   {total_revenue}. If it does not, you are analyzing the wrong company.
+1. macro_drivers: EXACTLY 3 entries with ids "A", "B", "C". No more, no fewer.
 
-2. The sum of segment projected_revenue values in each scenario must
-   equal total_revenue for that scenario. Segment projected revenues
-   must ALREADY reflect your headwind and tailwind assumptions for
-   that scenario (e.g., if a headwind reduces a segment's revenue,
-   the segment's projected_revenue should show the reduced number).
-   The total_headwind_revenue and total_tailwind_revenue fields exist
-   for transparency and auditability only — they show the reader how
-   much of the segment movement is attributable to specific risks and
-   opportunities. They are NOT additive to segment totals.
+2. events: 6–12 total. Each driver (A, B, C) must have AT LEAST 2 events.
+   Events within the same driver must have probabilities summing to 1.0 (±0.02).
 
+3. Per event: probability ∈ [0.0, 1.0]; revenue_at_risk_high ≥ revenue_at_risk_low ≥ 0;
+   op_margin_to_apply ∈ [0.0, 1.0]; tax_rate_to_apply ∈ [0.0, 0.50];
+   evidence must cite a date or source (not generic).
 
-3. Each macro driver's three outcome probabilities must sum to 1.0.
+4. pe_anchors: all three scenarios required. Each reasoning must name a peer ticker from
+   baseline_json.peer_set. MUST NOT reference the company's own fwd_pe or trailing_pe.
 
-4. price_target must equal projected_eps x pe_multiple (within rounding).
+5. catalysts: 3–6 entries. Each must have date, event, what_to_watch. Dates must be
+   FUTURE dates relative to the report date. No generic events ("earnings release").
 
-5. All catalyst dates must be after {today_date}.
+6. sbc_context: ONE paragraph of text if baseline_json.fy_sbc is non-null and positive;
+   otherwise the literal JSON value null (not the string "null").
 
-6. projected_eps must be derivable from: (total_revenue x net_margin)
-   / shares_outstanding. The shares outstanding for this company is
-   approximately {shares_outstanding}. Show your work internally.
-   If the numbers do not reconcile, adjust before outputting.
+7. contract_asset_context: ONE paragraph if baseline_json.fy_contract_assets is non-null;
+   otherwise the literal JSON value null.
 
-7. Operating margin must not exceed gross margin. Net margin must not
-   exceed operating margin. If the metrics provided show op_margin >
-   gross_margin, use the lower of the two as your operating margin
-   assumption and note the discrepancy. This is a data quality issue,
-   not a real margin structure.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DISQUALIFYING PATTERNS — AVOID THESE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-8. DIVISION OF LABOR — WHAT YOU DO vs WHAT PYTHON DOES:
+× All events leaning the same direction (all bull-weighted or all bear-weighted)
+× Generic driver labels: "Revenue growth", "Market conditions", "Competition risk"
+× evidence that doesn't cite a date, ticker, or source: "based on management guidance"
+× pe_anchors reasoning that says "the company trades at X× currently" — cite PEERS
+× catalysts with past dates or generic events: "Q1 earnings" with no specific watch metric
+× Fabricated revenue figures not derivable from baseline_json.fy_revenue
 
-   YOU (the LLM) provide:
-   - Segment breakdown: names, current_revenue (from latest filings),
-     and projected growth rates per scenario
-   - Operating margin and net margin ESTIMATES per scenario (as decimals)
-   - PE multiple per scenario with rationale
-   - Headwind/tailwind items with revenue_at_risk or revenue_opportunity
-   - Qualitative narratives, factor analysis, competitive moats
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-   PYTHON computes (do NOT compute these yourself):
-   - EPS (from revenue × margin / shares)
-   - Price targets (from EPS × PE)
-   - Expected value and expected return
-   - Probability weights for bull/base/bear
-   - Headwind/tailwind EPS impact amounts
-   - Risk-adjusted scores
+{retry_hint}
 
-   For projected_eps in each scenario: provide your ESTIMATE but know
-   that Python will recompute it from (total_revenue × net_margin / shares).
-   If your estimate diverges >10% from what the math produces, Python wins.
-   This is intentional — it prevents circular reasoning.
-
-9. DOLLAR AMOUNTS IN TEXT: Never use $ signs in narrative text fields.
-    Write "7.8 billion" or "7.8B" not "$7.8B". Write "1,500 per ounce"
-    not "$1,500/oz". The rendering layer adds currency symbols.
-    This applies to: narrative, margin_rationale, pe_rationale,
-    business_overview, revenue_architecture, growth_drivers,
-    margin_analysis, financial_health, competitive_position,
-    headwind_narrative, tailwind_narrative, conclusion.
-    
-    In STRUCTURED NUMERIC FIELDS (revenue, eps, revenue_at_risk),
-    provide raw numbers without currency symbols.
-
-
-
-Return ONLY valid JSON. No HTML. No markdown fences. No text before
-or after the JSON.
+Return ONLY valid JSON matching the schema above. No HTML. No markdown. No text before
+or after the JSON object.

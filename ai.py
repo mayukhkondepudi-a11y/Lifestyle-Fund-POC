@@ -1,4 +1,6 @@
-"""AI orchestration: Anthropic primary, OpenRouter fallback. Two-pass architecture."""
+"""AI orchestration: Anthropic primary, OpenRouter fallback. Three-pass + compute architecture."""
+from __future__ import annotations
+
 import json
 import os
 import time
@@ -10,7 +12,14 @@ from compute import clean_latex
 from config import (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, FREE_MODELS,
                     FREE_MODELS_EXTENDED)
 from formatting import safe_float, fmt_c, fmt_n, fmt_p
-from compute import compute_scenario_math
+from compute import (
+    compute_scenario_math,
+    compute_scenarios_from_drivers,
+    derive_recommendation,
+    compute_fundamentals_diagnostic,
+    validate_pass1_inputs,
+    _compute_pe_ranges_per_scenario,
+)
 
 
 # ── Clients ──────────────────────────────────────────────────
@@ -33,6 +42,7 @@ def _load_prompt(filepath):
 SYSTEM_PROMPT = _load_prompt("prompt_system.txt")
 PASS1_PROMPT  = _load_prompt("prompt_pass1.txt")
 PASS2_PROMPT  = _load_prompt("prompt_pass2.txt")
+PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -144,91 +154,136 @@ def parse_json_response(raw, model="unknown"):
 # PASS 1: STRUCTURED ASSUMPTIONS
 # ══════════════════════════════════════════════════════════════
 
-def run_pass1(ticker, m, reverse_dcf_json):
-    msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
-    """Pass 1: Get structured assumptions from LLM."""
-    msgs = _build_pass1_messages(ticker, m, reverse_dcf_json)
-    raw, model, errors = run_ai(msgs, max_tokens=6000)
+def run_pass1(ticker, m, pe_ranges, extra_context=None):
+    """Pass 1: Get structured driver inputs from LLM."""
+    msgs = _build_pass1_messages(ticker, m, pe_ranges, extra_context=extra_context)
+    raw, model, errors = run_ai(msgs, max_tokens=3500)
     if raw is None:
-        return {"error": True, "details": errors}
+        return None, errors or ["run_ai returned None"]
     a, err = parse_json_response(raw, model)
     if err:
-        return {"error": True, "details": [err]}
+        return None, [err]
 
-    # Defaults
-    defaults = {
-        "segments": [], "concentration": {},
-        "headwinds": [], "tailwinds": [], "macro_drivers": [],
-        "scenarios": {
-            "bull": {"segment_builds": [], "total_revenue": 0,
-                     "operating_margin": 0, "net_margin": 0,
-                     "projected_eps": 0, "pe_multiple": 20,
-                     "pe_rationale": "N/A", "narrative": "N/A"},
-            "base": {"segment_builds": [], "total_revenue": 0,
-                     "operating_margin": 0, "net_margin": 0,
-                     "projected_eps": 0, "pe_multiple": 18,
-                     "pe_rationale": "N/A", "narrative": "N/A"},
-            "bear": {"segment_builds": [], "total_revenue": 0,
-                     "operating_margin": 0, "net_margin": 0,
-                     "projected_eps": 0, "pe_multiple": 14,
-                     "pe_rationale": "N/A", "narrative": "N/A"},
-        },
-        "market_expectations": {}, "sensitivity": {},
-        "catalysts": [], "peer_tickers": [],
-    }
-    for k, v in defaults.items():
-        if k not in a:
-            a[k] = v
+    # Defaults for optional fields
+    a.setdefault("segments", [])
+    a.setdefault("competitive_context", {})
+    a.setdefault("concentration", {})
+    a.setdefault("peer_tickers", [])
 
-    # Validate segment revenue totals
-    actual_revenue = safe_float(m.get("total_revenue"))
-    if actual_revenue > 0 and a.get("segments"):
-        segment_total = sum(safe_float(seg.get("current_revenue"))
-                            for seg in a["segments"])
-        if segment_total > 0:
-            rev_ratio = segment_total / actual_revenue
-            if rev_ratio < 0.5 or rev_ratio > 2.0:
-                print(f"  VALIDATION FAIL: Segment total ({segment_total:.0f}) vs "
-                      f"actual revenue ({actual_revenue:.0f}) = {rev_ratio:.2f}x")
-                return {
-                    "error": True,
-                    "details": [
-                        f"LLM segment revenues ({fmt_n(segment_total)}) do not match "
-                        f"actual company revenue ({fmt_n(actual_revenue)}). "
-                        f"The model may have analyzed the wrong company. Please retry."
-                    ]
-                }
-    return a
+    return a, []
 
-def _build_pass1_messages(ticker, m, reverse_dcf_json):
+
+def run_pass1_with_retry(ticker, m, pe_ranges, max_retries=1, extra_context=None):
+    """
+    Run pass 1 with schema validation and up to `max_retries` retry attempts.
+    Returns (validated_pass1_or_None, list_of_errors).
+    Soft-clamps importance > 0.5 in-place (not a retry trigger).
+    """
+    pass1, errors = run_pass1(ticker, m, pe_ranges, extra_context=extra_context)
+    if pass1 is None:
+        return None, errors
+
+    ok, val_errors = validate_pass1_inputs(pass1, m, pe_ranges)
+    if ok:
+        return pass1, []
+
+    print(f"  Pass1 validation failed ({len(val_errors)} errors): {val_errors[:3]}")
+    if max_retries <= 0:
+        return None, val_errors
+
+    # Retry once with the error list embedded
+    retry_context = (
+        "Your previous response failed validation with these errors:\n"
+        + "\n".join(f"- {e}" for e in val_errors)
+        + "\n\nRe-emit corrected JSON addressing all errors above."
+    )
+    pass1_retry, errors2 = run_pass1(
+        ticker, m, pe_ranges,
+        extra_context=(extra_context or "") + "\n" + retry_context
+    )
+    if pass1_retry is None:
+        return None, errors2
+
+    ok2, val_errors2 = validate_pass1_inputs(pass1_retry, m, pe_ranges)
+    if ok2:
+        return pass1_retry, []
+
+    print(f"  Pass1 retry also failed ({len(val_errors2)} errors); proceeding DEGRADED")
+    return pass1_retry, val_errors2
+
+
+def _build_pass1_messages(ticker, m, pe_ranges, extra_context=None):
+    # NOTE: news and latest_quarter are intentionally INCLUDED — see {recent_news_json}
+    # and {latest_quarter_json} below. They ground pass1 baselines in current filings.
+    exclude_keys = {"description", "news", "revenue_history", "net_income_history",
+                    "multi_year_financials", "stmt_eps_series", "capex_3y",
+                    "sbc_3y", "shares_outstanding_3y"}
     ms = json.dumps(
-        {k: v for k, v in m.items()
-         if k not in ["description", "news", "revenue_history", "net_income_history"]},
+        {k: v for k, v in m.items() if k not in exclude_keys},
         indent=2, default=str)
     description_snippet = (m.get("description") or "N/A")[:800]
 
-    replacements = {
-        "{ticker}": ticker,
-        "{company_name}": m.get("company_name", ticker),
-        "{metrics_json}": ms,
-        "{current_price}": str(m.get("current_price")),
-        "{trailing_pe}": str(m.get("trailing_pe")),
-        "{forward_pe}": str(m.get("forward_pe")),
-        "{ev_to_ebitda}": str(m.get("ev_to_ebitda")),
-        "{trailing_eps}": str(m.get("trailing_eps")),
-        "{forward_eps}": str(m.get("forward_eps")),
-        "{operating_margin}": str(m.get("operating_margin")),
-        "{profit_margin}": str(m.get("profit_margin")),
-        "{description}": description_snippet,
-        "{today_date}": datetime.now().strftime("%B %d, %Y"),
-        "{total_revenue}": fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
-        "{reverse_dcf_json}": reverse_dcf_json,
-        "{shares_outstanding}": str(m.get("shares_outstanding")),
-    }
+    peer_metrics = m.get("peer_metrics", [])
+    reverse_dcf  = m.get("reverse_dcf", {"available": False})
+
+    # Latest reported quarter (from quarterly income statement) — anchors forward baselines
+    latest_quarter = m.get("latest_quarter") or {}
+
+    # Analyst forward consensus — HARD constraint floor for scenario revenues
+    analyst_consensus = m.get("analyst_consensus") or {}
+
+    # Recent news headlines (last 90 days where timestamp is available)
+    import time
+    cutoff_ts = time.time() - (90 * 86400)
+    raw_news  = m.get("news") or []
+    news_summary = []
+    for n in raw_news[:8]:
+        ts = n.get("providerPublishTime") or n.get("provider_publish_time")
+        if ts and isinstance(ts, (int, float)) and ts < cutoff_ts:
+            continue  # older than 90 days
+        news_summary.append({
+            "title":     n.get("title", ""),
+            "publisher": n.get("publisher", ""),
+            "ts":        ts,
+        })
+
+    def _fmt_band(band):
+        if not band:
+            return "unavailable"
+        return (f"min={band['min']:.4f}, max={band['max']:.4f}, "
+                f"median={band['median']:.4f} (n={band.get('n',0)})")
+
+    def _fmt_pe_range(r):
+        if not r or len(r) < 2:
+            return "unavailable"
+        return f"[{r[0]:.1f}, {r[1]:.1f}]"
 
     user_prompt = PASS1_PROMPT
+    replacements = {
+        "{ticker}":          ticker,
+        "{company_name}":    m.get("company_name", ticker),
+        "{metrics_json}":    ms,
+        "{peer_metrics}":    json.dumps(peer_metrics, indent=2, default=str),
+        "{reverse_dcf}":     json.dumps(reverse_dcf, indent=2, default=str),
+        "{description}":     description_snippet,
+        "{today_date}":      datetime.now().strftime("%B %d, %Y"),
+        "{total_revenue}":   fmt_c(m.get("total_revenue"), m.get("currency", "USD")),
+        "{current_price}":   str(m.get("current_price")),
+        "{shares_outstanding}": str(m.get("shares_outstanding")),
+        "{op_margin_band}":  _fmt_band(m.get("op_margin_5y_band")),
+        "{tax_rate_band}":   _fmt_band(m.get("tax_rate_3y_band")),
+        "{pe_range_bull}":   _fmt_pe_range(pe_ranges.get("bull") if pe_ranges else None),
+        "{pe_range_base}":   _fmt_pe_range(pe_ranges.get("base") if pe_ranges else None),
+        "{pe_range_bear}":   _fmt_pe_range(pe_ranges.get("bear") if pe_ranges else None),
+        "{latest_quarter_json}":    json.dumps(latest_quarter, indent=2, default=str),
+        "{recent_news_json}":       json.dumps(news_summary, indent=2, default=str),
+        "{analyst_consensus_json}": json.dumps(analyst_consensus, indent=2, default=str),
+    }
     for key, val in replacements.items():
-        user_prompt = user_prompt.replace(key, val)
+        user_prompt = user_prompt.replace(key, str(val))
+
+    if extra_context:
+        user_prompt = extra_context.strip() + "\n\n" + user_prompt
 
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -236,30 +291,26 @@ def _build_pass1_messages(ticker, m, reverse_dcf_json):
     ]
 
 
-def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
-    """Pass 2: Get narrative from LLM seeing computed math."""
-    msgs = _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json)
-    raw, model, errors = run_ai(msgs, max_tokens=6000)
+def run_pass2(ticker, m, pass1_output, python_outputs, retry=False):
+    """Pass 2: Get narrative from LLM. python_outputs contains all computed numbers."""
+    msgs = _build_pass2_messages(ticker, m, pass1_output, python_outputs, retry=retry)
+    raw, model, errors = run_ai(msgs, max_tokens=7000)
     if raw is None:
         return {"error": True, "details": errors}
     a, err = parse_json_response(raw, model)
     if err:
         return {"error": True, "details": [err]}
 
-    # ── Clean LaTeX/dollar signs from all narrative fields ──
-    NARRATIVE_KEYS = [
-        "investment_thesis", "business_overview", "revenue_architecture",
-        "growth_drivers", "margin_analysis", "financial_health",
-        "competitive_position", "headwind_narrative", "tailwind_narrative",
-        "market_pricing_commentary", "scenario_commentary", "conclusion"
-    ]
-    for key in NARRATIVE_KEYS:
-        if key in a and isinstance(a[key], str):
-            a[key] = clean_latex(a[key])
+    # Clean LaTeX from all string fields
+    for key, val in a.items():
+        if isinstance(val, str):
+            a[key] = clean_latex(val)
+        elif isinstance(val, dict):
+            a[key] = {k2: clean_latex(v2) if isinstance(v2, str) else v2
+                      for k2, v2 in val.items()}
 
-    # ── Defaults ──
+    # Defaults
     defaults = {
-        "recommendation": "WATCH", "conviction": "Medium",
         "investment_thesis": "Analysis not available.",
         "business_overview": "Analysis not available.",
         "revenue_architecture": "Analysis not available.",
@@ -267,10 +318,12 @@ def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
         "margin_analysis": "Analysis not available.",
         "financial_health": "Analysis not available.",
         "competitive_position": "Analysis not available.",
-        "headwind_narrative": "Analysis not available.",
-        "tailwind_narrative": "Analysis not available.",
-        "market_pricing_commentary": "Analysis not available.",
-        "scenario_commentary": "Analysis not available.",
+        "driver_narratives": {},
+        "scenario_commentary": {"bull": "", "base": "", "bear": ""},
+        "reverse_dcf_commentary": "",
+        "monitoring_dashboard_intro": "",
+        "catalysts_intro": "",
+        "recommendation_rationale": "",
         "conclusion": "Analysis not available.",
     }
     for k, v in defaults.items():
@@ -284,61 +337,76 @@ def run_pass2(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
 # PASS 2: NARRATIVE
 # ══════════════════════════════════════════════════════════════
 
-def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_json):
-    ms = json.dumps(
-        {k: v for k, v in m.items()
-         if k not in ["description", "news", "revenue_history", "net_income_history"]},
-        indent=2, default=str)
+def _build_pass2_messages(ticker, m, pass1_output, python_outputs, retry=False):
     description_snippet = (m.get("description") or "N/A")[:800]
 
-    sm = scenario_math
-    scenarios = sm.get("scenarios", {})
-    math_summary = {
-        "expected_value":        sm.get("expected_value"),
-        "expected_return":       f"{sm.get('expected_return', 0) * 100:.1f}%",
-        "prob_positive_return":  f"{sm.get('prob_positive_return', 0) * 100:.0f}%",
-        "risk_adjusted_score":   sm.get("risk_adjusted_score"),
-        "upside_downside_ratio": sm.get("upside_downside_ratio"),
-    }
-    for sname in ["bull", "base", "bear"]:
-        s = scenarios.get(sname, {})
-        math_summary[f"{sname}_price_target"]    = s.get("price_target")
-        math_summary[f"{sname}_implied_return"]  = f"{s.get('implied_return', 0) * 100:.1f}%"
-        math_summary[f"{sname}_probability"]     = f"{s.get('probability', 0) * 100:.0f}%"
-        math_summary[f"{sname}_eps"]             = s.get("projected_eps")
-        math_summary[f"{sname}_pe"]              = s.get("pe_multiple")
-        math_summary[f"{sname}_revenue"]         = s.get("total_revenue")
-        math_summary[f"{sname}_op_margin"]       = s.get("operating_margin")
-        math_summary[f"{sname}_fcf_yield"]       = s.get("fcf_yield_at_target")
-        math_summary[f"{sname}_breakeven_pe"]    = s.get("breakeven_pe")
-        math_summary[f"{sname}_margin_rationale"] = s.get("margin_rationale")
+    probs  = python_outputs.get("final_probabilities", {})
+    pt     = python_outputs.get("price_target", {})
+    eps    = python_outputs.get("eps", {})
+    si     = pass1_output.get("scenario_inputs", {})
+    rev    = python_outputs.get("scenario_revenue", {})
+    rdcf   = m.get("reverse_dcf", {})
 
-    mkt = sm.get("market_expectations", {})
-    hw_tw = {
-        "headwinds": pass1_output.get("headwinds", []),
-        "tailwinds": pass1_output.get("tailwinds", []),
+    rec        = python_outputs.get("recommendation", "WATCH")
+    conviction = python_outputs.get("conviction", "Medium")
+    flags      = {
+        "monotonicity_violation": python_outputs.get("monotonicity_violation", False),
+        "divergence_flag":        python_outputs.get("diagnostic", {}).get("divergence_flag", False),
+        "degraded_sections":      python_outputs.get("degraded_sections", []),
     }
 
-    replacements = {
-        "{ticker}": ticker,
-        "{company_name}": m.get("company_name", ticker),
-        "{metrics_json}": ms,
-        "{description}": description_snippet,
-        "{segments_json}": json.dumps(pass1_output.get("segments", []),
-                                       indent=2, default=str),
-        "{scenario_math_json}": json.dumps(math_summary, indent=2, default=str),
-        "{market_expectations_json}": json.dumps(mkt, indent=2, default=str),
-        "{headwinds_tailwinds_json}": json.dumps(hw_tw, indent=2, default=str),
-        "{expected_return}": math_summary["expected_return"],
-        "{prob_positive}": math_summary["prob_positive_return"],
-        "{base_implied_return}": math_summary.get("base_implied_return", "N/A"),
-        "{risk_adjusted_score}": str(sm.get("risk_adjusted_score")),
-        "{upside_downside_ratio}": str(sm.get("upside_downside_ratio")),
-        "{implied_vs_base}": mkt.get("vs_base_case", "N/A"),
-        "{reverse_dcf_json}": reverse_dcf_json,
+    math_block = {
+        "expected_value":        python_outputs.get("expected_value"),
+        "expected_return_pct":   f"{python_outputs.get('expected_return', 0)*100:.1f}%",
+        "base_implied_return_pct": f"{python_outputs.get('base_implied_return', 0)*100:.1f}%",
+        "prob_positive_pct":     f"{python_outputs.get('prob_positive', 0)*100:.0f}%",
+        "upside_downside_ratio": python_outputs.get("upside_downside_ratio"),
+        "future_shares":         python_outputs.get("future_shares"),
+        "implied_fcf_cagr":      rdcf.get("implied_fcf_cagr"),
     }
+
+    # Focused financial-health block — exact field names the financial_health prompt cites
+    financial_metrics = {
+        "sbc_ttm":             m.get("sbc_ttm"),
+        "sbc_to_revenue":      m.get("sbc_to_revenue"),
+        "capex_ttm":           m.get("capex_ttm"),
+        "capex_to_revenue":    m.get("capex_to_revenue"),
+        "dilution_rate_3y":    m.get("dilution_rate_3y"),
+        "goodwill":            m.get("goodwill"),
+        "goodwill_to_equity":  m.get("goodwill_to_equity"),
+        "debt_to_equity":      m.get("debt_to_equity"),
+        "free_cashflow":       m.get("free_cashflow"),
+        "operating_margin_ttm": m.get("operating_margin"),
+        "fcf_yield":           m.get("fcf_yield"),
+        "current_ratio":       m.get("current_ratio"),
+    }
+    for s in ("bull", "base", "bear"):
+        math_block[f"{s}_probability_pct"] = f"{probs.get(s, 0)*100:.0f}%"
+        math_block[f"{s}_price_target"]    = pt.get(s)
+        math_block[f"{s}_eps"]             = round(eps.get(s, 0), 4)
+        math_block[f"{s}_revenue"]         = rev.get(s)
+        math_block[f"{s}_op_margin_pct"]   = f"{si.get(s, {}).get('op_margin', 0)*100:.1f}%"
+        math_block[f"{s}_tax_rate_pct"]    = f"{si.get(s, {}).get('tax_rate', 0)*100:.1f}%"
+        math_block[f"{s}_pe"]              = si.get(s, {}).get("pe_multiple_pick")
 
     user_prompt = PASS2_PROMPT
+    replacements = {
+        "{ticker}":             ticker,
+        "{company_name}":       m.get("company_name", ticker),
+        "{description}":        description_snippet,
+        "{recommendation}":     rec,
+        "{conviction}":         conviction,
+        "{pass1_json}":         json.dumps(pass1_output, indent=2, default=str),
+        "{python_outputs_json}": json.dumps(math_block, indent=2, default=str),
+        "{flags_json}":         json.dumps(flags, indent=2, default=str),
+        "{financial_metrics_json}": json.dumps(financial_metrics, indent=2, default=str),
+        "{today_date}":         datetime.now().strftime("%B %d, %Y"),
+        "{retry_hint}":         (
+            "RETRY: Your previous response lacked the required paragraph depth "
+            "(≥2 paragraphs in investment_thesis and conclusion). Please expand."
+            if retry else ""
+        ),
+    }
     for key, val in replacements.items():
         user_prompt = user_prompt.replace(key, str(val))
 
@@ -349,85 +417,615 @@ def _build_pass2_messages(ticker, m, scenario_math, pass1_output, reverse_dcf_js
 
 
 # ══════════════════════════════════════════════════════════════
+# PASS 3: SELF-CHECK
+# ══════════════════════════════════════════════════════════════
+
+def run_pass3_selfcheck(ticker, m, pass1_output, python_outputs, pass2_output):
+    """Pass 3: Auditor LLM checks pass-2 narrative for consistency. Returns audit dict."""
+    msgs = _build_pass3_messages(ticker, m, pass1_output, python_outputs, pass2_output)
+    raw, model, errors = run_ai(msgs, max_tokens=1500)
+    if raw is None:
+        return {"error": True, "details": errors}
+    a, err = parse_json_response(raw, model)
+    if err:
+        return {
+            "consistency_flags": [],
+            "numbers_outside_source": [],
+            "tone_label_mismatch": False,
+            "tone_label_evidence": None,
+            "parse_error": err,
+        }
+    a.setdefault("consistency_flags", [])
+    a.setdefault("numbers_outside_source", [])
+    a.setdefault("tone_label_mismatch", False)
+    a.setdefault("tone_label_evidence", None)
+    return a
+
+
+def _build_pass3_messages(ticker, m, pass1_output, python_outputs, pass2_output):
+    probs = python_outputs.get("final_probabilities", {})
+    pt    = python_outputs.get("price_target", {})
+    eps   = python_outputs.get("eps", {})
+    rev   = python_outputs.get("scenario_revenue", {})
+    si    = pass1_output.get("scenario_inputs", {})
+    lq    = m.get("latest_quarter") or {}
+
+    allowed_sources = {
+        # Deterministic Python outputs
+        "recommendation":        python_outputs.get("recommendation"),
+        "conviction":            python_outputs.get("conviction"),
+        "expected_value":        python_outputs.get("expected_value"),
+        "expected_return":       python_outputs.get("expected_return"),
+        "base_implied_return":   python_outputs.get("base_implied_return"),
+        "prob_positive":         python_outputs.get("prob_positive"),
+        "upside_downside_ratio": python_outputs.get("upside_downside_ratio"),
+        "future_shares":         python_outputs.get("future_shares"),
+        # Per-scenario probabilities, targets, EPS, revenue
+        "bull_probability":      probs.get("bull"),
+        "base_probability":      probs.get("base"),
+        "bear_probability":      probs.get("bear"),
+        "bull_price_target":     pt.get("bull"),
+        "base_price_target":     pt.get("base"),
+        "bear_price_target":     pt.get("bear"),
+        "bull_eps":              eps.get("bull"),
+        "base_eps":              eps.get("base"),
+        "bear_eps":              eps.get("bear"),
+        "bull_revenue":          rev.get("bull"),
+        "base_revenue":          rev.get("base"),
+        "bear_revenue":          rev.get("bear"),
+        # Per-scenario inputs (op margin, P/E, tax rate)
+        "bull_op_margin":        si.get("bull", {}).get("op_margin"),
+        "base_op_margin":        si.get("base", {}).get("op_margin"),
+        "bear_op_margin":        si.get("bear", {}).get("op_margin"),
+        "bull_pe_multiple":      si.get("bull", {}).get("pe_multiple_pick"),
+        "base_pe_multiple":      si.get("base", {}).get("pe_multiple_pick"),
+        "bear_pe_multiple":      si.get("bear", {}).get("pe_multiple_pick"),
+        "bull_tax_rate":         si.get("bull", {}).get("tax_rate"),
+        "base_tax_rate":         si.get("base", {}).get("tax_rate"),
+        "bear_tax_rate":         si.get("bear", {}).get("tax_rate"),
+        # Verified company TTM metrics
+        "current_price":         m.get("current_price"),
+        "total_revenue":         m.get("total_revenue"),
+        "operating_margin_ttm":  m.get("operating_margin"),
+        "fcf_yield":             m.get("fcf_yield"),
+        "free_cashflow":         m.get("free_cashflow"),
+        "implied_fcf_cagr":      m.get("reverse_dcf", {}).get("implied_fcf_cagr"),
+        # Latest-quarter facts (visible to audit so it doesn't flag legitimate citations)
+        "latest_quarter_revenue":   lq.get("revenue"),
+        "latest_quarter_op_margin": lq.get("operating_margin"),
+        "latest_quarter_period":    lq.get("period_label"),
+        "latest_quarter_eps":       lq.get("diluted_eps"),
+        "driver_count":             len(pass1_output.get("drivers", [])),
+    }
+
+    prompt = PASS3_PROMPT
+    replacements = {
+        "{ticker}":              ticker,
+        "{recommendation}":      python_outputs.get("recommendation", "WATCH"),
+        "{pass2_json}":          json.dumps(pass2_output, indent=2, default=str),
+        "{allowed_sources_json}": json.dumps(allowed_sources, indent=2, default=str),
+        "{pass1_json}":          json.dumps(pass1_output, indent=2, default=str),
+    }
+    for key, val in replacements.items():
+        prompt = prompt.replace(key, str(val))
+
+    return [
+        {"role": "system", "content": "You are an internal audit system for equity research reports. Respond only with valid JSON."},
+        {"role": "user",   "content": prompt},
+    ]
+
+
+# ══════════════════════════════════════════════════════════════
 # TWO-PASS ORCHESTRATOR
 # (No @st.cache_data here - app.py wraps with caching)
 # ══════════════════════════════════════════════════════════════
 
-def run_two_pass(ticker, m, pass1_fn=None, pass2_fn=None):
+def _paragraph_count_check_failed(pass2):
+    """Return True if investment_thesis or conclusion lack ≥2 paragraphs."""
+    for field in ("investment_thesis", "conclusion"):
+        text = pass2.get(field, "")
+        if isinstance(text, str) and text.count("\n\n") < 1:
+            return True
+    return False
+
+
+def _check_divergence(diagnostic, scenario_math):
+    """Flag if any signal-implied prob differs from driver-derived by >15pp."""
+    sig = diagnostic.get("signal_implied_probabilities", {})
+    drv = scenario_math.get("final_probabilities", {})
+    for s in ("bull", "base", "bear"):
+        if abs(sig.get(s, 0) - drv.get(s, 0)) > 0.15:
+            return True
+    return False
+
+
+def _emit_degraded_report(ticker, m, reason, errors):
+    """Return a minimal report dict with a DEGRADED banner when pipeline fails."""
+    return {
+        "recommendation":   "WATCH",
+        "conviction":       "Low",
+        "investment_thesis": (
+            f"DEGRADED — report unavailable: {reason}.\n\n"
+            f"Errors: {'; '.join(str(e) for e in (errors or [])[:3])}"
+        ),
+        "business_overview": "", "revenue_architecture": "",
+        "growth_drivers": "", "margin_analysis": "", "financial_health": "",
+        "competitive_position": "", "scenario_commentary": {"bull": "", "base": "", "bear": ""},
+        "driver_narratives": {}, "reverse_dcf_commentary": "",
+        "monitoring_dashboard_intro": "", "catalysts_intro": "",
+        "recommendation_rationale": "Report generation failed.", "conclusion": "",
+        "model_used": "N/A",
+        "segments": [], "drivers": [], "scenario_inputs": {},
+        "monitoring_kpis": [], "catalysts": [], "peer_tickers": [],
+        "concentration": {}, "competitive_context": {},
+        "scenario_math": {},
+        "python_outputs": {"recommendation": "WATCH", "conviction": "Low"},
+        "pass3": {},
+        "degraded_sections": [reason],
+        "data_quality_warnings": [f"DEGRADED:{reason}"] + list(errors or []),
+    }
+
+
+def run_two_pass(ticker, m):
     """
-    Full orchestration:
-    1. Pass 1 (assumptions) -> 2. Python math -> 3. Pass 2 (narrative) -> 4. Merge
+    Three-pass + Python compute orchestration.
+    Phase A: pass 1 (inputs JSON) + validation retry
+    Phase B: Python compute layer (deterministic math)
+    Phase C: pass 2 (narrative)
+    Phase D: pass 3 (self-check)
     """
-    _pass1 = pass1_fn or (lambda t, m_dict: run_pass1(t, m_dict))
-    _pass2 = pass2_fn or (lambda t, m_dict, sm, p1: run_pass2(t, m_dict, sm, p1))
+    peer_metrics = m.get("peer_metrics", [])
+    pe_ranges    = _compute_pe_ranges_per_scenario(m, peer_metrics)
 
-    # Pass 1
-    pass1 = _pass1(ticker, m)
-    if isinstance(pass1, dict) and pass1.get("error"):
-        return pass1
+    # ── Phase A: Pass 1 with retry ────────────────────────────
+    pass1, p1_errors = run_pass1_with_retry(ticker, m, pe_ranges, max_retries=1)
+    if not pass1:
+        return _emit_degraded_report(ticker, m, "pass1_failed", p1_errors)
 
-    # Python math
-    scenario_math = compute_scenario_math(m, pass1)
+    degraded_sections = []
+    if p1_errors:  # non-empty means second attempt also had issues
+        degraded_sections.append("pass1_validation_partial")
 
-    # Pass 2
-    pass2 = _pass2(ticker, m, scenario_math, pass1)
+    # ── Phase B: Python compute layer ─────────────────────────
+    current_price = safe_float(m.get("current_price", 0))
+    scenario_math = compute_scenarios_from_drivers(m, pass1, current_price)
+
+    # Consolidated scenario-sanity check: monotonicity + bull-below-current.
+    # Single retry that addresses ALL detected issues at once.
+    def _sanity_warnings(sm):
+        warnings = []
+        if sm.get("monotonicity_violation"):
+            warnings.append(("monotonicity_violation", sm.get("violation_msg", "")))
+        if sm.get("bull_below_current"):
+            warnings.append(("bull_below_current", sm.get("bull_below_msg", "")))
+        return warnings
+
+    initial_warnings = _sanity_warnings(scenario_math)
+    if initial_warnings:
+        retry_ctx = (
+            "Scenario sanity issues detected — please reconsider:\n"
+            + "\n".join(f"- {msg}" for _, msg in initial_warnings)
+        )
+        pass1_retry, _ = run_pass1_with_retry(
+            ticker, m, pe_ranges, max_retries=1, extra_context=retry_ctx
+        )
+        if pass1_retry:
+            scenario_math_retry = compute_scenarios_from_drivers(
+                m, pass1_retry, current_price)
+            retry_warnings = _sanity_warnings(scenario_math_retry)
+            # Accept retry only if it RESOLVED at least one warning without adding new ones
+            initial_keys = {k for k, _ in initial_warnings}
+            retry_keys   = {k for k, _ in retry_warnings}
+            if retry_keys < initial_keys or (retry_keys == initial_keys and len(retry_warnings) < len(initial_warnings)):
+                pass1 = pass1_retry
+                scenario_math = scenario_math_retry
+                final_warnings = retry_warnings
+            else:
+                final_warnings = initial_warnings
+        else:
+            final_warnings = initial_warnings
+        for k, _ in final_warnings:
+            if k not in degraded_sections:
+                degraded_sections.append(k)
+
+    rec_label, conviction = derive_recommendation(scenario_math)
+    diagnostic = compute_fundamentals_diagnostic(m, scenario_math.get("final_probabilities"))
+    diagnostic["divergence_flag"] = _check_divergence(diagnostic, scenario_math)
+
+    python_outputs = {
+        **scenario_math,
+        "recommendation":         rec_label,
+        "conviction":             conviction,
+        "diagnostic":             diagnostic,
+        "degraded_sections":      degraded_sections,
+        "pe_ranges":              pe_ranges,
+        "pass1_validation_errors": p1_errors or [],
+    }
+
+    # ── Phase C: Pass 2 narrative ─────────────────────────────
+    pass2 = run_pass2(ticker, m, pass1, python_outputs)
     if isinstance(pass2, dict) and pass2.get("error"):
-        return pass2
+        pass2 = {"model_used": "N/A", "investment_thesis": "Narrative unavailable."}
 
-    # Merge
-    final = {}
-    for key in ["recommendation", "conviction", "investment_thesis",
-                "business_overview", "revenue_architecture", "growth_drivers",
-                "margin_analysis", "financial_health", "competitive_position",
-                "headwind_narrative", "tailwind_narrative",
-                "market_pricing_commentary", "scenario_commentary",
-                "conclusion", "model_used"]:
-        final[key] = pass2.get(key, "")
+    if _paragraph_count_check_failed(pass2):
+        pass2_retry = run_pass2(ticker, m, pass1, python_outputs, retry=True)
+        if not (isinstance(pass2_retry, dict) and pass2_retry.get("error")):
+            pass2 = pass2_retry
 
-    for key in ["segments", "concentration", "headwinds", "tailwinds",
-                "macro_drivers", "scenarios", "catalysts", "peer_tickers",
-                "market_expectations", "sensitivity"]:
-        final[key] = pass1.get(key, {} if key in ["concentration",
-                     "market_expectations", "sensitivity"] else [])
+    # ── Phase D: Pass 3 self-check ────────────────────────────
+    pass3 = run_pass3_selfcheck(ticker, m, pass1, python_outputs, pass2)
 
-    final["scenario_math"] = scenario_math
+    return _merge_outputs(pass1, python_outputs, pass2, pass3)
 
-    # Consistency override
-    exp_ret  = scenario_math.get("expected_return", 0)
-    prob_pos = scenario_math.get("prob_positive_return", 0)
-    rec      = final["recommendation"].upper()
-    base_ret = (scenario_math.get("scenarios", {})
-                              .get("base", {})
-                              .get("implied_return", 0))
 
-    if rec == "BUY" and exp_ret < -0.20 and prob_pos < 0.25:
-        final["recommendation"] = "PASS"
-        final["conviction"] = "High"
-        final["rec_override_reason"] = (
-            f"Override: LLM recommended BUY despite expected return of "
-            f"{exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return.")
-    elif rec == "PASS" and exp_ret > 0.20 and prob_pos > 0.70:
-        final["recommendation"] = "BUY"
-        final["conviction"] = "Medium"
-        final["rec_override_reason"] = (
-            f"Override: LLM recommended PASS despite expected return of "
-            f"{exp_ret*100:.1f}% and {prob_pos*100:.0f}% probability of positive return.")
-    elif rec == "BUY" and base_ret < -0.10:
-        # Most-likely outcome is a loss; positive EV alone doesn't justify BUY.
-        final["recommendation"] = "WATCH"
-        final["conviction"] = "Medium"
-        final["rec_override_reason"] = (
-            f"Override: LLM recommended BUY but base case implies a "
-            f"{base_ret*100:.1f}% drawdown (50%+ probability mass).")
-    elif rec == "WATCH" and base_ret < -0.15 and prob_pos <= 0.40:
-        # Already WATCH but the asymmetry is severe — surface it.
-        final["rec_override_reason"] = (
-            f"Note: base case implies {base_ret*100:.1f}% drawdown and only "
-            f"{prob_pos*100:.0f}% of probability mass sits above current price. "
-            f"Positive expected return ({exp_ret*100:+.1f}%) is driven entirely "
-            f"by the bull-case tail.")
+def _merge_outputs(pass1, python_outputs, pass2, pass3):
+    """Merge all passes into the final report dict."""
+    rec   = python_outputs.get("recommendation", "WATCH")
+    conv  = python_outputs.get("conviction", "Medium")
+    sm    = python_outputs  # scenario_math fields are at top level
 
+    final = {
+        # Deterministic
+        "recommendation":  rec,
+        "conviction":      conv,
+        "model_used":      pass2.get("model_used", ""),
+        # Narrative from pass 2
+        "investment_thesis":        _cl(pass2.get("investment_thesis", "")),
+        "business_overview":        _cl(pass2.get("business_overview", "")),
+        "revenue_architecture":     _cl(pass2.get("revenue_architecture", "")),
+        "growth_drivers":           _cl(pass2.get("growth_drivers", "")),
+        "margin_analysis":          _cl(pass2.get("margin_analysis", "")),
+        "financial_health":         _cl(pass2.get("financial_health", "")),
+        "competitive_position":     _cl(pass2.get("competitive_position", "")),
+        "driver_narratives":        {
+            k: _cl(v) for k, v in pass2.get("driver_narratives", {}).items()
+        },
+        "scenario_commentary":      pass2.get("scenario_commentary", {}),
+        "reverse_dcf_commentary":   _cl(pass2.get("reverse_dcf_commentary", "")),
+        "monitoring_dashboard_intro": _cl(pass2.get("monitoring_dashboard_intro", "")),
+        "catalysts_intro":          _cl(pass2.get("catalysts_intro", "")),
+        "recommendation_rationale": _cl(pass2.get("recommendation_rationale", "")),
+        "conclusion":               _cl(pass2.get("conclusion", "")),
+        # Structured from pass 1
+        "segments":          pass1.get("segments", []),
+        "drivers":           pass1.get("drivers", []),
+        "scenario_inputs":   pass1.get("scenario_inputs", {}),
+        "monitoring_kpis":   pass1.get("monitoring_kpis", []),
+        "catalysts":         pass1.get("catalysts", []),
+        "concentration":     pass1.get("concentration", {}),
+        "competitive_context": pass1.get("competitive_context", {}),
+        "peer_tickers":      pass1.get("peer_tickers", []),
+        # Math
+        "scenario_math":     sm,
+        "python_outputs":    python_outputs,
+        "pass3":             pass3,
+        # Legacy fields (kept for backward compat with app.py render paths)
+        "headwind_narrative":        "",
+        "tailwind_narrative":        "",
+        "market_pricing_commentary": "",
+        "scenarios":                 {},  # old format; render uses python_outputs
+        "headwinds":                 [],
+        "tailwinds":                 [],
+        "macro_drivers":             [],
+        "market_expectations":       {},
+        "sensitivity":               {},
+        "data_quality_warnings": (
+            list(python_outputs.get("degraded_sections") or []) +
+            list(python_outputs.get("guard_warnings") or []) +
+            [f"pass1_validation: {e}" for e in (python_outputs.get("pass1_validation_errors") or [])]
+        ),
+    }
     return final
+
+
+def _cl(text):
+    """Apply clean_latex to a string; return '' for non-strings."""
+    if isinstance(text, str):
+        return clean_latex(text)
+    return ""
+
+
+# ══════════════════════════════════════════════════════════════
+# v2 TYPED EXCEPTIONS
+# ══════════════════════════════════════════════════════════════
+
+class Pass1ValidationError(Exception):
+    """Raised when §5.2 validation fails after retry. No DEGRADED path — surface to UI."""
+    def __init__(self, errors: list):
+        self.errors = list(errors)
+        super().__init__(f"Pass1 v2 validation failed ({len(errors)} errors): {errors[:2]}")
+
+
+class BullCaseTooLowError(Exception):
+    """
+    Raised by run_methodology_math when bull EPS < ANALYST_CONSENSUS_HARD_GAP_FRAC ×
+    consensus_eps_fy2.high. Triggers ONE Pass 1 retry with a calibration hint (§6 Step D).
+    """
+    def __init__(self, bull_eps: float, consensus_high: float):
+        self.bull_eps = bull_eps
+        self.consensus_high = consensus_high
+        super().__init__(
+            f"Bull EPS ${bull_eps:.2f} is too far below consensus_high ${consensus_high:.2f}; "
+            f"trigger Pass 1 retry with calibration hint."
+        )
+
+
+# ══════════════════════════════════════════════════════════════
+# v2 PASS 1 — FOUNDATION
+# ══════════════════════════════════════════════════════════════
+
+def _validate_pass1_v2(pass1: dict) -> tuple:
+    """
+    Validate §5.2 contract. Returns (soft_errors, hard_errors).
+
+    hard_errors  — math-critical: macro_drivers or events missing/malformed.
+                   Always raise Pass1ValidationError after two failed attempts.
+    soft_errors  — report-quality: missing catalysts, pe_anchors sub-fields, etc.
+                   Trigger one retry with a corrective hint; non-blocking if still
+                   present after retry (proceed with a logged warning).
+
+    This split is intentional: the downstream math layer can run without catalysts
+    or pe_anchors text; it cannot run without events and macro_drivers.
+    """
+    soft: list[str] = []
+    hard: list[str] = []
+
+    # ── Math-critical keys — hard on any pass ───────────────────────────────
+    for k in ("macro_drivers", "events"):
+        if k not in pass1:
+            hard.append(f"missing math-critical key: {k}")
+
+    if hard:
+        return soft, hard  # can't validate sub-fields
+
+    # ── Report-quality keys — soft (retry-eligible) ──────────────────────────
+    for k in ("corporate_dna", "segments_enriched", "primary_growth_driver",
+              "peer_set_enriched", "pe_anchors", "catalysts"):
+        if k not in pass1:
+            soft.append(f"missing key: {k}")
+
+    # macro_drivers: exactly 3 with ids A/B/C
+    mds = pass1.get("macro_drivers", [])
+    if len(mds) != 3:
+        hard.append(f"macro_drivers must have exactly 3 entries, got {len(mds)}")
+    else:
+        actual_ids = {d.get("id") for d in mds}
+        if actual_ids != {"A", "B", "C"}:
+            hard.append(f"macro_drivers ids must be exactly {{A, B, C}}, got {actual_ids}")
+        for md in mds:
+            if not md.get("label"):
+                soft.append(f"macro_driver {md.get('id', '?')}: missing label")
+            if not md.get("narrative"):
+                soft.append(f"macro_driver {md.get('id', '?')}: missing narrative")
+
+    # events: 6-12 total; each driver ≥ 2; probabilities sum to 1.0 per driver
+    events = pass1.get("events", [])
+    if len(events) < 6:
+        hard.append(f"events must have 6-12 entries, got {len(events)} (too few)")
+    elif len(events) > 12:
+        soft.append(f"events has {len(events)} entries (spec max is 12)")
+
+    driver_event_counts: dict[str, int] = {}
+    driver_prob_sums: dict[str, float] = {}
+    for ev in events:
+        d = ev.get("driver", "")
+        driver_event_counts[d] = driver_event_counts.get(d, 0) + 1
+        prob = ev.get("probability", 0.0)
+        try:
+            driver_prob_sums[d] = driver_prob_sums.get(d, 0.0) + float(prob)
+        except (TypeError, ValueError):
+            pass
+
+    for d in ("A", "B", "C"):
+        if driver_event_counts.get(d, 0) < 2:
+            hard.append(
+                f"driver {d} must have ≥ 2 events, got {driver_event_counts.get(d, 0)}"
+            )
+        psum = driver_prob_sums.get(d, 0.0)
+        if abs(psum - 1.0) > 0.05:
+            soft.append(
+                f"driver {d} event probabilities sum to {psum:.3f} (must be 1.0 ±0.05)"
+            )
+
+    for ev in events:
+        ev_id = ev.get("id", f"[driver={ev.get('driver','?')}]")
+
+        prob = ev.get("probability")
+        if prob is None:
+            soft.append(f"event {ev_id}: missing probability")
+        else:
+            try:
+                if not (0.0 <= float(prob) <= 1.0):
+                    soft.append(f"event {ev_id}: probability={prob} out of [0,1]")
+            except (TypeError, ValueError):
+                soft.append(f"event {ev_id}: probability not numeric: {prob!r}")
+
+        outcome = ev.get("outcome")
+        if outcome not in ("bull", "base", "bear"):
+            soft.append(f"event {ev_id}: outcome={outcome!r} must be bull/base/bear")
+
+        low  = ev.get("revenue_at_risk_low")
+        high = ev.get("revenue_at_risk_high")
+        if low is None or high is None:
+            soft.append(f"event {ev_id}: missing revenue_at_risk_low or _high")
+        else:
+            try:
+                if float(high) < float(low):
+                    soft.append(
+                        f"event {ev_id}: revenue_at_risk_high ({high}) < low ({low})"
+                    )
+            except (TypeError, ValueError):
+                soft.append(f"event {ev_id}: revenue_at_risk values not numeric")
+
+        op = ev.get("op_margin_to_apply")
+        if op is None:
+            soft.append(f"event {ev_id}: missing op_margin_to_apply")
+        else:
+            try:
+                if not (0.0 <= float(op) <= 1.0):
+                    soft.append(f"event {ev_id}: op_margin_to_apply={op} out of [0,1]")
+            except (TypeError, ValueError):
+                soft.append(f"event {ev_id}: op_margin_to_apply not numeric: {op!r}")
+
+        tax = ev.get("tax_rate_to_apply")
+        if tax is None:
+            soft.append(f"event {ev_id}: missing tax_rate_to_apply")
+        else:
+            try:
+                if not (0.0 <= float(tax) <= 0.5):
+                    soft.append(f"event {ev_id}: tax_rate_to_apply={tax} out of [0, 0.5]")
+            except (TypeError, ValueError):
+                soft.append(f"event {ev_id}: tax_rate_to_apply not numeric: {tax!r}")
+
+        if not ev.get("evidence"):
+            soft.append(f"event {ev_id}: missing evidence field")
+
+    # pe_anchors: all three scenarios; reasoning must be present
+    pe_anchors = pass1.get("pe_anchors", {})
+    for scenario in ("bull", "base", "bear"):
+        anchor = pe_anchors.get(scenario)
+        if not isinstance(anchor, dict):
+            soft.append(f"pe_anchors.{scenario}: missing or wrong type (need dict with 'reasoning')")
+        elif not anchor.get("reasoning"):
+            soft.append(f"pe_anchors.{scenario}: missing reasoning field")
+
+    # catalysts: 3-6 entries with required fields
+    cats = pass1.get("catalysts", [])
+    if len(cats) < 3:
+        soft.append(f"catalysts must have 3-6 entries, got {len(cats)} (too few)")
+    elif len(cats) > 6:
+        soft.append(f"catalysts has {len(cats)} entries (spec max is 6)")
+    for cat in cats:
+        if not cat.get("date"):
+            soft.append(f"catalyst missing date: {cat.get('event', '?')!r}")
+        if not cat.get("event"):
+            soft.append("catalyst missing event field")
+        if not cat.get("what_to_watch"):
+            soft.append(f"catalyst missing what_to_watch: {cat.get('event', '?')!r}")
+
+    return soft, hard
+
+
+def run_pass1_foundation(
+    ticker: str,
+    baseline: dict,
+    max_passes: int = 2,
+    retry_hint: str = "",
+) -> dict:
+    """
+    Pass 1 v2: build §5.2 qualitative input pack from baseline (§5.1).
+
+    Fault-tolerant:
+      - Soft errors on first attempt → retry once with corrective hint.
+      - Hard errors after retry → raise Pass1ValidationError (no DEGRADED path).
+      - retry_hint: pre-populated by orchestrator when BullCaseTooLowError was raised.
+
+    Args:
+        ticker:      stock ticker
+        baseline:    §5.1 baseline dict from calc_baseline
+        max_passes:  1 = no retry; 2 = retry once on errors (default)
+        retry_hint:  populated by orchestrator when BullCaseTooLowError fires
+    """
+    company_name = baseline.get("company_name", ticker)
+    recent_news  = baseline.get("recent_news", [])
+    # Exclude large nested fields to keep prompt size manageable
+    _exclude = {"recent_news", "history_3y"}
+    baseline_for_prompt = {k: v for k, v in baseline.items() if k not in _exclude}
+
+    def _build_messages(corrective: str = "") -> list:
+        prompt = PASS1_PROMPT
+        # On a calibration retry from BullCaseTooLowError the hint goes at the top
+        hint = corrective or retry_hint
+        replacements = {
+            "{ticker}":            ticker,
+            "{company_name}":      company_name,
+            "{baseline_json}":     json.dumps(baseline_for_prompt, indent=2, default=str),
+            "{recent_news_json}":  json.dumps(recent_news, indent=2, default=str),
+            "{retry_hint}":        hint,
+        }
+        p = prompt
+        for k, v in replacements.items():
+            p = p.replace(k, str(v))
+        return [
+            {"role": "system",
+             "content": "You are an equity research analyst. Respond with valid JSON only, no prose before or after."},
+            {"role": "user", "content": p},
+        ]
+
+    # ── First attempt ────────────────────────────────────────────────────────
+    raw, model, errors = run_ai(_build_messages(), max_tokens=4500)
+    if raw is None:
+        raise Pass1ValidationError(errors or ["run_ai returned None on first attempt"])
+
+    pass1, parse_err = parse_json_response(raw, model)
+    if parse_err or pass1 is None:
+        if max_passes <= 1:
+            raise Pass1ValidationError([parse_err or "JSON parse failed on first attempt"])
+        corrective = (
+            "PARSE ERROR: Your previous response could not be parsed as JSON. "
+            "Return ONLY a valid JSON object — no prose, no markdown, no fences."
+        )
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        if raw2 is None:
+            raise Pass1ValidationError(errs2 or ["run_ai returned None on JSON-repair retry"])
+        pass1, parse_err2 = parse_json_response(raw2, model2)
+        if parse_err2 or pass1 is None:
+            raise Pass1ValidationError([parse_err2 or "JSON parse failed after repair retry"])
+        model = model2
+
+    soft, hard = _validate_pass1_v2(pass1)
+
+    if hard:
+        if max_passes <= 1:
+            raise Pass1ValidationError(hard)
+        # Math-critical errors on first attempt — retry once with explicit fix instructions
+        corrective = (
+            "CRITICAL ERRORS — the following must be fixed or the output cannot be used:\n"
+            + "\n".join(f"  - {e}" for e in hard)
+            + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
+        )
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        if raw2 is None:
+            raise Pass1ValidationError(hard + (errs2 or []))
+        pass1_r, parse_err_r = parse_json_response(raw2, model2)
+        if parse_err_r or pass1_r is None:
+            raise Pass1ValidationError(hard + [parse_err_r or "JSON parse failed on retry"])
+        soft_r, hard_r = _validate_pass1_v2(pass1_r)
+        if hard_r:
+            raise Pass1ValidationError(hard_r)
+        pass1 = pass1_r
+        soft  = soft_r
+        model = model2
+
+    # ── Soft errors → one corrective retry ──────────────────────────────────
+    elif soft and max_passes >= 2:
+        corrective = (
+            "VALIDATION WARNINGS — fix all of the following before re-emitting:\n"
+            + "\n".join(f"  - {e}" for e in soft)
+            + "\n\nInclude ALL fields from the output schema, especially 'catalysts'. "
+            "Re-emit the complete corrected JSON."
+        )
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        if raw2 is not None:
+            pass1_r, parse_err_r = parse_json_response(raw2, model2)
+            if not parse_err_r and pass1_r is not None:
+                soft_r, hard_r = _validate_pass1_v2(pass1_r)
+                if hard_r:
+                    # Retry introduced math-critical regressions — keep first attempt
+                    print(f"  Pass1 v2 retry regressed ({hard_r[:2]}); keeping first attempt.")
+                else:
+                    pass1  = pass1_r
+                    soft   = soft_r
+                    model  = model2
+        if soft:
+            print(f"  Pass1 v2: {len(soft)} residual soft warnings (non-blocking): {soft[:3]}")
+
+    # ── Defaults for optional fields ─────────────────────────────────────────
+    pass1.setdefault("sbc_context", None)
+    pass1.setdefault("contract_asset_context", None)
+    pass1["model_used"] = model
+    return pass1
+
 
 # ══════════════════════════════════════════════════════════════
 # THESIS CHECK (used by check_prices.py and app.py)

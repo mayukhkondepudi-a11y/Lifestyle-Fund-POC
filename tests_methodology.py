@@ -452,3 +452,301 @@ class TestBreakevenPE:
 
     def test_negative_eps_returns_none(self):
         assert breakeven_pe(300.0, -5.0) is None
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE C — validator, exceptions, retry logic (no LLM calls)
+# ════════════════════════════════════════════════════════════════════════════
+
+from ai import (
+    _validate_pass1_v2, Pass1ValidationError, BullCaseTooLowError, run_pass1_foundation
+)
+import unittest.mock as mock
+
+
+def _minimal_valid_pass1() -> dict:
+    """Minimal §5.2-compliant pass1 dict — all hard-critical fields present."""
+    return {
+        "corporate_dna": "Test company does things.",
+        "segments_enriched": [{"name": "Seg A", "fy_revenue": 1.0, "share_pct": 1.0,
+                                "growth_yoy": 0.1, "gross_margin": None, "sub_segments": []}],
+        "primary_growth_driver": {"name": "AI demand", "narrative": "x", "key_data_points": [], "tam_view": "big"},
+        "peer_set_enriched": [{"ticker": "MRVL", "rationale": "similar"}],
+        "macro_drivers": [
+            {"id": "A", "label": "Growth", "narrative": "drives bull"},
+            {"id": "B", "label": "Stability", "narrative": "keeps base"},
+            {"id": "C", "label": "Risk", "narrative": "bear driver"},
+        ],
+        "events": [
+            {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.50,
+             "revenue_at_risk_low": 1.0, "revenue_at_risk_high": 2.0,
+             "op_margin_to_apply": 0.25, "tax_rate_to_apply": 0.21, "evidence": "Q1 2025 call"},
+            {"id": "A2", "driver": "A", "outcome": "bear", "probability": 0.50,
+             "revenue_at_risk_low": -1.0, "revenue_at_risk_high": -0.5,
+             "op_margin_to_apply": 0.20, "tax_rate_to_apply": 0.21, "evidence": "Q1 2025 call"},
+            {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.70,
+             "revenue_at_risk_low": 0.1, "revenue_at_risk_high": 0.3,
+             "op_margin_to_apply": 0.22, "tax_rate_to_apply": 0.21, "evidence": "FY2024 annual"},
+            {"id": "B2", "driver": "B", "outcome": "bear", "probability": 0.30,
+             "revenue_at_risk_low": -0.5, "revenue_at_risk_high": -0.1,
+             "op_margin_to_apply": 0.18, "tax_rate_to_apply": 0.21, "evidence": "FY2024 annual"},
+            {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.60,
+             "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.1,
+             "op_margin_to_apply": 0.22, "tax_rate_to_apply": 0.21, "evidence": "Reuters 2025-01"},
+            {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.40,
+             "revenue_at_risk_low": -2.0, "revenue_at_risk_high": -1.0,
+             "op_margin_to_apply": 0.15, "tax_rate_to_apply": 0.21, "evidence": "Reuters 2025-01"},
+        ],
+        "pe_anchors": {
+            "bull": {"reasoning": "MRVL trades at 28× NTM; bull PEG 1.0× on 20% growth implies 20×"},
+            "base": {"reasoning": "MRVL at 22×; base PEG 1.5× implies 18×"},
+            "bear": {"reasoning": "MRVL at 22×; bear at 0.875× haircut implies 19×"},
+        },
+        "sbc_context": None,
+        "contract_asset_context": None,
+        "catalysts": [
+            {"date": "Q3 FY2026", "event": "Q3 earnings first full AI cycle quarter",
+             "what_to_watch": "AI networking revenue vs $4B guidance"},
+            {"date": "2026-09-15", "event": "Investor day capital allocation update",
+             "what_to_watch": "buyback authorization size vs prior year"},
+            {"date": "Q4 FY2026", "event": "Q4 earnings — VMware cost synergy update",
+             "what_to_watch": "VMware op margin contribution"},
+        ],
+    }
+
+
+class TestPassOneValidator:
+    def test_valid_pass1_no_errors(self):
+        p = _minimal_valid_pass1()
+        soft, hard = _validate_pass1_v2(p)
+        assert hard == [], f"unexpected hard errors: {hard}"
+        assert soft == [], f"unexpected soft errors: {soft}"
+
+    def test_missing_events_is_hard(self):
+        p = _minimal_valid_pass1()
+        del p["events"]
+        soft, hard = _validate_pass1_v2(p)
+        assert any("events" in e for e in hard), "missing events should be hard error"
+
+    def test_missing_macro_drivers_is_hard(self):
+        p = _minimal_valid_pass1()
+        del p["macro_drivers"]
+        soft, hard = _validate_pass1_v2(p)
+        assert any("macro_drivers" in e for e in hard)
+
+    def test_missing_catalysts_is_soft(self):
+        p = _minimal_valid_pass1()
+        del p["catalysts"]
+        soft, hard = _validate_pass1_v2(p)
+        assert hard == [], "missing catalysts must be soft, not hard"
+        assert any("catalysts" in e for e in soft)
+
+    def test_wrong_macro_driver_ids_is_hard(self):
+        p = _minimal_valid_pass1()
+        p["macro_drivers"][0]["id"] = "X"
+        soft, hard = _validate_pass1_v2(p)
+        assert any("ids" in e for e in hard)
+
+    def test_macro_driver_count_mismatch_is_hard(self):
+        p = _minimal_valid_pass1()
+        p["macro_drivers"] = p["macro_drivers"][:2]   # only A, B
+        soft, hard = _validate_pass1_v2(p)
+        assert any("3" in e for e in hard)
+
+    def test_too_few_events_is_hard(self):
+        p = _minimal_valid_pass1()
+        p["events"] = p["events"][:3]
+        soft, hard = _validate_pass1_v2(p)
+        assert any("events" in e or "6" in e for e in hard)
+
+    def test_driver_with_one_event_is_hard(self):
+        p = _minimal_valid_pass1()
+        # remove B2 so driver B has only 1 event
+        p["events"] = [e for e in p["events"] if e["id"] != "B2"]
+        soft, hard = _validate_pass1_v2(p)
+        assert any("driver B" in e for e in hard)
+
+    def test_missing_pe_anchors_is_soft(self):
+        p = _minimal_valid_pass1()
+        del p["pe_anchors"]
+        soft, hard = _validate_pass1_v2(p)
+        assert hard == []
+        assert any("pe_anchors" in e for e in soft)
+
+    def test_event_bad_outcome_is_soft(self):
+        p = _minimal_valid_pass1()
+        p["events"][0]["outcome"] = "moon"
+        soft, hard = _validate_pass1_v2(p)
+        assert any("outcome" in e for e in soft)
+
+    def test_prob_sum_off_is_soft(self):
+        p = _minimal_valid_pass1()
+        p["events"][0]["probability"] = 0.99   # A: 0.99 + 0.50 >> 1.0
+        soft, hard = _validate_pass1_v2(p)
+        assert any("driver A" in e for e in soft)
+
+    def test_revenue_high_lt_low_is_soft(self):
+        p = _minimal_valid_pass1()
+        p["events"][0]["revenue_at_risk_low"]  = 5.0
+        p["events"][0]["revenue_at_risk_high"] = 1.0
+        soft, hard = _validate_pass1_v2(p)
+        assert any("high" in e and "low" in e for e in soft)
+
+
+class TestPassOneExceptions:
+    def test_pass1_validation_error_stores_list(self):
+        err = Pass1ValidationError(["err1", "err2"])
+        assert err.errors == ["err1", "err2"]
+        assert "2" in str(err)
+
+    def test_bull_case_too_low_error_stores_values(self):
+        err = BullCaseTooLowError(bull_eps=1.5, consensus_high=20.0)
+        assert err.bull_eps == 1.5
+        assert err.consensus_high == 20.0
+
+
+class TestPassOneFoundationMocked:
+    """run_pass1_foundation logic verified with mocked run_ai — no API calls."""
+
+    def _baseline(self) -> dict:
+        return {
+            "ticker": "TEST", "company_name": "TestCo",
+            "current_price": 100.0, "fy_revenue": 10.0,
+            "recent_news": [], "history_3y": [],
+            "peer_set": [{"ticker": "PEER", "fwd_pe": 20.0}],
+            "data_quality_warnings": [],
+        }
+
+    def _good_raw(self) -> str:
+        import json
+        return json.dumps(_minimal_valid_pass1())
+
+    def test_success_on_first_attempt(self):
+        baseline = self._baseline()
+        with mock.patch("ai.run_ai", return_value=(self._good_raw(), "test-model", None)):
+            result = run_pass1_foundation("TEST", baseline, max_passes=2)
+        assert result["macro_drivers"][0]["id"] == "A"
+        assert result["model_used"] == "test-model"
+
+    def test_soft_error_triggers_retry(self):
+        baseline = self._baseline()
+        import json
+        # First response: missing catalysts (soft error)
+        p_no_cats = _minimal_valid_pass1()
+        del p_no_cats["catalysts"]
+        first_raw  = json.dumps(p_no_cats)
+        second_raw = json.dumps(_minimal_valid_pass1())  # retry has catalysts
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return (first_raw, "model-a", None)
+            return (second_raw, "model-b", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass1_foundation("TEST", baseline, max_passes=2)
+
+        assert call_count["n"] == 2, "expected exactly one retry"
+        assert "catalysts" in result
+
+    def test_retry_regression_falls_back_to_first(self):
+        """If retry drops events (hard error), keep the first attempt."""
+        baseline = self._baseline()
+        import json
+        # First: soft error only (missing catalysts)
+        p_first = _minimal_valid_pass1()
+        del p_first["catalysts"]
+        first_raw = json.dumps(p_first)
+
+        # Retry: drops events entirely (hard error regression)
+        p_retry = _minimal_valid_pass1()
+        del p_retry["catalysts"]
+        del p_retry["events"]
+        retry_raw = json.dumps(p_retry)
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (first_raw if call_count["n"] == 1 else retry_raw, "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass1_foundation("TEST", baseline, max_passes=2)
+
+        # Should have kept first attempt (which had events)
+        assert "events" in result
+        assert len(result["events"]) == 6
+
+    def test_hard_error_on_first_triggers_retry_then_raises(self):
+        """Hard error (missing events) on both passes → Pass1ValidationError."""
+        baseline = self._baseline()
+        import json
+        p_bad = _minimal_valid_pass1()
+        del p_bad["events"]
+        bad_raw = json.dumps(p_bad)
+
+        with mock.patch("ai.run_ai", return_value=(bad_raw, "m", None)):
+            with pytest.raises(Pass1ValidationError) as exc_info:
+                run_pass1_foundation("TEST", baseline, max_passes=2)
+        assert any("events" in e for e in exc_info.value.errors)
+
+
+class TestC4BullCaseTooLowMath:
+    """C4: verify math produces bull EPS << consensus when events are tiny."""
+
+    C4_BASELINE = {
+        "current_price": 100.0, "shares_out": 1.0, "fy_revenue": 5.0,
+        "base_op_margin": 0.10, "tax_rate": 0.21, "earnings_cagr": 0.10,
+        "beta": 1.2, "net_debt": 0.5, "horizon_years": 5,
+        "franchise_quality": True, "trailing_net_dilution_rate": 0.0,
+        "base_fcf": 0.3, "peer_pes": [20.0, 22.0, 24.0],
+        "consensus_eps_fy2": {"low": 40.0, "mid": 45.0, "high": 50.0},
+        "fy_eps_non_gaap": 2.0,
+    }
+    C4_PASS1 = {
+        "events": [
+            {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.45,
+             "revenue_at_risk_low": 0.05, "revenue_at_risk_high": 0.10,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+            {"id": "A2", "driver": "A", "outcome": "bear", "probability": 0.55,
+             "revenue_at_risk_low": -0.10, "revenue_at_risk_high": -0.05,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+            {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.60,
+             "revenue_at_risk_low": 0.01, "revenue_at_risk_high": 0.02,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+            {"id": "B2", "driver": "B", "outcome": "bear", "probability": 0.40,
+             "revenue_at_risk_low": -0.05, "revenue_at_risk_high": -0.01,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+            {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.50,
+             "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.01,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+            {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.50,
+             "revenue_at_risk_low": -0.20, "revenue_at_risk_high": -0.10,
+             "op_margin_to_apply": 0.10, "tax_rate_to_apply": 0.21, "evidence": "test"},
+        ],
+        "macro_drivers": [
+            {"id": "A", "label": "Growth", "narrative": "x"},
+            {"id": "B", "label": "Stability", "narrative": "x"},
+            {"id": "C", "label": "Risk", "narrative": "x"},
+        ],
+        "pe_anchors": {
+            "bull": {"reasoning": "PEER trades at 20×"},
+            "base": {"reasoning": "PEER trades at 20×"},
+            "bear": {"reasoning": "PEER trades at 20×"},
+        },
+    }
+
+    def test_bull_eps_far_below_consensus(self):
+        from run_methodology_math import run_methodology_math
+        math = run_methodology_math(self.C4_PASS1, self.C4_BASELINE)
+        bull_eps = math["scenario_eps"]["bull"]
+        consensus_high = 50.0
+        # Bull EPS should be << consensus_high (gap_frac << 0.75)
+        gap_frac = bull_eps / consensus_high
+        assert gap_frac < 0.75, (
+            f"Expected bull EPS far below consensus_high=${consensus_high}; "
+            f"got bull_eps=${bull_eps:.4f} (gap_frac={gap_frac:.3f})"
+        )
+        # Confirm BullCaseTooLowError WOULD fire (values are in range)
+        assert bull_eps > 0, "bull_eps should be positive"
+        assert bull_eps < 5.0, f"bull_eps=${bull_eps} is unreasonably high for this fixture"

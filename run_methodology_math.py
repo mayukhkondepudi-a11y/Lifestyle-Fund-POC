@@ -32,6 +32,32 @@ from compute_methodology_v2 import (
 )
 
 
+def _normalize_events(events: list[dict]) -> list[dict]:
+    """
+    Bridge §5.2 event format (from pass1 v2) to internal math format.
+
+    §5.2 uses: driver, outcome, revenue_at_risk_low/high, op_margin_to_apply, tax_rate_to_apply
+    Internal uses: driver_id, scenario, rev_change_mid, op_margin
+
+    Both formats are accepted; §5.2 fields are mapped to their internal equivalents.
+    """
+    out = []
+    for ev in events:
+        n = dict(ev)
+        if "driver" in ev and "driver_id" not in ev:
+            n["driver_id"] = ev["driver"]
+        if "outcome" in ev and "scenario" not in ev:
+            n["scenario"] = ev["outcome"]
+        if "rev_change_mid" not in ev:
+            low  = float(ev.get("revenue_at_risk_low",  0.0))
+            high = float(ev.get("revenue_at_risk_high", 0.0))
+            n["rev_change_mid"] = (low + high) / 2.0
+        if "op_margin" not in ev and "op_margin_to_apply" in ev:
+            n["op_margin"] = float(ev["op_margin_to_apply"])
+        out.append(n)
+    return out
+
+
 def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
     """
     Orchestrate all math-layer computations and return the §5.3 math dict.
@@ -57,8 +83,8 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     growth_rate    = float(baseline.get("earnings_cagr", 0.15))
     peer_pes: list[float] = baseline.get("peer_pes", [])
 
-    # ── Pull pass1 events ────────────────────────────────────────────────────
-    events: list[dict] = pass1.get("events", [])
+    # ── Pull pass1 events (normalise §5.2 → internal format) ────────────────
+    events: list[dict] = _normalize_events(pass1.get("events", []))
 
     # ── B4: project shares ───────────────────────────────────────────────────
     shares_proj = projected_shares(shares_out, horizon_years, trailing_dilution)
@@ -124,7 +150,9 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     def _dcf_for_scenario(eps_val: float, pe_val: float) -> dict:
         # Use implied CAGR from EPS ratio vs trailing as proxy growth for FCF projection
         trailing = max(base_eps, 0.01)
-        cagr_proxy = (eps_val / trailing) ** (1.0 / max(horizon_years, 1)) - 1.0
+        # Clamp ratio to ≥ 0 to avoid complex-number from fractional power of negative
+        ratio = max(eps_val / trailing, 0.0)
+        cagr_proxy = ratio ** (1.0 / max(horizon_years, 1)) - 1.0
         cagr_proxy = max(min(cagr_proxy, 0.80), -0.30)
         series = project_fcf(base_fcf, cagr_proxy, horizon_years)
         return dcf_intrinsic_value(series, DEFAULT_TERMINAL_GROWTH, dr, shares_proj, net_debt)
