@@ -1028,6 +1028,193 @@ def run_pass1_foundation(
 
 
 # ══════════════════════════════════════════════════════════════
+# v2 PASS 2 — NARRATIVE REPORT
+# ══════════════════════════════════════════════════════════════
+
+_PASS2_REQUIRED_SECTIONS = (
+    "investment_thesis", "reverse_dcf_commentary",
+    "recommendation_rationale", "conclusion",
+)
+_PASS2_SCENARIO_KEYS  = ("bull", "base", "bear")
+_PASS2_DRIVER_KEYS    = ("A", "B", "C")
+_PASS2_FORBIDDEN      = ("Sharpe", "DEGRADED", "capture")
+
+
+def _build_pass2_body(pass2: dict) -> str:
+    """Concatenate all narrative string sections for word count / forbidden token audit."""
+    parts: list[str] = []
+    for k in ("investment_thesis", "reverse_dcf_commentary",
+              "financial_health", "recommendation_rationale", "conclusion"):
+        v = pass2.get(k, "")
+        if isinstance(v, str) and v:
+            parts.append(v)
+    for sc in _PASS2_SCENARIO_KEYS:
+        v = (pass2.get("scenario_commentary") or {}).get(sc, "")
+        if isinstance(v, str) and v:
+            parts.append(v)
+    for did in _PASS2_DRIVER_KEYS:
+        v = (pass2.get("driver_narratives") or {}).get(did, "")
+        if isinstance(v, str) and v:
+            parts.append(v)
+    return "\n\n".join(parts)
+
+
+def _validate_pass2_v2(pass2: dict) -> tuple:
+    """
+    Validate §5.4 pass2 report dict. Returns (soft_errors, hard_errors).
+
+    hard_errors — missing required sections, forbidden vocabulary present.
+    soft_errors — word count > 4500, missing optional sections.
+    """
+    soft: list[str] = []
+    hard: list[str] = []
+
+    for k in _PASS2_REQUIRED_SECTIONS:
+        if not pass2.get(k):
+            hard.append(f"missing required section: {k}")
+
+    body = _build_pass2_body(pass2)
+
+    for token in _PASS2_FORBIDDEN:
+        if token in body:
+            hard.append(f"forbidden token present: {token!r}")
+
+    wc = len(body.split())
+    if wc > 4500:
+        soft.append(f"word count {wc} exceeds 4500")
+
+    sc_dict = pass2.get("scenario_commentary") or {}
+    for sc in _PASS2_SCENARIO_KEYS:
+        if not sc_dict.get(sc):
+            soft.append(f"missing scenario_commentary.{sc}")
+
+    dn_dict = pass2.get("driver_narratives") or {}
+    for did in _PASS2_DRIVER_KEYS:
+        if not dn_dict.get(did):
+            soft.append(f"missing driver_narratives.{did}")
+
+    if not pass2.get("financial_health"):
+        soft.append("missing financial_health section")
+
+    return soft, hard
+
+
+def run_pass2_report(
+    ticker: str,
+    baseline: dict,
+    pass1: dict,
+    math: dict,
+    max_passes: int = 2,
+    retry_hint: str = "",
+) -> dict:
+    """
+    Pass 2 v2: write narrative report from §5.1 baseline, §5.2 pass1, §5.3 math dict.
+
+    Returns a dict with all narrative sections plus a 'body' key (concatenated text)
+    for smoke harness word-count and forbidden-token checks.
+
+    Fault-tolerant:
+      - Hard errors (missing required sections, forbidden tokens) → retry once.
+      - Soft errors (word count, missing optional sections) → retry once.
+      - If retry regresses on hard errors → keep first attempt.
+      - No DEGRADED path.
+    """
+    company_name = baseline.get("company_name", ticker)
+    today_date   = datetime.now().strftime("%B %d, %Y")
+
+    _exclude_bl = {"recent_news", "history_3y"}
+    baseline_slim = {k: v for k, v in baseline.items() if k not in _exclude_bl}
+
+    def _build_messages(corrective: str = "") -> list:
+        hint = corrective or retry_hint
+        prompt = PASS2_PROMPT
+        for k, v in {
+            "{ticker}":       ticker,
+            "{company_name}": company_name,
+            "{today_date}":   today_date,
+            "{math_json}":    json.dumps(math,         indent=2, default=str),
+            "{pass1_json}":   json.dumps(pass1,        indent=2, default=str),
+            "{baseline_json}": json.dumps(baseline_slim, indent=2, default=str),
+            "{retry_hint}":   hint,
+        }.items():
+            prompt = prompt.replace(k, str(v))
+        return [
+            {"role": "system",
+             "content": "You are a senior equity research analyst. Respond with valid JSON only."},
+            {"role": "user", "content": prompt},
+        ]
+
+    # ── First attempt ────────────────────────────────────────────────────────
+    raw, model, errors = run_ai(_build_messages(), max_tokens=6000)
+    if raw is None:
+        raise Pass1ValidationError(errors or ["run_ai returned None (pass2 attempt 1)"])
+
+    pass2, parse_err = parse_json_response(raw, model)
+    if parse_err or pass2 is None:
+        if max_passes <= 1:
+            raise Pass1ValidationError([parse_err or "JSON parse failed (pass2 attempt 1)"])
+        raw2, model2, _ = run_ai(
+            _build_messages("PARSE ERROR: return ONLY a valid JSON object."),
+            max_tokens=6000,
+        )
+        if raw2 is None:
+            raise Pass1ValidationError(["run_ai returned None on parse-repair retry (pass2)"])
+        pass2, pe2 = parse_json_response(raw2, model2)
+        if pe2 or pass2 is None:
+            raise Pass1ValidationError([pe2 or "JSON parse failed on repair retry (pass2)"])
+        model = model2
+
+    soft, hard = _validate_pass2_v2(pass2)
+
+    if hard:
+        if max_passes <= 1:
+            raise Pass1ValidationError(hard)
+        corrective = (
+            "CRITICAL ERRORS — fix all before re-emitting:\n"
+            + "\n".join(f"  - {e}" for e in hard)
+            + "\n\nRe-emit the complete corrected JSON. No forbidden words. No omitted sections."
+        )
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=6000)
+        if raw2 is not None:
+            p2r, pe_r = parse_json_response(raw2, model2)
+            if not pe_r and p2r is not None:
+                soft_r, hard_r = _validate_pass2_v2(p2r)
+                if hard_r:
+                    print(f"  Pass2 v2 retry introduced hard regressions ({hard_r[:2]}); "
+                          "keeping first attempt.")
+                else:
+                    pass2, soft, model = p2r, soft_r, model2
+
+    elif soft and max_passes >= 2:
+        corrective = (
+            "VALIDATION WARNINGS — please address:\n"
+            + "\n".join(f"  - {e}" for e in soft)
+            + "\n\nRe-emit the complete corrected JSON within 4500 total words."
+        )
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=6000)
+        if raw2 is not None:
+            p2r, pe_r = parse_json_response(raw2, model2)
+            if not pe_r and p2r is not None:
+                soft_r, hard_r = _validate_pass2_v2(p2r)
+                if not hard_r:
+                    pass2, soft, model = p2r, soft_r, model2
+        if soft:
+            print(f"  Pass2 v2: {len(soft)} residual soft warnings (non-blocking): {soft[:3]}")
+
+    # ── Apply clean_latex and attach body ────────────────────────────────────
+    for k, v in pass2.items():
+        if isinstance(v, str):
+            pass2[k] = clean_latex(v)
+        elif isinstance(v, dict):
+            pass2[k] = {k2: clean_latex(v2) if isinstance(v2, str) else v2
+                        for k2, v2 in v.items()}
+
+    pass2["body"]       = _build_pass2_body(pass2)
+    pass2["model_used"] = model
+    return pass2
+
+
+# ══════════════════════════════════════════════════════════════
 # THESIS CHECK (used by check_prices.py and app.py)
 # ══════════════════════════════════════════════════════════════
 

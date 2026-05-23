@@ -978,3 +978,324 @@ class TestD3ConsensusCalibration:
         assert m["price_target"]["bull_high"] >= m["price_target"]["bull_mid"], (
             f"bull_high={m['price_target']['bull_high']} < bull_mid={m['price_target']['bull_mid']}"
         )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE E — pass2 prompt v2, run_pass2_report, smoke harness structural checks
+# ════════════════════════════════════════════════════════════════════════════
+
+from ai import _build_pass2_body, _validate_pass2_v2, run_pass2_report
+from smoke_harness import check_word_count, check_forbidden_tokens
+
+
+def _minimal_valid_pass2() -> dict:
+    """Minimal §5.4-compliant pass2 dict — all required sections, no forbidden tokens,
+    well under 4500 words."""
+    return {
+        "investment_thesis": (
+            "The current price implies a free cash flow CAGR consistent with modest "
+            "growth expectations over the 5-year horizon, making the entry valuation "
+            "undemanding relative to the base-case earnings trajectory.\n\n"
+            "The FY+2 price target range spans from the bull scenario at the upper P/E "
+            "bound to the bear scenario at the lower bound, with the bull case requiring "
+            "Driver A to materialise through sustained AI infrastructure spending.\n\n"
+            "Expected value is above the current price, with expected return well above "
+            "the minimum threshold and prob_loss below the 35% ceiling, making the "
+            "risk/reward balance favourable at this entry point."
+        ),
+        "reverse_dcf_commentary": (
+            "The implied FCF CAGR embedded in the current price is consistent with a "
+            "moderate trajectory, neither aggressively demanding nor trivially easy to "
+            "achieve given the baseline earnings power visible in the scenario analysis. "
+            "A buyer at the current price is implicitly betting on sustained franchise "
+            "strength rather than a discrete growth acceleration."
+        ),
+        "scenario_commentary": {
+            "bull": (
+                "The bull scenario carries a joint probability of 0.249 and requires "
+                "Driver A to fire fully: AI networking revenue acceleration would lift "
+                "bull EPS to 14.50 and the bull price target to 551.0 at the upper P/E bound."
+            ),
+            "base": (
+                "The base scenario is the most probable outcome with a joint probability "
+                "of 0.593, producing FY+2 EPS of 10.74 and a price target of 347.0 at "
+                "the mid P/E band."
+            ),
+            "bear": (
+                "The bear scenario has a joint probability of 0.158 and would materialise "
+                "if the competitive insourcing risk driver fires negatively, reducing "
+                "bear EPS to 6.35 and the bear price target to 168.0 at the lower P/E bound."
+            ),
+        },
+        "driver_narratives": {
+            "A": (
+                "Driver A — AI Infrastructure Capex Cycle — is the primary growth lever. "
+                "Hyperscaler AI compute buildout drives incremental networking and chip "
+                "demand, with evidence from the Q2 FY2025 earnings call citing AI networking "
+                "revenue above 4.0 billion. The probability distribution leans bull."
+            ),
+            "B": (
+                "Driver B — Enterprise Software Renewal Rates — anchors the base case "
+                "through multi-year licensing contracts that provide earnings visibility. "
+                "High renewal rates reduce revenue volatility and support the base scenario "
+                "probability of 0.82."
+            ),
+            "C": (
+                "Driver C — Competitive Insourcing Risk — is the primary structural headwind. "
+                "Large customers developing proprietary silicon creates long-term revenue "
+                "displacement risk. The probability distribution leans bear, with a 0.40 "
+                "probability on the bear outcome per the Reuters 2025-03-14 report."
+            ),
+        },
+        "financial_health": (
+            "Operating margin of 0.62 is well above the sector median, supporting the "
+            "franchise quality assessment. Free cash flow of 14.5 billion provides ample "
+            "capacity for capital returns; FCF margin of 0.51 is above the long-run norm. "
+            "Net debt of 30.0 billion is elevated following the recent acquisition but "
+            "declining at a pace consistent with the base case. SBC of 2.1 billion "
+            "represents a 0.5 percentage point annual dilution headwind."
+        ),
+        "recommendation_rationale": (
+            "The BUY recommendation reflects an expected return above the 15% upside "
+            "threshold with prob_loss below 35%, satisfying both conditions simultaneously. "
+            "Expected value of 348.0 versus the current price of 320.0 produces a "
+            "probability-weighted return that is positive and meaningful.\n\n"
+            "No calibration steps fired for this ticker, confirming the bottom-up bull "
+            "EPS is consistent with the FY+2 consensus range."
+        ),
+        "conclusion": (
+            "The investment thesis rests on AI-driven revenue acceleration supported by "
+            "strong recurring franchise income; the BUY recommendation is supported by "
+            "the probability-weighted math.\n\n"
+            "Key catalysts: Q3 FY2026 earnings — watch AI networking revenue versus "
+            "the 4.0 billion guidance; Investor Day capital allocation update — watch "
+            "buyback authorisation size; Q4 FY2026 — watch VMware operating margin contribution."
+        ),
+    }
+
+
+def _math_for_pass2() -> dict:
+    """Compute a real §5.3 math dict using the AVGO v2 fixture."""
+    return run_methodology_math({"events": AVGO_EVENTS}, AVGO_V2_BASELINE)
+
+
+def _baseline_for_pass2() -> dict:
+    """§5.1 baseline for pass2 tests — AVGO v2 with extra required fields."""
+    return {
+        **AVGO_V2_BASELINE,
+        "company_name": "Broadcom Inc.",
+        "ticker": "AVGO",
+        "recent_news": [],
+        "history_3y": [],
+        "peer_set": AVGO_V2_BASELINE.get("peer_set", []),
+        "data_quality_warnings": [],
+        "fy_sbc": 2.1,
+        "fy_fcf_margin": 0.51,
+    }
+
+
+class TestPass2Validator:
+    """Unit tests on _validate_pass2_v2."""
+
+    def test_valid_pass2_no_errors(self):
+        soft, hard = _validate_pass2_v2(_minimal_valid_pass2())
+        assert hard == [], f"unexpected hard errors: {hard}"
+        assert soft == [], f"unexpected soft errors: {soft}"
+
+    def test_missing_required_section_is_hard(self):
+        for k in ("investment_thesis", "reverse_dcf_commentary",
+                  "recommendation_rationale", "conclusion"):
+            p = _minimal_valid_pass2()
+            del p[k]
+            soft, hard = _validate_pass2_v2(p)
+            assert any(k in e for e in hard), f"missing {k} should be hard error"
+
+    def test_forbidden_sharpe_is_hard(self):
+        p = _minimal_valid_pass2()
+        p["investment_thesis"] += " The Sharpe ratio is high."
+        soft, hard = _validate_pass2_v2(p)
+        assert any("Sharpe" in e for e in hard)
+
+    def test_forbidden_capture_is_hard(self):
+        p = _minimal_valid_pass2()
+        p["conclusion"] += " Investors can capture significant upside here."
+        soft, hard = _validate_pass2_v2(p)
+        assert any("capture" in e for e in hard)
+
+    def test_forbidden_degraded_is_hard(self):
+        p = _minimal_valid_pass2()
+        p["financial_health"] += " DEGRADED data."
+        soft, hard = _validate_pass2_v2(p)
+        assert any("DEGRADED" in e for e in hard)
+
+    def test_word_count_over_limit_is_soft(self):
+        p = _minimal_valid_pass2()
+        filler = " This is additional filler text." * 1000   # ~5000 extra words
+        p["investment_thesis"] += filler
+        soft, hard = _validate_pass2_v2(p)
+        assert hard == [], "word count violation should be soft, not hard"
+        assert any("word count" in e for e in soft)
+
+    def test_missing_optional_section_is_soft(self):
+        p = _minimal_valid_pass2()
+        del p["financial_health"]
+        soft, hard = _validate_pass2_v2(p)
+        assert hard == []
+        assert any("financial_health" in e for e in soft)
+
+    def test_missing_driver_narrative_is_soft(self):
+        p = _minimal_valid_pass2()
+        del p["driver_narratives"]["C"]
+        soft, hard = _validate_pass2_v2(p)
+        assert hard == []
+        assert any("driver_narratives.C" in e for e in soft)
+
+    def test_build_body_excludes_body_key_itself(self):
+        p = _minimal_valid_pass2()
+        p["body"] = "should not double-count"
+        body = _build_pass2_body(p)
+        assert "should not double-count" not in body
+
+
+class TestPass2FoundationMocked:
+    """run_pass2_report logic with mocked run_ai — no API calls."""
+
+    def _raw_good(self) -> str:
+        import json
+        return json.dumps(_minimal_valid_pass2())
+
+    def test_success_returns_body_key(self):
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        with mock.patch("ai.run_ai", return_value=(self._raw_good(), "test-model", None)):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math)
+        assert "body" in result, "run_pass2_report must return a 'body' key"
+        assert isinstance(result["body"], str)
+
+    def test_model_used_recorded(self):
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        with mock.patch("ai.run_ai", return_value=(self._raw_good(), "claude-test", None)):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math)
+        assert result.get("model_used") == "claude-test"
+
+    def test_soft_error_triggers_retry(self):
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        import json
+        p_verbose = _minimal_valid_pass2()
+        filler = " Extra filler text added to exceed word count limit." * 1000
+        p_verbose["investment_thesis"] += filler  # pushes over 4500 words → soft error
+        p_good = _minimal_valid_pass2()            # retry: under limit
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (json.dumps(p_verbose if call_count["n"] == 1 else p_good),
+                    "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math,
+                                      max_passes=2)
+        assert call_count["n"] == 2, "expected exactly one retry on soft error"
+
+    def test_hard_error_triggers_retry(self):
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        import json
+        p_bad = _minimal_valid_pass2()
+        del p_bad["investment_thesis"]     # hard error: missing required section
+        p_good = _minimal_valid_pass2()
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (json.dumps(p_bad if call_count["n"] == 1 else p_good), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math,
+                                      max_passes=2)
+        assert call_count["n"] == 2
+
+    def test_retry_regression_keeps_first(self):
+        """Retry that reintroduces a forbidden token → keep first attempt."""
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        import json
+        # First attempt: missing financial_health (soft error only)
+        p_first = _minimal_valid_pass2()
+        del p_first["financial_health"]
+
+        # Retry: drops investment_thesis (hard regression)
+        p_retry = _minimal_valid_pass2()
+        del p_retry["investment_thesis"]
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (json.dumps(p_first if call_count["n"] == 1 else p_retry), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math,
+                                      max_passes=2)
+        # Should have kept first attempt (which had investment_thesis)
+        assert result.get("investment_thesis"), "first attempt's investment_thesis should be kept"
+
+    def test_word_count_in_body(self):
+        baseline = _baseline_for_pass2()
+        math = _math_for_pass2()
+        with mock.patch("ai.run_ai", return_value=(self._raw_good(), "m", None)):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math)
+        body_wc = len(result["body"].split())
+        assert body_wc <= 4500, f"body word count {body_wc} exceeds 4500"
+        assert body_wc > 50, "body is suspiciously short"
+
+
+# ── E3: Smoke harness structural checks — 5 tickers × 3 runs ────────────────
+
+_E3_TICKERS = ["AVGO", "KO", "ASML", "NVDA", "ADBE"]
+
+
+class TestPass2SmokeHarness:
+    """E3: smoke harness word_count + forbidden_tokens pass for 5 tickers × 3 runs."""
+
+    @pytest.mark.parametrize("ticker", _E3_TICKERS)
+    @pytest.mark.parametrize("run_idx", [1, 2, 3])
+    def test_word_count_passes(self, ticker, run_idx):
+        import json as _json
+        baseline = {**_baseline_for_pass2(), "ticker": ticker}
+        math = _math_for_pass2()
+        raw = _json.dumps(_minimal_valid_pass2())
+        with mock.patch("ai.run_ai", return_value=(raw, "test-model", None)):
+            pass2 = run_pass2_report(ticker, baseline, _minimal_valid_pass1(), math)
+        fixture = {"pass2": pass2}
+        ok, msg = check_word_count(fixture)
+        assert ok is not False, f"{ticker} run {run_idx} word_count failed: {msg}"
+
+    @pytest.mark.parametrize("ticker", _E3_TICKERS)
+    @pytest.mark.parametrize("run_idx", [1, 2, 3])
+    def test_forbidden_tokens_pass(self, ticker, run_idx):
+        import json as _json
+        baseline = {**_baseline_for_pass2(), "ticker": ticker}
+        math = _math_for_pass2()
+        raw = _json.dumps(_minimal_valid_pass2())
+        with mock.patch("ai.run_ai", return_value=(raw, "test-model", None)):
+            pass2 = run_pass2_report(ticker, baseline, _minimal_valid_pass1(), math)
+        fixture = {"pass2": pass2}
+        ok, msg = check_forbidden_tokens(fixture)
+        assert ok is not False, f"{ticker} run {run_idx} forbidden_tokens failed: {msg}"
+
+    @pytest.mark.parametrize("ticker", _E3_TICKERS)
+    @pytest.mark.parametrize("run_idx", [1, 2, 3])
+    def test_all_required_sections_present(self, ticker, run_idx):
+        import json as _json
+        baseline = {**_baseline_for_pass2(), "ticker": ticker}
+        math = _math_for_pass2()
+        raw = _json.dumps(_minimal_valid_pass2())
+        with mock.patch("ai.run_ai", return_value=(raw, "test-model", None)):
+            pass2 = run_pass2_report(ticker, baseline, _minimal_valid_pass1(), math)
+        for section in ("investment_thesis", "reverse_dcf_commentary",
+                        "recommendation_rationale", "conclusion"):
+            assert pass2.get(section), (
+                f"{ticker} run {run_idx}: section '{section}' is missing or empty"
+            )
