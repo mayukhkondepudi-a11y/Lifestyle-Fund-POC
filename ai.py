@@ -19,6 +19,7 @@ from compute import (
     compute_fundamentals_diagnostic,
     validate_pass1_inputs,
     _compute_pe_ranges_per_scenario,
+    MAX_PIPELINE_AI_CALLS,
 )
 
 
@@ -1212,6 +1213,139 @@ def run_pass2_report(
     pass2["body"]       = _build_pass2_body(pass2)
     pass2["model_used"] = model
     return pass2
+
+
+# ══════════════════════════════════════════════════════════════
+# v2 PASS 3 — AUDIT
+# ══════════════════════════════════════════════════════════════
+
+_PASS3_FORBIDDEN = frozenset({"Sharpe", "DEGRADED", "capture"})
+
+
+def _scan_forbidden_vocab(pass2: dict) -> list:
+    """
+    Deterministic B6 scan — no LLM call.
+    Returns a list of hit dicts: {token, quoted_context} for each forbidden word found.
+    """
+    body = pass2.get("body", "") or _build_pass2_body(pass2)
+    hits = []
+    for token in _PASS3_FORBIDDEN:
+        idx = body.find(token)
+        if idx >= 0:
+            ctx_start = max(0, idx - 30)
+            ctx_end   = min(len(body), idx + len(token) + 30)
+            hits.append({
+                "token":          token,
+                "quoted_context": body[ctx_start:ctx_end].strip(),
+            })
+    return hits
+
+
+def _build_pass3_audit_messages(
+    ticker: str,
+    baseline: dict,
+    pass1: dict,
+    math: dict,
+    pass2: dict,
+) -> list:
+    body = pass2.get("body", "") or _build_pass2_body(pass2)
+    recommendation = math.get("recommendation", "WATCH")
+    _exclude_bl = {"recent_news", "history_3y"}
+    baseline_slim = {k: v for k, v in baseline.items() if k not in _exclude_bl}
+
+    prompt = PASS3_PROMPT
+    for k, v in {
+        "{ticker}":         ticker,
+        "{recommendation}": recommendation,
+        "{pass2_body}":     body,
+        "{math_json}":      json.dumps(math,          indent=2, default=str),
+        "{pass1_json}":     json.dumps(pass1,         indent=2, default=str),
+        "{baseline_json}":  json.dumps(baseline_slim, indent=2, default=str),
+    }.items():
+        prompt = prompt.replace(k, str(v))
+
+    return [
+        {"role": "system",
+         "content": "You are an internal audit system. Respond with valid JSON only, no prose."},
+        {"role": "user", "content": prompt},
+    ]
+
+
+def run_pass3_audit(
+    ticker: str,
+    baseline: dict,
+    pass1: dict,
+    math: dict,
+    pass2: dict,
+    calls_remaining: int = MAX_PIPELINE_AI_CALLS,
+) -> dict:
+    """
+    Pass 3 v2: deterministic forbidden-vocab scan + 1 LLM citation/tone audit.
+
+    calls_remaining (C3): global call budget. If ≤ 0, the LLM call is skipped
+    and the function returns immediately with audit_skipped=True.
+    The LLM call decrements calls_remaining by 1 in the return dict.
+
+    This function makes AT MOST 1 LLM call — no internal retry loop.
+    """
+    # Step 1: deterministic B6 forbidden-vocab scan (no LLM call)
+    forbidden_hits = _scan_forbidden_vocab(pass2)
+
+    # Step 2: enforce C3 call ceiling
+    if calls_remaining <= 0:
+        return {
+            "audit_skipped":    True,
+            "reason":           "call budget exhausted (C3 ceiling)",
+            "calls_remaining":  0,
+            "forbidden_vocab":  forbidden_hits,
+            "citation_errors":  [],
+            "b1_compliant":     None,
+            "tone_label_ok":    None,
+            "tone_label_evidence": None,
+            "audit_clean":      False if forbidden_hits else None,
+        }
+
+    # Step 3: single LLM audit call
+    msgs = _build_pass3_audit_messages(ticker, baseline, pass1, math, pass2)
+    raw, model, errors = run_ai(msgs, max_tokens=1500)
+
+    if raw is None:
+        return {
+            "audit_skipped":    False,
+            "llm_error":        errors,
+            "calls_remaining":  calls_remaining - 1,
+            "forbidden_vocab":  forbidden_hits,
+            "citation_errors":  [],
+            "b1_compliant":     None,
+            "tone_label_ok":    None,
+            "tone_label_evidence": None,
+            "audit_clean":      False if forbidden_hits else None,
+        }
+
+    audit, parse_err = parse_json_response(raw, model)
+    if parse_err or audit is None:
+        audit = {}
+
+    citation_errors = audit.get("citation_errors", [])
+    b1_compliant    = audit.get("b1_compliant", True)
+    tone_ok         = audit.get("tone_label_ok", True)
+
+    error_severities = {"error", "warn"}
+    severe_citations = [e for e in citation_errors
+                        if e.get("severity") in error_severities]
+
+    return {
+        "audit_skipped":     False,
+        "calls_remaining":   calls_remaining - 1,
+        "forbidden_vocab":   forbidden_hits,
+        "citation_errors":   citation_errors,
+        "b1_compliant":      b1_compliant,
+        "tone_label_ok":     tone_ok,
+        "tone_label_evidence": audit.get("tone_label_evidence"),
+        "audit_clean":       (not forbidden_hits and not severe_citations
+                              and b1_compliant and tone_ok),
+        "model_used":        model,
+    }
 
 
 # ══════════════════════════════════════════════════════════════

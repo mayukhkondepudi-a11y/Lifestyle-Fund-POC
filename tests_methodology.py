@@ -1299,3 +1299,266 @@ class TestPass2SmokeHarness:
             assert pass2.get(section), (
                 f"{ticker} run {run_idx}: section '{section}' is missing or empty"
             )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE F — pass3 audit v2: forbidden vocab scan, citation detection, call ceiling
+# ════════════════════════════════════════════════════════════════════════════
+
+from ai import _scan_forbidden_vocab, run_pass3_audit
+from compute import MAX_PIPELINE_AI_CALLS
+
+
+def _clean_audit_json() -> str:
+    """Minimal valid pass3 audit result from LLM (all-clean)."""
+    import json as _json
+    return _json.dumps({
+        "citation_errors": [],
+        "b1_compliant": True,
+        "tone_label_ok": True,
+        "tone_label_evidence": None,
+    })
+
+
+def _pass2_with_body() -> dict:
+    """Minimal valid pass2 with body attached (as run_pass2_report would produce)."""
+    from ai import _build_pass2_body
+    p = _minimal_valid_pass2()
+    p["body"] = _build_pass2_body(p)
+    return p
+
+
+class TestPass3ForbiddenVocabScan:
+    """F3: deterministic _scan_forbidden_vocab — no LLM call."""
+
+    def test_clean_body_returns_empty(self):
+        p2 = _pass2_with_body()
+        hits = _scan_forbidden_vocab(p2)
+        assert hits == [], f"clean pass2 should have no hits, got: {hits}"
+
+    def test_detects_sharpe(self):
+        p2 = _pass2_with_body()
+        p2["body"] += " The Sharpe ratio of this trade is attractive."
+        hits = _scan_forbidden_vocab(p2)
+        assert any(h["token"] == "Sharpe" for h in hits), "should detect 'Sharpe'"
+
+    def test_detects_capture(self):
+        p2 = _pass2_with_body()
+        p2["body"] += " Investors can capture the upside from AI demand."
+        hits = _scan_forbidden_vocab(p2)
+        assert any(h["token"] == "capture" for h in hits), "should detect 'capture'"
+
+    def test_detects_degraded(self):
+        p2 = _pass2_with_body()
+        p2["body"] += " DEGRADED — analysis unavailable."
+        hits = _scan_forbidden_vocab(p2)
+        assert any(h["token"] == "DEGRADED" for h in hits), "should detect 'DEGRADED'"
+
+    def test_quoted_context_non_empty(self):
+        p2 = _pass2_with_body()
+        p2["body"] += " The Sharpe ratio is high."
+        hits = _scan_forbidden_vocab(p2)
+        sharpe_hit = next(h for h in hits if h["token"] == "Sharpe")
+        assert sharpe_hit["quoted_context"], "quoted_context should be non-empty"
+
+    def test_falls_back_to_building_body_if_absent(self):
+        # pass2 without 'body' key — should build from sections
+        p2 = _minimal_valid_pass2()
+        p2["investment_thesis"] += " The Sharpe metric matters here."
+        assert "body" not in p2
+        hits = _scan_forbidden_vocab(p2)
+        assert any(h["token"] == "Sharpe" for h in hits)
+
+
+class TestPass3AuditMocked:
+    """F3: run_pass3_audit with mocked LLM — citation errors, clean reports, budget."""
+
+    def _args(self):
+        baseline = _baseline_for_pass2()
+        pass1    = _minimal_valid_pass1()
+        math     = _math_for_pass2()
+        pass2    = _pass2_with_body()
+        return "AVGO", baseline, pass1, math, pass2
+
+    def test_clean_pass2_returns_audit_clean(self):
+        with mock.patch("ai.run_ai", return_value=(_clean_audit_json(), "m", None)):
+            result = run_pass3_audit(*self._args(), calls_remaining=5)
+        assert result["audit_clean"] is True
+        assert result["forbidden_vocab"] == []
+        assert result["citation_errors"] == []
+
+    def test_injected_citation_error_is_flagged(self):
+        """F3: inject a fabricated number → LLM mock returns citation error → audit surfaces it."""
+        import json as _json
+        # Inject a clearly wrong number into the body
+        ticker, baseline, pass1, math, pass2 = self._args()
+        pass2["investment_thesis"] += " The company reported revenue of 999.9 billion last year."
+        pass2["body"] = pass2.get("body", "") + " The company reported revenue of 999.9 billion last year."
+
+        # Mock LLM to return a citation error for that number
+        audit_with_error = _json.dumps({
+            "citation_errors": [{
+                "field": "investment_thesis",
+                "quoted_text": "revenue of 999.9 billion",
+                "issue": "999.9 is not in any allowed source; fy_revenue=28.5",
+                "severity": "error",
+            }],
+            "b1_compliant": True,
+            "tone_label_ok": True,
+            "tone_label_evidence": None,
+        })
+        with mock.patch("ai.run_ai", return_value=(audit_with_error, "m", None)):
+            result = run_pass3_audit(ticker, baseline, pass1, math, pass2, calls_remaining=3)
+
+        assert not result["audit_clean"], "audit should not be clean when citation error present"
+        assert len(result["citation_errors"]) == 1
+        assert result["citation_errors"][0]["severity"] == "error"
+        assert "999.9" in result["citation_errors"][0]["quoted_text"]
+
+    def test_forbidden_vocab_caught_before_llm(self):
+        """Forbidden vocab scan is deterministic — fires even if LLM never called."""
+        ticker, baseline, pass1, math, pass2 = self._args()
+        pass2["body"] += " The Sharpe ratio here is 1.8."
+
+        call_count = {"n": 0}
+        def mock_run_ai(*a, **kw):
+            call_count["n"] += 1
+            return (_clean_audit_json(), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass3_audit(ticker, baseline, pass1, math, pass2, calls_remaining=5)
+
+        # vocab scan fires regardless of LLM result
+        assert any(h["token"] == "Sharpe" for h in result["forbidden_vocab"])
+        assert not result["audit_clean"]
+
+    def test_b1_non_compliant_flagged(self):
+        import json as _json
+        audit_b1_fail = _json.dumps({
+            "citation_errors": [],
+            "b1_compliant": False,
+            "tone_label_ok": True,
+            "tone_label_evidence": None,
+        })
+        with mock.patch("ai.run_ai", return_value=(audit_b1_fail, "m", None)):
+            result = run_pass3_audit(*self._args(), calls_remaining=5)
+        assert result["b1_compliant"] is False
+        assert not result["audit_clean"]
+
+    def test_tone_mismatch_flagged(self):
+        import json as _json
+        audit_tone = _json.dumps({
+            "citation_errors": [],
+            "b1_compliant": True,
+            "tone_label_ok": False,
+            "tone_label_evidence": "narrative is predominantly bearish but label is BUY",
+        })
+        with mock.patch("ai.run_ai", return_value=(audit_tone, "m", None)):
+            result = run_pass3_audit(*self._args(), calls_remaining=5)
+        assert result["tone_label_ok"] is False
+        assert result["tone_label_evidence"] is not None
+
+    def test_info_severity_does_not_fail_audit(self):
+        """Only 'error' and 'warn' severities mark audit_clean=False."""
+        import json as _json
+        audit_info_only = _json.dumps({
+            "citation_errors": [{
+                "field": "financial_health",
+                "quoted_text": "elevated net debt",
+                "issue": "qualitative language without numeric anchor",
+                "severity": "info",
+            }],
+            "b1_compliant": True,
+            "tone_label_ok": True,
+            "tone_label_evidence": None,
+        })
+        with mock.patch("ai.run_ai", return_value=(audit_info_only, "m", None)):
+            result = run_pass3_audit(*self._args(), calls_remaining=5)
+        assert result["audit_clean"] is True, "info-only citation errors should not fail audit_clean"
+
+
+class TestPass3CallCeiling:
+    """F4: C3 ceiling — no retry path can loop; budget_remaining decrements correctly."""
+
+    def _args(self):
+        return (
+            "AVGO",
+            _baseline_for_pass2(),
+            _minimal_valid_pass1(),
+            _math_for_pass2(),
+            _pass2_with_body(),
+        )
+
+    def test_constant_exists_and_is_positive(self):
+        assert isinstance(MAX_PIPELINE_AI_CALLS, int)
+        assert MAX_PIPELINE_AI_CALLS >= 4, "ceiling must be ≥ 4 (pass1+pass2+pass3 baseline)"
+
+    def test_ceiling_zero_skips_llm(self):
+        """calls_remaining=0 → audit_skipped=True, zero LLM calls made."""
+        call_count = {"n": 0}
+        def mock_run_ai(*a, **kw):
+            call_count["n"] += 1
+            return (_clean_audit_json(), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass3_audit(*self._args(), calls_remaining=0)
+
+        assert result["audit_skipped"] is True
+        assert call_count["n"] == 0, "LLM must not be called when calls_remaining=0"
+
+    def test_ceiling_one_makes_exactly_one_call(self):
+        call_count = {"n": 0}
+        def mock_run_ai(*a, **kw):
+            call_count["n"] += 1
+            return (_clean_audit_json(), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass3_audit(*self._args(), calls_remaining=1)
+
+        assert call_count["n"] == 1
+        assert result["calls_remaining"] == 0
+
+    def test_calls_remaining_decremented_by_one(self):
+        with mock.patch("ai.run_ai", return_value=(_clean_audit_json(), "m", None)):
+            result = run_pass3_audit(*self._args(), calls_remaining=5)
+        assert result["calls_remaining"] == 4
+
+    def test_loop_terminates_within_ceiling(self):
+        """Simulate an orchestrator calling audit in a loop — must stop ≤ MAX_PIPELINE_AI_CALLS."""
+        import json as _json
+        # Each audit call returns an error to simulate the orchestrator wanting to loop
+        persistent_error = _json.dumps({
+            "citation_errors": [{"field": "f", "quoted_text": "x", "issue": "y", "severity": "warn"}],
+            "b1_compliant": True,
+            "tone_label_ok": True,
+            "tone_label_evidence": None,
+        })
+
+        call_count   = {"n": 0}
+        budget       = MAX_PIPELINE_AI_CALLS
+        iterations   = 0
+
+        def mock_run_ai(*a, **kw):
+            call_count["n"] += 1
+            return (persistent_error, "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            while budget > 0:
+                result  = run_pass3_audit(*self._args(), calls_remaining=budget)
+                budget  = result.get("calls_remaining", 0)
+                iterations += 1
+                if result.get("audit_skipped"):
+                    break
+
+        assert iterations <= MAX_PIPELINE_AI_CALLS, (
+            f"Loop ran {iterations} times — exceeds ceiling {MAX_PIPELINE_AI_CALLS}"
+        )
+        assert call_count["n"] <= MAX_PIPELINE_AI_CALLS
+
+    def test_audit_skipped_result_includes_forbidden_vocab(self):
+        """Even when skipped, deterministic vocab scan results are returned."""
+        ticker, baseline, pass1, math, pass2 = self._args()
+        pass2["body"] += " capture the gains here."
+        result = run_pass3_audit(ticker, baseline, pass1, math, pass2, calls_remaining=0)
+        assert result["audit_skipped"] is True
+        assert any(h["token"] == "capture" for h in result["forbidden_vocab"])

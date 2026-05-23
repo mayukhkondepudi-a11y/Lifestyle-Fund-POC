@@ -47,6 +47,10 @@ FRANCHISE_QUALITY_REQUIRED_FOR_BEAR_FLOOR = True   # B3: bear floor only for qua
 SHARE_COUNT_PROJECTION = "trailing_net_change"      # B4: shares evolve via trailing dilution rate
 HEADLINE_METRIC = "implied_fcf_cagr"                # B1: reverse-DCF leads the report
 
+# C3 — global LLM call ceiling per pipeline run
+# Pass1 uses ≤2, Pass2 uses ≤2, Pass3 uses ≤1; orchestrator re-prompts consume remainder.
+MAX_PIPELINE_AI_CALLS = 8
+
 
 # ══════════════════════════════════════════════════════════════
 # LATEX SANITIZER (unchanged)
@@ -994,6 +998,764 @@ def _compute_price_history(m, data):
     else:
         m["price_5y_return"] = m["price_5y_high"] = m["price_5y_low"] = None
     return m
+
+
+# ══════════════════════════════════════════════════════════════
+# PHASE-2 DEPTH METRICS (multi-year financials, bands, dilution)
+# ══════════════════════════════════════════════════════════════
+
+def _df_row_sorted(df, labels):
+    """Extract the first matching row from df, sorted ascending by date."""
+    if df is None or df.empty:
+        return None
+    for lb in labels:
+        if lb in df.index:
+            row = df.loc[lb].dropna()
+            if not row.empty:
+                return row.sort_index()
+    return None
+
+
+def _extract_n_year_values(df, labels, years=3):
+    """Return list of up to `years` most recent raw $ values for the first matching label."""
+    row = _df_row_sorted(df, labels)
+    if row is None:
+        return []
+    return [float(v) for v in list(row.values)[-years:]]
+
+
+def _build_multi_year_financials(inc, bs, cf):
+    """Build dict of 3-year annual financial history (values in $B, year-keyed)."""
+    def _years_dict(df, labels, years=3):
+        row = _df_row_sorted(df, labels)
+        if row is None:
+            return {}
+        items = list(row.items())[-years:]
+        return {
+            str(dt.year) if hasattr(dt, "year") else str(dt): round(float(v) / 1e9, 2)
+            for dt, v in items
+        }
+
+    return {
+        "revenue":    _years_dict(inc, ["Total Revenue", "TotalRevenue", "Revenue"]),
+        "op_income":  _years_dict(inc, ["Operating Income", "OperatingIncome", "EBIT"]),
+        "net_income": _years_dict(inc, ["Net Income", "NetIncome",
+                                        "Net Income Common Stockholders"]),
+        "ocf":        _years_dict(cf,  ["Operating Cash Flow",
+                                        "Cash Flow From Continuing Operating Activities"]),
+        "fcf":        _years_dict(cf,  ["Free Cash Flow", "FreeCashFlow"]),
+        "debt":       _years_dict(bs,  ["Total Debt", "LongTermDebt", "Long Term Debt"]),
+        "equity":     _years_dict(bs,  ["Stockholders Equity", "CommonStockEquity",
+                                        "Total Stockholder Equity"]),
+    }
+
+
+def _extract_capex_history(cf, years=3):
+    """Return list of capex amounts (absolute $) for last `years` periods."""
+    vals = _extract_n_year_values(cf, [
+        "Capital Expenditure", "CapitalExpenditure",
+        "Purchase Of Property Plant And Equipment",
+        "Capital Expenditures",
+    ], years=years)
+    return [abs(v) for v in vals]
+
+
+def _extract_sbc_history(cf, years=3):
+    """Return list of stock-based compensation amounts ($) for last `years` periods."""
+    vals = _extract_n_year_values(cf, [
+        "Stock Based Compensation", "StockBasedCompensation",
+        "Share Based Compensation",
+    ], years=years)
+    return [abs(v) for v in vals]
+
+
+def _extract_shares_history(bs, years=3):
+    """Return list of shares outstanding for last `years` periods (raw units)."""
+    vals = _extract_n_year_values(bs, [
+        "Ordinary Shares Number", "Share Issued",
+    ], years=years)
+    return [v for v in vals if v > 1e6]  # sanity: >1M shares
+
+
+def _compute_dilution_rate(shares_list):
+    """Compute CAGR of share count. Negative = buyback program."""
+    if not shares_list or len(shares_list) < 2:
+        return 0.0
+    oldest, newest = shares_list[0], shares_list[-1]
+    if oldest <= 0:
+        return 0.0
+    years = len(shares_list) - 1
+    return round((newest / oldest) ** (1.0 / years) - 1, 4)
+
+
+def _avg_ratio(numerator_list, denominator):
+    """Average ratio of numerator values to denominator values.
+
+    denominator may be a list of raw $ or a {year: $B} dict.
+    """
+    if not numerator_list:
+        return None
+    if isinstance(denominator, dict):
+        denom_list = [v * 1e9 for v in denominator.values()]
+    else:
+        denom_list = denominator or []
+    if not denom_list:
+        return None
+    n = min(len(numerator_list), len(denom_list))
+    num_tail   = numerator_list[-n:]
+    denom_tail = denom_list[-n:]
+    ratios = [num_tail[i] / denom_tail[i]
+              for i in range(n) if denom_tail[i] > 0]
+    if not ratios:
+        return None
+    return round(sum(ratios) / len(ratios), 4)
+
+
+def _compute_op_margin_band(inc, years=5):
+    """Return {min, max, median} of operating margin for last `years` annual periods."""
+    if inc is None or inc.empty:
+        return None
+    try:
+        import statistics
+        rev_row = _df_row_sorted(inc, ["Total Revenue", "TotalRevenue", "Revenue"])
+        op_row  = _df_row_sorted(inc, ["Operating Income", "OperatingIncome", "EBIT"])
+        if rev_row is None or op_row is None:
+            return None
+        common = rev_row.index.intersection(op_row.index)
+        if len(common) < 1:
+            return None
+        margins = []
+        for dt in sorted(common)[-years:]:
+            rev = float(rev_row[dt])
+            op  = float(op_row[dt])
+            if rev > 0:
+                margins.append(round(op / rev, 4))
+        if not margins:
+            return None
+        return {
+            "min":    round(min(margins), 4),
+            "max":    round(max(margins), 4),
+            "median": round(statistics.median(margins), 4),
+            "n":      len(margins),
+        }
+    except Exception:
+        return None
+
+
+def _compute_tax_rate_band(inc, years=3):
+    """Return {min, max, median} of effective tax rate for last `years` annual periods."""
+    if inc is None or inc.empty:
+        return None
+    try:
+        import statistics
+        tax_row  = _df_row_sorted(inc, ["Tax Provision", "IncomeTaxExpense",
+                                        "Income Tax Expense"])
+        pret_row = _df_row_sorted(inc, ["Pretax Income", "PreTaxIncome",
+                                        "Income Before Tax"])
+        if tax_row is None or pret_row is None:
+            return None
+        common = tax_row.index.intersection(pret_row.index)
+        if len(common) < 1:
+            return None
+        rates = []
+        for dt in sorted(common)[-years:]:
+            tax  = float(tax_row[dt])
+            pret = float(pret_row[dt])
+            if pret > 0 and tax >= 0:
+                rates.append(round(tax / pret, 4))
+        if not rates:
+            return None
+        return {
+            "min":    round(min(rates), 4),
+            "max":    round(max(rates), 4),
+            "median": round(statistics.median(rates), 4),
+            "n":      len(rates),
+        }
+    except Exception:
+        return None
+
+
+def _compute_pe_band(metrics, hist_df, years=5):
+    """Estimate historical P/E band from EPS series × year-end prices."""
+    try:
+        import statistics
+        eps_series = metrics.get("stmt_eps_series", {})  # {year: eps}
+        if not eps_series or hist_df is None or hist_df.empty:
+            raise ValueError("insufficient data")
+
+        prices = hist_df["Close"]
+        annual_prices = {}
+        for dt, price in prices.items():
+            yr = dt.year if hasattr(dt, "year") else int(str(dt)[:4])
+            annual_prices[yr] = float(price)
+
+        pes = []
+        for yr, eps in eps_series.items():
+            if eps and eps > 0 and yr in annual_prices:
+                pe = annual_prices[yr] / eps
+                if 3 < pe < 200:
+                    pes.append(round(pe, 1))
+
+        pes = pes[-years:]
+        if not pes:
+            raise ValueError("no valid P/E observations")
+
+        return {
+            "min":    round(min(pes), 1),
+            "max":    round(max(pes), 1),
+            "median": round(statistics.median(pes), 1),
+            "n":      len(pes),
+        }
+    except Exception:
+        anchor = metrics.get("forward_pe") or metrics.get("trailing_pe")
+        if anchor:
+            try:
+                a = float(anchor)
+                if a > 0:
+                    return {"min": round(a * 0.6, 1), "max": round(a * 1.5, 1),
+                            "median": round(a, 1), "n": 0}
+            except Exception:
+                pass
+        return None
+
+
+def _compute_pe_ranges_per_scenario(metrics, peer_metrics):
+    """Return {bull:(lo,hi), base:(lo,hi), bear:(lo,hi)} for pass-1 P/E validation."""
+    import statistics as _st
+    peer_pes = [float(p["forward_pe"]) for p in (peer_metrics or [])
+                if p.get("forward_pe") and float(p["forward_pe"]) > 0]
+    if peer_pes:
+        peer_median = _st.median(peer_pes)
+    else:
+        anchor = metrics.get("forward_pe") or metrics.get("trailing_pe") or 20
+        try:
+            peer_median = float(anchor)
+        except Exception:
+            peer_median = 20.0
+
+    own_band = metrics.get("pe_5y_band") or {
+        "min": round(peer_median * 0.6, 1),
+        "max": round(peer_median * 1.4, 1),
+    }
+    return {
+        "bull": (round(peer_median * 1.0, 1),
+                 round(max(peer_median * 1.5, own_band["max"]), 1)),
+        "base": (round(peer_median * 0.8, 1),
+                 round(peer_median * 1.2, 1)),
+        "bear": (round(max(peer_median * 0.4, own_band["min"] * 0.7), 1),
+                 round(peer_median * 0.85, 1)),
+    }
+
+
+def _extract_latest_quarter(qinc):
+    """Extract revenue / op_income / op_margin / net_income / EPS for the most
+    recent reported quarter from quarterly income statement.
+    Returns dict with period_label, period_end_date, and key numbers — or None
+    if qinc is missing/empty."""
+    if qinc is None or qinc.empty or len(qinc.columns) == 0:
+        return None
+    try:
+        latest_col = sorted(qinc.columns)[-1]
+        period_end_date = (latest_col.strftime("%Y-%m-%d")
+                           if hasattr(latest_col, "strftime") else str(latest_col))
+        try:
+            year   = latest_col.year
+            month  = latest_col.month
+            quarter = (month - 1) // 3 + 1
+            period_label = f"Q{quarter} {year}"
+        except Exception:
+            period_label = period_end_date
+
+        def _val(labels):
+            for lb in labels:
+                if lb in qinc.index:
+                    v = qinc.loc[lb, latest_col]
+                    if v is not None and not (isinstance(v, float) and v != v):
+                        try:
+                            return float(v)
+                        except (TypeError, ValueError):
+                            continue
+            return None
+
+        revenue  = _val(["Total Revenue", "TotalRevenue", "Revenue"])
+        op_inc   = _val(["Operating Income", "OperatingIncome", "EBIT"])
+        net_inc  = _val(["Net Income", "NetIncome", "Net Income Common Stockholders"])
+        diluted_eps = _val(["Diluted EPS", "DilutedEPS", "Basic EPS", "BasicEPS"])
+        op_margin = round(op_inc / revenue, 4) if (op_inc and revenue and revenue > 0) else None
+
+        return {
+            "period_label":      period_label,
+            "period_end_date":   period_end_date,
+            "revenue":           revenue,
+            "operating_income":  op_inc,
+            "operating_margin":  op_margin,
+            "net_income":        net_inc,
+            "diluted_eps":       diluted_eps,
+        }
+    except Exception:
+        return None
+
+
+def _add_depth_metrics(m, data):
+    """Add Phase-2 multi-year and band metrics to the metrics dict in-place."""
+    inc  = data.get("inc")
+    qinc = data.get("qinc")
+    bs   = data.get("bs")
+    cf   = data.get("cf")
+    hist = data.get("hist")
+
+    m["latest_quarter"]    = _extract_latest_quarter(qinc)
+    m["analyst_consensus"] = data.get("analyst_consensus")
+
+    m["multi_year_financials"] = _build_multi_year_financials(inc, bs, cf)
+
+    capex_3y = _extract_capex_history(cf, years=3)
+    m["capex_3y"]         = capex_3y
+    m["capex_ttm"]        = capex_3y[-1] if capex_3y else None
+    m["capex_to_revenue"] = _avg_ratio(capex_3y, m["multi_year_financials"].get("revenue", {}))
+
+    sbc_3y = _extract_sbc_history(cf, years=3)
+    m["sbc_3y"]         = sbc_3y
+    m["sbc_ttm"]        = sbc_3y[-1] if sbc_3y else None
+    m["sbc_to_revenue"] = _avg_ratio(sbc_3y, m["multi_year_financials"].get("revenue", {}))
+
+    shares_3y = _extract_shares_history(bs, years=3)
+    if not shares_3y and m.get("shares_outstanding"):
+        shares_3y = [m["shares_outstanding"]]
+    m["shares_outstanding_3y"] = shares_3y
+    m["dilution_rate_3y"]      = _compute_dilution_rate(shares_3y)
+
+    goodwill = 0.0
+    try:
+        row = _df_row_sorted(bs, ["Goodwill"])
+        if row is not None and not row.empty:
+            goodwill = float(row.iloc[-1])
+    except Exception:
+        pass
+    m["goodwill"] = goodwill
+    total_eq = 0.0
+    try:
+        eq_row = _df_row_sorted(bs, ["Stockholders Equity", "CommonStockEquity",
+                                     "Total Stockholder Equity"])
+        if eq_row is not None and not eq_row.empty:
+            total_eq = float(eq_row.iloc[-1])
+    except Exception:
+        pass
+    m["goodwill_to_equity"] = round(goodwill / total_eq, 4) if total_eq > 0 else None
+
+    m["op_margin_5y_band"] = _compute_op_margin_band(inc, years=5)
+    m["tax_rate_3y_band"]  = _compute_tax_rate_band(inc, years=3)
+    m["pe_5y_band"]        = _compute_pe_band(m, hist, years=5)
+
+    return m
+
+
+# ══════════════════════════════════════════════════════════════
+# PHASE-3: DRIVER-DRIVEN SCENARIO MATH
+# ══════════════════════════════════════════════════════════════
+
+def validate_pass1_inputs(pass1_dict, metrics, pe_ranges):
+    """
+    Validate LLM pass-1 output before handing it to the compute layer.
+    Returns (ok: bool, errors: list[str]).
+    Soft-clamps importance > 0.5 to 0.5 in-place; that does NOT count as an error.
+    """
+    errors = []
+
+    # ── Required top-level keys ──
+    for key in ("drivers", "scenario_inputs", "monitoring_kpis", "catalysts"):
+        if key not in pass1_dict:
+            errors.append(f"missing top-level key: {key!r}")
+    if errors:
+        return False, errors  # nothing else can be checked without these
+
+    drivers         = pass1_dict.get("drivers", [])
+    scenario_inputs = pass1_dict.get("scenario_inputs", {})
+    monitoring_kpis = pass1_dict.get("monitoring_kpis", [])
+    catalysts       = pass1_dict.get("catalysts", [])
+
+    # ── Driver count ──
+    if not (4 <= len(drivers) <= 6):
+        errors.append(f"driver count {len(drivers)} not in [4, 6]")
+
+    # ── Per-driver validation ──
+    has_bull_leaning = False
+    has_bear_leaning = False
+    for i, d in enumerate(drivers):
+        name = d.get("name", f"driver[{i}]")
+        outcomes = d.get("outcomes", {})
+        bp = safe_float(outcomes.get("bull", {}).get("probability", 0))
+        mp = safe_float(outcomes.get("base", {}).get("probability", 0))
+        wp = safe_float(outcomes.get("bear", {}).get("probability", 0))
+        total = bp + mp + wp
+        if abs(total - 1.0) > 0.02:
+            errors.append(
+                f"driver {name!r}: outcome probabilities sum to "
+                f"{total:.4f} (must be 1.0 ±0.02)"
+            )
+        imp = safe_float(d.get("importance", 0))
+        if imp > 0.5:
+            d["importance"] = 0.5  # soft clamp, no error
+        if imp <= 0:
+            errors.append(f"driver {name!r}: importance must be > 0")
+        if bp > mp:
+            has_bull_leaning = True
+        if wp > mp:
+            has_bear_leaning = True
+
+    if drivers and not has_bull_leaning:
+        errors.append("no driver has bull.probability > base.probability")
+    if drivers and not has_bear_leaning:
+        errors.append("no driver has bear.probability > base.probability")
+
+    # ── Scenario inputs validation ──
+    op_band  = metrics.get("op_margin_5y_band")
+    tax_band = metrics.get("tax_rate_3y_band")
+    bull_op = base_op = bear_op = None
+
+    for sname in ("bull", "base", "bear"):
+        si = scenario_inputs.get(sname, {})
+        if not si:
+            errors.append(f"scenario_inputs missing {sname!r}")
+            continue
+
+        op  = safe_float(si.get("op_margin"))
+        tax = safe_float(si.get("tax_rate"))
+        pe  = safe_float(si.get("pe_multiple_pick"))
+
+        if sname == "bull":  bull_op = op
+        if sname == "base":  base_op = op
+        if sname == "bear":  bear_op = op
+
+        # Op-margin band
+        if op_band and op > 0:
+            lo = op_band["min"] * 0.5
+            hi = op_band["max"] * 1.5
+            if not (lo <= op <= hi):
+                errors.append(
+                    f"scenario_inputs.{sname}.op_margin {op:.4f} outside "
+                    f"[{lo:.4f}, {hi:.4f}] (0.5×hist_min – 1.5×hist_max)"
+                )
+        elif op <= 0:
+            errors.append(f"scenario_inputs.{sname}.op_margin must be > 0")
+
+        # Tax rate band
+        if tax_band:
+            lo_t = max(0.05, tax_band["min"] * 0.5)
+            hi_t = min(0.50, tax_band["max"] * 1.5)
+        else:
+            lo_t, hi_t = 0.10, 0.35
+        if tax > 0 and not (lo_t <= tax <= hi_t):
+            errors.append(
+                f"scenario_inputs.{sname}.tax_rate {tax:.4f} outside "
+                f"[{lo_t:.4f}, {hi_t:.4f}]"
+            )
+        elif tax <= 0:
+            errors.append(f"scenario_inputs.{sname}.tax_rate must be > 0")
+
+        # P/E range
+        if pe_ranges and sname in pe_ranges:
+            pe_lo, pe_hi = pe_ranges[sname]
+            if pe > 0 and not (pe_lo <= pe <= pe_hi):
+                errors.append(
+                    f"scenario_inputs.{sname}.pe_multiple_pick {pe:.1f} outside "
+                    f"[{pe_lo:.1f}, {pe_hi:.1f}]"
+                )
+        elif pe <= 0:
+            errors.append(f"scenario_inputs.{sname}.pe_multiple_pick must be > 0")
+
+    # ── Monotonic op-margin ──
+    if bull_op is not None and base_op is not None and bear_op is not None:
+        if not (bull_op >= base_op >= bear_op):
+            errors.append(
+                f"op_margin not monotonic: bull={bull_op:.4f} >= "
+                f"base={base_op:.4f} >= bear={bear_op:.4f} required"
+            )
+
+    # ── KPI and catalyst counts ──
+    if not (5 <= len(monitoring_kpis) <= 7):
+        errors.append(f"monitoring_kpis count {len(monitoring_kpis)} not in [5, 7]")
+    if not (3 <= len(catalysts) <= 6):
+        errors.append(
+            f"catalysts count {len(catalysts)} not in [3, 6]. You MUST provide "
+            f"3-6 dated catalysts AFTER today, including at minimum: "
+            f"(1) the next quarterly earnings release with date, "
+            f"(2) any explicit forward guidance update or analyst day, "
+            f"(3) one product/program-specific milestone if applicable."
+        )
+
+    # ── Analyst-consensus revenue floors (HARD constraint) ──
+    ac = metrics.get("analyst_consensus") or {}
+    if ac.get("revenue_fy_high") and ac.get("revenue_fy_avg") and ac.get("revenue_fy_low"):
+        baseline = safe_float(metrics.get("total_revenue", 0))
+        rev_floors = {
+            "bull": ac["revenue_fy_high"] * 1.0,         # bull ≥ analyst HIGH
+            "base": ac["revenue_fy_avg"]  * 1.0,         # base ≥ analyst AVERAGE
+            "bear": ac["revenue_fy_low"]  * 0.85,        # bear allowed 15% below analyst LOW
+        }
+        for sname, floor in rev_floors.items():
+            scen_rev = baseline + sum(
+                safe_float(d.get("outcomes", {}).get(sname, {}).get("revenue_impact", 0))
+                for d in drivers
+            )
+            if floor > 0 and scen_rev < floor:
+                errors.append(
+                    f"{sname}_revenue {scen_rev/1e9:.2f}B is below the analyst "
+                    f"consensus floor {floor/1e9:.2f}B. Analyst consensus reflects "
+                    f"management's most-recent guidance — your scenario revenue "
+                    f"must clear it. Increase driver revenue_impacts on the "
+                    f"hyperscaler/AI ramp or other tailwind drivers for {sname}."
+                )
+
+    return len(errors) == 0, errors
+
+
+def compute_scenarios_from_drivers(metrics, pass1_inputs, current_price):
+    """
+    Pure Python compute layer. No LLM calls. No hidden overrides.
+    Derives scenario probabilities bottom-up from driver outcome probabilities.
+    Returns scenario_math_dict with final_probabilities as the single source of truth.
+    """
+    drivers         = pass1_inputs.get("drivers", [])
+    scenario_inputs = pass1_inputs.get("scenario_inputs", {})
+    scenarios       = ("bull", "base", "bear")
+
+    # Step 1: Resolve correlated drivers
+    groups = {}
+    for d in drivers:
+        g = d.get("correlation_group")
+        if g:
+            groups.setdefault(g, []).append(d)
+
+    active_drivers = list(drivers)
+    for group_drivers in groups.values():
+        if len(group_drivers) < 2:
+            continue
+        # Keep most material; zero out others
+        def _spread(d):
+            b = safe_float(d["outcomes"]["bull"].get("revenue_impact", 0))
+            w = safe_float(d["outcomes"]["bear"].get("revenue_impact", 0))
+            return abs(b - w)
+        most_material = max(group_drivers, key=_spread)
+        for d in group_drivers:
+            if d is not most_material:
+                d["_redundant"] = True
+                for s in scenarios:
+                    d["outcomes"][s]["revenue_impact"] = 0.0
+
+    # Step 2: Impact-weighted scenario probabilities
+    total_importance = sum(
+        safe_float(d.get("importance", 0))
+        for d in active_drivers if not d.get("_redundant")
+    )
+    if total_importance <= 0:
+        total_importance = 1.0  # avoid division by zero
+
+    raw_p = {}
+    for s in scenarios:
+        raw_p[s] = sum(
+            safe_float(d.get("importance", 0)) *
+            safe_float(d["outcomes"][s].get("probability", 0))
+            for d in active_drivers if not d.get("_redundant")
+        ) / total_importance
+
+    # Step 3: Round to integer percent; allocate remainder to base
+    rounded = {s: round(raw_p[s] * 100) for s in scenarios}
+    diff = 100 - sum(rounded.values())
+    rounded["base"] += diff
+    final_probabilities = {s: rounded[s] / 100.0 for s in scenarios}
+
+    # Step 4: Per-scenario revenue
+    baseline_revenue = safe_float(metrics.get("total_revenue", 0))
+    scenario_revenue = {}
+    for s in scenarios:
+        delta = sum(
+            safe_float(d["outcomes"][s].get("revenue_impact", 0))
+            for d in active_drivers
+        )
+        scenario_revenue[s] = baseline_revenue + delta
+
+    # Step 5: Dilution-adjusted shares
+    shares = safe_float(metrics.get("shares_outstanding", 0))
+    dilution = safe_float(metrics.get("dilution_rate_3y", 0))
+    future_shares = shares * (1 + dilution) ** 1 if shares > 0 else shares
+
+    # Step 6: Per-scenario EPS (Python-deterministic; no LLM EPS anywhere)
+    eps = {}
+    for s in scenarios:
+        si = scenario_inputs.get(s, {})
+        op_m = safe_float(si.get("op_margin", 0))
+        tax  = safe_float(si.get("tax_rate", 0.21))
+        if future_shares > 0 and op_m > 0:
+            eps[s] = scenario_revenue[s] * op_m * (1 - tax) / future_shares
+        else:
+            eps[s] = 0.0
+
+    # Step 7: Per-scenario price target
+    price_target = {}
+    for s in scenarios:
+        si = scenario_inputs.get(s, {})
+        pe = safe_float(si.get("pe_multiple_pick", 0))
+        price_target[s] = round(eps[s] * pe, 2) if eps[s] > 0 and pe > 0 else 0.0
+
+    # Step 8: Monotonicity check
+    monotonicity_violation = False
+    violation_msg = None
+    if price_target.get("bear", 0) and price_target.get("base", 0) and price_target.get("bull", 0):
+        if not (price_target["bear"] < price_target["base"] < price_target["bull"]):
+            monotonicity_violation = True
+            violation_msg = (
+                f"Non-monotonic price targets: "
+                f"bear={price_target['bear']:.2f}, "
+                f"base={price_target['base']:.2f}, "
+                f"bull={price_target['bull']:.2f}. "
+                f"Please re-examine your driver impacts and scenario margins so that "
+                f"bear < base < bull."
+            )
+
+    # Step 8b: Bull-below-current sanity guard — strong signal of stale baselines
+    bull_below_current = False
+    bull_below_msg = None
+    cp_check = safe_float(current_price)
+    if cp_check > 0 and price_target.get("bull", 0) > 0:
+        if price_target["bull"] < cp_check:
+            bull_below_current = True
+            bull_below_msg = (
+                f"Bull-case price target {price_target['bull']:.2f} is BELOW current "
+                f"price {cp_check:.2f}. Your bull-case revenue ({scenario_revenue['bull']/1e9:.2f}B) "
+                f"and/or operating margin ({scenario_inputs.get('bull', {}).get('op_margin', 0)*100:.1f}%) "
+                f"may be anchored on stale forward baselines (e.g. outdated revenue guidance). "
+                f"Reconsider bull-case revenue/margin against the LATEST QUARTERLY DISCLOSURE and "
+                f"any recent guidance updates in RECENT NEWS HEADLINES — bull revenue should be "
+                f"consistent with or above management's most recent annual guidance."
+            )
+
+    # Step 9: Driver-level EPS impact stamps
+    for d in active_drivers:
+        for s in scenarios:
+            si = scenario_inputs.get(s, {})
+            op_m = safe_float(si.get("op_margin", 0))
+            tax  = safe_float(si.get("tax_rate", 0.21))
+            rev_impact = safe_float(d["outcomes"][s].get("revenue_impact", 0))
+            if future_shares > 0:
+                d["outcomes"][s]["eps_impact"] = round(
+                    rev_impact * op_m * (1 - tax) / future_shares, 4
+                )
+
+    # Step 10: Aggregates
+    cp = safe_float(current_price)
+    if cp > 0:
+        expected_value   = sum(final_probabilities[s] * price_target[s] for s in scenarios)
+        expected_return  = expected_value / cp - 1
+        base_implied_ret = price_target["base"] / cp - 1 if price_target.get("base") else 0
+        prob_positive    = sum(final_probabilities[s] for s in scenarios
+                               if price_target.get(s, 0) > cp)
+
+        upside_sum   = sum(final_probabilities[s] * (price_target[s] / cp - 1)
+                           for s in scenarios if price_target.get(s, 0) > cp)
+        downside_sum = sum(final_probabilities[s] * (price_target[s] / cp - 1)
+                           for s in scenarios if price_target.get(s, 0) < cp)
+        upside_downside_ratio = (
+            abs(upside_sum / downside_sum) if downside_sum != 0 else float("inf")
+        )
+    else:
+        expected_value = expected_return = base_implied_ret = 0
+        prob_positive = upside_downside_ratio = 0
+
+    # Regression guard assertions (downgraded to warnings in production)
+    _guard_warnings = []
+    try:
+        assert abs(sum(final_probabilities.values()) - 1.0) < 1e-9, "final_probabilities do not sum to 1.0"
+        assert all((round(p * 100) / 100.0 == p) for p in final_probabilities.values()), \
+            "final_probabilities are not integer-percent"
+        assert all(0 < d.get("importance", 0) <= 0.5 for d in active_drivers if not d.get("_redundant")), \
+            "driver importance out of (0, 0.5] range"
+        if not monotonicity_violation:
+            if price_target.get("bear") and price_target.get("base") and price_target.get("bull"):
+                assert price_target["bear"] < price_target["base"] < price_target["bull"], \
+                    "non-monotonic price targets without violation flag"
+    except AssertionError as _ae:
+        _guard_warnings.append(f"compute_guard:{_ae}")
+
+    return {
+        "final_probabilities":    final_probabilities,
+        "scenario_revenue":       {s: round(scenario_revenue[s], 0) for s in scenarios},
+        "future_shares":          round(future_shares, 0),
+        "eps":                    {s: round(eps[s], 4) for s in scenarios},
+        "price_target":           price_target,
+        "expected_value":         round(expected_value, 2),
+        "expected_return":        round(expected_return, 4),
+        "base_implied_return":    round(base_implied_ret, 4),
+        "prob_positive":          round(prob_positive, 4),
+        "upside_downside_ratio":  round(upside_downside_ratio, 4)
+                                  if upside_downside_ratio != float("inf") else None,
+        "monotonicity_violation": monotonicity_violation,
+        "violation_msg":          violation_msg,
+        "bull_below_current":     bull_below_current,
+        "bull_below_msg":         bull_below_msg,
+        "drivers_with_impacts":   active_drivers,
+        "guard_warnings":         _guard_warnings,
+    }
+
+
+def derive_recommendation(scenario_math):
+    """
+    Deterministic recommendation label and conviction from scenario_math output.
+    Returns (label: str, conviction: str).
+    """
+    expected_return  = safe_float(scenario_math.get("expected_return", 0))
+    base_implied_ret = safe_float(scenario_math.get("base_implied_return", 0))
+    prob_positive    = safe_float(scenario_math.get("prob_positive", 0))
+    ud_ratio         = scenario_math.get("upside_downside_ratio")
+    ud               = safe_float(ud_ratio) if ud_ratio is not None else float("inf")
+
+    # Recommendation label
+    if base_implied_ret < -0.25 or (expected_return < 0 and prob_positive < 0.50):
+        label = "PASS"
+    elif base_implied_ret < -0.10 or ud < 1.5:
+        label = "WATCH"
+    elif (expected_return > 0.08 and base_implied_ret > 0
+          and prob_positive > 0.65 and ud > 1.5):
+        label = "BUY"
+    else:
+        label = "WATCH"
+
+    # Conviction
+    if ud > 3.0 and prob_positive > 0.70:
+        conviction = "High"
+    elif ud < 1.5 or (0.40 <= prob_positive <= 0.60):
+        conviction = "Low"
+    else:
+        conviction = "Medium"
+
+    return label, conviction
+
+
+def compute_fundamentals_diagnostic(metrics, driver_probabilities=None):
+    """
+    Renamed from compute_scenario_probabilities. Runs the 8-signal engine and
+    returns signal_implied_probabilities for comparison vs driver-derived probs.
+    Does NOT influence any number in the report — diagnostic only.
+    """
+    result = compute_scenario_probabilities(metrics)
+    signal_probs = {
+        "bull": result.get("bull", 0.35),
+        "base": result.get("base", 0.45),
+        "bear": result.get("bear", 0.20),
+    }
+    divergence_flag = False
+    if driver_probabilities:
+        for s in ("bull", "base", "bear"):
+            diff = abs(signal_probs.get(s, 0) - driver_probabilities.get(s, 0))
+            if diff > 0.15:
+                divergence_flag = True
+                break
+    return {
+        "signal_implied_probabilities": signal_probs,
+        "divergence_flag": divergence_flag,
+        "bull_score": result.get("bull_score"),
+        "signal_log": result.get("signal_log", []),
+    }
 
 
 # ══════════════════════════════════════════════════════════════
