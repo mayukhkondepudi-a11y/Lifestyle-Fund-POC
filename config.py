@@ -28,7 +28,7 @@ SCREENER_FILE = "screener_results.json"
 # Methodology version flag for the v3 rewrite. "v1" routes to the existing
 # analytical pipeline and renderer; "v2" routes to the v3 pipeline being
 # built behind this flag. Default stays "v1" until Phase G cutover.
-METHODOLOGY_VERSION = "v2"
+METHODOLOGY_VERSION = "v1"
 
 FREE_MODELS = [
     "meta-llama/llama-3.3-70b-instruct:free",
