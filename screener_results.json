@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-23 11:18 UTC",
+  "last_updated": "2026-05-24 11:22 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -112,22 +112,6 @@
       "qglp_score": 83.6
     },
     {
-      "ticker": "ZM",
-      "name": "Zoom Communications, Inc.",
-      "sector": "Technology",
-      "price": 105.64,
-      "market_cap": 31136495616,
-      "trailing_pe": 17.09,
-      "peg_ratio": 0.855,
-      "peg_source": "stmt_eps_cagr_2yr_capped",
-      "roe": 0.2195,
-      "earnings_cagr": 0.4,
-      "earnings_cagr_years": 2,
-      "fcf_yield": 0.0645,
-      "debt_equity": 0.32,
-      "qglp_score": 83.0
-    },
-    {
       "ticker": "ADBE",
       "name": "Adobe Inc.",
       "sector": "Technology",
@@ -158,6 +142,22 @@
       "fcf_yield": 0.0576,
       "debt_equity": 0.3578,
       "qglp_score": 82.0
+    },
+    {
+      "ticker": "ZM",
+      "name": "Zoom Communications, Inc.",
+      "sector": "Technology",
+      "price": 105.64,
+      "market_cap": 31136495616,
+      "trailing_pe": 17.09,
+      "peg_ratio": 0.855,
+      "peg_source": "stmt_eps_cagr_2yr_capped",
+      "roe": 0.2195,
+      "earnings_cagr": 0.4,
+      "earnings_cagr_years": 2,
+      "fcf_yield": 0.0636,
+      "debt_equity": 0.604,
+      "qglp_score": 80.1
     },
     {
       "ticker": "GILD",
