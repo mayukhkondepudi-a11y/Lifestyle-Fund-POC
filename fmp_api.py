@@ -383,7 +383,7 @@ def fetch_full(ticker):
         if profile and isinstance(profile, dict) and "error" not in profile:
             profile["_source"] = profile.get("_source", "fmp")
             print(f"  fetch_full({ticker}): FMP profile fallback OK "
-                  f"(statements unavailable — report will be DEGRADED)")
+                  f"(statements unavailable — report will be INCOMPLETE)")
             return {
                 "info":  profile,
                 "inc":   None, "qinc": None,
@@ -905,6 +905,55 @@ def fetch_peer_enriched(peer_tickers: list[str]) -> list[dict]:
     return sorted(results, key=lambda x: order.get(x["ticker"], 999))
 
 
+def fetch_peer_metrics(peer_tickers: list[str]) -> list[dict]:
+    """
+    Fetch fwd_pe and analyst-estimate growth for each peer.
+
+    Growth sourced from earnings_estimate '+1y' row (confirmed yfinance index key).
+    Falls back to earningsGrowth/revenueGrowth from info if estimate unavailable.
+    op_margin and fcf_margin are always None — reserved for §5.1 contract shape.
+
+    Never raises. Failed tickers are skipped silently.
+    """
+    if not peer_tickers:
+        return []
+    if not HAS_YF:
+        return [{"ticker": t, "fwd_pe": None, "growth": None,
+                 "op_margin": None, "fcf_margin": None}
+                for t in peer_tickers]
+
+    def _fetch_one(t: str) -> dict:
+        out = {"ticker": t, "fwd_pe": None, "growth": None,
+               "op_margin": None, "fcf_margin": None}
+        try:
+            import yfinance as yf
+            s    = yf.Ticker(t)
+            info = s.info
+            out["fwd_pe"] = info.get("forwardPE")
+            ee = getattr(s, "earnings_estimate", None)
+            if ee is not None and not ee.empty and "+1y" in ee.index:
+                g = ee.loc["+1y"].get("growth")
+                if g is not None:
+                    out["growth"] = float(g)
+            if out["growth"] is None:
+                out["growth"] = info.get("earningsGrowth") or info.get("revenueGrowth")
+        except Exception:
+            pass
+        return out
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(len(peer_tickers), 6)) as pool:
+        futures = {pool.submit(_fetch_one, t): t for t in peer_tickers}
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception:
+                results.append({"ticker": futures[future], "fwd_pe": None,
+                                 "growth": None, "op_margin": None, "fcf_margin": None})
+    order = {t: i for i, t in enumerate(peer_tickers)}
+    return sorted(results, key=lambda x: order.get(x["ticker"], 999))
+
+
 # ══════════════════════════════════════════════════════════════
 # §8.2 CONSENSUS PACK (Phase B)
 # ══════════════════════════════════════════════════════════════
@@ -933,12 +982,12 @@ def fetch_consensus_pack(ticker: str) -> dict:
             import yfinance as yf
             s = yf.Ticker(ticker)
 
-            # EPS estimates (earnings_estimate table: rows = "0q","1q","0y","1y","2y")
+            # EPS estimates (earnings_estimate table: rows = "0q","+1q","0y","+1y","+2y")
             try:
                 ee = getattr(s, "earnings_estimate", None)
                 if ee is not None and not ee.empty:
-                    _yf_fy_map = {"0y": "consensus_eps_fy1", "1y": "consensus_eps_fy2",
-                                  "2y": "consensus_eps_fy3"}
+                    _yf_fy_map = {"0y": "consensus_eps_fy1", "+1y": "consensus_eps_fy2",
+                                  "+2y": "consensus_eps_fy3"}
                     for row_idx, key in _yf_fy_map.items():
                         if row_idx in ee.index:
                             r = ee.loc[row_idx]
@@ -964,7 +1013,7 @@ def fetch_consensus_pack(ticker: str) -> dict:
             try:
                 re = getattr(s, "revenue_estimate", None)
                 if re is not None and not re.empty:
-                    _yf_rev_map = {"0y": "consensus_revenue_fy1", "1y": "consensus_revenue_fy2"}
+                    _yf_rev_map = {"0y": "consensus_revenue_fy1", "+1y": "consensus_revenue_fy2"}
                     for row_idx, key in _yf_rev_map.items():
                         if row_idx in re.index:
                             r = re.loc[row_idx]
