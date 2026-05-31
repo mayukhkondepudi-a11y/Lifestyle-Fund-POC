@@ -1,0 +1,362 @@
+{
+  "ticker": "CLS",
+  "date": "2026-05-31",
+  "timestamp": "2026-05-31 13:25",
+  "company_name": "Celestica, Inc.",
+  "recommendation": "PASS",
+  "conviction": "Low",
+  "expected_value": 379.91,
+  "expected_return": -0.0142,
+  "risk_adjusted_score": null,
+  "metrics": {
+    "company_name": "Celestica, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Components",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 385.39,
+    "market_cap": 44309487616,
+    "enterprise_value": 44873187328,
+    "trailing_pe": 46.71394,
+    "forward_pe": 25.66,
+    "peg_ratio": null,
+    "price_to_sales": 3.213324,
+    "ev_to_ebitda": 32.51,
+    "gross_margin": 0.12019,
+    "operating_margin": 0.066199996,
+    "profit_margin": 0.069520004,
+    "roe": 0.52454,
+    "roa": 0.10663,
+    "trailing_eps": 8.25,
+    "forward_eps": 15.01876,
+    "earnings_growth": 1.473,
+    "total_revenue": 13789299712,
+    "revenue_growth": 0.528,
+    "free_cashflow": 458300000.0,
+    "operating_cashflow": 885500032,
+    "total_cash": 378000000,
+    "total_debt": 941699968,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.478,
+    "week_52_high": 435.0,
+    "week_52_low": 112.74,
+    "ma_50": 354.259,
+    "ma_200": 298.94016,
+    "insider_pct": 0.0111,
+    "institution_pct": 0.71911,
+    "shares_outstanding": 114973107,
+    "fcf_yield": 0.01034315729334928,
+    "stmt_trailing_eps": 7.16,
+    "stmt_eps_series": {
+      "2022": 1.18,
+      "2023": 2.03,
+      "2024": 3.61,
+      "2025": 7.16
+    },
+    "debt_to_equity": 0.35,
+    "current_ratio": 1.44,
+    "revenue_cagr": 0.1956,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6658,
+    "eps_cagr_raw": 0.8239,
+    "net_income_cagr": 0.6658,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.8239,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 80.9pp from historical CAGR (82.4%). Treat historical with caution.",
+    "peg_historical_cagr": 82.4,
+    "price_5y_return": 4370.88,
+    "price_5y_high": 418.93,
+    "price_5y_low": 7.35
+  },
+  "analysis": {
+    "recommendation": "PASS",
+    "conviction": "Low",
+    "model_used": "claude-opus-4-7",
+    "investment_thesis": "At 385.39, the market is pricing CLS to grow free cash flow at an implied 58.0% CAGR. That is an extraordinarily demanding hurdle for a contract manufacturer whose trailing free cash flow margin sits at 3.7% and whose baseline FY revenue grew 28.46% year-on-year. The base-case FY+2 EPS of 7.98 and base-case price target of 236.49 sit well below the current quote, signalling that the buyer at today's price is paying for the bull tail rather than the central scenario.\n\nThe FY+2 price target range spans 164.49 (bear low) to 846.94 (bull high), with the base mid at 236.49 \u2014 a roughly five-fold spread that reflects analyst disagreement about hyperscaler order durability. Whether the bull case materialises hinges almost entirely on Driver A (Hyperscaler AI Capex & HPS Networking Ramp): 800G Ethernet switching and custom compute tray volumes from the top-two US hyperscalers must scale through FY+2 and convert to operating margin expansion above the current 8.64% baseline.\n\nThe probability-weighted expected value is 379.91, marginally below the 385.39 spot price. That yields an expected return of -1.42% and a probability of loss of 65.19%. The risk/reward is asymmetric in dollar terms (846.94 upside vs 164.49 downside) but skewed to the downside in probability terms, with joint bear probability of 46.08% exceeding the joint bull probability of 34.81%.",
+    "reverse_dcf_commentary": "The 58.0% implied FCF CAGR baked into the current price is demanding by any reasonable benchmark. FY free cash flow of 458.3 million on revenue of 12.39 billion produces a 3.7% FCF margin; even if revenue follows the consensus FY+1 mid of 19.19 billion and FY+2 mid of 27.00 billion, sustaining 58% FCF compounding requires simultaneous margin expansion well beyond the 8.64% FY operating margin and conversion improvement beyond current EMS norms. The buyer at 385.39 is implicitly betting that HPS networking mix shift permanently re-rates Celestica's margin structure toward a networking peer like ANET (fwd P/E 35.8) rather than EMS peers FLEX (21.9) and SANM (19.9). That is a structural bet on durable AI infrastructure spend, not a cyclical EMS call.",
+    "recommendation_rationale": "The recommendation is PASS. Expected value of 379.91 sits 1.42% below the current price of 385.39, joint bear probability of 46.08% exceeds joint bull probability of 34.81%, and probability of loss is 65.19%. The base case price target of 236.49 is 38.6% below spot, meaning the central forecast does not support the current quote \u2014 the buyer must underwrite the bull tail to justify entry, and the bull tail itself depends on Driver A firing without Driver C insourcing risk materialising.\n\nThe calibration log notes that bull EPS was floored to 18.90 (0.95\u00d7 consensus high of 19.90) and that base/bear P/E bands were compressed to preserve scenario hierarchy \u2014 these adjustments tightened the bull case rather than inflating it, and the recommendation still resolves to PASS. The breakeven P/E of 53.8\u00d7 on base EPS would be required to justify spot, well above the 23.5\u00d7\u201335.8\u00d7 base-case band and above ANET's 35.8\u00d7 fwd P/E.",
+    "conclusion": "Celestica is a high-quality EMS franchise with genuine HPS networking exposure to the hyperscaler AI buildout, but at 385.39 the market has already priced in a 58.0% implied FCF CAGR that leaves no margin of safety against Driver C insourcing risk \u2014 hence the PASS recommendation.\n\nThe monitoring framework centres on three catalysts. The 2025-Q4 print (Q3 2025 earnings and 2026 preliminary outlook) is the key window for backlog visibility into FY+2 and 1.6T switch design wins beyond the top-two hyperscalers. The 2026-Q1 release (Q4 2025 earnings and full-year 2026 guidance) will test sustainability of AI-driven growth, ATS inflection, and operating margin expansion versus the 8.64% baseline. A potential 2025-10 Investor Day would clarify long-term financial targets and capital return framework. A material upward revision to the FCF margin or evidence of a third hyperscaler design win would force a re-rating of the bear-skewed probability distribution and warrant revisiting the PASS call.",
+    "financial_health": "Celestica generated FY free cash flow of 458.3 million on a 3.7% FCF margin, with stock-based compensation of 69.8 million (approximately 0.56% of revenue), net debt of 563.7 million, and an operating margin of 8.64%. The balance sheet is lightly levered relative to a 44.31 billion market cap and supports continued investment in HPS capacity, but the modest 3.7% FCF margin is the binding constraint: it leaves limited cushion to fund both capex for the AI ramp and meaningful capital return simultaneously. The balance sheet does not constrain the thesis, but cash conversion remains the weakest link in the financial profile.",
+    "scenario_commentary": {
+      "bull": "The bull case carries a joint probability of 34.81% and resolves to a price target of 846.94 on FY+2 EPS of 18.90. Realising it requires Driver A (Hyperscaler AI Capex & HPS Networking Ramp) to fire positively \u2014 800G switch volumes scaling into the consensus FY+2 revenue high of 31.39 billion, with HPS mix lifting operating margin toward 11%. The bull EPS was floored at 18.90 per the calibration log (0.95\u00d7 consensus high of 19.90), and the 31.4\u00d7\u201344.8\u00d7 bull P/E band reflects a PEG near 0.7\u00d7 on the 44.8% five-year EPS growth estimate. Driver C (customer diversification beyond the top two hyperscalers) must also avoid firing bearishly.",
+      "base": "The base case carries a joint probability of 19.11% and resolves to a price target of 236.49 on FY+2 EPS of 7.98 at a base-case P/E range of 23.5\u00d7\u201335.8\u00d7. This scenario assumes consensus FY+1 revenue near the 19.19 billion mid, ATS recurring programs holding steady (DSO improved to 77.7 from 78.3), and operating margin holding near the 8.64% baseline rather than expanding materially. At 236.49, the base outcome is 38.6% below the current 385.39 quote \u2014 the central forecast does not justify the spot price.",
+      "bear": "The bear case carries the largest joint probability at 46.08% and resolves to a price target of 164.49 on FY+2 EPS of 6.58 at a 25.0\u00d7\u201330.4\u00d7 P/E band. The dominant structural risk is Driver C (Hyperscaler Customer Concentration & Insourcing Risk): a decision by either of the top-two hyperscalers to dual-source HPS switching, shift to ODM rivals such as Foxconn or Quanta, or vertically integrate switch manufacturing would create a revenue cliff. The consensus FY+2 revenue spread of 7.9 billion (23.51 billion low vs 31.39 billion high) confirms a wide bear tail, and the bear price target sits 57.3% below spot.",
+      "wildcard": ""
+    },
+    "driver_narratives": {
+      "A": "Driver A \u2014 Hyperscaler AI Capex & HPS Networking Ramp \u2014 is the primary growth engine. Celestica's Hardware Platform Solutions franchise designs and manufactures 400G/800G Ethernet switches and custom AI/ML server trays that are qualified into at least two top-tier US hyperscaler AI fabrics, with switching representing roughly 10\u201315% of cluster cost across a 300 billion+ annualised hyperscaler capex pool. The dominant event is A1 (probability 0.45), which assumes 1.5\u20133.7 billion of incremental revenue at risk at an 11% applied operating margin, anchored to the consensus FY+2 revenue high of 31.39 billion and the 44.8% five-year EPS growth estimate. The distribution leans bull with 45% bull weight versus 15% bear, making this the only driver where the upside outcome dominates.",
+      "B": "Driver B \u2014 ATS Program Backlog & A&D/HealthTech Recurring Revenue \u2014 anchors the base case through multi-year qualified engagements in aerospace/defense, healthtech, and capital equipment subassemblies. The mechanism is switching-cost durability: once a defense or medical program is qualified, customer churn is multi-year, smoothing CCS lumpiness. The most important event is B2 (probability 0.55), supported by DSO improvement to 77.7 days from 78.3 indicating stable working capital and customer health, at an 8.6% applied operating margin. The probability distribution leans base at 55%, with bull at 25% and bear at 20%.",
+      "C": "Driver C \u2014 Hyperscaler Customer Concentration & Insourcing Risk \u2014 is the dominant downside vector. Two hyperscalers reportedly drive a majority of CCS revenue, so any move to dual-source HPS switches, shift volume to Foxconn/Quanta/Wiwynn ODMs, or vertically integrate switch manufacturing creates a revenue cliff that no ATS offset can fill. The defining event is C3 (probability 0.40), which models 1.0\u20133.0 billion of revenue contraction at a 7% applied operating margin, evidenced by the consensus FY+2 revenue low of 23.51 billion and the FY+2 EPS low of 12.20. The distribution leans bear at 40% versus 15% bull, and this skew is the principal reason joint bear probability (46.08%) exceeds joint bull (34.81%).",
+      "D": ""
+    },
+    "business_overview": "",
+    "headwind_narrative": "",
+    "tailwind_narrative": "",
+    "market_pricing_commentary": "",
+    "segments": [
+      {
+        "name": "Connectivity & Cloud Solutions (CCS)",
+        "current_revenue": null,
+        "pct_of_total": null,
+        "gross_margin": null,
+        "yoy_growth": null,
+        "trajectory": "",
+        "primary_driver": ""
+      },
+      {
+        "name": "Advanced Technology Solutions (ATS)",
+        "current_revenue": null,
+        "pct_of_total": null,
+        "gross_margin": null,
+        "yoy_growth": null,
+        "trajectory": "",
+        "primary_driver": ""
+      }
+    ],
+    "peer_tickers": [
+      "FLEX",
+      "JBL",
+      "SANM",
+      "ANET"
+    ],
+    "catalysts": [
+      {
+        "date": "2025-Q1",
+        "event": "Q4 2024 earnings release and initial 2025 guidance",
+        "what_to_watch": "CCS segment growth, hyperscaler demand commentary, 2025 revenue/EPS guidance vs consensus, and HPS (Hardware Platform Solutions) momentum",
+        "bull_signal": "CCS segment growth, hyperscaler demand commentary, 2025 revenue/EPS guidance vs consensus, and HPS (Hardware Platform Solutions) momentum",
+        "bear_signal": ""
+      },
+      {
+        "date": "2025-Q2",
+        "event": "Q1 2025 earnings and AI/networking program updates",
+        "what_to_watch": "800G switch ramp progress, new hyperscaler program wins, ATS segment recovery, and free cash flow conversion",
+        "bull_signal": "800G switch ramp progress, new hyperscaler program wins, ATS segment recovery, and free cash flow conversion",
+        "bear_signal": ""
+      },
+      {
+        "date": "2025-Q3",
+        "event": "Q2 2025 earnings and mid-year guidance revision",
+        "what_to_watch": "Updated FY2025 outlook, capacity expansion announcements, customer concentration trends, and margin trajectory in CCS",
+        "bull_signal": "Updated FY2025 outlook, capacity expansion announcements, customer concentration trends, and margin trajectory in CCS",
+        "bear_signal": ""
+      },
+      {
+        "date": "2025-10",
+        "event": "Investor Day / strategic update potential",
+        "what_to_watch": "Long-term financial targets, AI infrastructure TAM commentary, and capital allocation priorities including buybacks",
+        "bull_signal": "Long-term financial targets, AI infrastructure TAM commentary, and capital allocation priorities including buybacks",
+        "bear_signal": ""
+      },
+      {
+        "date": "2025-Q4",
+        "event": "Q3 2025 earnings and 2026 preliminary outlook",
+        "what_to_watch": "Backlog visibility into 2026, 1.6T switch design wins, and exposure to new hyperscaler customers beyond top two",
+        "bull_signal": "Backlog visibility into 2026, 1.6T switch design wins, and exposure to new hyperscaler customers beyond top two",
+        "bear_signal": ""
+      },
+      {
+        "date": "2026-Q1",
+        "event": "Q4 2025 earnings and full-year 2026 guidance",
+        "what_to_watch": "Sustainability of AI-driven growth, ATS segment inflection, operating margin expansion, and updated capital return framework",
+        "bull_signal": "Sustainability of AI-driven growth, ATS segment inflection, operating margin expansion, and updated capital return framework",
+        "bear_signal": ""
+      }
+    ],
+    "scenario_inputs": {
+      "bull": {
+        "op_margin": 0.1071,
+        "pe_multiple_pick": 38.1
+      },
+      "base": {
+        "op_margin": 0.0892,
+        "pe_multiple_pick": 29.65
+      },
+      "bear": {
+        "op_margin": 0.0729,
+        "pe_multiple_pick": 27.7
+      }
+    },
+    "macro_drivers": {
+      "A": {
+        "label": "Hyperscaler AI Capex & HPS Networking Ramp",
+        "narrative": "Top-2 US hyperscaler customers are scaling AI training clusters that require 800G Ethernet switching and custom compute trays \u2014 both core HPS offerings. This is the dominant driver of the 55% implied FY1 revenue growth and the primary lever for operating-margin expansion as HPS mix rises."
+      },
+      "B": {
+        "label": "ATS Program Backlog & A&D/HealthTech Recurring Revenue",
+        "narrative": "ATS segment programs (aerospace/defense, healthtech, capital equipment) are multi-year qualified engagements with high switching costs. This recurring backlog anchors the base case even if CCS hyperscaler orders prove lumpy quarter-to-quarter."
+      },
+      "C": {
+        "label": "Hyperscaler Customer Concentration & Insourcing Risk",
+        "narrative": "Two hyperscalers reportedly drive a majority of CCS revenue. Any decision to dual-source HPS switches, shift to ODM rivals (Foxconn, Quanta, Wiwynn), or vertically integrate switch manufacturing would create material revenue cliffs. AI-spend digestion in 2026 is the timing risk."
+      }
+    },
+    "drivers": [],
+    "headwinds": [],
+    "tailwinds": [],
+    "concentration": {},
+    "monitoring_kpis": [],
+    "scenario_math": {
+      "headline_metric": "implied_fcf_cagr",
+      "implied_fcf_cagr": 0.580251,
+      "discount_rate": 0.1133,
+      "shares_projected": 0.115,
+      "scenario_eps": {
+        "bull": 18.9,
+        "base": 7.98,
+        "bear": 6.58
+      },
+      "pe_band": {
+        "bull_low": 31.4,
+        "bull_high": 44.8,
+        "base_low": 23.5,
+        "base_high": 35.8,
+        "bear_low": 25.0,
+        "bear_high": 30.4
+      },
+      "price_target": {
+        "bull_high": 846.94,
+        "bull_mid": 720.28,
+        "base_mid": 236.49,
+        "bear_low": 164.49,
+        "bull": 720.28,
+        "base": 236.49,
+        "bear": 164.49
+      },
+      "joint_probs": {
+        "bull": 0.3481,
+        "base": 0.1911,
+        "bear": 0.4608
+      },
+      "driver_probs": {
+        "A": {
+          "bull": 0.45,
+          "base": 0.4,
+          "bear": 0.15
+        },
+        "B": {
+          "bull": 0.25,
+          "base": 0.55,
+          "bear": 0.2
+        },
+        "C": {
+          "bull": 0.15,
+          "base": 0.45,
+          "bear": 0.4
+        }
+      },
+      "expected_value": 379.91,
+      "risk": {
+        "prob_loss": 0.6519,
+        "max_drawdown_pct": 0.5271,
+        "expected_return_pct": -0.0142,
+        "ev": 379.91
+      },
+      "breakeven_pe": 53.8,
+      "dcf": {
+        "bull": {
+          "enterprise_value": 11.82,
+          "equity_value": 11.25,
+          "intrinsic_per_share": 97.86
+        },
+        "base": {
+          "enterprise_value": 5.48,
+          "equity_value": 4.92,
+          "intrinsic_per_share": 42.8
+        },
+        "bear": {
+          "enterprise_value": 4.65,
+          "equity_value": 4.09,
+          "intrinsic_per_share": 35.53
+        }
+      },
+      "recommendation": "PASS",
+      "calibration_log": [
+        "Step A: bull EPS floored $15.02\u2192$18.90 (0.95\u00d7consensus_high=$19.90)",
+        "Base P/E ratio-discounted: base_high 76.2\u219235.8, base_low 58.3\u219223.5 (0.80/0.75 of bull band)",
+        "Bear P/E capped below bull P/E to preserve scenario hierarchy (bear_high 32.5\u219230.4, bull_pe_low=31.4)"
+      ],
+      "consensus_divergent": false,
+      "owner_earnings": 0.3885,
+      "final_probabilities": {
+        "bull": 0.3481,
+        "base": 0.1911,
+        "bear": 0.4608
+      },
+      "eps": {
+        "bull": 18.9,
+        "base": 7.98,
+        "bear": 6.58
+      },
+      "scenario_revenue": {},
+      "expected_return": -0.0142,
+      "base_implied_return": -0.3864,
+      "prob_positive": 0.3481,
+      "upside_downside_ratio": 0.895,
+      "monotonicity_violation": false,
+      "violation_msg": "",
+      "bull_below_current": false,
+      "bull_below_msg": "",
+      "diagnostic": {},
+      "degraded_sections": []
+    },
+    "python_outputs": {},
+    "pass3": {
+      "audit_skipped": false,
+      "calls_remaining": 1,
+      "forbidden_vocab": [],
+      "citation_errors": [
+        {
+          "field": "scenario_commentary.bear",
+          "quoted_text": "FY+2 EPS of 6.58 at a 25.0\u00d7\u201330.4\u00d7 P/E band",
+          "issue": "Bear EPS 6.58 \u00d7 P/E band 25.0-30.4 implies PT range 164-200, consistent with bear_low 164.49. Numbers trace to allowed sources.",
+          "severity": "info"
+        },
+        {
+          "field": "driver_commentary.C",
+          "quoted_text": "FY+2 EPS low of 12.20",
+          "issue": "Consensus EPS FY2 low is 12.20 per baseline; matches source.",
+          "severity": "info"
+        },
+        {
+          "field": "monitoring_framework",
+          "quoted_text": "300 billion+ annualised hyperscaler capex pool",
+          "issue": "TAM figure appears in pass1 primary_growth_driver.tam_view; traceable.",
+          "severity": "info"
+        }
+      ],
+      "b1_compliant": true,
+      "tone_label_ok": true,
+      "tone_label_evidence": null,
+      "audit_clean": true,
+      "model_used": "claude-opus-4-7",
+      "consistency_flags": [
+        {
+          "field": "scenario_commentary.bear",
+          "issue": "Bear EPS 6.58 \u00d7 P/E band 25.0-30.4 implies PT range 164-200, consistent with bear_low 164.49. Numbers trace to allowed sources.",
+          "severity": "info"
+        },
+        {
+          "field": "driver_commentary.C",
+          "issue": "Consensus EPS FY2 low is 12.20 per baseline; matches source.",
+          "severity": "info"
+        },
+        {
+          "field": "monitoring_framework",
+          "issue": "TAM figure appears in pass1 primary_growth_driver.tam_view; traceable.",
+          "severity": "info"
+        }
+      ],
+      "numbers_outside_source": [],
+      "tone_label_mismatch": false
+    },
+    "data_quality_warnings": [
+      "FCF DIVERGENCE: info=646862528 vs computed=458300000 (29%); using computed value."
+    ],
+    "rec_override_reason": ""
+  }
+}
