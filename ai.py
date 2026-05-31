@@ -13,12 +13,6 @@ from config import (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, FREE_MODELS,
                     FREE_MODELS_EXTENDED)
 from formatting import safe_float, fmt_c, fmt_n, fmt_p
 from compute import (
-    compute_scenario_math,
-    compute_scenarios_from_drivers,
-    derive_recommendation,
-    compute_fundamentals_diagnostic,
-    validate_pass1_inputs,
-    _compute_pe_ranges_per_scenario,
     MAX_PIPELINE_AI_CALLS,
 )
 from run_methodology_math import run_methodology_math
