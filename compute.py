@@ -5,7 +5,6 @@ v3 changes:
   • _get_statement_eps_series: self-computed EPS from income_stmt
   • _compute_peg: uses statement-derived EPS for PE, caps Priority 2 at 30%
   • _compute_cagrs: caps at 40% (unchanged) but raw values always preserved
-  • validate_post_scenario: new post-scenario rejection gate
   • All existing function signatures preserved — no breaking changes
 """
 

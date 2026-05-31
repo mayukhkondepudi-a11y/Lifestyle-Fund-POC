@@ -528,7 +528,7 @@ def render(ticker, m, a, data):
         <div class="rb-item" title="Probability mass of scenarios whose price target exceeds today's price. With 3 discrete scenarios this only takes values in &#123;0, P(bull), P(bull)+P(base), 1&#125; — it is NOT a continuous probability of a positive 12-month return."><div class="rb-label">P(Target &gt; Today)</div><div class="rb-val {rc}">{prob_pos*100:.0f}%</div></div>
     </div>''', unsafe_allow_html=True)
 
-    # ── Top-of-report DEGRADED banner — visible without expanding math notes ──
+    # ── Top-of-report bull_below_current advisory — visible without expanding math notes ──
     _persistent_caveats = []
     if sm.get("bull_below_current"):
         _persistent_caveats.append(
