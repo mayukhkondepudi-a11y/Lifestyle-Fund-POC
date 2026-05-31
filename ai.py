@@ -752,6 +752,20 @@ class BullCaseTooLowError(Exception):
         )
 
 
+class LLMCallCeilingError(Exception):
+    """
+    Raised by run_pipeline when a required LLM pass (Pass 1 or Pass 2) would
+    exceed MAX_PIPELINE_AI_CALLS. Hard stop — no silent skip.
+    """
+    def __init__(self, calls_used: int, ceiling: int):
+        self.calls_used = calls_used
+        self.ceiling = ceiling
+        super().__init__(
+            f"LLM call ceiling hit: {calls_used} calls already used against "
+            f"a ceiling of {ceiling}; cannot start another required pass."
+        )
+
+
 # ══════════════════════════════════════════════════════════════
 # v2 PASS 1 — FOUNDATION
 # ══════════════════════════════════════════════════════════════
@@ -786,19 +800,28 @@ def _validate_pass1_v2(pass1: dict) -> tuple:
         if k not in pass1:
             soft.append(f"missing key: {k}")
 
-    # macro_drivers: exactly 3 with ids A/B/C
-    mds = pass1.get("macro_drivers", [])
-    if len(mds) != 3:
-        hard.append(f"macro_drivers must have exactly 3 entries, got {len(mds)}")
+    # macro_drivers: must be a dict with exactly keys A, B, C (not a list)
+    mds = pass1.get("macro_drivers")
+    if isinstance(mds, list):
+        hard.append(
+            "macro_drivers must be a dict keyed by A, B, C — not a list. "
+            'Use: {"A": {"label": ..., "narrative": ...}, "B": {...}, "C": {...}}'
+        )
+    elif not isinstance(mds, dict):
+        hard.append("macro_drivers wrong type: expected dict with keys A, B, C")
+    elif set(mds.keys()) != {"A", "B", "C"}:
+        hard.append(
+            f"macro_drivers must have exactly keys A, B, C, got {set(mds.keys())}"
+        )
     else:
-        actual_ids = {d.get("id") for d in mds}
-        if actual_ids != {"A", "B", "C"}:
-            hard.append(f"macro_drivers ids must be exactly {{A, B, C}}, got {actual_ids}")
-        for md in mds:
-            if not md.get("label"):
-                soft.append(f"macro_driver {md.get('id', '?')}: missing label")
-            if not md.get("narrative"):
-                soft.append(f"macro_driver {md.get('id', '?')}: missing narrative")
+        for did, md in mds.items():
+            if not isinstance(md, dict):
+                soft.append(f"macro_driver {did}: expected dict value, got {type(md).__name__}")
+            else:
+                if not md.get("label"):
+                    soft.append(f"macro_driver {did}: missing label")
+                if not md.get("narrative"):
+                    soft.append(f"macro_driver {did}: missing narrative")
 
     # events: 6-12 total; each driver ≥ 2; probabilities sum to 1.0 per driver
     events = pass1.get("events", [])
@@ -891,9 +914,13 @@ def _validate_pass1_v2(pass1: dict) -> tuple:
         elif not anchor.get("reasoning"):
             soft.append(f"pe_anchors.{scenario}: missing reasoning field")
 
-    # catalysts: 3-6 entries with required fields
+    # catalysts: 3-6 entries with required fields; empty list treated same as missing
     cats = pass1.get("catalysts", [])
-    if len(cats) < 3:
+    if "catalysts" in pass1 and len(cats) == 0:
+        soft.append(
+            "catalysts was empty — you must provide at least 3 specific dated catalyst entries"
+        )
+    elif len(cats) < 3:
         soft.append(f"catalysts must have 3-6 entries, got {len(cats)} (too few)")
     elif len(cats) > 6:
         soft.append(f"catalysts has {len(cats)} entries (spec max is 6)")
@@ -1061,12 +1088,15 @@ def _build_pass2_body(pass2: dict) -> str:
     return "\n\n".join(parts)
 
 
-def _validate_pass2_v2(pass2: dict) -> tuple:
+def _validate_pass2_v2(pass2: dict, math: dict | None = None) -> tuple:
     """
     Validate §5.4 pass2 report dict. Returns (soft_errors, hard_errors).
 
-    hard_errors — missing required sections, forbidden vocabulary present.
+    hard_errors — missing required sections, forbidden vocabulary present,
+                  sbc_section absent when math.owner_earnings is non-null.
     soft_errors — word count > 4500, missing optional sections.
+
+    math: optional §5.3 math dict. When provided, used to gate sbc_section check.
     """
     soft: list[str] = []
     hard: list[str] = []
@@ -1091,12 +1121,29 @@ def _validate_pass2_v2(pass2: dict) -> tuple:
             soft.append(f"missing scenario_commentary.{sc}")
 
     dn_dict = pass2.get("driver_narratives") or {}
-    for did in _PASS2_DRIVER_KEYS:
-        if not dn_dict.get(did):
-            soft.append(f"missing driver_narratives.{did}")
+    missing_dns = [did for did in _PASS2_DRIVER_KEYS if not dn_dict.get(did)]
+    if missing_dns:
+        if len(missing_dns) == 1:
+            missing_str = missing_dns[0]
+        elif len(missing_dns) == 2:
+            missing_str = f"{missing_dns[0]} and {missing_dns[1]}"
+        else:
+            missing_str = ", ".join(missing_dns[:-1]) + " and " + missing_dns[-1]
+        hard.append(
+            f"driver_narratives for drivers {missing_str} are missing — you must include "
+            "a narrative paragraph for every macro driver ID present in pass1.macro_drivers."
+        )
 
     if not pass2.get("financial_health"):
         soft.append("missing financial_health section")
+
+    # sbc_section: hard error when math.owner_earnings is non-null and section absent
+    if math is not None and math.get("owner_earnings") is not None:
+        if not pass2.get("sbc_section"):
+            hard.append(
+                "sbc_section is missing but math.owner_earnings is present — "
+                "you must include the SBC owner-earnings section."
+            )
 
     return soft, hard
 
@@ -1166,7 +1213,7 @@ def run_pass2_report(
             raise Pass1ValidationError([pe2 or "JSON parse failed on repair retry (pass2)"])
         model = model2
 
-    soft, hard = _validate_pass2_v2(pass2)
+    soft, hard = _validate_pass2_v2(pass2, math)
 
     if hard:
         if max_passes <= 1:
@@ -1180,7 +1227,7 @@ def run_pass2_report(
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
-                soft_r, hard_r = _validate_pass2_v2(p2r)
+                soft_r, hard_r = _validate_pass2_v2(p2r, math)
                 if hard_r:
                     print(f"  Pass2 v2 retry introduced hard regressions ({hard_r[:2]}); "
                           "keeping first attempt.")
@@ -1197,7 +1244,7 @@ def run_pass2_report(
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
-                soft_r, hard_r = _validate_pass2_v2(p2r)
+                soft_r, hard_r = _validate_pass2_v2(p2r, math)
                 if not hard_r:
                     pass2, soft, model = p2r, soft_r, model2
         if soft:
@@ -1365,13 +1412,15 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
     Returns:
         Final report dict compatible with app.py render() under METHODOLOGY_VERSION='v2'.
     """
-    current_price = safe_float(baseline.get("current_price", 0))
-    calls_used    = 0
+    current_price   = safe_float(baseline.get("current_price", 0))
+    calls_remaining = MAX_PIPELINE_AI_CALLS  # decrement as calls are spent
 
     # ── Pass 1: §5.2 qualitative input pack ─────────────────────────────────
+    if calls_remaining < 2:
+        raise LLMCallCeilingError(MAX_PIPELINE_AI_CALLS - calls_remaining, MAX_PIPELINE_AI_CALLS)
     try:
-        pass1      = run_pass1_foundation(ticker, baseline)
-        calls_used += 2   # up to 2 LLM calls internally
+        pass1           = run_pass1_foundation(ticker, baseline)
+        calls_remaining -= 2   # up to 2 LLM calls internally
     except Pass1ValidationError as exc:
         return {
             "error":   "Pass 1 failed — check baseline data quality",
@@ -1380,6 +1429,49 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
             "scenario_math": _empty_scenario_math(),
             "pass3": {}, "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
         }
+
+    # ── Catalysts fallback: focused call when pass1 returned < 3 catalysts ────
+    # Budget: 1 additional LLM call (accounted for in MAX_PIPELINE_AI_CALLS = 7).
+    # Non-blocking — failure leaves catalysts as-is without halting the pipeline.
+    if len(pass1.get("catalysts", [])) < 3 and calls_remaining >= 1:
+        company_name = baseline.get("company_name", ticker)
+        _cats_msgs = [
+            {"role": "system",
+             "content": (
+                 f"You are a financial analyst. Return ONLY a JSON array of 3-6 catalysts "
+                 f"for {ticker} ({company_name}) over the next 12 months. "
+                 'Each entry: {"date": "YYYY-QX or YYYY-MM", "event": "string", '
+                 '"what_to_watch": "string"}. No prose, no wrapper object, just the array.'
+             )},
+            {"role": "user",
+             "content": f"List 3-6 catalysts for {ticker} ({company_name}) as a JSON array."},
+        ]
+        _cats_raw, _, _ = run_ai(_cats_msgs, max_tokens=800)
+        calls_remaining -= 1
+        if _cats_raw:
+            try:
+                _stripped = _cats_raw.strip()
+                if _stripped.startswith("```"):
+                    _stripped = _stripped.split("\n", 1)[1] if "\n" in _stripped else _stripped[3:]
+                if _stripped.endswith("```"):
+                    _stripped = _stripped[:-3]
+                if _stripped.startswith("json"):
+                    _stripped = _stripped[4:]
+                _cats = json.loads(_stripped.strip())
+                if isinstance(_cats, list) and len(_cats) >= 3:
+                    pass1 = {**pass1, "catalysts": _cats}
+            except Exception:
+                pass  # non-blocking; keep whatever catalysts we have
+
+    # ── Peer enrichment: fetch live market metrics for Pass 1 peers ──────────
+    # Order: baseline → Pass 1 → peer fetch → math (per Option B wiring)
+    _peer_tickers = [
+        p.get("ticker", "") for p in pass1.get("peer_set_enriched", [])
+        if isinstance(p, dict) and p.get("ticker")
+    ]
+    if _peer_tickers:
+        from fmp_api import fetch_peer_metrics
+        baseline = {**baseline, "peer_set": fetch_peer_metrics(_peer_tickers)}
 
     # ── Math: deterministic, no LLM ─────────────────────────────────────────
     try:
@@ -1398,7 +1490,7 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
     bull_mid_val = safe_float(pt.get("bull_mid", 0))
     bull_below   = current_price > 0 and bull_mid_val < current_price
 
-    if bull_below and calls_used + 1 < MAX_PIPELINE_AI_CALLS:
+    if bull_below and calls_remaining >= 1:
         hint = (
             f"IMPORTANT: your bull-case scenario produced a price target "
             f"({bull_mid_val:.2f}) below the current price ({current_price:.2f}). "
@@ -1407,9 +1499,9 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
             "so the resulting price target exceeds the current price."
         )
         try:
-            pass1_retry = run_pass1_foundation(ticker, baseline, max_passes=1, retry_hint=hint)
-            calls_used += 1
-            math_retry  = run_methodology_math(pass1_retry, baseline)
+            pass1_retry      = run_pass1_foundation(ticker, baseline, max_passes=1, retry_hint=hint)
+            calls_remaining -= 1
+            math_retry       = run_methodology_math(pass1_retry, baseline)
             if safe_float(math_retry.get("price_target", {}).get("bull_mid", 0)) > current_price:
                 pass1, math = pass1_retry, math_retry
                 bull_below  = False
@@ -1420,11 +1512,14 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
     risk = math.get("risk", {})
 
     # ── Pass 2: §5.4 narrative ───────────────────────────────────────────────
+    if calls_remaining < 2:
+        raise LLMCallCeilingError(MAX_PIPELINE_AI_CALLS - calls_remaining, MAX_PIPELINE_AI_CALLS)
     try:
-        pass2      = run_pass2_report(ticker, baseline, pass1, math)
-        calls_used += 2
+        pass2           = run_pass2_report(ticker, baseline, pass1, math)
+        calls_remaining -= 2
     except Pass1ValidationError as exc:
         print(f"  run_pipeline: Pass 2 failed ({exc}) — stub narrative")
+        calls_remaining -= 1   # at least one call was attempted
         pass2 = {
             "investment_thesis": "Narrative unavailable due to generation error.",
             "reverse_dcf_commentary": "", "scenario_commentary": {},
@@ -1435,11 +1530,29 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
         }
 
     # ── Pass 3: §5.5 audit ───────────────────────────────────────────────────
-    remaining = max(0, MAX_PIPELINE_AI_CALLS - calls_used)
     pass3_raw = run_pass3_audit(ticker, baseline, pass1, math, pass2,
-                                calls_remaining=remaining)
+                                calls_remaining=max(0, calls_remaining))
 
     return _assemble_pipeline_output(ticker, baseline, pass1, math, pass2, pass3_raw, bull_below)
+
+
+def _normalize_macro_drivers(mds) -> dict:
+    """
+    Normalize macro_drivers to dict format {A: {...}, B: {...}, C: {...}}.
+
+    Handles both the new dict format (pass-through) and legacy list-of-dicts format
+    (converted) so downstream code is not broken during the transition period.
+    """
+    if isinstance(mds, dict):
+        return mds
+    if isinstance(mds, list):
+        result = {}
+        for d in mds:
+            if isinstance(d, dict) and d.get("id") in ("A", "B", "C"):
+                did = d["id"]
+                result[did] = {k: v for k, v in d.items() if k != "id"}
+        return result
+    return {}
 
 
 def _empty_scenario_math() -> dict:
@@ -1511,12 +1624,17 @@ def _assemble_pipeline_output(
     bull_below_msg = (f"Bull target ({bull_mid:.2f}) below current price ({current_price:.2f})." if bull_below else "")
 
     # ── Recommendation + conviction (deterministic) ──────────────────────────
-    rec_label, conviction = derive_recommendation({
-        "expected_return":    expected_return,
-        "base_implied_return": base_implied,
-        "prob_positive":      prob_positive,
-        "upside_downside_ratio": ud_ratio,
-    })
+    # rec_label comes from run_methodology_math (v2 recommendation() pure function).
+    # conviction is derived inline from already-computed scalars; same thresholds
+    # as the v1 derive_recommendation that this replaces.
+    rec_label = math.get("recommendation", "WATCH")
+    _ud = safe_float(ud_ratio) if ud_ratio is not None else float("inf")
+    if _ud > 3.0 and prob_positive > 0.70:
+        conviction = "High"
+    elif _ud < 1.5 or (0.40 <= prob_positive <= 0.60):
+        conviction = "Low"
+    else:
+        conviction = "Medium"
 
     # ── P/E midpoints per scenario (for scenario_inputs) ─────────────────────
     bull_pe_mid = round((pe_band_d.get("bull_low", 0) + pe_band_d.get("bull_high", 0)) / 2, 2)
@@ -1627,7 +1745,7 @@ def _assemble_pipeline_output(
         "peer_tickers":    peer_tickers,
         "catalysts":       catalysts,
         "scenario_inputs": scenario_inputs,
-        "macro_drivers":   pass1.get("macro_drivers", []),
+        "macro_drivers":   _normalize_macro_drivers(pass1.get("macro_drivers")),
         "drivers":         [],    # Phase H: render v2 events as driver cards
         "headwinds":       [],
         "tailwinds":       [],
