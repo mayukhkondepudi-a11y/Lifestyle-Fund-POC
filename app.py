@@ -693,11 +693,6 @@ def render(ticker, m, a, data):
             )
         st.markdown(pt_table(seg_header, seg_rows), unsafe_allow_html=True)
 
-    if a.get("revenue_architecture"):
-        st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
-        with st.expander("Show detail", expanded=False):
-            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["revenue_architecture"]))}</div>', unsafe_allow_html=True)
-
     conc = a.get("concentration", {})
     if conc:
         st.markdown('<div class="sec">Concentration &amp; Dependencies</div>', unsafe_allow_html=True)
@@ -723,16 +718,6 @@ def render(ticker, m, a, data):
                 risk_items = "".join(f'<div style="padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.88rem;color:rgba(255,255,255,0.55);">{strip_html(r)}</div>' for r in at_risk)
                 st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:6px;padding:0.8rem 1.2rem;margin-top:0.8rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">Relationships At Risk</div>{risk_items}</div>', unsafe_allow_html=True)
 
-    if a.get("growth_drivers"):
-        st.markdown('<div class="sec">Growth Drivers &amp; Competitive Moats</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["growth_drivers"]))}</div>', unsafe_allow_html=True)
-    if a.get("margin_analysis"):
-        st.markdown('<div class="sec">Margin Analysis</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["margin_analysis"]))}</div>', unsafe_allow_html=True)
-    if a.get("financial_health"):
-        st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["financial_health"]))}</div>', unsafe_allow_html=True)
-
     sector    = m.get("sector", "")
     llm_peers = a.get("peer_tickers", [])
     if sector in SECTOR_PEERS or llm_peers:
@@ -754,11 +739,6 @@ def render(ticker, m, a, data):
                 for pr in peers
             )
             st.markdown(pt_table(f"<tr>{th}</tr>", tr_c + tr_p), unsafe_allow_html=True)
-
-    if a.get("competitive_position"):
-        st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
-        with st.expander("Show detail", expanded=False):
-            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["competitive_position"]))}</div>', unsafe_allow_html=True)
 
     # ── Headwinds & Tailwinds ──
     # FIX: This block was dedented out of render() in the original, making a, cur, sym
@@ -1099,10 +1079,8 @@ def render(ticker, m, a, data):
 
     # ── Monitoring KPI dashboard ──
     monitoring_kpis = a.get("monitoring_kpis", [])
-    if a.get("monitoring_dashboard_intro") or monitoring_kpis:
+    if monitoring_kpis:
         st.markdown('<div class="sec">Monitoring Dashboard <span class="vtag">KPI Framework</span></div>', unsafe_allow_html=True)
-        if a.get("monitoring_dashboard_intro"):
-            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["monitoring_dashboard_intro"]))}</div>', unsafe_allow_html=True)
         if monitoring_kpis:
             kpi_header = "<tr><th>KPI</th><th>Baseline</th><th>Constructive</th><th>Adverse</th></tr>"
             kpi_rows = "".join(
@@ -1120,8 +1098,6 @@ def render(ticker, m, a, data):
     catalysts = a.get("catalysts", [])
     if catalysts:
         st.markdown('<div class="sec">Catalysts to Watch</div>', unsafe_allow_html=True)
-        if a.get("catalysts_intro"):
-            st.markdown(f'<div class="prose">{clean_latex(strip_html(a["catalysts_intro"]))}</div>', unsafe_allow_html=True)
         cat_header = "<tr><th>Date</th><th>Event</th><th>Bull Signal</th><th>Bear Signal</th></tr>"
         cat_rows = "".join(
             f'<tr>'

@@ -1211,10 +1211,7 @@ def _assemble_pipeline_output(
         "financial_health":           _cl(pass2.get("financial_health", "")),
         "scenario_commentary":        {k: _cl(v) for k, v in (pass2.get("scenario_commentary") or {}).items()},
         "driver_narratives":          {k: _cl(v) for k, v in (pass2.get("driver_narratives") or {}).items()},
-        # Sections not produced by v2 pass2; Phase H will wire these into the renderer
-        "business_overview": "", "revenue_architecture": "", "growth_drivers": "",
-        "margin_analysis": "", "competitive_position": "", "monitoring_dashboard_intro": "",
-        "catalysts_intro": "", "headwind_narrative": "", "tailwind_narrative": "",
+        "business_overview": "", "headwind_narrative": "", "tailwind_narrative": "",
         "market_pricing_commentary": "",
         # Structured from pass1
         "segments":        segments,
