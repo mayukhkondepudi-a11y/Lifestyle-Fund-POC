@@ -191,8 +191,13 @@ HARD VALIDATION RULES (machine-checked; violations trigger retry)
 4. pe_anchors: all three scenarios required. Each reasoning must name a peer ticker from
    baseline_json.peer_set. MUST NOT reference the company's own fwd_pe or trailing_pe.
 
-5. catalysts: 3–6 entries. Each must have date, event, what_to_watch. Dates must be
-   FUTURE dates relative to the report date. No generic events ("earnings release").
+5. catalysts is REQUIRED — return 3–6 entries minimum, each with a specific future date
+   and event. An empty catalysts list will be rejected. Each entry must have date, event,
+   what_to_watch. Dates must be FUTURE dates relative to the report date. Events must be
+   specific (not generic "earnings release" — name the quarter, metric, and threshold).
+   All catalyst dates must be strictly after {current_date}. Do not generate catalysts for
+   events that have already occurred. If a planned event has passed, replace it with the
+   next upcoming equivalent event.
 
 6. sbc_context: ONE paragraph of text if baseline_json.fy_sbc is non-null and positive;
    otherwise the literal JSON value null (not the string "null").

@@ -444,6 +444,7 @@ def run_pass1_foundation(
         replacements = {
             "{ticker}":            ticker,
             "{company_name}":      company_name,
+            "{current_date}":      datetime.now().strftime("%Y-%m-%d"),
             "{baseline_json}":     json.dumps(baseline_for_prompt, indent=2, default=str),
             "{recent_news_json}":  json.dumps(recent_news, indent=2, default=str),
             "{retry_hint}":        hint,
@@ -911,11 +912,14 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
     # Non-blocking — failure leaves catalysts as-is without halting the pipeline.
     if len(pass1.get("catalysts", [])) < 3 and calls_remaining >= 1:
         company_name = baseline.get("company_name", ticker)
+        _current_date = datetime.now().strftime("%Y-%m-%d")
         _cats_msgs = [
             {"role": "system",
              "content": (
                  f"You are a financial analyst. Return ONLY a JSON array of 3-6 catalysts "
                  f"for {ticker} ({company_name}) over the next 12 months. "
+                 f"All catalyst dates must be strictly after {_current_date}; do not include "
+                 f"events that have already occurred. "
                  'Each entry: {"date": "YYYY-QX or YYYY-MM", "event": "string", '
                  '"what_to_watch": "string"}. No prose, no wrapper object, just the array.'
              )},
