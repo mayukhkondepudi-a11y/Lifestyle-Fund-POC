@@ -728,6 +728,56 @@ def _cl(text):
 
 
 # ══════════════════════════════════════════════════════════════
+# SHARED HELPERS (survive both v1 and v2; used by check_prices.py / app.py)
+# ══════════════════════════════════════════════════════════════
+
+def thesis_check(ticker, company, original_metrics, original_thesis,
+                 current_metrics, model="claude-opus-4-7",
+                 free_models=None):
+    """Thesis-integrity check for tracked stocks. Called by check_prices.py."""
+    messages = [
+        {"role": "system", "content": (
+            "You are a senior equity research analyst performing a thesis integrity check. "
+            "Respond ONLY with valid JSON, no fences.")},
+        {"role": "user", "content": f"""THESIS CHECK: {ticker} ({company})
+
+ORIGINAL THESIS:
+{original_thesis}
+
+ORIGINAL METRICS:
+{json.dumps(original_metrics, default=str)}
+
+CURRENT METRICS:
+{json.dumps(current_metrics, default=str)}
+
+Respond with exactly this JSON:
+{{
+  "thesis_intact": true,
+  "confidence": "High",
+  "updated_action": "BUY",
+  "key_changes": ["Change 1", "Change 2"],
+  "rationale": "2-3 sentence summary of whether the thesis holds."
+}}
+
+thesis_intact: true if the core investment case is still valid.
+updated_action: exactly BUY, WATCH, or PASS.
+confidence: High, Medium, or Low."""}
+    ]
+    raw, _, _ = run_ai(messages, max_tokens=800, model=model,
+                       free_models=free_models or FREE_MODELS_EXTENDED)
+    result, _ = parse_json_response(raw)
+    if not result:
+        result = {
+            "thesis_intact": True, "confidence": "Low",
+            "updated_action": "WATCH",
+            "key_changes": ["AI evaluation unavailable at this time."],
+            "rationale": "Automated thesis check could not be completed. "
+                         "Please review manually.",
+        }
+    return result
+
+
+# ══════════════════════════════════════════════════════════════
 # v2 TYPED EXCEPTIONS
 # ══════════════════════════════════════════════════════════════
 
@@ -1760,53 +1810,5 @@ def _assemble_pipeline_output(
         "rec_override_reason":   "",
     }
 
-
-# ══════════════════════════════════════════════════════════════
-# THESIS CHECK (used by check_prices.py and app.py)
-# ══════════════════════════════════════════════════════════════
-
-def thesis_check(ticker, company, original_metrics, original_thesis,
-                 current_metrics, model="claude-opus-4-7",
-                 free_models=None):
-    messages = [
-        {"role": "system", "content": (
-            "You are a senior equity research analyst performing a thesis integrity check. "
-            "Respond ONLY with valid JSON, no fences.")},
-        {"role": "user", "content": f"""THESIS CHECK: {ticker} ({company})
-
-ORIGINAL THESIS:
-{original_thesis}
-
-ORIGINAL METRICS:
-{json.dumps(original_metrics, default=str)}
-
-CURRENT METRICS:
-{json.dumps(current_metrics, default=str)}
-
-Respond with exactly this JSON:
-{{
-  "thesis_intact": true,
-  "confidence": "High",
-  "updated_action": "BUY",
-  "key_changes": ["Change 1", "Change 2"],
-  "rationale": "2-3 sentence summary of whether the thesis holds."
-}}
-
-thesis_intact: true if the core investment case is still valid.
-updated_action: exactly BUY, WATCH, or PASS.
-confidence: High, Medium, or Low."""}
-    ]
-    raw, _, _ = run_ai(messages, max_tokens=800, model=model,
-                       free_models=free_models or FREE_MODELS_EXTENDED)
-    result, _ = parse_json_response(raw)
-    if not result:
-        result = {
-            "thesis_intact": True, "confidence": "Low",
-            "updated_action": "WATCH",
-            "key_changes": ["AI evaluation unavailable at this time."],
-            "rationale": "Automated thesis check could not be completed. "
-                         "Please review manually.",
-        }
-    return result
 
 
