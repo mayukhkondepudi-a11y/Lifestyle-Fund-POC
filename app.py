@@ -672,25 +672,33 @@ def render(ticker, m, a, data):
     if segments:
         st.markdown('<div class="sec">Revenue Segmentation</div>', unsafe_allow_html=True)
         seg_header = "<tr><th>Segment</th><th>Revenue</th><th>% of Total</th><th>Gross Margin</th><th>YoY Growth</th><th>Trajectory</th></tr>"
-        seg_rows = ""
-        _driver_style = 'font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:400;margin-top:0.25rem;line-height:1.5;'
-        for seg in segments:
-            traj = strip_html(seg.get("trajectory", ""))
-            tcolor = "#4ade80" if "accel" in traj.lower() else ("#f87171" if "decel" in traj.lower() else "#fbbf24")
-            _driver = strip_html(seg.get("primary_driver", ""))
-            _driver_html = f'<div style="{_driver_style}">{_driver}</div>' if _driver else ""
-            seg_rows += (
-                f'<tr>'
-                f'<td style="font-weight:600;min-width:160px;">'
-                f'{strip_html(seg.get("name",""))}{_driver_html}'
-                f'</td>'
-                f'<td class="nowrap">{fmt_c(seg.get("current_revenue"), cur)}</td>'
-                f'<td class="nowrap">{fmt_p(seg.get("pct_of_total"))}</td>'
-                f'<td class="nowrap">{fmt_p(seg.get("gross_margin"))}</td>'
-                f'<td class="nowrap">{fmt_p(seg.get("yoy_growth"))}</td>'
-                f'<td class="nowrap" style="color:{tcolor};">{traj}</td>'
-                f'</tr>'
-            )
+        _seg_fields = ("current_revenue", "pct_of_total", "gross_margin", "yoy_growth")
+        _has_financials = any(seg.get(k) is not None for seg in segments for k in _seg_fields)
+        if not _has_financials:
+            # Segment names known (e.g. CCS/ATS) but FMP free tier returns no per-segment financials.
+            # Show one clear note row rather than a table full of dashes that looks like a render failure.
+            seg_rows = ('<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.5);'
+                        'padding:1rem;">Segment data unavailable — requires FMP paid tier.</td></tr>')
+        else:
+            seg_rows = ""
+            _driver_style = 'font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:400;margin-top:0.25rem;line-height:1.5;'
+            for seg in segments:
+                traj = strip_html(seg.get("trajectory", ""))
+                tcolor = "#4ade80" if "accel" in traj.lower() else ("#f87171" if "decel" in traj.lower() else "#fbbf24")
+                _driver = strip_html(seg.get("primary_driver", ""))
+                _driver_html = f'<div style="{_driver_style}">{_driver}</div>' if _driver else ""
+                seg_rows += (
+                    f'<tr>'
+                    f'<td style="font-weight:600;min-width:160px;">'
+                    f'{strip_html(seg.get("name",""))}{_driver_html}'
+                    f'</td>'
+                    f'<td class="nowrap">{fmt_c(seg.get("current_revenue"), cur)}</td>'
+                    f'<td class="nowrap">{fmt_p(seg.get("pct_of_total"))}</td>'
+                    f'<td class="nowrap">{fmt_p(seg.get("gross_margin"))}</td>'
+                    f'<td class="nowrap">{fmt_p(seg.get("yoy_growth"))}</td>'
+                    f'<td class="nowrap" style="color:{tcolor};">{traj}</td>'
+                    f'</tr>'
+                )
         st.markdown(pt_table(seg_header, seg_rows), unsafe_allow_html=True)
 
     conc = a.get("concentration", {})
@@ -957,7 +965,7 @@ def render(ticker, m, a, data):
         _si  = scenario_inputs.get(_sn, {})
         _pt  = safe_float(pt_dict.get(_sn, 0))
         _eps_v = safe_float(eps_dict.get(_sn, 0))
-        _rev = safe_float(rev_dict.get(_sn, 0))
+        _rev = rev_dict.get(_sn)  # keep None when absent (v2 doesn't aggregate scenario revenue) → render "N/A"
         _op_m = safe_float(_si.get("op_margin", 0))
         _pe   = safe_float(_si.get("pe_multiple_pick", 0))
         _prob = safe_float(final_probs.get(_sn, 0))
@@ -984,7 +992,7 @@ def render(ticker, m, a, data):
             eps_val   = s.get("eps", 0)
             pe        = s.get("pe", 0)
             op_m      = s.get("op_margin", 0)
-            total_rev = s.get("revenue", 0)
+            total_rev = s.get("revenue")
             narrative  = clean_latex(strip_html(s.get("narrative", "")))
 
             st.markdown(f'''<div style="text-align:center;padding:1.5rem 0 1rem;">
@@ -993,7 +1001,7 @@ def render(ticker, m, a, data):
                 <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);margin-top:0.2rem;">{prob:.0f}% probability</div>
             </div>''', unsafe_allow_html=True)
             m1,m2,m3,m4 = st.columns(4)
-            with m1: st.metric("Revenue", fmt_c(total_rev, cur))
+            with m1: st.metric("Revenue", fmt_c(total_rev, cur) if total_rev is not None else "N/A")
             with m2: st.metric("EPS", f"{sym}{eps_val:.2f}")
             with m3: st.metric("P/E Multiple", f"{pe:.1f}x")
             with m4: st.metric("Op. Margin", f"{op_m*100:.1f}%")
