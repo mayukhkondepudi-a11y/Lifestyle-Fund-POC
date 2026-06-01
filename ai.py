@@ -539,20 +539,73 @@ def run_pass1_foundation(
 _PASS2_REQUIRED_SECTIONS = (
     "investment_thesis", "reverse_dcf_commentary",
     "recommendation_rationale", "conclusion",
+    # New sections added in pass2-prompt-schema-expansion
+    "business_overview", "revenue_architecture",
+    "growth_drivers_and_moats", "factor_analysis",
+    "valuation_vs_expectations", "sensitivity_check",
+    "margin_analysis", "competitive_position",
+    "scenario_analysis_extended",
 )
 _PASS2_SCENARIO_KEYS  = ("bull", "base", "bear")
 _PASS2_DRIVER_KEYS    = ("A", "B", "C")
 _PASS2_FORBIDDEN      = ("Sharpe", "DEGRADED", "capture")
 
+# Qualitative sections exempt from Pass 3 citation checks
+_PASS2_QUALITATIVE_SECTIONS = frozenset({
+    "concentration_and_dependencies",
+    "competitive_position",
+    "growth_drivers_and_moats",
+    "business_overview",
+})
+
 
 def _build_pass2_body(pass2: dict) -> str:
     """Concatenate all narrative string sections for word count / forbidden token audit."""
     parts: list[str] = []
-    for k in ("investment_thesis", "reverse_dcf_commentary",
-              "financial_health", "recommendation_rationale", "conclusion"):
+    for k in (
+        "business_overview", "revenue_architecture",
+        "growth_drivers_and_moats", "margin_analysis",
+        "competitive_position", "valuation_vs_expectations",
+        "sensitivity_check",
+        "investment_thesis", "reverse_dcf_commentary",
+        "financial_health", "recommendation_rationale", "conclusion",
+    ):
         v = pass2.get(k, "")
         if isinstance(v, str) and v:
             parts.append(v)
+
+    # concentration_and_dependencies: extract string sub-fields
+    c_and_d = pass2.get("concentration_and_dependencies")
+    if isinstance(c_and_d, dict):
+        for sub in ("geographic_exposure", "top_customer_concentration",
+                    "supply_chain_dependencies", "relationships_at_risk"):
+            v = c_and_d.get(sub, "")
+            if isinstance(v, str) and v:
+                parts.append(v)
+
+    # factor_analysis: extract outcome descriptions from the list
+    fa = pass2.get("factor_analysis")
+    if isinstance(fa, list):
+        for item in fa:
+            if isinstance(item, dict):
+                for oc in (item.get("outcomes") or []):
+                    if isinstance(oc, dict):
+                        d = oc.get("description", "")
+                        if isinstance(d, str) and d:
+                            parts.append(d)
+
+    # scenario_analysis_extended: extract string values from nested dicts
+    sae = pass2.get("scenario_analysis_extended")
+    if isinstance(sae, dict):
+        for sc in _PASS2_SCENARIO_KEYS:
+            sc_dict = sae.get(sc)
+            if isinstance(sc_dict, dict):
+                for sub in ("segment_revenue_note", "headwind_tailwind_summary",
+                            "valuation_rationale"):
+                    v = sc_dict.get(sub, "")
+                    if isinstance(v, str) and v:
+                        parts.append(v)
+
     for sc in _PASS2_SCENARIO_KEYS:
         v = (pass2.get("scenario_commentary") or {}).get(sc, "")
         if isinstance(v, str) and v:
@@ -588,8 +641,8 @@ def _validate_pass2_v2(pass2: dict, math: dict | None = None) -> tuple:
             hard.append(f"forbidden token present: {token!r}")
 
     wc = len(body.split())
-    if wc > 4500:
-        soft.append(f"word count {wc} exceeds 4500")
+    if wc > 7000:
+        soft.append(f"word count {wc} exceeds 7000")
 
     sc_dict = pass2.get("scenario_commentary") or {}
     for sc in _PASS2_SCENARIO_KEYS:
@@ -612,6 +665,15 @@ def _validate_pass2_v2(pass2: dict, math: dict | None = None) -> tuple:
 
     if not pass2.get("financial_health"):
         soft.append("missing financial_health section")
+
+    # concentration_and_dependencies: soft only — qualitative data may be unavailable
+    c_and_d = pass2.get("concentration_and_dependencies")
+    if not c_and_d or not isinstance(c_and_d, dict):
+        soft.append(
+            "missing concentration_and_dependencies section — include geographic_exposure, "
+            "top_customer_concentration, supply_chain_dependencies, relationships_at_risk "
+            "(qualitative; label estimates as (estimate))"
+        )
 
     # sbc_section: hard error when math.owner_earnings is non-null and section absent
     if math is not None and math.get("owner_earnings") is not None:

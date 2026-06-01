@@ -28,6 +28,26 @@ PASS-1 QUALITATIVE INPUTS (evidence dates, driver labels, event descriptions)
 {pass1_json}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUALITATIVE SECTIONS — SKIP CITATION CHECKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The following sections are explicitly qualitative. The analyst drew on training
+knowledge rather than the allowed number sources. DO NOT flag any numbers,
+percentages, or estimates appearing in these sections as citation_errors.
+Any numeric estimates in these sections are labelled as LLM-sourced approximations
+and are expected to differ from the allowed sources.
+
+Qualitative sections (skip all numeric citation checks):
+  - concentration_and_dependencies  (geographic_exposure, top_customer_concentration,
+                                     supply_chain_dependencies, relationships_at_risk)
+  - competitive_position
+  - growth_drivers_and_moats
+  - business_overview
+
+If a number appears in text that is clearly from one of these sections, do NOT flag it,
+regardless of whether it appears in the allowed sources.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AUDIT TASKS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -41,6 +61,7 @@ AUDIT TASKS
    c) If neither match: flag it as a citation_error.
 
    DO NOT flag:
+   - Numbers in qualitative sections (listed above in QUALITATIVE SECTIONS)
    - Qualitative directional language ("growing", "expanding", "elevated")
    - Numbers that appear in pass1_json.events[] evidence fields
    - Numbers that appear in pass1_json.catalysts[] what_to_watch fields

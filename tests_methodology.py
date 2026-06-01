@@ -995,14 +995,110 @@ class TestD3ConsensusCalibration:
 # PHASE E — pass2 prompt v2, run_pass2_report, smoke harness structural checks
 # ════════════════════════════════════════════════════════════════════════════
 
-from ai import _build_pass2_body, _validate_pass2_v2, run_pass2_report
+from ai import (
+    _build_pass2_body, _validate_pass2_v2, run_pass2_report,
+    _PASS2_QUALITATIVE_SECTIONS, PASS3_PROMPT,
+)
 from smoke_harness import check_word_count, check_forbidden_tokens
 
 
 def _minimal_valid_pass2() -> dict:
     """Minimal §5.4-compliant pass2 dict — all required sections, no forbidden tokens,
-    well under 4500 words."""
+    well under 7000 words."""
     return {
+        "business_overview": (
+            "The company operates a diversified semiconductor and infrastructure software "
+            "platform with a mix of recurring license revenue and hardware sales. "
+            "Customers embed the product into mission-critical workflows, creating high "
+            "switching costs and multi-year revenue visibility."
+        ),
+        "revenue_architecture": (
+            "Segment data is not available in the current baseline, so the revenue "
+            "base is assessed in aggregate. Total revenue is growing at a rate consistent "
+            "with the base-case growth assumptions in the scenario analysis."
+        ),
+        "growth_drivers_and_moats": (
+            "The three named growth drivers are AI Infrastructure Capex Cycle (Driver A), "
+            "Enterprise Software Renewal Rates (Driver B), and Competitive Insourcing Risk "
+            "(Driver C). Driver A is the primary growth lever with moat protection from "
+            "platform integration depth. Driver B benefits from multi-year contracts that "
+            "reduce churn. Driver C represents long-term displacement risk from proprietary "
+            "silicon development by large customers."
+        ),
+        "margin_analysis": (
+            "Current operating margin is 0.62, consistent with franchise-quality positioning. "
+            "Margin trajectory by scenario reflects the operating leverage embedded in the "
+            "software-heavy revenue mix."
+        ),
+        "competitive_position": (
+            "The company competes with AMAT, LRCX, and KLAC in certain end-markets. "
+            "Moat durability is supported by workflow integration and certification requirements. "
+            "Key threats include customer insourcing of proprietary silicon and open-source "
+            "alternatives in the software segment."
+        ),
+        "valuation_vs_expectations": (
+            "The current forward P/E reflects a market assumption that is inconsistent with "
+            "the base-case earnings trajectory implied by the scenario analysis. The implied "
+            "FCF CAGR embedded in the current price is modest relative to the base-case EPS "
+            "path, suggesting the market is underpricing the base-case outcome."
+        ),
+        "sensitivity_check": (
+            "Shifting Driver A bull probability by +/-10pp moves expected value from "
+            "270.0 at bull prob 0.149 to 328.0 at bull prob 0.349. "
+            "The expected value is moderately sensitive to the Driver A probability assumption."
+        ),
+        "factor_analysis": [
+            {
+                "driver_id": "A",
+                "name": "AI Infrastructure Capex Cycle",
+                "outcomes": [
+                    {"label": "optimistic",  "probability": 0.40, "description": "Hyperscaler AI buildout accelerates, driving incremental networking demand above base."},
+                    {"label": "neutral",     "probability": 0.42, "description": "AI capex grows at a pace consistent with the base forecast."},
+                    {"label": "pessimistic", "probability": 0.18, "description": "AI spending decelerates sharply due to macro tightening or compute efficiency gains."},
+                ],
+            },
+            {
+                "driver_id": "B",
+                "name": "Enterprise Software Renewal Rates",
+                "outcomes": [
+                    {"label": "optimistic",  "probability": 0.50, "description": "Renewal rates exceed 95%, sustaining high-margin recurring revenue."},
+                    {"label": "neutral",     "probability": 0.35, "description": "Renewal rates hold at historical norms around 90%."},
+                    {"label": "pessimistic", "probability": 0.15, "description": "Renewal rates decline due to competitive alternatives entering the market."},
+                ],
+            },
+            {
+                "driver_id": "C",
+                "name": "Competitive Insourcing Risk",
+                "outcomes": [
+                    {"label": "optimistic",  "probability": 0.20, "description": "Insourcing attempts fail or stall; incumbent position holds."},
+                    {"label": "neutral",     "probability": 0.40, "description": "Insourcing progresses gradually with limited near-term revenue impact."},
+                    {"label": "pessimistic", "probability": 0.40, "description": "A major customer successfully insources, triggering revenue displacement."},
+                ],
+            },
+        ],
+        "concentration_and_dependencies": {
+            "geographic_exposure": "North America approximately 60% of revenue (estimate), Europe 20% (estimate), Asia-Pacific 20% (estimate).",
+            "top_customer_concentration": "Top customer represents approximately 20% of revenue (estimate); top-5 customers approximately 45% (estimate).",
+            "supply_chain_dependencies": "Reliance on TSMC for leading-edge node fabrication; packaging dependence on a small number of OSAT providers.",
+            "relationships_at_risk": "Apple custom silicon transition could reduce AVGO's networking content; Meta AI infrastructure shifts could reprice hyperscaler contracts; TSMC capacity allocation remains a bottleneck risk.",
+        },
+        "scenario_analysis_extended": {
+            "bull": {
+                "segment_revenue_note": None,
+                "headwind_tailwind_summary": "Bull tailwinds are led by AI networking revenue acceleration and VMware upsell.",
+                "valuation_rationale": "The bull P/E of 38x is justified by FY+2 EPS of 14.50 and the durable franchise premium.",
+            },
+            "base": {
+                "segment_revenue_note": None,
+                "headwind_tailwind_summary": "Base case reflects steady compounding with moderate headwinds from macro sensitivity.",
+                "valuation_rationale": "The base P/E of 32x reflects the blended growth-value profile at base EPS of 10.74.",
+            },
+            "bear": {
+                "segment_revenue_note": None,
+                "headwind_tailwind_summary": "Bear headwinds include insourcing risk and margin compression from competitive pricing.",
+                "valuation_rationale": "The bear P/E of 26x reflects distressed-franchise pricing at bear EPS of 6.35.",
+            },
+        },
         "investment_thesis": (
             "The current price implies a free cash flow CAGR consistent with modest "
             "growth expectations over the 5-year horizon, making the entry valuation "
@@ -1141,7 +1237,7 @@ class TestPass2Validator:
 
     def test_word_count_over_limit_is_soft(self):
         p = _minimal_valid_pass2()
-        filler = " This is additional filler text." * 1000   # ~5000 extra words
+        filler = " This is additional filler text." * 1500   # ~7500 extra words, exceeds 7000
         p["investment_thesis"] += filler
         soft, hard = _validate_pass2_v2(p)
         assert hard == [], "word count violation should be soft, not hard"
@@ -3257,3 +3353,117 @@ class TestScenarioSegmentRevenue:
                 f"Expected bull > base > bear for seg {seg['name']}: "
                 f"bull={seg['bull']}, base={seg['base']}, bear={seg['bear']}"
             )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PASS 2 SCHEMA EXPANSION (pass2-prompt-schema-expansion)
+#
+# New required sections added to pass2: business_overview, revenue_architecture,
+# growth_drivers_and_moats, factor_analysis, valuation_vs_expectations,
+# sensitivity_check, margin_analysis, competitive_position,
+# scenario_analysis_extended.  concentration_and_dependencies is soft-only.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+class TestPass2SchemaExpansion:
+    """
+    Validator behaviour for the 9 new pass2 sections.
+
+    Hard retry triggers: business_overview, revenue_architecture,
+    growth_drivers_and_moats, factor_analysis, valuation_vs_expectations,
+    sensitivity_check, margin_analysis, competitive_position,
+    scenario_analysis_extended.
+
+    Soft-only: concentration_and_dependencies.
+    """
+
+    def test_all_new_required_sections_present_no_hard_error(self):
+        """_minimal_valid_pass2() now includes all new required sections → no hard errors."""
+        soft, hard = _validate_pass2_v2(_minimal_valid_pass2())
+        assert hard == [], f"unexpected hard errors with all sections present: {hard}"
+
+    def test_business_overview_missing_is_hard(self):
+        """Missing business_overview triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["business_overview"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("business_overview" in e for e in hard), (
+            f"missing business_overview must be a hard error; hard={hard}"
+        )
+
+    def test_sensitivity_check_missing_is_hard(self):
+        """Missing sensitivity_check triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["sensitivity_check"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("sensitivity_check" in e for e in hard), (
+            f"missing sensitivity_check must be a hard error; hard={hard}"
+        )
+
+    def test_concentration_and_dependencies_missing_is_soft_only(self):
+        """Missing concentration_and_dependencies is a soft warning, not a hard retry."""
+        p = _minimal_valid_pass2()
+        # concentration_and_dependencies is not in _minimal_valid_pass2 (never required hard)
+        p.pop("concentration_and_dependencies", None)
+        soft, hard = _validate_pass2_v2(p)
+        assert not any("concentration_and_dependencies" in e for e in hard), (
+            f"concentration_and_dependencies must not produce a hard error; hard={hard}"
+        )
+        assert any("concentration_and_dependencies" in e for e in soft), (
+            f"missing concentration_and_dependencies must produce a soft warning; soft={soft}"
+        )
+
+    def test_pass3_prompt_exempts_competitive_position_from_citation_checks(self):
+        """PASS3_PROMPT must explicitly list competitive_position in the qualitative-skip block."""
+        assert "competitive_position" in PASS3_PROMPT, (
+            "prompt_pass3.txt must name competitive_position in the QUALITATIVE SECTIONS block "
+            "so the LLM auditor skips citation checks on that section"
+        )
+        # Also verify the broader qualitative sections block is present
+        assert "QUALITATIVE SECTIONS" in PASS3_PROMPT, (
+            "prompt_pass3.txt must contain a QUALITATIVE SECTIONS block"
+        )
+
+    def test_qualitative_sections_constant_contains_expected_keys(self):
+        """_PASS2_QUALITATIVE_SECTIONS covers the four expected qualitative section names."""
+        for name in ("concentration_and_dependencies", "competitive_position",
+                     "growth_drivers_and_moats", "business_overview"):
+            assert name in _PASS2_QUALITATIVE_SECTIONS, (
+                f"{name!r} must be in _PASS2_QUALITATIVE_SECTIONS"
+            )
+
+    def test_factor_analysis_missing_is_hard(self):
+        """Missing factor_analysis triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["factor_analysis"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("factor_analysis" in e for e in hard), (
+            f"missing factor_analysis must be a hard error; hard={hard}"
+        )
+
+    def test_valuation_vs_expectations_missing_is_hard(self):
+        """Missing valuation_vs_expectations triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["valuation_vs_expectations"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("valuation_vs_expectations" in e for e in hard), (
+            f"missing valuation_vs_expectations must be a hard error; hard={hard}"
+        )
+
+    def test_revenue_architecture_missing_is_hard(self):
+        """Missing revenue_architecture triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["revenue_architecture"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("revenue_architecture" in e for e in hard), (
+            f"missing revenue_architecture must be a hard error; hard={hard}"
+        )
+
+    def test_growth_drivers_and_moats_missing_is_hard(self):
+        """Missing growth_drivers_and_moats triggers a hard retry."""
+        p = _minimal_valid_pass2()
+        del p["growth_drivers_and_moats"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("growth_drivers_and_moats" in e for e in hard), (
+            f"missing growth_drivers_and_moats must be a hard error; hard={hard}"
+        )

@@ -12,18 +12,25 @@ PYTHON-COMPUTED MATH (§5.3 — the ONLY numbers you may cite from this block)
 {math_json}
 
 Key fields in math_json:
-  implied_fcf_cagr          — annualised FCF growth rate implied by current price (B1 HEADLINE)
-  scenario_eps.{bull,base,bear}  — EPS under each scenario
-  price_target.bull_high    — bull price target at upper P/E bound
-  price_target.base_mid     — base price target at mid P/E
-  price_target.bear_low     — bear price target at lower P/E bound
-  joint_probs.{bull,base,bear}   — probability-weighted scenario weights
-  expected_value            — probability-weighted expected price
-  risk.expected_return_pct  — (EV − current_price) / current_price
-  risk.prob_loss            — probability of price < current_price
-  recommendation            — BUY / WATCH / PASS (do not contradict)
-  calibration_log           — list of calibration steps fired (cite if non-empty)
-  consensus_divergent       — true if bull_price_high ≤ current_price despite positive consensus
+  implied_fcf_cagr                   — annualised FCF growth rate implied by current price (B1 HEADLINE)
+  scenario_eps.{bull,base,bear}      — EPS under each scenario
+  scenarios.{bull,base,bear}.op_margin  — operating margin under each scenario
+  price_target.bull_high             — bull price target at upper P/E bound
+  price_target.base_mid              — base price target at mid P/E
+  price_target.bear_low              — bear price target at lower P/E bound
+  joint_probs.{bull,base,bear}       — probability-weighted scenario weights
+  expected_value                     — probability-weighted expected price
+  risk.expected_return_pct           — (EV − current_price) / current_price
+  risk.prob_loss                     — probability of price < current_price
+  recommendation                     — BUY / WATCH / PASS (do not contradict)
+  calibration_log                    — list of calibration steps fired (cite if non-empty)
+  consensus_divergent                — true if bull_price_high ≤ current_price despite positive consensus
+  headwinds                          — list of bear/downside events with eps_impact fields
+  tailwinds                          — list of bull/upside events with eps_impact fields
+  sensitivity_table                  — {minus_10pp, plus_10pp} with expected_value and bull_prob at each
+  driver_outcome_probabilities       — per-driver dict keyed A/B/C with {optimistic, neutral, pessimistic} probs
+  scenario_segment_revenue           — per-segment projected revenue by scenario (may be null)
+  owner_earnings                     — FCF minus SBC (null when either is absent)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PASS-1 STRUCTURED INPUT (§5.2 — drivers, events, segments, catalysts)
@@ -31,11 +38,28 @@ PASS-1 STRUCTURED INPUT (§5.2 — drivers, events, segments, catalysts)
 
 {pass1_json}
 
+Key fields in pass1_json:
+  primary_growth_driver        — headline growth driver description
+  macro_drivers                — dict keyed A/B/C, each with label and description
+  peer_set_enriched            — named peer companies with fwd_pe and growth
+  segments_enriched            — segment-level revenue, growth, and margin data
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BASELINE FINANCIALS (§5.1 — current-year actuals; cite these for financial_health)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {baseline_json}
+
+Key fields in baseline_json:
+  fy_op_margin                 — current operating margin
+  fy_fcf                       — free cash flow (billions)
+  fy_fcf_margin                — FCF as % of revenue
+  net_debt                     — net debt (billions)
+  fy_sbc                       — stock-based compensation (billions, may be null)
+  fwd_pe                       — forward P/E multiple
+  trailing_pe                  — trailing P/E multiple
+  current_price                — current stock price
+  segments                     — segment revenue breakdown (may be null or empty)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY WRITING RULES
@@ -61,11 +85,19 @@ B6 — FORBIDDEN VOCABULARY — NEVER WRITE THESE:
   Violations will fail automated audit. No exceptions.
 
 CITATION DISCIPLINE:
-  Every number in your narrative MUST be verbatim from math_json, pass1_json, or baseline_json.
+  Every number in your narrative MUST be verbatim from math_json, pass1_json, or baseline_json
+  UNLESS the section is explicitly marked QUALITATIVE below.
   DO NOT compute, derive, round differently, or recall from training data.
   NO dollar signs ($) — write "41.22" not "$41.22". Write "14.5 billion" not "$14.5B".
   NO open-ended ranges ("12%+") unless that exact bound appears in source.
   If a number is not in source, use qualitative direction (growing, expanding, contracting).
+
+QUALITATIVE SECTIONS:
+  The following sections draw on training knowledge about the company. You do NOT need to cite
+  every number from math_json/baseline_json. Label approximate percentages as "(estimate)".
+  Do not fabricate specific dollar figures — use directional language instead.
+  Qualitative sections: business_overview, concentration_and_dependencies, competitive_position,
+  growth_drivers_and_moats (qualitative portions only).
 
 STYLE:
   Declarative and specific. Numbers carry the argument; prose provides context.
@@ -74,12 +106,114 @@ STYLE:
   No hedging boilerplate ("it is worth noting", "it should be mentioned").
 
 WORD COUNT:
-  Total words across ALL sections MUST NOT exceed 4500.
-  Target 3500-4200. One tight paragraph beats two loose ones.
+  Total words across ALL sections MUST NOT exceed 7000.
+  Target 5000-6500. One tight paragraph beats two loose ones.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION REQUIREMENTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+business_overview (REQUIRED — 200-300 words):
+  QUALITATIVE. Business model overview: revenue model (subscription vs. transactional vs. hardware),
+  customer base, workflow integration depth, switching costs, recurring revenue mix.
+  Draw on training knowledge. No numeric citation required beyond what appears naturally
+  in baseline_json (e.g., fy_revenue if present). Do not fabricate specific figures.
+
+revenue_architecture (REQUIRED — 300-400 words):
+  Segment-by-segment commentary. For each segment in pass1_json.segments_enriched or
+  baseline_json.segments (whichever is populated): state revenue, share of total, YoY growth,
+  margin, and trajectory — citing baseline/pass1 values verbatim.
+  If math_json.scenario_segment_revenue is non-null, include one sentence per segment
+  stating the bull/base/bear projected revenue, citing those values verbatim with the note
+  "(any_derived: true)" if the any_derived flag is set for that segment.
+  If no segment data is available in any source, write one paragraph summarising the overall
+  revenue base from baseline_json and explain why segment detail is not available.
+
+concentration_and_dependencies (REQUIRED — emit as a structured object with four sub-fields):
+  QUALITATIVE. Draw on training knowledge. Label all approximate figures as "(estimate)".
+  Do not fabricate precise figures — use ranges or directional language.
+  Sub-fields:
+    geographic_exposure:      prose listing regions with approximate % of revenue (estimate)
+    top_customer_concentration: top customer % and top-5 % if known; otherwise describe
+                               concentration qualitatively
+    supply_chain_dependencies: list of key manufacturing, supplier, or logistics dependencies
+    relationships_at_risk:    2-3 named relationships (customer, supplier, or regulator)
+                              that could deteriorate and why
+
+growth_drivers_and_moats (REQUIRED — 400-500 words):
+  Name the three growth drivers from pass1_json.primary_growth_driver and
+  pass1_json.macro_drivers (A/B/C). For each driver, explain the mechanism (2-3 sentences)
+  and the moat protecting that revenue stream.
+  Where math_json.tailwinds or math_json.headwinds include eps_impact values for related
+  events, cite those eps_impact figures verbatim — these are allowed numeric citations.
+  Qualitative assertions about competitive position, switching costs, or moat durability
+  do NOT require numeric citation — draw on training knowledge.
+
+margin_analysis (REQUIRED — 200-300 words):
+  Current operating margin from baseline_json.fy_op_margin (cite verbatim).
+  For each scenario (bull/base/bear), state the expected operating margin trajectory
+  citing math_json.scenarios.bull.op_margin, math_json.scenarios.base.op_margin,
+  math_json.scenarios.bear.op_margin verbatim.
+  If these fields are null/absent in math_json, note that margin by scenario is not
+  separately modelled and discuss directional expectations only.
+  Explain the key drivers of margin expansion or compression in each scenario.
+
+financial_health (REQUIRED — exactly 1 paragraph):
+  Must cite ALL of these from baseline_json (write "not reported" if null):
+  fy_sbc, fy_fcf, fy_fcf_margin, net_debt, fy_op_margin.
+  State whether the balance sheet supports or constrains the investment thesis.
+
+competitive_position (REQUIRED — 250-300 words):
+  QUALITATIVE. Moat durability, named competitors, and key competitive threats.
+  Reference the peer set from pass1_json.peer_set_enriched by name — list the peers
+  and characterise where {ticker} sits relative to them on growth and valuation.
+  If peer fwd_pe values appear in pass1_json.peer_set_enriched, you may cite them
+  as they are in the allowed source.
+  Do not fabricate market share percentages or revenue figures beyond what appears
+  in source data.
+
+factor_analysis (REQUIRED — emit as a structured list, one object per driver A/B/C):
+  For each driver in pass1_json.macro_drivers:
+    - driver_id: "A", "B", or "C"
+    - name: driver label from pass1_json.macro_drivers[id].label
+    - outcomes: list of three outcome objects, ordered optimistic/neutral/pessimistic:
+        - label: "optimistic" | "neutral" | "pessimistic"
+        - probability: cite verbatim from math_json.driver_outcome_probabilities[id][label]
+        - description: 1-2 sentences describing what materialises under this outcome
+  The probabilities in outcomes MUST be verbatim from math_json.driver_outcome_probabilities.
+  Do not compute or modify them. If driver_outcome_probabilities is absent, set probability to null
+  and note "(probability unavailable)" in description.
+
+scenario_analysis_extended (REQUIRED — emit as a structured object with bull/base/bear sub-objects):
+  Supplements the existing scenario_commentary. For each scenario:
+    segment_revenue_note: if math_json.scenario_segment_revenue is non-null, one sentence
+      summarising the aggregate build across segments for this scenario, citing values verbatim.
+      Set to null if scenario_segment_revenue is null.
+    headwind_tailwind_summary: 2-3 sentences citing specific entries from math_json.headwinds
+      (for bear/base) or math_json.tailwinds (for bull/base) with their eps_impact_mid values.
+      If headwinds/tailwinds are empty, write a brief directional summary instead.
+    valuation_rationale: 1-2 sentences explaining why the P/E multiple assigned to this
+      scenario is appropriate given the growth and return profile. Reference the scenario
+      EPS from math_json.scenario_eps verbatim.
+
+valuation_vs_expectations (REQUIRED — 250-300 words):
+  What does the current market multiple imply, and why is it wrong per the thesis?
+  Cite verbatim: baseline_json.fwd_pe, baseline_json.trailing_pe,
+  math_json.implied_fcf_cagr, math_json.scenario_eps.base, and the base-case P/E
+  from math_json (use price_target.base_mid and scenario_eps.base to derive the implied
+  multiple — do not compute it yourself; reference the base price target and EPS as the
+  framing, not an arithmetic multiple you computed).
+  Explain what the market is pricing in versus what the base case suggests.
+
+sensitivity_check (REQUIRED — cite math_json.sensitivity_table verbatim):
+  Format: "Shifting [driver name] bull probability by +/-10pp moves expected value from
+  [minus_10pp.expected_value] at bull prob [minus_10pp.bull_prob] to
+  [plus_10pp.expected_value] at bull prob [plus_10pp.bull_prob]."
+  The driver name is the label of driver A from pass1_json.macro_drivers.
+  All four numbers (both expected_values and both bull_probs) MUST be cited verbatim
+  from math_json.sensitivity_table. Do NOT compute these values yourself.
+  Add one sentence of interpretation: whether the expected value is robust or sensitive
+  to the driver A probability assumption.
 
 investment_thesis (REQUIRED — ≥3 paragraphs, \\n\\n separated):
   Paragraph 1 (B1 headline): state implied_fcf_cagr and interpret what growth rate
@@ -112,11 +246,6 @@ driver_narratives.A / .B / .C (REQUIRED — one paragraph per driver):
   - Name the driver's most important event from pass1_json.events (cite evidence date).
   - State whether the probability distribution leans bull, base, or bear.
 
-financial_health (REQUIRED — exactly 1 paragraph):
-  Must cite ALL of these from baseline_json (write "not reported" if null):
-  fy_sbc, fy_fcf, fy_fcf_margin, net_debt, fy_op_margin.
-  State whether the balance sheet supports or constrains the investment thesis.
-
 recommendation_rationale (REQUIRED — 1-2 paragraphs):
   Justify the math_json.recommendation label from the numbers.
   Reference expected_value vs baseline_json.current_price, joint_probs, and
@@ -141,6 +270,47 @@ OUTPUT SCHEMA — emit ONLY this JSON, no markdown fences, no prose outside
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {
+  "business_overview": "string — 200-300 words on business model, revenue mix, customer base (qualitative)",
+  "revenue_architecture": "string — 300-400 words on segment breakdown citing baseline/pass1 values verbatim",
+  "concentration_and_dependencies": {
+    "geographic_exposure": "string — regions with approximate revenue % (label estimates as (estimate))",
+    "top_customer_concentration": "string — top customer %, top-5 % if known, else qualitative",
+    "supply_chain_dependencies": "string — key manufacturing, supplier, logistics dependencies",
+    "relationships_at_risk": "string — 2-3 named relationships that could deteriorate"
+  },
+  "growth_drivers_and_moats": "string — 400-500 words on named growth drivers and moat analysis",
+  "margin_analysis": "string — 200-300 words citing fy_op_margin and scenarios.*.op_margin verbatim",
+  "competitive_position": "string — 250-300 words on moat, named competitors, key threats (qualitative)",
+  "factor_analysis": [
+    {
+      "driver_id": "A",
+      "name": "string — driver label from pass1_json.macro_drivers",
+      "outcomes": [
+        {"label": "optimistic", "probability": 0.0, "description": "string — 1-2 sentences"},
+        {"label": "neutral",    "probability": 0.0, "description": "string — 1-2 sentences"},
+        {"label": "pessimistic","probability": 0.0, "description": "string — 1-2 sentences"}
+      ]
+    }
+  ],
+  "scenario_analysis_extended": {
+    "bull": {
+      "segment_revenue_note": "string or null",
+      "headwind_tailwind_summary": "string",
+      "valuation_rationale": "string"
+    },
+    "base": {
+      "segment_revenue_note": "string or null",
+      "headwind_tailwind_summary": "string",
+      "valuation_rationale": "string"
+    },
+    "bear": {
+      "segment_revenue_note": "string or null",
+      "headwind_tailwind_summary": "string",
+      "valuation_rationale": "string"
+    }
+  },
+  "valuation_vs_expectations": "string — 250-300 words citing fwd_pe, trailing_pe, implied_fcf_cagr verbatim",
+  "sensitivity_check": "string — citing sensitivity_table values verbatim",
   "investment_thesis": "string — ≥3 paragraphs (\\n\\n separated), opens with implied_fcf_cagr",
   "reverse_dcf_commentary": "string — exactly 1 paragraph",
   "scenario_commentary": {
