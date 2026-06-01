@@ -240,6 +240,53 @@ def sensitivity_analysis(
     return {"joint_probs": new_joint, "expected_value": new_ev}
 
 
+def scenario_segment_revenue(
+    segments_enriched: list[dict],
+    horizon: int = 2,
+) -> dict | None:
+    """Compute per-segment FY+{horizon} revenue for bull/base/bear scenarios.
+    Returns None if no segment has usable revenue data.
+    Each segment entry uses scenario_growth if present in pass1,
+    otherwise derives from growth_yoy with explicit labeling."""
+    result = []
+    any_derived = False
+    for seg in segments_enriched:
+        fy_rev = seg.get("fy_revenue")
+        if fy_rev is None:
+            continue
+        fy_rev = float(fy_rev)
+
+        sg = seg.get("scenario_growth")
+        if isinstance(sg, dict) and all(k in sg for k in ("bull", "base", "bear")):
+            growth = {k: float(sg[k]) for k in ("bull", "base", "bear")}
+            growth_source = "llm_provided"
+        else:
+            gy = seg.get("growth_yoy")
+            if gy is None:
+                continue
+            gy = float(gy)
+            growth = {
+                "bull": min(gy * 1.5, 0.60),
+                "base": gy,
+                "bear": gy * 0.3,
+            }
+            growth_source = "derived"
+            any_derived = True
+
+        entry: dict = {
+            "name":          seg.get("name", ""),
+            "fy_revenue":    fy_rev,
+            "growth_source": growth_source,
+        }
+        for sc in ("bull", "base", "bear"):
+            entry[sc] = round(fy_rev * (1 + growth[sc]) ** horizon, 4)
+        result.append(entry)
+
+    if not result:
+        return None
+    return {"segments": result, "any_derived": any_derived}
+
+
 def driver_probabilities(
     drivers: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:

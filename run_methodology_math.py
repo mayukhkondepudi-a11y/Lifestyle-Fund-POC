@@ -18,6 +18,7 @@ from compute_methodology_v2 import (
     driver_probabilities,
     driver_outcome_probabilities,
     sensitivity_analysis,
+    scenario_segment_revenue,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -303,6 +304,9 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         elif outcome == "bull":
             _tw.append(entry)
 
+    # ── Scenario segment revenue (optional; None when pass1 has no segments) ────
+    _ssr = scenario_segment_revenue(pass1.get("segments_enriched", []))
+
     # ── Driver outcome probabilities (per-driver breakdown for Pass 2 richness) ─
     # Computed from raw pass1 events; accepts both §5.2 and internal key formats.
     _driver_outcome_probs = driver_outcome_probabilities(pass1.get("events", []))
@@ -374,4 +378,5 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         "ev_formula_string": ev_formula_string,
         "driver_outcome_probabilities": _driver_outcome_probs,
         "sensitivity_table": _sensitivity_table,
+        "scenario_segment_revenue": _ssr,
     }

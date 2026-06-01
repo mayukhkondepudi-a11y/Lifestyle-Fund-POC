@@ -19,6 +19,7 @@ from compute_methodology_v2 import (
     driver_probabilities,
     driver_outcome_probabilities,
     sensitivity_analysis,
+    scenario_segment_revenue,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -3165,3 +3166,94 @@ class TestSensitivityAnalysis:
         assert st["minus_10pp"]["expected_value"] < st["current"]["expected_value"] < st["plus_10pp"]["expected_value"], (
             "Expected EV ordering: minus_10pp < current < plus_10pp"
         )
+
+
+class TestScenarioSegmentRevenue:
+    """Step 3: scenario_segment_revenue optional field — 4 unit tests."""
+
+    def test_llm_provided_growth_source_and_revenue(self):
+        """Segment with scenario_growth → growth_source == 'llm_provided', revenue correct."""
+        segs = [{
+            "name": "AI Networking",
+            "fy_revenue": 10.0,
+            "share_pct": 0.5,
+            "scenario_growth": {"bull": 0.25, "base": 0.10, "bear": -0.05},
+            "growth_yoy": 0.15,
+        }]
+        result = scenario_segment_revenue(segs, horizon=2)
+        assert result is not None
+        assert len(result["segments"]) == 1
+        seg = result["segments"][0]
+        assert seg["growth_source"] == "llm_provided", f"Expected 'llm_provided', got {seg['growth_source']!r}"
+        assert abs(seg["bull"]  - 15.625) < 0.001, f"bull={seg['bull']}"   # 10 × 1.25²
+        assert abs(seg["base"]  - 12.1)   < 0.001, f"base={seg['base']}"   # 10 × 1.10²
+        assert abs(seg["bear"]  -  9.025) < 0.001, f"bear={seg['bear']}"   # 10 × 0.95²
+        assert result["any_derived"] is False
+
+    def test_derived_from_growth_yoy_with_bull_cap(self):
+        """Segment with only growth_yoy → growth_source == 'derived', bull capped at 60%."""
+        segs = [{
+            "name": "Legacy Semis",
+            "fy_revenue": 5.0,
+            "growth_yoy": 0.50,    # 0.50 × 1.5 = 0.75 → capped to 0.60
+        }]
+        result = scenario_segment_revenue(segs, horizon=2)
+        assert result is not None
+        seg = result["segments"][0]
+        assert seg["growth_source"] == "derived", f"Expected 'derived', got {seg['growth_source']!r}"
+        # bull growth = min(0.50 × 1.5, 0.60) = 0.60 → 5.0 × 1.60² = 12.8
+        assert abs(seg["bull"] - 12.8) < 0.001, f"bull={seg['bull']} (expected 12.8 with 60% cap)"
+        # base growth = 0.50 → 5.0 × 1.50² = 11.25
+        assert abs(seg["base"] - 11.25) < 0.001, f"base={seg['base']}"
+        # bear growth = 0.50 × 0.3 = 0.15 → 5.0 × 1.15² = 6.6125
+        assert abs(seg["bear"] - 6.6125) < 0.001, f"bear={seg['bear']}"
+        assert result["any_derived"] is True
+
+    def test_segment_with_neither_field_is_skipped(self):
+        """Segment missing both scenario_growth and growth_yoy → not in output."""
+        segs = [
+            {"name": "Known",   "fy_revenue": 3.0, "growth_yoy": 0.10},
+            {"name": "Unknown", "fy_revenue": 2.0},   # no growth data
+        ]
+        result = scenario_segment_revenue(segs, horizon=2)
+        assert result is not None
+        names = [s["name"] for s in result["segments"]]
+        assert "Known"   in names, "Expected 'Known' segment in output"
+        assert "Unknown" not in names, "Expected 'Unknown' segment (no growth) to be skipped"
+
+    def test_all_segments_missing_data_returns_none(self):
+        """All segments have neither scenario_growth nor growth_yoy → returns None."""
+        segs = [
+            {"name": "A", "fy_revenue": 1.0},
+            {"name": "B", "fy_revenue": 2.0},
+        ]
+        assert scenario_segment_revenue(segs) is None
+
+    def test_math_dict_key_present_and_none_for_avgo(self):
+        """AVGO_PASS1 has no segments_enriched → key present with value None."""
+        m = run_methodology_math(AVGO_PASS1, AVGO_BASELINE)
+        assert "scenario_segment_revenue" in m, "math dict missing 'scenario_segment_revenue' key"
+        # AVGO_PASS1 = {"events": AVGO_EVENTS}, no segments_enriched → None
+        assert m["scenario_segment_revenue"] is None, (
+            f"Expected None for AVGO (no segments), got {m['scenario_segment_revenue']!r}"
+        )
+
+    def test_math_dict_key_populated_when_segments_present(self):
+        """Pass1 with segments_enriched having growth_yoy → non-None result in math dict."""
+        pass1_with_segs = {
+            "events": AVGO_EVENTS,
+            "segments_enriched": [
+                {"name": "Seg A", "fy_revenue": 10.0, "growth_yoy": 0.12},
+                {"name": "Seg B", "fy_revenue": 5.0,  "growth_yoy": 0.08},
+            ],
+        }
+        m = run_methodology_math(pass1_with_segs, AVGO_BASELINE)
+        ssr = m["scenario_segment_revenue"]
+        assert ssr is not None, "Expected non-None scenario_segment_revenue when segments present"
+        assert len(ssr["segments"]) == 2
+        assert ssr["any_derived"] is True
+        for seg in ssr["segments"]:
+            assert seg["bull"] > seg["base"] > seg["bear"], (
+                f"Expected bull > base > bear for seg {seg['name']}: "
+                f"bull={seg['bull']}, base={seg['base']}, bear={seg['bear']}"
+            )

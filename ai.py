@@ -1225,6 +1225,7 @@ def _assemble_pipeline_output(
         "drivers":         [],    # stub; v2 events not yet rendered as driver cards
         "headwinds":       math.get("headwinds", []),
         "tailwinds":       math.get("tailwinds", []),
+        "scenario_segment_revenue": math.get("scenario_segment_revenue", None),
         "ev_formula_string": math.get("ev_formula_string", ""),
         "concentration":   {},
         "monitoring_kpis": [],
