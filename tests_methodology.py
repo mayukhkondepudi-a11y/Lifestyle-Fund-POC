@@ -18,6 +18,7 @@ from compute_methodology_v2 import (
     pe_band,
     driver_probabilities,
     driver_outcome_probabilities,
+    sensitivity_analysis,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -3110,3 +3111,57 @@ class TestDriverOutcomeProbabilities:
             assert set(probs.keys()) == {"bull", "base", "bear"}, (
                 f"Driver {did} has unexpected keys: {set(probs.keys())}"
             )
+
+
+class TestSensitivityAnalysis:
+    _PRICES = {"bull": 500.0, "base": 350.0, "bear": 200.0}
+
+    def _dop(self):
+        return driver_outcome_probabilities(AVGO_EVENTS)
+
+    def test_plus_and_minus_produce_different_evs(self):
+        dop = self._dop()
+        res_minus = sensitivity_analysis("A", -10.0, dop, {}, self._PRICES)
+        res_plus  = sensitivity_analysis("A", +10.0, dop, {}, self._PRICES)
+        assert res_minus["expected_value"] != res_plus["expected_value"], (
+            "Expected -10pp and +10pp to produce different EVs"
+        )
+        assert res_plus["expected_value"] > res_minus["expected_value"], (
+            f"Expected +10pp EV ({res_plus['expected_value']}) > -10pp EV ({res_minus['expected_value']})"
+        )
+
+    def test_joint_probs_sum_to_one_after_perturbation(self):
+        dop = self._dop()
+        for delta in (-10.0, 0.0, +10.0):
+            res = sensitivity_analysis("A", delta, dop, {}, self._PRICES)
+            total = sum(res["joint_probs"].values())
+            assert abs(total - 1.0) < 1e-4, (
+                f"delta={delta}: joint_probs sum={total:.8f}"
+            )
+
+    def test_clamping_when_bull_near_max(self):
+        near_max = {
+            "A": {"bull": 0.95, "base": 0.05, "bear": 0.00},
+            "B": {"bull": 0.50, "base": 0.50, "bear": 0.00},
+            "C": {"bull": 0.50, "base": 0.50, "bear": 0.00},
+        }
+        res = sensitivity_analysis("A", +10.0, near_max, {}, self._PRICES)
+        total = sum(res["joint_probs"].values())
+        assert abs(total - 1.0) < 1e-4, f"joint_probs sum={total:.8f} after clamping"
+        assert res["joint_probs"]["bull"] <= 1.0, (
+            f"bull prob {res['joint_probs']['bull']} exceeded 1.0 after clamping"
+        )
+
+    def test_math_dict_contains_sensitivity_table(self):
+        m = run_methodology_math(AVGO_PASS1, AVGO_BASELINE)
+        assert "sensitivity_table" in m, "math dict missing 'sensitivity_table' key"
+        st = m["sensitivity_table"]
+        assert st["driver"] == "A"
+        for key in ("minus_10pp", "current", "plus_10pp"):
+            assert key in st, f"sensitivity_table missing '{key}'"
+            assert "bull_prob" in st[key], f"sensitivity_table['{key}'] missing 'bull_prob'"
+            assert "expected_value" in st[key], f"sensitivity_table['{key}'] missing 'expected_value'"
+        # Order check: lower bull_prob → lower EV
+        assert st["minus_10pp"]["expected_value"] < st["current"]["expected_value"] < st["plus_10pp"]["expected_value"], (
+            "Expected EV ordering: minus_10pp < current < plus_10pp"
+        )

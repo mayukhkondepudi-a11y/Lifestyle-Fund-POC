@@ -215,6 +215,31 @@ def driver_outcome_probabilities(events: list[dict]) -> dict:
     return buckets
 
 
+def sensitivity_analysis(
+    driver_id: str,
+    delta_pp: float,
+    driver_outcome_probs: dict,
+    correlation_multipliers: dict,
+    scenario_prices: dict,
+) -> dict:
+    """Recompute joint probabilities and EV when one driver's bull probability
+    shifts by delta_pp percentage points. Bear probability absorbs the opposite
+    change; base stays constant. Returns {'joint_probs': {...}, 'expected_value': float}."""
+    modified = {did: dict(probs) for did, probs in driver_outcome_probs.items()}
+    if driver_id in modified:
+        d = modified[driver_id]
+        d["bull"] = max(0.0, min(1.0, d["bull"] + delta_pp / 100.0))
+        d["bear"] = max(0.0, min(1.0, d["bear"] - delta_pp / 100.0))
+        total = d["bull"] + d["base"] + d["bear"]
+        if total > 0:
+            d["bull"] /= total
+            d["base"] /= total
+            d["bear"] /= total
+    new_joint = joint_probabilities(modified)
+    new_ev = expected_value(scenario_prices, new_joint)
+    return {"joint_probs": new_joint, "expected_value": new_ev}
+
+
 def driver_probabilities(
     drivers: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:

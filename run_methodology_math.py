@@ -17,6 +17,7 @@ from compute_methodology_v2 import (
     breakeven_pe,
     driver_probabilities,
     driver_outcome_probabilities,
+    sensitivity_analysis,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -306,6 +307,27 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     # Computed from raw pass1 events; accepts both §5.2 and internal key formats.
     _driver_outcome_probs = driver_outcome_probabilities(pass1.get("events", []))
 
+    # ── Sensitivity table: EV response to ±10pp shift in driver A bull prob ──
+    # Uses _driver_outcome_probs (raw pass1 events) so the perturbation operates
+    # on the same basis as the displayed driver outcome breakdown.
+    _sens_minus = sensitivity_analysis("A", -10.0, _driver_outcome_probs, {}, price_targets)
+    _sens_plus  = sensitivity_analysis("A", +10.0, _driver_outcome_probs, {}, price_targets)
+    _sensitivity_table = {
+        "driver": "A",
+        "minus_10pp": {
+            "bull_prob": _sens_minus["joint_probs"]["bull"],
+            "expected_value": _sens_minus["expected_value"],
+        },
+        "current": {
+            "bull_prob": joint_probs["bull"],
+            "expected_value": ev,
+        },
+        "plus_10pp": {
+            "bull_prob": _sens_plus["joint_probs"]["bull"],
+            "expected_value": _sens_plus["expected_value"],
+        },
+    }
+
     # ── Assemble §5.3 math dict ──────────────────────────────────────────────
     bull_price_mid = price_targets["bull"]
     base_price_mid = price_targets["base"]
@@ -351,4 +373,5 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         "tailwinds": _tw,
         "ev_formula_string": ev_formula_string,
         "driver_outcome_probabilities": _driver_outcome_probs,
+        "sensitivity_table": _sensitivity_table,
     }
