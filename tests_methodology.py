@@ -17,6 +17,7 @@ from compute_methodology_v2 import (
     scenario_eps,
     pe_band,
     driver_probabilities,
+    driver_outcome_probabilities,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -3074,3 +3075,38 @@ class TestEvFormulaString:
         assert expected_substr in ev_str, (
             f"ev_formula_string '{ev_str}' does not contain expected_value formatted as '{expected_substr}'"
         )
+
+
+class TestDriverOutcomeProbabilities:
+    def _result(self):
+        return driver_outcome_probabilities(AVGO_EVENTS)
+
+    def test_probs_sum_to_one_per_driver(self):
+        result = self._result()
+        for did, probs in result.items():
+            total = sum(probs.values())
+            assert abs(total - 1.0) < 1e-6, f"Driver {did}: probs sum={total:.8f}"
+
+    def test_missing_outcome_returns_zero(self):
+        result = self._result()
+        # Driver A has no bear events in AVGO_EVENTS
+        assert result["A"]["bear"] == 0.0, f"Expected 0 bear for A, got {result['A']['bear']}"
+        # Driver C has no bull events in AVGO_EVENTS
+        assert result["C"]["bull"] == 0.0, f"Expected 0 bull for C, got {result['C']['bull']}"
+
+    def test_all_three_drivers_present(self):
+        result = self._result()
+        for did in ("A", "B", "C"):
+            assert did in result, f"Driver {did!r} missing from driver_outcome_probabilities output"
+
+    def test_math_dict_contains_driver_outcome_probabilities_key(self):
+        m = run_methodology_math(AVGO_PASS1, AVGO_BASELINE)
+        assert "driver_outcome_probabilities" in m, (
+            "math dict missing 'driver_outcome_probabilities' key"
+        )
+        dop = m["driver_outcome_probabilities"]
+        # Verify shape: each driver has bull/base/bear keys
+        for did, probs in dop.items():
+            assert set(probs.keys()) == {"bull", "base", "bear"}, (
+                f"Driver {did} has unexpected keys: {set(probs.keys())}"
+            )

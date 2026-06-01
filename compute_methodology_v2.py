@@ -193,6 +193,28 @@ def breakeven_pe(
     return round(current_price / eps, 1)
 
 
+def driver_outcome_probabilities(events: list[dict]) -> dict:
+    """Aggregate event probabilities into per-driver outcome distributions.
+    Returns {driver_id: {'bull': float, 'base': float, 'bear': float}}.
+    Probabilities within each driver sum to 1.0.
+    Accepts both §5.2 format (driver/outcome keys) and internal format (driver_id/scenario keys)."""
+    buckets: dict[str, dict[str, float]] = {}
+    for ev in events:
+        did = ev.get("driver_id") or ev.get("driver", "")
+        sc = ev.get("scenario") or ev.get("outcome", "base")
+        p = float(ev.get("probability", 0.0))
+        if did not in buckets:
+            buckets[did] = {"bull": 0.0, "base": 0.0, "bear": 0.0}
+        key = sc if sc in ("bull", "bear") else "base"
+        buckets[did][key] += p
+    for did, d in buckets.items():
+        total = sum(d.values())
+        if total > 0:
+            for k in d:
+                d[k] /= total
+    return buckets
+
+
 def driver_probabilities(
     drivers: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:

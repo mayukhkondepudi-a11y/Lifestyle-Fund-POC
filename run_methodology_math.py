@@ -16,6 +16,7 @@ from compute_methodology_v2 import (
     pe_band,
     breakeven_pe,
     driver_probabilities,
+    driver_outcome_probabilities,
     joint_probabilities,
     expected_value,
     risk_metrics,
@@ -301,6 +302,10 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         elif outcome == "bull":
             _tw.append(entry)
 
+    # ── Driver outcome probabilities (per-driver breakdown for Pass 2 richness) ─
+    # Computed from raw pass1 events; accepts both §5.2 and internal key formats.
+    _driver_outcome_probs = driver_outcome_probabilities(pass1.get("events", []))
+
     # ── Assemble §5.3 math dict ──────────────────────────────────────────────
     bull_price_mid = price_targets["bull"]
     base_price_mid = price_targets["base"]
@@ -345,4 +350,5 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         "headwinds": _hw,
         "tailwinds": _tw,
         "ev_formula_string": ev_formula_string,
+        "driver_outcome_probabilities": _driver_outcome_probs,
     }
