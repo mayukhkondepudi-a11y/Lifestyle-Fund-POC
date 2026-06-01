@@ -1,0 +1,558 @@
+{
+  "ticker": "CLS",
+  "date": "2026-06-01",
+  "timestamp": "2026-06-01 17:13",
+  "company_name": "Celestica, Inc.",
+  "recommendation": "PASS",
+  "conviction": "Low",
+  "expected_value": 382.16,
+  "expected_return": -0.0084,
+  "risk_adjusted_score": null,
+  "metrics": {
+    "company_name": "Celestica, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Components",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 385.39,
+    "market_cap": 44309487616,
+    "enterprise_value": 44873187328,
+    "trailing_pe": 46.71394,
+    "forward_pe": 25.66,
+    "peg_ratio": null,
+    "price_to_sales": 3.213324,
+    "ev_to_ebitda": 32.51,
+    "gross_margin": 0.12019,
+    "operating_margin": 0.066199996,
+    "profit_margin": 0.069520004,
+    "roe": 0.52454,
+    "roa": 0.10663,
+    "trailing_eps": 8.25,
+    "forward_eps": 15.01876,
+    "earnings_growth": 1.473,
+    "total_revenue": 13789299712,
+    "revenue_growth": 0.528,
+    "free_cashflow": 458300000.0,
+    "operating_cashflow": 885500032,
+    "total_cash": 378000000,
+    "total_debt": 941699968,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.478,
+    "week_52_high": 435.0,
+    "week_52_low": 112.74,
+    "ma_50": 354.259,
+    "ma_200": 298.94016,
+    "insider_pct": 0.0111,
+    "institution_pct": 0.71911,
+    "shares_outstanding": 114973107,
+    "fcf_yield": 0.01034315729334928,
+    "stmt_trailing_eps": 7.16,
+    "stmt_eps_series": {
+      "2022": 1.18,
+      "2023": 2.03,
+      "2024": 3.61,
+      "2025": 7.16
+    },
+    "debt_to_equity": 0.35,
+    "current_ratio": 1.44,
+    "revenue_cagr": 0.1956,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6658,
+    "eps_cagr_raw": 0.8239,
+    "net_income_cagr": 0.6658,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.8239,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 80.9pp from historical CAGR (82.4%). Treat historical with caution.",
+    "peg_historical_cagr": 82.4,
+    "price_5y_return": 4370.88,
+    "price_5y_high": 418.93,
+    "price_5y_low": 7.35
+  },
+  "analysis": {
+    "recommendation": "PASS",
+    "conviction": "Low",
+    "model_used": "claude-opus-4-7",
+    "investment_thesis": "The reverse-DCF embedded in CLS at 385.39 requires free cash flow to compound at an implied_fcf_cagr of 58.0% to justify the current quote. That is an extraordinarily demanding hurdle: it sits well above the 44.8% five-year EPS growth estimate analysts already model and far above the 28.5% trailing revenue growth the business is actually delivering. Against scenario_eps of 8.48 in the base case and 18.90 in the bull case, the price is effectively underwriting an outcome closer to the bull EPS trajectory continuing for multiple years without interruption.\n\nThe FY+2 price target band stretches from 163.29 at the bear low to 846.94 at the bull high, with a base mid of 251.52 \u2014 meaning the base-case fair value sits roughly 35% below the current quote. Whether the bull case materialises hinges almost entirely on macro driver A, the Hyperscaler AI Networking Capex Cycle, which controls HPS revenue mix and the operating margin lift that turns top-line growth into the 18.90 bull EPS print. Driver C, hyperscaler concentration, is the offsetting structural risk that can compress both EPS and the multiple simultaneously.\n\nExpected_value across the probability tree is 382.16, essentially flat to the 385.39 quote, and risk.expected_return_pct of -0.84% confirms the math: the buyer is paid nothing in expectation for taking the exposure. Risk.prob_loss of 65.2% means roughly two of every three probability-weighted paths end below today's price, and risk.max_drawdown_pct of 53.1% quantifies the left-tail. The asymmetry runs the wrong direction for new capital.",
+    "reverse_dcf_commentary": "An implied_fcf_cagr of 58.0% is demanding by any standard. Baseline fy_fcf of 458.3 million on fy_revenue of 12.39 billion translates to a 3.7% FCF margin, so the market is not merely betting on continued revenue acceleration \u2014 it is implicitly underwriting a structural step-up in FCF conversion driven by HPS mix shift, working-capital normalisation off the 77.7-day DSO, and operating leverage on the 8.64% op margin base. The buyer at 385.39 is paying for the bull case (scenario_eps 18.90) to play out and for that trajectory to extend beyond FY+2, with no margin of safety if hyperscaler capex digests or if even one top-two customer dual-sources.",
+    "recommendation_rationale": "The recommendation is PASS. The arithmetic is direct: expected_value of 382.16 sits 0.8% below current_price of 385.39 (risk.expected_return_pct of -0.84%), joint_probs.bear of 46.1% exceeds joint_probs.bull of 34.8%, and risk.prob_loss of 65.2% means the modal outcome is a loss. The base_mid price target of 251.52 sits 35% below spot, and the breakeven_pe of 53.8x is well above the 35.8x upper edge of the base P/E band \u2014 meaning the current quote can only be justified by bull-case earnings and a bull-case multiple together.\n\nThree calibration_log entries fired and matter for context. Step A floored bull EPS upward from 15.02 to 18.90 against 0.95x consensus_eps_fy2 high of 19.90 \u2014 meaning the bull case is already anchored near the top of analyst dispersion, leaving little room to argue the model is too conservative. Base P/E was ratio-discounted from 76.2x/58.3x down to 35.8x/23.5x to remain coherent with peer EMS multiples (JBL 25.0x, FLEX 21.9x, SANM 19.9x fwd P/E), and bear P/E was capped to preserve scenario hierarchy. Consensus_divergent is false \u2014 the bull_high of 846.94 sits above the consensus_price_target high of 550 \u2014 so this is not a case of fighting the sell side, it is a case of probability-weighted math not supporting the spot quote.",
+    "conclusion": "CLS is a high-quality EMS franchise riding a genuine AI-networking buildout, but at 385.39 the market is pricing an implied_fcf_cagr of 58.0% that leaves no margin for the very concentration and digestion risks the structure of the business presents \u2014 hence the PASS recommendation.\n\nThe monitoring framework centres on three checkpoints. The FY+2-Q3 Q2 earnings release is the first read on CCS segment revenue growth, hyperscaler demand trends, and any FY guidance revision \u2014 a meaningful guide-up could re-rate the base case toward the bull EPS path. The FY+2-Q3 AI/ML compute and networking program ramp updates should be tracked for 800G switch shipment volumes and Meta/Google/AWS-related concentration disclosures, which speak directly to driver C. Finally, the FY+2-Q4 Q3 earnings and initial FY+3 commentary will reveal free cash flow conversion and CCS margin expansion \u2014 the two variables that must inflect for the 58.0% implied FCF growth to be anything other than a stretch.",
+    "financial_health": "Baseline financial health is adequate but not a source of margin of safety. Fy_fcf of 0.4583 billion on fy_revenue of 12.39 billion yields fy_fcf_margin of 3.7%, fy_op_margin runs at 8.64%, fy_sbc of 0.0698 billion is a manageable 15% of FCF, and net_debt of 0.5637 billion is roughly 1.2x trailing FCF \u2014 modest leverage. The balance sheet supports the business as a going concern but does not provide downside protection if hyperscaler orders normalise: the data_quality_warnings flag notes computed FCF (458.3 million) running 29% below the reported info value (646.9 million), which combined with 77.7-day DSO points to working-capital absorption from concentrated receivables. The balance sheet neither rescues the multiple nor constrains the thesis \u2014 it is simply a backdrop to an equity story being underwritten on growth.",
+    "scenario_commentary": {
+      "bull": "The bull scenario carries joint_probs of 34.8% and resolves to a price target of 846.94 on scenario_eps of 18.90, applied against a P/E band of 31.4x to 44.8x consistent with ANET-like networking-platform economics. Realising this outcome requires driver A (Hyperscaler AI Networking Capex Cycle) to fire positively \u2014 event A1 at 45% probability assumes 2.5 to 3.7 billion of incremental revenue at a 12% op margin \u2014 and benefits materially from driver B bull (event B2, ATS defense and semicap upside at 11% op margin). The calibration_log notes bull EPS was floored from 15.02 to 18.90 against 0.95x the consensus_eps_fy2 high of 19.90, so this scenario is anchored to the upper edge of the analyst dispersion rather than extrapolated beyond it.",
+      "base": "The base scenario carries joint_probs of just 19.1% and resolves to a base_mid price target of 251.52 on scenario_eps of 8.48 at a mid P/E near 29.7x within the 23.5x to 35.8x band. That target sits roughly 35% below the 385.39 quote, which is the single most important fact in the report: even the central case implies meaningful downside. The base reflects driver A2 economics (1.2 to 2.2 billion of incremental revenue at a 9% op margin) and driver B1 stability, but does not assume the HPS mix-shift inflection required to support today's multiple.",
+      "bear": "The bear scenario carries the highest joint_probs at 46.1% and resolves to a bear_low price target of 163.29 on scenario_eps of 6.53 against a compressed 25.0x to 30.4x P/E band. The driver is structural: macro driver C \u2014 Hyperscaler Customer Concentration & Insourcing Risk \u2014 where event C1 (45% probability) contemplates a 1.2 to 2.5 billion revenue clip if a top customer pivots to in-house ODM or dual-sources to Foxconn/Quanta. DSO at 77.7 days already signals receivables concentration, and the FCF divergence flagged in data_quality_warnings (info 646.9 million vs computed 458.3 million) underscores working-capital fragility tied to those same customers."
+    },
+    "driver_narratives": {
+      "A": "Hyperscaler AI Networking Capex Cycle is the swing factor. The mechanism is direct: HPS revenue rides on custom 400G/800G switch volumes engineered for hyperscaler AI back-end fabrics, and richer HPS mix lifts gross margin from the 12.06% baseline while operating leverage expands op margin past the 8.64% base. The most important event is A1, the bull resolution at 45% probability, which assumes 2.5 to 3.7 billion of incremental revenue at a 12% op margin and is evidenced by consensus_revenue_fy2 high of 31.39 billion versus fy_revenue of 12.39 billion. With driver_probs of 0.45 bull, 0.40 base, 0.15 bear, the distribution leans bull \u2014 but only modestly, and the bear tail is non-trivial given the wide analyst dispersion (n_analysts 19, FY+2 revenue range 23.51 to 31.39 billion).",
+      "B": "ATS Segment & Defense Backlog Stability is the anchor leg. Aerospace/defense, healthtech, semicap, and industrial programs carry multi-year qualified-source contracts that lock in revenue regardless of hyperscaler order timing, supporting the 8.64% op margin and 3.7% FCF margin in the base. The key event is B1 (60% probability), which models 0.3 to 0.7 billion of incremental revenue at a 9% op margin, with B2 offering 0.4 to 0.9 billion of upside if defense backlog and semicap recovery accelerate. Driver_probs of 0.25 bull, 0.60 base, 0.15 bear show this driver leans firmly base \u2014 it stabilises rather than swings the thesis.",
+      "C": "Hyperscaler Customer Concentration & Insourcing Risk is the structural overhang. CLS's HPS franchise depends on a concentrated set of mega-customers, and any pivot to in-house ODM relationships, dual-sourcing to Foxconn or Quanta, or AI-capex digestion would compress both revenue and the elevated 25.7x fwd P/E simultaneously. The defining event is C1 at 45% probability, contemplating a 1.2 to 2.5 billion revenue impact at an 8% op margin, evidenced by DSO at 77.7 days versus prior 78.3 days signaling lengthening, concentrated receivables. Driver_probs of 0.15 bull, 0.40 base, 0.45 bear leave this driver leaning bear \u2014 the single most important reason the overall joint_probs.bear of 46.1% exceeds joint_probs.bull of 34.8%."
+    },
+    "business_overview": "",
+    "headwind_narrative": "",
+    "tailwind_narrative": "",
+    "market_pricing_commentary": "",
+    "segments": [
+      {
+        "name": "Connectivity & Cloud Solutions (CCS)",
+        "current_revenue": null,
+        "pct_of_total": null,
+        "gross_margin": null,
+        "yoy_growth": null,
+        "trajectory": "",
+        "primary_driver": ""
+      },
+      {
+        "name": "Advanced Technology Solutions (ATS)",
+        "current_revenue": null,
+        "pct_of_total": null,
+        "gross_margin": null,
+        "yoy_growth": null,
+        "trajectory": "",
+        "primary_driver": ""
+      }
+    ],
+    "peer_tickers": [
+      "JBL",
+      "FLEX",
+      "SANM",
+      "ANET"
+    ],
+    "catalysts": [
+      {
+        "date": "2026-Q3",
+        "event": "Q2 2026 earnings release",
+        "what_to_watch": "CCS segment revenue growth, hyperscaler demand trends, and any upward revision to FY2026 guidance",
+        "bull_signal": "CCS segment revenue growth, hyperscaler demand trends, and any upward revision to FY2026 guidance",
+        "bear_signal": ""
+      },
+      {
+        "date": "2026-Q3",
+        "event": "AI/ML compute and networking program ramps",
+        "what_to_watch": "Updates on 800G switch shipments, custom ASIC programs, and Meta/Google/AWS-related volumes",
+        "bull_signal": "Updates on 800G switch shipments, custom ASIC programs, and Meta/Google/AWS-related volumes",
+        "bear_signal": ""
+      },
+      {
+        "date": "2026-Q4",
+        "event": "Q3 2026 earnings release and initial FY2027 commentary",
+        "what_to_watch": "Free cash flow conversion, margin expansion in CCS, and preliminary 2027 revenue framework",
+        "bull_signal": "Free cash flow conversion, margin expansion in CCS, and preliminary 2027 revenue framework",
+        "bear_signal": ""
+      },
+      {
+        "date": "2026-Q4",
+        "event": "Hardwired Solutions (HPS) product cycle updates",
+        "what_to_watch": "New 1.6T networking platform wins and customer concentration disclosures",
+        "bull_signal": "New 1.6T networking platform wins and customer concentration disclosures",
+        "bear_signal": ""
+      },
+      {
+        "date": "2027-Q1",
+        "event": "Q4 2026 earnings and FY2027 formal guidance",
+        "what_to_watch": "Operating margin trajectory toward long-term targets, capital return plans, and ATS segment recovery",
+        "bull_signal": "Operating margin trajectory toward long-term targets, capital return plans, and ATS segment recovery",
+        "bear_signal": ""
+      },
+      {
+        "date": "2027-Q2",
+        "event": "Annual Investor/Analyst engagement and proxy filings",
+        "what_to_watch": "Long-term financial targets, capital allocation priorities, and M&A or buyback announcements",
+        "bull_signal": "Long-term financial targets, capital allocation priorities, and M&A or buyback announcements",
+        "bear_signal": ""
+      }
+    ],
+    "scenario_inputs": {
+      "bull": {
+        "op_margin": 0.1143,
+        "pe_multiple_pick": 38.1
+      },
+      "base": {
+        "op_margin": 0.09,
+        "pe_multiple_pick": 29.65
+      },
+      "bear": {
+        "op_margin": 0.076,
+        "pe_multiple_pick": 27.7
+      }
+    },
+    "macro_drivers": {
+      "A": {
+        "label": "Hyperscaler AI Networking Capex Cycle",
+        "narrative": "Hyperscaler capex on 400G/800G AI networking fabrics drives CLS's HPS revenue and margin mix. With baseline revenue growing 28.46% YoY and consensus FY2 mid of $27.00B, this driver determines whether the bull-case earnings trajectory (EPS high of $19.90 in FY2) materializes. Sustained or accelerating GPU cluster buildouts at top-2 hyperscale customers are the key swing factor."
+      },
+      "B": {
+        "label": "ATS Segment & Defense Backlog Stability",
+        "narrative": "Advanced Technology Solutions (aerospace/defense, healthtech, semicap, industrial) provides multi-year program backlogs and qualified-source lock-in that stabilize the base case. Long-cycle defense and medical contracts with high switching costs anchor revenue even if hyperscaler orders normalize, supporting baseline op margin of 8.64% and FCF margin of 3.7%."
+      },
+      "C": {
+        "label": "Hyperscaler Customer Concentration & Insourcing Risk",
+        "narrative": "CLS's HPS growth depends on a concentrated set of hyperscalers. Any pivot to in-house ODM relationships, dual-sourcing to Foxconn/Quanta, or AI-capex digestion would compress both revenue and the elevated multiple (fwd P/E 25.7\u00d7). DSO at 77.7 days signals lengthening receivables tied to a few large customers \u2014 a concentration tell."
+      }
+    },
+    "drivers": [],
+    "headwinds": [
+      {
+        "event_id": "A3",
+        "name": "A \u2014 bear",
+        "driver": "A",
+        "outcome": "bear",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.0,
+        "revenue_at_risk_high": 0.5,
+        "revenue_at_risk": 0.25,
+        "eps_impact_high": 0.2405,
+        "eps_impact_mid": 0.1202,
+        "eps_impact_low": 0.0,
+        "bull_eps_impact": 0.2405,
+        "base_eps_impact": 0.1202,
+        "bear_eps_impact": 0.0
+      },
+      {
+        "event_id": "B3",
+        "name": "B \u2014 bear",
+        "driver": "B",
+        "outcome": "bear",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.0,
+        "revenue_at_risk_high": 0.3,
+        "revenue_at_risk": 0.15,
+        "eps_impact_high": 0.1443,
+        "eps_impact_mid": 0.0721,
+        "eps_impact_low": 0.0,
+        "bull_eps_impact": 0.1443,
+        "base_eps_impact": 0.0721,
+        "bear_eps_impact": 0.0
+      },
+      {
+        "event_id": "C1",
+        "name": "C \u2014 bear",
+        "driver": "C",
+        "outcome": "bear",
+        "probability": 0.45,
+        "revenue_at_risk_low": 1.2,
+        "revenue_at_risk_high": 2.5,
+        "revenue_at_risk": 1.85,
+        "eps_impact_high": 1.3742,
+        "eps_impact_mid": 1.0169,
+        "eps_impact_low": 0.6596,
+        "bull_eps_impact": 1.3742,
+        "base_eps_impact": 1.0169,
+        "bear_eps_impact": 0.6596
+      }
+    ],
+    "tailwinds": [
+      {
+        "event_id": "A1",
+        "name": "A \u2014 bull",
+        "driver": "A",
+        "outcome": "bull",
+        "probability": 0.45,
+        "revenue_at_risk_low": 2.5,
+        "revenue_at_risk_high": 3.7,
+        "revenue_at_risk": 3.1,
+        "eps_impact_high": 3.0508,
+        "eps_impact_mid": 2.5561,
+        "eps_impact_low": 2.0614,
+        "bull_eps_impact": 3.0508,
+        "base_eps_impact": 2.5561,
+        "bear_eps_impact": 2.0614
+      },
+      {
+        "event_id": "B2",
+        "name": "B \u2014 bull",
+        "driver": "B",
+        "outcome": "bull",
+        "probability": 0.25,
+        "revenue_at_risk_low": 0.4,
+        "revenue_at_risk_high": 0.9,
+        "revenue_at_risk": 0.65,
+        "eps_impact_high": 0.6802,
+        "eps_impact_mid": 0.4913,
+        "eps_impact_low": 0.3023,
+        "bull_eps_impact": 0.6802,
+        "base_eps_impact": 0.4913,
+        "bear_eps_impact": 0.3023
+      },
+      {
+        "event_id": "C3",
+        "name": "C \u2014 bull",
+        "driver": "C",
+        "outcome": "bull",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.5,
+        "revenue_at_risk_high": 1.2,
+        "revenue_at_risk": 0.85,
+        "eps_impact_high": 0.8245,
+        "eps_impact_mid": 0.584,
+        "eps_impact_low": 0.3436,
+        "bull_eps_impact": 0.8245,
+        "base_eps_impact": 0.584,
+        "bear_eps_impact": 0.3436
+      }
+    ],
+    "concentration": {},
+    "monitoring_kpis": [],
+    "scenario_math": {
+      "headline_metric": "implied_fcf_cagr",
+      "implied_fcf_cagr": 0.580251,
+      "discount_rate": 0.1133,
+      "shares_projected": 0.115,
+      "scenario_eps": {
+        "bull": 18.9,
+        "base": 8.48,
+        "bear": 6.53
+      },
+      "pe_band": {
+        "bull_low": 31.4,
+        "bull_high": 44.8,
+        "base_low": 23.5,
+        "base_high": 35.8,
+        "bear_low": 25.0,
+        "bear_high": 30.4
+      },
+      "price_target": {
+        "bull_high": 846.94,
+        "bull_mid": 720.28,
+        "base_mid": 251.52,
+        "bear_low": 163.29,
+        "bull": 720.28,
+        "base": 251.52,
+        "bear": 163.29
+      },
+      "joint_probs": {
+        "bull": 0.3481,
+        "base": 0.1911,
+        "bear": 0.4608
+      },
+      "driver_probs": {
+        "A": {
+          "bull": 0.45,
+          "base": 0.4,
+          "bear": 0.15
+        },
+        "B": {
+          "bull": 0.25,
+          "base": 0.6,
+          "bear": 0.15
+        },
+        "C": {
+          "bull": 0.15,
+          "base": 0.4,
+          "bear": 0.45
+        }
+      },
+      "expected_value": 382.16,
+      "risk": {
+        "prob_loss": 0.6519,
+        "max_drawdown_pct": 0.5306,
+        "expected_return_pct": -0.0084,
+        "ev": 382.16
+      },
+      "breakeven_pe": 53.8,
+      "dcf": {
+        "bull": {
+          "enterprise_value": 11.17,
+          "equity_value": 10.61,
+          "intrinsic_per_share": 92.26
+        },
+        "base": {
+          "enterprise_value": 5.48,
+          "equity_value": 4.92,
+          "intrinsic_per_share": 42.8
+        },
+        "bear": {
+          "enterprise_value": 4.39,
+          "equity_value": 3.82,
+          "intrinsic_per_share": 33.24
+        }
+      },
+      "recommendation": "PASS",
+      "calibration_log": [
+        "Step A: bull EPS floored $15.02\u2192$18.90 (0.95\u00d7consensus_high=$19.90)",
+        "Base P/E ratio-discounted: base_high 76.2\u219235.8, base_low 58.3\u219223.5 (0.80/0.75 of bull band)",
+        "Bear P/E capped below bull P/E to preserve scenario hierarchy (bear_high 32.5\u219230.4, bull_pe_low=31.4)"
+      ],
+      "consensus_divergent": false,
+      "owner_earnings": 0.3885,
+      "headwinds": [
+        {
+          "event_id": "A3",
+          "name": "A \u2014 bear",
+          "driver": "A",
+          "outcome": "bear",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.0,
+          "revenue_at_risk_high": 0.5,
+          "revenue_at_risk": 0.25,
+          "eps_impact_high": 0.2405,
+          "eps_impact_mid": 0.1202,
+          "eps_impact_low": 0.0,
+          "bull_eps_impact": 0.2405,
+          "base_eps_impact": 0.1202,
+          "bear_eps_impact": 0.0
+        },
+        {
+          "event_id": "B3",
+          "name": "B \u2014 bear",
+          "driver": "B",
+          "outcome": "bear",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.0,
+          "revenue_at_risk_high": 0.3,
+          "revenue_at_risk": 0.15,
+          "eps_impact_high": 0.1443,
+          "eps_impact_mid": 0.0721,
+          "eps_impact_low": 0.0,
+          "bull_eps_impact": 0.1443,
+          "base_eps_impact": 0.0721,
+          "bear_eps_impact": 0.0
+        },
+        {
+          "event_id": "C1",
+          "name": "C \u2014 bear",
+          "driver": "C",
+          "outcome": "bear",
+          "probability": 0.45,
+          "revenue_at_risk_low": 1.2,
+          "revenue_at_risk_high": 2.5,
+          "revenue_at_risk": 1.85,
+          "eps_impact_high": 1.3742,
+          "eps_impact_mid": 1.0169,
+          "eps_impact_low": 0.6596,
+          "bull_eps_impact": 1.3742,
+          "base_eps_impact": 1.0169,
+          "bear_eps_impact": 0.6596
+        }
+      ],
+      "tailwinds": [
+        {
+          "event_id": "A1",
+          "name": "A \u2014 bull",
+          "driver": "A",
+          "outcome": "bull",
+          "probability": 0.45,
+          "revenue_at_risk_low": 2.5,
+          "revenue_at_risk_high": 3.7,
+          "revenue_at_risk": 3.1,
+          "eps_impact_high": 3.0508,
+          "eps_impact_mid": 2.5561,
+          "eps_impact_low": 2.0614,
+          "bull_eps_impact": 3.0508,
+          "base_eps_impact": 2.5561,
+          "bear_eps_impact": 2.0614
+        },
+        {
+          "event_id": "B2",
+          "name": "B \u2014 bull",
+          "driver": "B",
+          "outcome": "bull",
+          "probability": 0.25,
+          "revenue_at_risk_low": 0.4,
+          "revenue_at_risk_high": 0.9,
+          "revenue_at_risk": 0.65,
+          "eps_impact_high": 0.6802,
+          "eps_impact_mid": 0.4913,
+          "eps_impact_low": 0.3023,
+          "bull_eps_impact": 0.6802,
+          "base_eps_impact": 0.4913,
+          "bear_eps_impact": 0.3023
+        },
+        {
+          "event_id": "C3",
+          "name": "C \u2014 bull",
+          "driver": "C",
+          "outcome": "bull",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.5,
+          "revenue_at_risk_high": 1.2,
+          "revenue_at_risk": 0.85,
+          "eps_impact_high": 0.8245,
+          "eps_impact_mid": 0.584,
+          "eps_impact_low": 0.3436,
+          "bull_eps_impact": 0.8245,
+          "base_eps_impact": 0.584,
+          "bear_eps_impact": 0.3436
+        }
+      ],
+      "final_probabilities": {
+        "bull": 0.3481,
+        "base": 0.1911,
+        "bear": 0.4608
+      },
+      "eps": {
+        "bull": 18.9,
+        "base": 8.48,
+        "bear": 6.53
+      },
+      "scenario_revenue": {},
+      "expected_return": -0.0084,
+      "base_implied_return": -0.3474,
+      "prob_positive": 0.3481,
+      "upside_downside_ratio": 0.9113,
+      "monotonicity_violation": false,
+      "violation_msg": "",
+      "bull_below_current": false,
+      "bull_below_msg": "",
+      "diagnostic": {},
+      "degraded_sections": []
+    },
+    "python_outputs": {},
+    "pass3": {
+      "audit_skipped": false,
+      "calls_remaining": 1,
+      "forbidden_vocab": [],
+      "citation_errors": [
+        {
+          "field": "investment_thesis",
+          "quoted_text": "net_debt of 0.5637 billion is roughly 1.2x trailing FCF",
+          "issue": "0.5637B / 0.4583B = 1.23x is correct, but stated as trailing FCF multiple \u2014 math checks out within tolerance",
+          "severity": "info"
+        },
+        {
+          "field": "investment_thesis",
+          "quoted_text": "fy_sbc of 0.0698 billion is a manageable 15% of FCF",
+          "issue": "0.0698/0.4583 = 15.2%, within tolerance",
+          "severity": "info"
+        },
+        {
+          "field": "scenario_commentary.bear",
+          "quoted_text": "1.2 to 2.5 billion revenue clip",
+          "issue": "C1 revenue_at_risk is -2.5 to -1.2 in pass1 evidence; magnitude matches allowed headwinds range 1.2-2.5",
+          "severity": "info"
+        }
+      ],
+      "b1_compliant": true,
+      "tone_label_ok": true,
+      "tone_label_evidence": null,
+      "audit_clean": true,
+      "model_used": "claude-opus-4-7",
+      "consistency_flags": [
+        {
+          "field": "investment_thesis",
+          "issue": "0.5637B / 0.4583B = 1.23x is correct, but stated as trailing FCF multiple \u2014 math checks out within tolerance",
+          "severity": "info"
+        },
+        {
+          "field": "investment_thesis",
+          "issue": "0.0698/0.4583 = 15.2%, within tolerance",
+          "severity": "info"
+        },
+        {
+          "field": "scenario_commentary.bear",
+          "issue": "C1 revenue_at_risk is -2.5 to -1.2 in pass1 evidence; magnitude matches allowed headwinds range 1.2-2.5",
+          "severity": "info"
+        }
+      ],
+      "numbers_outside_source": [],
+      "tone_label_mismatch": false
+    },
+    "data_quality_warnings": [
+      "FCF DIVERGENCE: info=646862528 vs computed=458300000 (29%); using computed value."
+    ],
+    "rec_override_reason": ""
+  }
+}
