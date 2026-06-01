@@ -102,12 +102,22 @@ st.markdown(APP_CSS, unsafe_allow_html=True)
 
 from auth import render_auth_modal
 
+# Persisted-session cookie: instantiate the CookieManager exactly once per run
+# (top-level code runs once per rerun) so auth survives the full page reload that
+# stock-selection anchor links trigger. auth.py reuses this same instance.
+import extra_streamlit_components as stx
+from session_cookie import restore_session_from_cookie
+st.session_state["_cookie_mgr"] = stx.CookieManager(key="pickr_cookies")
+
 for _k in ["authenticated", "username", "user_name", "user_email", "is_guest", "show_auth"]:
     if _k not in st.session_state:
         st.session_state[_k] = False if _k in ("authenticated","is_guest","show_auth") else ""
 if "initialized" not in st.session_state:
     st.session_state["show_auth"] = False
     st.session_state["initialized"] = True
+
+# Restore identity from the cookie before any auth-gated logic reads it.
+restore_session_from_cookie()
 
 if st.session_state.get("show_auth"):
     render_auth_modal()
@@ -200,6 +210,8 @@ if authenticated:
     with _signout_col:
         st.markdown('<div class="pickr-signout-col" style="padding-top:0.05rem;">', unsafe_allow_html=True)
         if st.button("Sign out", key="logout_btn", use_container_width=True):
+            from session_cookie import clear_session_cookie
+            clear_session_cookie()  # before wiping state (needs the cookie mgr)
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -1616,10 +1628,14 @@ with left_col:
         _cta_c1, _cta_c2 = st.columns(2)
         with _cta_c1:
             if st.button("Continue as Guest", key="cta_guest_btn", use_container_width=True):
+                if st.session_state.get("resolved"):
+                    st.session_state["auto_generate"] = True
                 st.session_state["show_auth"] = True
                 st.rerun()
         with _cta_c2:
             if st.button("Create free account →", key="cta_signup_btn", type="primary", use_container_width=True):
+                if st.session_state.get("resolved"):
+                    st.session_state["auto_generate"] = True
                 st.session_state["show_auth"] = True
                 st.rerun()
         st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
@@ -1711,6 +1727,8 @@ with right_col:
         )
         st.markdown('<div class="pickr-textlink">', unsafe_allow_html=True)
         if st.button("Sign up free →", key="rc_signup_btn", use_container_width=True):
+            if st.session_state.get("resolved"):
+                st.session_state["auto_generate"] = True
             st.session_state["show_auth"] = True
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1823,6 +1841,8 @@ if should_generate and ticker:
         </div>
         """, unsafe_allow_html=True)
         if st.button("Create a Free Account", type="primary", key="upgrade_cta"):
+            from session_cookie import clear_session_cookie
+            clear_session_cookie()  # drop the guest cookie before wiping state
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()

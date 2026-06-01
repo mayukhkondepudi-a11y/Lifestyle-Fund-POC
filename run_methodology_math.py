@@ -11,6 +11,7 @@ from typing import Any
 
 from compute import HEADLINE_METRIC, ANALYST_CONSENSUS_BULL_FLOOR_FRAC
 from compute_methodology_v2 import (
+    headwind_eps_impact,
     scenario_revenue,
     scenario_eps,
     pe_band,
@@ -23,6 +24,7 @@ from compute_methodology_v2 import (
     projected_shares,
     dcf_intrinsic_value,
     project_fcf,
+    owner_earnings as compute_owner_earnings,
     wacc as compute_wacc,
     recommendation,
     DEFAULT_TAX_RATE,
@@ -103,12 +105,38 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     shares_proj = projected_shares(shares_out, horizon_years, trailing_dilution)
 
     # ── Per-scenario EPS ─────────────────────────────────────────────────────
-    bull_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bull",  tax_rate, shares_proj)
+    # Bull: fy_eps_non_gaap × (1 + capped_growth)^2 (FY+2 per B5).
+    # Growth-rate path: uses the same capped rate that drives the P/E band so
+    # EPS and multiple are consistent. Falls back to event-driven if fy_eps absent.
+    # calibration_log initialized here so the EPS path choice is logged before Step A.
+    calibration_log: list[str] = []
+    _EPS_HORIZON = 2
+    _bull_growth = min(growth_rate, 0.60)
+    _fy_eps = float(baseline.get("fy_eps_non_gaap") or 0.0)
+    if _fy_eps > 0:
+        bull_eps = _fy_eps * (1 + _bull_growth) ** _EPS_HORIZON
+    else:
+        calibration_log.append(
+            f"Negative trailing EPS ({_fy_eps:.2f}) — bull EPS from event-driven "
+            f"scenario_eps (growth-rate formula not applicable)"
+        )
+        bull_eps = scenario_eps(fy_revenue, base_op_margin, events, "bull", tax_rate, shares_proj)
     base_eps  = scenario_eps(fy_revenue, base_op_margin, events, "base",  tax_rate, shares_proj)
     bear_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bear",  tax_rate, shares_proj)
 
     # ── §6 Step A: consensus bull EPS floor ─────────────────────────────────
-    calibration_log: list[str] = []
+
+    # Bug 2: log pe_anchors absence so the fallback is visible in the annexure
+    if not pass1.get("pe_anchors"):
+        calibration_log.append("pe_anchors absent — falling back to PEG-only P/E band")
+
+    # Bug 1B: log PEG guard caps that fire in pe_band
+    if growth_rate > 0.60:
+        calibration_log.append(
+            f"PEG guard: growth_rate {growth_rate:.3f} capped to 0.60 in pe_band "
+            f"(prevents 3-figure P/E)"
+        )
+
     if consensus_high > 0 and bull_eps < ANALYST_CONSENSUS_BULL_FLOOR_FRAC * consensus_high:
         floored = ANALYST_CONSENSUS_BULL_FLOOR_FRAC * consensus_high
         calibration_log.append(
@@ -120,8 +148,35 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     # ── PEG-anchored P/E band per scenario (B3 bear floor conditional) ─────────
     peer_median = statistics.median(peer_pes) if len(peer_pes) >= 3 else None
     bull_band = pe_band("bull", growth_rate, franchise_q, peer_median)
+    # Log if bull_pe_high hard-cap (60.0) fired due to peer_median > 60
+    if peer_median is not None and peer_median > 60.0:
+        calibration_log.append(
+            f"PEG guard: bull_pe_high capped to 60.0 (peer_median {peer_median:.1f} > 60)"
+        )
     base_band = pe_band("base", growth_rate, franchise_q, peer_median)
     bear_band = pe_band("bear", growth_rate, franchise_q, peer_median)
+
+    # Bug B: peer-dominated inputs collapse base and bull to the same ceiling; ratio fix
+    # guarantees base trades at a discount to bull (base_high = 0.80×bull_high).
+    if base_band[1] >= bull_band[1]:
+        new_base_high = round(bull_band[1] * 0.80, 1)
+        new_base_low  = round(bull_band[0] * 0.75, 1)
+        calibration_log.append(
+            f"Base P/E ratio-discounted: base_high {base_band[1]}→{new_base_high}, "
+            f"base_low {base_band[0]}→{new_base_low} (0.80/0.75 of bull band)"
+        )
+        base_band = (new_base_low, new_base_high)
+
+    # Bug A: franchise bear P/E floor (25×) can exceed the entire bull range on low-growth
+    # names, inverting scenario prices.  Cap bear below bull_pe_low to preserve hierarchy.
+    if bear_band[1] >= bull_band[0]:
+        new_bear_high = round(bull_band[0] - 1.0, 1)
+        new_bear_low  = round(min(bear_band[0], bull_band[0] - 2.0), 1)
+        calibration_log.append(
+            f"Bear P/E capped below bull P/E to preserve scenario hierarchy "
+            f"(bear_high {bear_band[1]}→{new_bear_high}, bull_pe_low={bull_band[0]})"
+        )
+        bear_band = (new_bear_low, new_bear_high)
 
     # EV uses band midpoints; bull_high / bear_low use band extremes for price range
     bull_pe_mid = (bull_band[0] + bull_band[1]) / 2
@@ -199,7 +254,67 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     # ── Recommendation ────────────────────────────────────────────────────────
     rec = recommendation(ev, current_price, joint_probs)
 
+    # ── Owner earnings (SBC-adjusted FCF; gates sbc_section in Pass 2) ──────
+    # Non-null only when both fy_fcf and fy_sbc are present in baseline.
+    # When non-null, Pass 2 validator requires sbc_section in the report.
+    _oe_fcf = baseline.get("fy_fcf")
+    _oe_sbc = baseline.get("fy_sbc")
+    _owner_earnings = (
+        round(float(_oe_fcf) - float(_oe_sbc), 4)
+        if _oe_fcf is not None and _oe_sbc is not None
+        else None
+    )
+
+    # ── Headwinds / tailwinds EPS impact lists (bear events → headwinds, bull → tailwinds) ─
+    # Reads raw §5.2 events (revenue_at_risk_low/high in $B). Uses abs() so all
+    # impacts are non-negative magnitudes; sign is applied by the renderer.
+    _hw: list[dict] = []
+    _tw: list[dict] = []
+    for _event in pass1.get("events", []):
+        rev_abs_a = abs(float(_event.get("revenue_at_risk_high", 0)))
+        rev_abs_b = abs(float(_event.get("revenue_at_risk_low",  0)))
+        rev_high_mag = max(rev_abs_a, rev_abs_b)
+        rev_low_mag  = min(rev_abs_a, rev_abs_b)
+        rev_mid_mag  = (rev_high_mag + rev_low_mag) / 2.0
+        op_m = float(_event.get("op_margin_to_apply", base_op_margin))
+        tx   = float(_event.get("tax_rate_to_apply",  tax_rate))
+        # headwind_eps_impact(base_revenue, headwind_rate=1.0, op_margin, tax_rate, shares_out)
+        # rate=1.0 so rev_impact = magnitude directly
+        impact_high = headwind_eps_impact(rev_high_mag, 1.0, op_m, tx, shares_proj)
+        impact_mid  = headwind_eps_impact(rev_mid_mag,  1.0, op_m, tx, shares_proj)
+        impact_low  = headwind_eps_impact(rev_low_mag,  1.0, op_m, tx, shares_proj)
+        entry = {
+            "event_id":             _event.get("id", ""),
+            "name":                 _event.get("driver", "") + " — " + _event.get("outcome", ""),
+            "driver":               _event.get("driver", ""),
+            "outcome":              _event.get("outcome", ""),
+            "probability":          float(_event.get("probability", 0)),
+            "revenue_at_risk_low":  rev_low_mag,
+            "revenue_at_risk_high": rev_high_mag,
+            "revenue_at_risk":      rev_mid_mag,        # renderer: "Rev. at Risk" column
+            "eps_impact_high":      round(impact_high, 4),
+            "eps_impact_mid":       round(impact_mid,  4),
+            "eps_impact_low":       round(impact_low,  4),
+            "bull_eps_impact":      round(impact_high, 4),  # renderer alias
+            "base_eps_impact":      round(impact_mid,  4),  # renderer alias
+            "bear_eps_impact":      round(impact_low,  4),  # renderer alias
+        }
+        outcome = _event.get("outcome", "")
+        if outcome == "bear":
+            _hw.append(entry)
+        elif outcome == "bull":
+            _tw.append(entry)
+
     # ── Assemble §5.3 math dict ──────────────────────────────────────────────
+    bull_price_mid = price_targets["bull"]
+    base_price_mid = price_targets["base"]
+    bear_price_mid = price_targets["bear"]
+    ev_formula_string = (
+        f"{joint_probs['bull']:.4f}×${bull_price_mid:.2f} + "
+        f"{joint_probs['base']:.4f}×${base_price_mid:.2f} + "
+        f"{joint_probs['bear']:.4f}×${bear_price_mid:.2f} = "
+        f"${ev:.2f}"
+    )
     return {
         "headline_metric": HEADLINE_METRIC,
         "implied_fcf_cagr": implied_cagr,
@@ -230,4 +345,8 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
         "recommendation": rec,
         "calibration_log": calibration_log,
         "consensus_divergent": consensus_divergent,
+        "owner_earnings": _owner_earnings,
+        "headwinds": _hw,
+        "tailwinds": _tw,
+        "ev_formula_string": ev_formula_string,
     }

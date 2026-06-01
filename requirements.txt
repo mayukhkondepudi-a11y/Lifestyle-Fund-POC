@@ -5,3 +5,4 @@ yfinance
 pandas
 resend
 bcrypt
+extra-streamlit-components

@@ -79,15 +79,23 @@ def _check_password(password, hashed):
 # AUTH MODAL
 # ══════════════════════════════════════════════════════════════
 
-@st.dialog("Sign in to PickR", width="small")
 def render_auth_modal():
-    """Auth overlay using Streamlit's native dialog (true modal with backdrop)."""
+    """Inline auth overlay (centered card). Replaces @st.dialog version which
+    had session-state-loss issues across reruns triggered from chip clicks."""
     if st.session_state.get("authenticated"):
         st.session_state["show_auth"] = False
-        st.rerun()
         return
 
-    st.markdown("""
+    # Center the card with column layout
+    _l, _mid, _r = st.columns([1, 2, 1])
+    if not _mid:
+        return  # safety guard; shouldn't happen
+
+    # Render everything inside the middle column
+    with _mid:
+        st.markdown('<div style="background:rgba(20,20,28,0.96);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:1rem 1.6rem 1.4rem;margin:1.5rem 0;box-shadow:0 8px 40px rgba(0,0,0,0.5);">', unsafe_allow_html=True)
+
+        st.markdown("""
     <style>
     /* ── Red primary buttons — override Streamlit's default blue ── */
     .stButton > button[kind="primary"] {
@@ -126,145 +134,159 @@ def render_auth_modal():
         color: #fff !important;
     }
     </style>
-    """, unsafe_allow_html=True)
-
-    # Branding header
-    st.markdown("""
-    <div style="text-align:center;padding:2rem 0 0.5rem;">
-        <div style="display:inline-flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">
-            <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
-                <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
-                <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
-                <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
-                <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
-                <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
-            </svg>
-            <span style="font-size:1.6rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
-                Pick<span style="color:#c03030;">R</span>
-            </span>
-        </div>
-        <div style="font-size:0.9rem;color:rgba(255,255,255,0.4);line-height:1.6;">
-            Your research, saved. &nbsp;&middot;&nbsp; 3 free reports &nbsp;&middot;&nbsp; History &amp; alerts
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    guest_tab, login_tab, register_tab = st.tabs(["Continue as Guest", "Sign In", "Create Account"])
-
-    with login_tab:
-        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
-        login_user = st.text_input("Username", key="login_user", placeholder="your username")
-        login_pass = st.text_input("Password", type="password", key="login_pass", placeholder="your password")
-        if st.button("Sign In", key="login_btn", type="primary", use_container_width=True):
-            if not login_user or not login_pass:
-                st.error("Please enter both username and password.")
-            else:
-                # Always use GitHub as source of truth
-                users, _ = _load_users()
-                user = users.get(login_user.lower().strip())
-                if user and _check_password(login_pass, user["password_hash"]):
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"]      = login_user.lower().strip()
-                    st.session_state["user_name"]     = user["name"]
-                    st.session_state["user_email"]    = user["email"]
-                    # Load persisted report count from GitHub, not local file
-                    st.session_state.report_count     = user.get("report_count", 0)
-                    st.session_state["show_auth"]     = False
-                    st.session_state["_just_authed"]  = True
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-
-    with register_tab:
+        """, unsafe_allow_html=True)
+    
+        # Branding header
         st.markdown("""
-        <div style="text-align:center;padding:0.4rem 0 0.8rem;">
-            <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:0.3rem;">Get 3 free reports</div>
-            <div style="font-size:0.82rem;color:rgba(255,255,255,0.4);line-height:1.6;">
-                Save your history &nbsp;&middot;&nbsp; Unlimited browsing &nbsp;&middot;&nbsp; Price alerts
+        <div style="text-align:center;padding:2rem 0 0.5rem;">
+            <div style="display:inline-flex;align-items:center;gap:0.6rem;margin-bottom:0.8rem;">
+                <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
+                    <rect width="28" height="28" rx="7" fill="#8b1a1a"/>
+                    <rect x="7" y="6" width="3.5" height="16" rx="1.75" fill="white" opacity="0.9"/>
+                    <rect x="12" y="10" width="3.5" height="12" rx="1.75" fill="white" opacity="0.7"/>
+                    <rect x="17" y="7" width="3.5" height="15" rx="1.75" fill="white" opacity="0.85"/>
+                    <circle cx="18.75" cy="6.5" r="2.2" fill="#f87171"/>
+                </svg>
+                <span style="font-size:1.6rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
+                    Pick<span style="color:#c03030;">R</span>
+                </span>
+            </div>
+            <div style="font-size:0.9rem;color:rgba(255,255,255,0.4);line-height:1.6;">
+                Your research, saved. &nbsp;&middot;&nbsp; 3 free reports &nbsp;&middot;&nbsp; History &amp; alerts
             </div>
         </div>
         """, unsafe_allow_html=True)
-        reg_name  = st.text_input("Full name",         key="reg_name",  placeholder="Mayukh Kondepudi")
-        reg_email = st.text_input("Email",             key="reg_email", placeholder="you@example.com")
-        reg_user  = st.text_input("Choose a username", key="reg_user",  placeholder="mayukh")
-        reg_pass  = st.text_input("Choose a password", type="password", key="reg_pass",  placeholder="min 6 characters")
-        reg_pass2 = st.text_input("Confirm password",  type="password", key="reg_pass2", placeholder="re-enter password")
-        if st.button("Create Account", key="reg_btn", type="primary", use_container_width=True):
-            if not all([reg_name, reg_email, reg_user, reg_pass, reg_pass2]):
-                st.error("All fields are required.")
-            elif not _EMAIL_RE.match(reg_email.strip()):
-                st.error("Please enter a valid email address (e.g. you@example.com).")
-            elif len(reg_user.strip()) < 3:
-                st.error("Username must be at least 3 characters.")
-            elif len(reg_pass) < 6:
-                st.error("Password must be at least 6 characters.")
-            elif reg_pass != reg_pass2:
-                st.error("Passwords don't match.")
-            else:
-                username_reg = reg_user.lower().strip()
-                users, sha   = _load_users()
-                if username_reg in users:
-                    st.error("Username already taken. Try another.")
+    
+        guest_tab, login_tab, register_tab = st.tabs(["Continue as Guest", "Sign In", "Create Account"])
+    
+        with login_tab:
+            st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+            login_user = st.text_input("Username", key="login_user", placeholder="your username")
+            login_pass = st.text_input("Password", type="password", key="login_pass", placeholder="your password")
+            if st.button("Sign In", key="login_btn", type="primary", use_container_width=True):
+                if not login_user or not login_pass:
+                    st.error("Please enter both username and password.")
                 else:
-                    users[username_reg] = {
-                        "name":          reg_name.strip(),
-                        "email":         reg_email.strip(),
-                        "password_hash": _hash_password(reg_pass),
-                        "report_count":  0,          # explicit zero so count always exists
-                    }
-                    if _save_users(users, sha):
+                    # Always use GitHub as source of truth
+                    users, _ = _load_users()
+                    user = users.get(login_user.lower().strip())
+                    if user and _check_password(login_pass, user["password_hash"]):
+                        _uname = login_user.lower().strip()
                         st.session_state["authenticated"] = True
-                        st.session_state["username"]      = username_reg
-                        st.session_state["user_name"]     = reg_name.strip()
-                        st.session_state["user_email"]    = reg_email.strip()
-                        st.session_state.report_count     = 0
+                        st.session_state["username"]      = _uname
+                        st.session_state["user_name"]     = user["name"]
+                        st.session_state["user_email"]    = user["email"]
+                        # Load persisted report count from GitHub, not local file
+                        st.session_state.report_count     = user.get("report_count", 0)
                         st.session_state["show_auth"]     = False
                         st.session_state["_just_authed"]  = True
+                        from session_cookie import set_session_cookie
+                        set_session_cookie({"username": _uname, "is_guest": False,
+                                            "name": user["name"], "email": user["email"]})
                         st.rerun()
                     else:
-                        st.error("Could not save account. Please try again.")
-
-    with guest_tab:
-        st.markdown("""
-        <div style="background:rgba(139,26,26,0.1);border:1px solid rgba(224,48,48,0.18);
-        border-radius:8px;padding:1rem 1.2rem;margin-bottom:1rem;">
-            <div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;
-            letter-spacing:0.12em;color:#e03030;margin-bottom:0.5rem;">Guest Limits</div>
-            <div style="font-size:0.88rem;color:rgba(255,255,255,0.7);line-height:1.7;">
-                As a guest you get <strong style="color:#fff;">1 free report</strong>.
-                Create a free account for <strong style="color:#fff;">3 reports</strong>
-                and saved history.
+                        st.error("Invalid username or password.")
+    
+        with register_tab:
+            st.markdown("""
+            <div style="text-align:center;padding:0.4rem 0 0.8rem;">
+                <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:0.3rem;">Get 3 free reports</div>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.4);line-height:1.6;">
+                    Save your history &nbsp;&middot;&nbsp; Unlimited browsing &nbsp;&middot;&nbsp; Price alerts
+                </div>
             </div>
-        </div>
-        <p style="color:rgba(255,255,255,0.4);font-size:0.88rem;margin-bottom:0.8rem;">
-            No account needed — just pick an alias to continue.
-        </p>
-        """, unsafe_allow_html=True)
-        guest_alias = st.text_input("Choose a guest alias", key="guestalias_input",
-                                    placeholder="e.g. CuriousInvestor", max_chars=20)
-        if st.button("Enter as Guest", key="guestbtn", type="primary", use_container_width=True):
-            alias = guest_alias.strip()
-            if not alias:
-                st.error("Please enter an alias to continue.")
-            elif len(alias) < 2:
-                st.error("Alias must be at least 2 characters.")
-            else:
-                fp = _get_guest_fingerprint()
-                st.session_state["authenticated"]    = True
-                st.session_state["username"]         = f"guest_{alias.lower().replace(' ', '_')}"
-                st.session_state["user_name"]        = alias
-                st.session_state["user_email"]       = ""
-                st.session_state["is_guest"]         = True
-                st.session_state["guest_fingerprint"] = fp
-                st.session_state["show_auth"]        = False
-                st.session_state["_just_authed"]     = True
-                st.rerun()
+            """, unsafe_allow_html=True)
+            reg_name  = st.text_input("Full name",         key="reg_name",  placeholder="Mayukh Kondepudi")
+            reg_email = st.text_input("Email",             key="reg_email", placeholder="you@example.com")
+            reg_user  = st.text_input("Choose a username", key="reg_user",  placeholder="mayukh")
+            reg_pass  = st.text_input("Choose a password", type="password", key="reg_pass",  placeholder="min 6 characters")
+            reg_pass2 = st.text_input("Confirm password",  type="password", key="reg_pass2", placeholder="re-enter password")
+            if st.button("Create Account", key="reg_btn", type="primary", use_container_width=True):
+                if not all([reg_name, reg_email, reg_user, reg_pass, reg_pass2]):
+                    st.error("All fields are required.")
+                elif not _EMAIL_RE.match(reg_email.strip()):
+                    st.error("Please enter a valid email address (e.g. you@example.com).")
+                elif len(reg_user.strip()) < 3:
+                    st.error("Username must be at least 3 characters.")
+                elif len(reg_pass) < 6:
+                    st.error("Password must be at least 6 characters.")
+                elif reg_pass != reg_pass2:
+                    st.error("Passwords don't match.")
+                else:
+                    username_reg = reg_user.lower().strip()
+                    users, sha   = _load_users()
+                    if username_reg in users:
+                        st.error("Username already taken. Try another.")
+                    else:
+                        users[username_reg] = {
+                            "name":          reg_name.strip(),
+                            "email":         reg_email.strip(),
+                            "password_hash": _hash_password(reg_pass),
+                            "report_count":  0,          # explicit zero so count always exists
+                        }
+                        if _save_users(users, sha):
+                            st.session_state["authenticated"] = True
+                            st.session_state["username"]      = username_reg
+                            st.session_state["user_name"]     = reg_name.strip()
+                            st.session_state["user_email"]    = reg_email.strip()
+                            st.session_state.report_count     = 0
+                            st.session_state["show_auth"]     = False
+                            st.session_state["_just_authed"]  = True
+                            from session_cookie import set_session_cookie
+                            set_session_cookie({"username": username_reg, "is_guest": False,
+                                                "name": reg_name.strip(), "email": reg_email.strip()})
+                            st.rerun()
+                        else:
+                            st.error("Could not save account. Please try again.")
+    
+        with guest_tab:
+            st.markdown("""
+            <div style="background:rgba(139,26,26,0.1);border:1px solid rgba(224,48,48,0.18);
+            border-radius:8px;padding:1rem 1.2rem;margin-bottom:1rem;">
+                <div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;
+                letter-spacing:0.12em;color:#e03030;margin-bottom:0.5rem;">Guest Limits</div>
+                <div style="font-size:0.88rem;color:rgba(255,255,255,0.7);line-height:1.7;">
+                    As a guest you get <strong style="color:#fff;">1 free report</strong>.
+                    Create a free account for <strong style="color:#fff;">3 reports</strong>
+                    and saved history.
+                </div>
+            </div>
+            <p style="color:rgba(255,255,255,0.4);font-size:0.88rem;margin-bottom:0.8rem;">
+                No account needed — just pick an alias to continue.
+            </p>
+            """, unsafe_allow_html=True)
+            guest_alias = st.text_input("Choose a guest alias", key="guestalias_input",
+                                        placeholder="e.g. CuriousInvestor", max_chars=20)
+            if st.button("Enter as Guest", key="guestbtn", type="primary", use_container_width=True):
+                alias = guest_alias.strip()
+                if not alias:
+                    st.error("Please enter an alias to continue.")
+                elif len(alias) < 2:
+                    st.error("Alias must be at least 2 characters.")
+                else:
+                    fp = _get_guest_fingerprint()
+                    _guest_username = f"guest_{alias.lower().replace(' ', '_')}"
+                    st.session_state["authenticated"]    = True
+                    st.session_state["username"]         = _guest_username
+                    st.session_state["user_name"]        = alias
+                    st.session_state["user_email"]       = ""
+                    st.session_state["is_guest"]         = True
+                    st.session_state["guest_fingerprint"] = fp
+                    st.session_state["show_auth"]        = False
+                    st.session_state["_just_authed"]     = True
+                    from session_cookie import set_session_cookie
+                    set_session_cookie({"username": _guest_username, "is_guest": True,
+                                        "name": alias, "guest_fingerprint": fp})
+                    st.rerun()
+    
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+        if st.button("← Back to PickR", key="auth_back_btn", use_container_width=True):
+            st.session_state["show_auth"] = False
+            st.rerun()
 
-    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-    if st.button("← Back to PickR", key="auth_back_btn", use_container_width=True):
-        st.session_state["show_auth"] = False
-        st.rerun()
-
+        # close the wrapping card div
+        st.markdown("</div>", unsafe_allow_html=True)
+    
 
 # Alias for backward compatibility
 def render_auth():

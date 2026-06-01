@@ -22,6 +22,11 @@ RESEND_API_KEY     = _env("RESEND_API_KEY")
 GITHUB_TOKEN       = _env("GH_PAT") or _env("GITHUB_TOKEN")
 GITHUB_REPO        = _env("GITHUB_REPO")
 
+# Secret used to HMAC-sign the persisted session cookie (session_cookie.py).
+# Override in deployment via st.secrets / env. The dev fallback only keeps
+# local runs working; it is NOT secure for production.
+PICKR_SESSION_SECRET = _env("PICKR_SESSION_SECRET", "pickr-dev-insecure-session-secret")
+
 TRACKER_FILE  = "tracked_stocks.json"
 SCREENER_FILE = "screener_results.json"
 

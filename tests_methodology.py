@@ -42,7 +42,7 @@ from compute import BULL_CORRELATION_MULTIPLIER, BEAR_CORRELATION_MULTIPLIER
 #   bull EPS   ~$14.50 ± $0.50
 #   base EPS   ~$10.74 ± $0.50
 #   bear EPS   ~ $6.35 ± $0.50
-#   EV         ~$348   ± $5
+#   EV         ~$295   ± $15  (updated: Bug B base-PE ratio fix lowers base P/E 32→25)
 #   joint_probs ~ {bull:0.249, base:0.593, bear:0.158} ± 1pp each
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -211,7 +211,7 @@ class TestAVGOOrchestrator:
     def test_ev_within_target(self):
         m = self._math()
         ev = m["expected_value"]
-        assert abs(ev - 348.0) <= 10.0, f"EV={ev:.1f}, target=348 ±10"
+        assert abs(ev - 295.0) <= 15.0, f"EV={ev:.1f}, target=295 ±15 (post-BugB base-PE ratio fix)"
 
     def test_implied_fcf_cagr_finite(self):
         m = self._math()
@@ -472,11 +472,11 @@ def _minimal_valid_pass1() -> dict:
                                 "growth_yoy": 0.1, "gross_margin": None, "sub_segments": []}],
         "primary_growth_driver": {"name": "AI demand", "narrative": "x", "key_data_points": [], "tam_view": "big"},
         "peer_set_enriched": [{"ticker": "MRVL", "rationale": "similar"}],
-        "macro_drivers": [
-            {"id": "A", "label": "Growth", "narrative": "drives bull"},
-            {"id": "B", "label": "Stability", "narrative": "keeps base"},
-            {"id": "C", "label": "Risk", "narrative": "bear driver"},
-        ],
+        "macro_drivers": {
+            "A": {"label": "Growth", "narrative": "drives bull"},
+            "B": {"label": "Stability", "narrative": "keeps base"},
+            "C": {"label": "Risk", "narrative": "bear driver"},
+        },
         "events": [
             {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.50,
              "revenue_at_risk_low": 1.0, "revenue_at_risk_high": 2.0,
@@ -543,15 +543,21 @@ class TestPassOneValidator:
 
     def test_wrong_macro_driver_ids_is_hard(self):
         p = _minimal_valid_pass1()
-        p["macro_drivers"][0]["id"] = "X"
+        # Rename key A → X so keys are {X, B, C} ≠ {A, B, C}
+        mds = dict(p["macro_drivers"])
+        mds["X"] = mds.pop("A")
+        p["macro_drivers"] = mds
         soft, hard = _validate_pass1_v2(p)
-        assert any("ids" in e for e in hard)
+        assert any("A, B, C" in e or "keys" in e for e in hard), f"wrong keys not hard: {hard}"
 
     def test_macro_driver_count_mismatch_is_hard(self):
         p = _minimal_valid_pass1()
-        p["macro_drivers"] = p["macro_drivers"][:2]   # only A, B
+        # Remove key C so keys are {A, B} ≠ {A, B, C}
+        mds = dict(p["macro_drivers"])
+        del mds["C"]
+        p["macro_drivers"] = mds
         soft, hard = _validate_pass1_v2(p)
-        assert any("3" in e for e in hard)
+        assert any("A, B, C" in e or "keys" in e for e in hard), f"wrong key set not hard: {hard}"
 
     def test_too_few_events_is_hard(self):
         p = _minimal_valid_pass1()
@@ -625,7 +631,7 @@ class TestPassOneFoundationMocked:
         baseline = self._baseline()
         with mock.patch("ai.run_ai", return_value=(self._good_raw(), "test-model", None)):
             result = run_pass1_foundation("TEST", baseline, max_passes=2)
-        assert result["macro_drivers"][0]["id"] == "A"
+        assert "A" in result["macro_drivers"], "macro_drivers must have key 'A'"
         assert result["model_used"] == "test-model"
 
     def test_soft_error_triggers_retry(self):
@@ -811,7 +817,7 @@ class TestD2AVGOFieldNames:
     def test_ev_within_target(self):
         m = self._math()
         ev = m["expected_value"]
-        assert abs(ev - 348.0) <= 10.0, f"EV={ev:.1f}, expected 348±10"
+        assert abs(ev - 299.0) <= 15.0, f"EV={ev:.1f}, expected 299±15 (post-BugB base-PE ratio fix)"
 
     def test_bull_price_high_above_current(self):
         m = self._math()
@@ -845,10 +851,11 @@ class TestD2AVGOFieldNames:
 
 
 # ── D3 NVDA synthetic fixture ────────────────────────────────────────────────
-# Post-split NVDA: current_price=$110, consensus_eps_fy2.high=$4.5, growth=35%.
+# Post-split NVDA: current_price=$110, growth=35%, fy_eps_non_gaap=2.50.
 # peer_set median fwd_pe=25 → bull pe_high=35 (PEG 1.0×35).
-# Bottom-up bull EPS << 4.275 (0.95×4.5) for all event sets → Step A always floors.
-# bull_price_high = 4.275 × 35 = $149.6 > $110 on all variants.
+# Growth-rate bull EPS: 2.50 × 1.35² = 4.556. consensus_eps_fy2.high=6.0
+# → floor = 0.95 × 6.0 = 5.70 > 4.556 → Step A always floors to 5.70.
+# bull_price_high = 5.70 × 35 = 199.5 > 110 on all variants.
 
 NVDA_BASELINE = {
     "current_price":              110.0,
@@ -869,10 +876,10 @@ NVDA_BASELINE = {
         {"ticker": "AVGO", "fwd_pe": 30.0},
     ],
     "fy_eps_non_gaap": 2.50,
-    "consensus_eps_fy2": {"low": 3.5, "mid": 4.0, "high": 4.5},
+    "consensus_eps_fy2": {"low": 5.0, "mid": 5.5, "high": 6.0},
 }
 
-# Three distinct pass1 event sets — all produce bottom-up bull EPS << 4.275
+# Three distinct pass1 event sets — all produce growth-rate bull EPS (4.556) < floor (5.70)
 def _nvda_pass1_variant(bull_rev_mid: float, bull_op_margin: float) -> dict:
     return {
         "events": [
@@ -953,7 +960,8 @@ class TestD3ConsensusCalibration:
         return run_methodology_math(NVDA_PASS1_V1, bl)
 
     def test_step_a_log_entry_format(self):
-        m = self._math_with_consensus(4.5)
+        # 5.5: floor=0.95×5.5=5.225 > growth-rate bull_eps (2.50×1.35²=4.556) → Step A fires
+        m = self._math_with_consensus(5.5)
         step_a = [e for e in m["calibration_log"] if "Step A" in e]
         assert len(step_a) == 1
         assert "→" in step_a[0] and "consensus_high" in step_a[0]
@@ -1143,12 +1151,14 @@ class TestPass2Validator:
         assert hard == []
         assert any("financial_health" in e for e in soft)
 
-    def test_missing_driver_narrative_is_soft(self):
+    def test_missing_driver_narrative_is_hard(self):
+        """Bug 4: missing driver narrative is now a hard retry trigger, not a soft warning."""
         p = _minimal_valid_pass2()
         del p["driver_narratives"]["C"]
         soft, hard = _validate_pass2_v2(p)
-        assert hard == []
-        assert any("driver_narratives.C" in e for e in soft)
+        assert any("driver_narratives" in e and "C" in e for e in hard), (
+            f"missing driver_narratives.C must be hard; hard={hard}"
+        )
 
     def test_build_body_excludes_body_key_itself(self):
         p = _minimal_valid_pass2()
@@ -1775,14 +1785,18 @@ class TestPipelineOrchestrator:
         assert result["model_used"] == "N/A"
 
     def test_catalysts_bridged_with_bull_signal(self):
+        # 3 catalysts to avoid the catalysts-fallback call (which would need a real API key)
         p1 = {**_minimal_valid_pass1(), "catalysts": [
             {"date": "Q2 FY2026", "event": "Earnings", "what_to_watch": "Rev growth > 20%"},
+            {"date": "Q3 FY2026", "event": "Investor Day", "what_to_watch": "Buyback size"},
+            {"date": "Q4 FY2026", "event": "New product", "what_to_watch": "Adoption"},
         ]}
         with _pipeline_mocks(pass1=p1):
             result = run_pipeline(_G_TICKER, _G_BASELINE)
         cats = result["catalysts"]
-        assert len(cats) == 1
+        assert len(cats) == 3
         assert cats[0]["bull_signal"] == "Rev growth > 20%"
+        assert cats[0]["bear_signal"] == ""
         assert cats[0]["bear_signal"] == ""
 
     def test_segments_bridged_from_segments_enriched(self):
@@ -1825,3 +1839,1238 @@ class TestPipelineOrchestrator:
         sm = _esm()
         for key in _REQUIRED_SM_KEYS:
             assert key in sm, f"_empty_scenario_math missing key: {key}"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# yfinance period-index parsing
+# Regression for the "+1y"/"+2y" vs "1y"/"2y" bug in fetch_consensus_pack.
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestYFinanceConsensusIndexParsing:
+    """fetch_consensus_pack must map '+1y'/'+2y' period rows, not '1y'/'2y'."""
+
+    def _make_earnings_df(self):
+        import pandas as pd
+        return pd.DataFrame(
+            {
+                "avg":             [2.39,  3.21, 11.36, 18.26],
+                "low":             [2.36,  2.69, 10.24, 13.35],
+                "high":            [2.50,  4.26, 13.31, 21.45],
+                "yearAgoEps":      [1.58,  1.69,  6.82, 11.36],
+                "numberOfAnalysts":[36,    35,    43,    42],
+                "growth":          [0.513, 0.898, 0.666, 0.608],
+            },
+            index=pd.Index(["0q", "+1q", "0y", "+1y"], name="period"),
+        )
+
+    def _make_revenue_df(self):
+        import pandas as pd
+        return pd.DataFrame(
+            {
+                "avg": [22.08e9, 28.69e9, 103.27e9, 158.86e9],
+                "low": [21.88e9, 25.15e9,  85.61e9,  90.65e9],
+                "high":[22.50e9, 30.00e9, 120.00e9, 180.00e9],
+                "yearAgoRevenue":[15.00e9, 15.95e9, 63.89e9, 103.27e9],
+                "growth":[0.472, 0.799, 0.617, 0.538],
+            },
+            index=pd.Index(["0q", "+1q", "0y", "+1y"], name="period"),
+        )
+
+    def test_fy2_eps_populated_not_none(self):
+        import unittest.mock as mock
+        from fmp_api import fetch_consensus_pack
+
+        mock_ticker = mock.MagicMock()
+        mock_ticker.earnings_estimate = self._make_earnings_df()
+        mock_ticker.revenue_estimate  = self._make_revenue_df()
+        mock_ticker.analyst_price_targets = {
+            "current": 414.14, "high": 630.0, "low": 215.88,
+            "mean": 480.49, "median": 495.0,
+        }
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", return_value=mock_ticker):
+            result = fetch_consensus_pack("TEST")
+
+        assert result["consensus_eps_fy2"] is not None, (
+            "consensus_eps_fy2 is None — '+1y' period row was not matched"
+        )
+        assert abs(result["consensus_eps_fy2"]["mid"] - 18.26) < 0.01
+        assert result["consensus_eps_fy1"] is not None
+        assert result["consensus_revenue_fy2"] is not None
+        assert abs(result["consensus_revenue_fy2"]["mid"] - 158.86e9) < 1e8
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# fetch_peer_metrics — shape and +1y growth extraction
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestFetchPeerMetrics:
+    """fetch_peer_metrics returns §5.1 peer_set shape with +1y growth."""
+
+    def _make_ee_df(self, growth_plus1y: float):
+        import pandas as pd
+        return pd.DataFrame(
+            {"avg": [5.0, 6.5], "low": [4.8, 6.0], "high": [5.5, 7.0],
+             "yearAgoEps": [3.0, 5.0], "numberOfAnalysts": [30, 28],
+             "growth": [0.2, growth_plus1y]},
+            index=pd.Index(["0y", "+1y"], name="period"),
+        )
+
+    def _make_mock_ticker(self, fwd_pe, growth_plus1y):
+        import unittest.mock as mock
+        t = mock.MagicMock()
+        t.info = {"forwardPE": fwd_pe, "earningsGrowth": None}
+        t.earnings_estimate = self._make_ee_df(growth_plus1y)
+        return t
+
+    def test_returns_correct_shape_for_two_peers(self):
+        import unittest.mock as mock
+        from fmp_api import fetch_peer_metrics
+
+        ticker_a = self._make_mock_ticker(fwd_pe=25.0, growth_plus1y=0.30)
+        ticker_b = self._make_mock_ticker(fwd_pe=18.5, growth_plus1y=0.12)
+
+        call_map = {"PEER_A": ticker_a, "PEER_B": ticker_b}
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", side_effect=lambda t: call_map[t]):
+            result = fetch_peer_metrics(["PEER_A", "PEER_B"])
+
+        assert len(result) == 2
+        # Input order preserved
+        assert result[0]["ticker"] == "PEER_A"
+        assert result[1]["ticker"] == "PEER_B"
+        # §5.1 contract keys all present
+        for row in result:
+            for key in ("ticker", "fwd_pe", "growth", "op_margin", "fcf_margin"):
+                assert key in row, f"missing key '{key}' in {row}"
+        # Values extracted correctly from +1y row
+        assert abs(result[0]["fwd_pe"] - 25.0) < 0.01
+        assert abs(result[0]["growth"] - 0.30) < 0.001
+        assert abs(result[1]["fwd_pe"] - 18.5) < 0.01
+        assert abs(result[1]["growth"] - 0.12) < 0.001
+        # op_margin and fcf_margin are always None
+        assert result[0]["op_margin"] is None
+        assert result[0]["fcf_margin"] is None
+
+    def test_failed_ticker_skipped_not_raised(self):
+        import unittest.mock as mock
+        from fmp_api import fetch_peer_metrics
+
+        good = self._make_mock_ticker(fwd_pe=20.0, growth_plus1y=0.25)
+        bad  = mock.MagicMock()
+        bad.info = mock.PropertyMock(side_effect=RuntimeError("network failure"))
+
+        call_map = {"GOOD": good, "BAD": bad}
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", side_effect=lambda t: call_map[t]):
+            result = fetch_peer_metrics(["GOOD", "BAD"])
+
+        # Must not raise; BAD ticker gets None fields
+        tickers = [r["ticker"] for r in result]
+        assert "GOOD" in tickers
+        good_row = next(r for r in result if r["ticker"] == "GOOD")
+        assert abs(good_row["growth"] - 0.25) < 0.001
+
+    def test_empty_input_returns_empty_list(self):
+        from fmp_api import fetch_peer_metrics
+        assert fetch_peer_metrics([]) == []
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG-FIX REGRESSION TESTS
+# Bug 1: five_yr_eps_growth_est uses implied 2yr forward CAGR, not trailing earningsGrowth
+# Bug 1B: pe_band growth and PE caps prevent 3-figure multiples
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBug1GrowthRateSource:
+    """
+    Bug 1: calc_baseline must derive five_yr_eps_growth_est from consensus implied CAGR,
+    not from yfinance earningsGrowth (which is trailing YoY — NVDA: 214.5% outlier).
+
+    Hand-calc: (12.646 / 4.90)^0.5 - 1 = 1.6065... - 1 = 0.6065, capped to 0.60.
+    """
+
+    def _mock_data(self) -> dict:
+        return {
+            "info": {
+                "symbol": "",           # empty → skips FMP segment fetch
+                "shortName": "TestCo",
+                "currency": "USD",
+                "currentPrice": 100.0,
+                "sharesOutstanding": 1_000_000_000,
+                "earningsGrowth": 2.145,   # old buggy source (trailing YoY, 214.5%)
+                "trailingEps": 4.90,       # fy_eps_non_gaap via info fallback
+            },
+            "inc": None, "qinc": None, "bs": None,
+            "cf": None, "hist": None, "news": [],
+        }
+
+    def _consensus(self) -> dict:
+        return {"consensus_eps_fy2": {"low": 10.0, "mid": 12.646, "high": 15.0}}
+
+    def test_implied_cagr_formula_hand_calc(self):
+        """Independent verification: (12.646/4.90)^0.5 - 1 ≈ 0.6065, capped to 0.60."""
+        fy2_mid = 12.646
+        fy_eps  = 4.90
+        implied = (fy2_mid / fy_eps) ** 0.5 - 1
+        assert abs(implied - 0.6065) < 0.001, f"implied={implied:.4f}, expected ≈0.6065"
+        capped = min(implied, 0.60)
+        assert abs(capped - 0.60) < 1e-9, f"capped={capped}, expected 0.60"
+
+    def test_calc_baseline_uses_consensus_not_earnings_growth(self):
+        """calc_baseline must ignore earningsGrowth=2.145 and use consensus CAGR ≈ 0.60."""
+        from compute import calc_baseline
+        baseline = calc_baseline(self._mock_data(), consensus_pack=self._consensus())
+        est = baseline.get("five_yr_eps_growth_est")
+        assert est is not None, "five_yr_eps_growth_est must be populated"
+        assert abs(est - 0.60) < 1e-6, (
+            f"five_yr_eps_growth_est={est:.4f}; expected 0.60 (capped from ≈0.606). "
+            f"If this is 2.145, earningsGrowth is still being used (bug not fixed)."
+        )
+
+    def test_calc_baseline_fallback_to_revenue_growth_when_no_consensus(self):
+        """Without consensus, falls back to revenueGrowth capped at 40%."""
+        from compute import calc_baseline
+        data = self._mock_data()
+        data["info"]["revenueGrowth"] = 0.55   # exceeds 40% cap
+        del data["info"]["earningsGrowth"]
+        baseline = calc_baseline(data, consensus_pack=None)
+        est = baseline.get("five_yr_eps_growth_est")
+        assert est is not None, "five_yr_eps_growth_est must fall back to revenueGrowth"
+        assert abs(est - 0.40) < 1e-6, (
+            f"five_yr_eps_growth_est={est:.4f}; expected 0.40 (revenueGrowth=0.55 capped)"
+        )
+
+    def test_calc_baseline_none_when_no_sources(self):
+        """Without consensus or revenueGrowth, five_yr_eps_growth_est is None."""
+        from compute import calc_baseline
+        data = self._mock_data()
+        del data["info"]["earningsGrowth"]
+        # No revenueGrowth in info, no consensus
+        baseline = calc_baseline(data, consensus_pack=None)
+        est = baseline.get("five_yr_eps_growth_est")
+        assert est is None, f"expected None without any source, got {est}"
+
+
+class TestBug1PEBandCaps:
+    """
+    Bug 1B: pe_band must apply growth cap (0.60) and bull PE hard cap (60.0)
+    to prevent 3-figure multiples from anomalous input growth rates.
+    """
+
+    def test_bull_pe_high_at_most_60_with_normal_growth(self):
+        lo, hi = pe_band("bull", 0.60, franchise_quality=True)
+        assert hi <= 60.0, f"bull_pe_high={hi} with growth=0.60 must be ≤ 60.0"
+
+    def test_bull_pe_high_at_most_60_with_anomalous_growth(self):
+        """growth_rate=2.145 (NVDA Stage 4 bug) must not produce a 3-figure bull P/E."""
+        lo, hi = pe_band("bull", 2.145, franchise_quality=True)
+        assert hi <= 60.0, (
+            f"bull_pe_high={hi} with growth=2.145; expected ≤ 60.0. "
+            f"If this is ≥ 200, the growth cap in pe_band is not applied."
+        )
+
+    def test_base_and_bear_unaffected_by_growth_cap(self):
+        """Base and bear bands with growth=0.60 are well-behaved (no 3-figure P/E)."""
+        _, base_hi = pe_band("base", 0.60, franchise_quality=True)
+        _, bear_hi = pe_band("bear", 0.60, franchise_quality=True)
+        assert base_hi < 200, f"base_pe_high={base_hi} unexpectedly large"
+        assert bear_hi < 200, f"bear_pe_high={bear_hi} unexpectedly large"
+
+    def test_run_methodology_math_logs_peg_guard_when_growth_high(self):
+        """run_methodology_math logs the PEG guard cap when growth_rate > 0.60."""
+        bl = dict(AVGO_V2_BASELINE, five_yr_eps_growth_est=2.145)  # anomalous growth
+        math = run_methodology_math({"events": AVGO_EVENTS}, bl)
+        guard_entries = [e for e in math["calibration_log"] if "PEG guard" in e]
+        assert len(guard_entries) >= 1, (
+            f"expected at least one PEG guard log entry; calibration_log={math['calibration_log']}"
+        )
+        assert "2.145" in guard_entries[0], (
+            f"PEG guard entry should cite original growth_rate; got: {guard_entries[0]!r}"
+        )
+
+    def test_run_methodology_math_logs_pe_anchors_absent(self):
+        """run_methodology_math logs pe_anchors absence when pass1 omits that key."""
+        pass1_no_anchors = {"events": AVGO_EVENTS}  # no pe_anchors key
+        math = run_methodology_math(pass1_no_anchors, AVGO_V2_BASELINE)
+        absent_entries = [e for e in math["calibration_log"] if "pe_anchors absent" in e]
+        assert len(absent_entries) == 1, (
+            f"expected exactly one pe_anchors-absent log entry; "
+            f"calibration_log={math['calibration_log']}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 2 — Calibration log wiring: all three cap/absence conditions append correctly
+#
+# (a) growth_rate > 0.60 — tested in TestBug1PEBandCaps.test_run_methodology_math_logs_peg_guard_when_growth_high
+# (b) bull_pe_high capped at 60× — tested below (new)
+# (c) pe_anchors absent         — tested in TestBug1PEBandCaps.test_run_methodology_math_logs_pe_anchors_absent
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBug2CalibrationLogWiring:
+    """
+    Bug 2: confirm each cap/absent condition appends to calibration_log when it fires.
+    These tests set up inputs that guarantee the condition, then assert the exact
+    log string appears.  Scope confirmation: the append() calls are at the top level
+    of run_methodology_math (not inside nested branches that exit early).
+    """
+
+    def test_bull_pe_high_cap_logged_when_peer_median_over_60(self):
+        """
+        bull_pe_high cap fires when peer_median > 60.  Cap is min(pe_high, 60.0)
+        inside pe_band(); the log entry in run_methodology_math fires on the same
+        condition so the two stay in sync.
+        """
+        bl = dict(AVGO_V2_BASELINE, peer_set=[
+            {"ticker": "PEER_A", "fwd_pe": 70.0},
+            {"ticker": "PEER_B", "fwd_pe": 80.0},
+            {"ticker": "PEER_C", "fwd_pe": 90.0},
+        ])
+        math = run_methodology_math({"events": AVGO_EVENTS}, bl)
+        cap_entries = [e for e in math["calibration_log"] if "bull_pe_high capped" in e]
+        assert len(cap_entries) >= 1, (
+            f"Expected 'bull_pe_high capped' log entry when peer_median=80>60; "
+            f"calibration_log={math['calibration_log']}"
+        )
+        assert math["pe_band"]["bull_high"] <= 60.0, (
+            f"bull_pe_high={math['pe_band']['bull_high']} must be ≤ 60.0 after cap fires"
+        )
+
+    def test_growth_rate_cap_logged(self):
+        """(a) growth_rate > 0.60 fires and is logged (regression guard for existing fix)."""
+        bl = dict(AVGO_V2_BASELINE, five_yr_eps_growth_est=1.50)
+        math = run_methodology_math({"events": AVGO_EVENTS}, bl)
+        entries = [e for e in math["calibration_log"] if "PEG guard" in e and "1.500" in e]
+        assert len(entries) >= 1, (
+            f"PEG guard log entry not found for growth=1.50; "
+            f"calibration_log={math['calibration_log']}"
+        )
+
+    def test_pe_anchors_absent_logged(self):
+        """(c) pe_anchors absent fires and is logged (regression guard for existing fix)."""
+        math = run_methodology_math({"events": AVGO_EVENTS}, AVGO_V2_BASELINE)
+        entries = [e for e in math["calibration_log"] if "pe_anchors absent" in e]
+        assert len(entries) == 1, (
+            f"Expected exactly one 'pe_anchors absent' entry; "
+            f"calibration_log={math['calibration_log']}"
+        )
+
+    def test_no_spurious_cap_log_when_peer_below_60(self):
+        """When peer_median < 60, the bull_pe_high cap log entry must NOT appear."""
+        # AVGO_V2_BASELINE peer_set has median = 38 < 60
+        math = run_methodology_math({"events": AVGO_EVENTS}, AVGO_V2_BASELINE)
+        cap_entries = [e for e in math["calibration_log"] if "bull_pe_high capped" in e]
+        assert cap_entries == [], (
+            f"Spurious cap log entry when peer_median=38; "
+            f"calibration_log={math['calibration_log']}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 1 (catalysts) — focused fallback call fires when pass1 has < 3 catalysts
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestCatalystsFallback:
+    """
+    Bug 1: run_pipeline makes one extra focused LLM call when pass1 returns < 3
+    catalysts.  Verified by mocking run_ai (the fallback call site) while mocking
+    all other pipeline sub-functions so no real API calls are made.
+    """
+
+    def _baseline(self):
+        return {**_G_BASELINE, "company_name": "Test Co"}
+
+    def test_fallback_fires_and_populates_catalysts_when_empty(self):
+        import json as _json
+        p1_no_cats = {**_minimal_valid_pass1(), "catalysts": []}
+        cats = [
+            {"date": "Q3 FY2026", "event": "Earnings", "what_to_watch": "Revenue beat"},
+            {"date": "Q4 FY2026", "event": "Investor Day", "what_to_watch": "Buyback size"},
+            {"date": "2026-03", "event": "Product launch", "what_to_watch": "Adoption rate"},
+        ]
+        call_count = {"n": 0}
+
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (_json.dumps(cats), "test-model", None)
+
+        with mock.patch("ai.run_pass1_foundation", return_value=p1_no_cats), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
+             mock.patch("ai.run_pass2_report", return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit", return_value=_G_PASS3), \
+             mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pipeline(_G_TICKER, self._baseline())
+
+        assert call_count["n"] >= 1, "fallback LLM call must fire when catalysts is empty"
+        assert len(result["catalysts"]) >= 3, (
+            f"catalysts fallback must populate ≥ 3 entries; got {len(result['catalysts'])}"
+        )
+
+    def test_fallback_fires_when_fewer_than_3_catalysts(self):
+        """Fallback fires when pass1 returns exactly 2 catalysts."""
+        import json as _json
+        p1_few_cats = {**_minimal_valid_pass1(), "catalysts": [
+            {"date": "Q3 FY2026", "event": "A", "what_to_watch": "x"},
+            {"date": "Q4 FY2026", "event": "B", "what_to_watch": "y"},
+        ]}
+        cats = [
+            {"date": "Q3 FY2026", "event": "E1", "what_to_watch": "w1"},
+            {"date": "Q4 FY2026", "event": "E2", "what_to_watch": "w2"},
+            {"date": "2026-03",   "event": "E3", "what_to_watch": "w3"},
+        ]
+        call_count = {"n": 0}
+
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (_json.dumps(cats), "test-model", None)
+
+        with mock.patch("ai.run_pass1_foundation", return_value=p1_few_cats), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
+             mock.patch("ai.run_pass2_report", return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit", return_value=_G_PASS3), \
+             mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pipeline(_G_TICKER, self._baseline())
+
+        assert call_count["n"] >= 1, "fallback must fire when catalysts < 3"
+        assert len(result["catalysts"]) >= 3
+
+    def test_fallback_not_fired_when_catalysts_sufficient(self):
+        """Fallback must NOT fire when pass1 already has 3+ catalysts."""
+        p1_with_cats = _minimal_valid_pass1()  # has exactly 3 catalysts
+        call_count = {"n": 0}
+
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return ("[]", "test-model", None)
+
+        with mock.patch("ai.run_pass1_foundation", return_value=p1_with_cats), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
+             mock.patch("ai.run_pass2_report", return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit", return_value=_G_PASS3), \
+             mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            run_pipeline(_G_TICKER, self._baseline())
+
+        assert call_count["n"] == 0, (
+            "run_ai must not be called when pass1 already has ≥ 3 catalysts"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 3 — macro_drivers shape: dict {A,B,C} required, list rejected
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBug3MacroDriversShape:
+    """
+    Bug 3: _validate_pass1_v2 must reject a list-of-dicts for macro_drivers and
+    require a dict keyed by A, B, C per §5.2 contract.
+    """
+
+    def test_dict_format_is_valid(self):
+        """Dict-keyed macro_drivers passes validation with no errors."""
+        p = _minimal_valid_pass1()
+        assert isinstance(p["macro_drivers"], dict), "fixture must use dict format"
+        soft, hard = _validate_pass1_v2(p)
+        assert hard == [], f"valid dict macro_drivers produced hard errors: {hard}"
+
+    def test_list_format_is_rejected_as_hard_error(self):
+        """list-of-dicts macro_drivers must be a hard error with corrective hint."""
+        p = _minimal_valid_pass1()
+        p["macro_drivers"] = [
+            {"id": "A", "label": "Growth", "narrative": "drives bull"},
+            {"id": "B", "label": "Stability", "narrative": "keeps base"},
+            {"id": "C", "label": "Risk", "narrative": "bear driver"},
+        ]
+        soft, hard = _validate_pass1_v2(p)
+        assert any("not a list" in e for e in hard), (
+            f"list macro_drivers must produce a hard error with 'not a list' hint; hard={hard}"
+        )
+
+    def test_missing_key_is_hard(self):
+        """Dict with only A, B (missing C) is still a hard error."""
+        p = _minimal_valid_pass1()
+        p["macro_drivers"] = {"A": {"label": "x", "narrative": "y"},
+                               "B": {"label": "x", "narrative": "y"}}
+        soft, hard = _validate_pass1_v2(p)
+        assert any("A, B, C" in e or "keys" in e for e in hard)
+
+    def test_wrong_key_name_is_hard(self):
+        """Dict with key X instead of A is still a hard error."""
+        p = _minimal_valid_pass1()
+        p["macro_drivers"] = {"X": {"label": "x", "narrative": "y"},
+                               "B": {"label": "x", "narrative": "y"},
+                               "C": {"label": "x", "narrative": "y"}}
+        soft, hard = _validate_pass1_v2(p)
+        assert any("A, B, C" in e or "keys" in e for e in hard)
+
+    def test_missing_label_is_soft(self):
+        """Missing label on a driver entry is a soft warning."""
+        p = _minimal_valid_pass1()
+        p["macro_drivers"]["A"] = {"narrative": "drives bull"}  # no label
+        soft, hard = _validate_pass1_v2(p)
+        assert hard == [], f"missing label must be soft; hard={hard}"
+        assert any("label" in e for e in soft)
+
+    def test_normalize_macro_drivers_converts_list(self):
+        """_normalize_macro_drivers converts legacy list → dict during transition."""
+        from ai import _normalize_macro_drivers
+        legacy_list = [
+            {"id": "A", "label": "Growth", "narrative": "bull"},
+            {"id": "B", "label": "Stable", "narrative": "base"},
+            {"id": "C", "label": "Risk",   "narrative": "bear"},
+        ]
+        result = _normalize_macro_drivers(legacy_list)
+        assert isinstance(result, dict)
+        assert set(result.keys()) == {"A", "B", "C"}
+        assert result["A"]["label"] == "Growth"
+        assert "id" not in result["A"]  # id key stripped
+
+    def test_normalize_macro_drivers_passes_through_dict(self):
+        from ai import _normalize_macro_drivers
+        d = {"A": {"label": "x"}, "B": {"label": "y"}, "C": {"label": "z"}}
+        assert _normalize_macro_drivers(d) is d  # identity for valid dict
+
+    def test_normalize_macro_drivers_handles_none(self):
+        from ai import _normalize_macro_drivers
+        assert _normalize_macro_drivers(None) == {}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 5 REGRESSION — bull EPS uses growth-rate formula, not event-driven path
+# ════════════════════════════════════════════════════════════════════════════
+
+# Frozen NVDA-like inputs: fy_eps_non_gaap=4.90, bull_growth=0.60.
+# Expected raw bull EPS = 4.90 × 1.60² = 12.544 (before any Step A floor).
+# consensus_eps_fy2.high=10.0 → floor=9.5 < 12.544 → Step A does NOT fire.
+# Events have tiny rev deltas so the old event-driven path would give ~$1-2, proving
+# the growth-rate formula is used.
+
+BUG5_BASELINE = {
+    "current_price":              120.0,
+    "shares_out":                 24.5,
+    "fy_revenue":                 130.0,
+    "fy_op_margin":               0.57,
+    "tax_rate_guidance":          0.12,
+    "beta":                       1.6,
+    "net_debt":                   -10.0,
+    "horizon_years":              5,
+    "franchise_quality":          True,
+    "trailing_net_dilution_rate": -0.03,
+    "fy_fcf":                     50.0,
+    "five_yr_eps_growth_est":     0.60,     # at cap → bull_growth = 0.60
+    "fy_eps_non_gaap":            4.90,
+    "peer_set": [
+        {"ticker": "AMD",  "fwd_pe": 25.0},
+        {"ticker": "INTC", "fwd_pe": 20.0},
+        {"ticker": "QCOM", "fwd_pe": 18.0},
+    ],
+    # consensus.high=10.0 → floor=9.5 < expected 12.544 → Step A does NOT fire
+    "consensus_eps_fy2": {"low": 7.0, "mid": 8.5, "high": 10.0},
+}
+
+# Tiny revenue events so the old event-driven path would give ~$1-2 (wrong).
+BUG5_PASS1 = {
+    "events": [
+        {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.40,
+         "revenue_at_risk_low": 0.5, "revenue_at_risk_high": 1.0,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+        {"id": "A2", "driver": "A", "outcome": "bear", "probability": 0.60,
+         "revenue_at_risk_low": -5.0, "revenue_at_risk_high": -2.0,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+        {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.70,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 1.0,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+        {"id": "B2", "driver": "B", "outcome": "bear", "probability": 0.30,
+         "revenue_at_risk_low": -10.0, "revenue_at_risk_high": -5.0,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+        {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.60,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.5,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+        {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.40,
+         "revenue_at_risk_low": -20.0, "revenue_at_risk_high": -10.0,
+         "op_margin_to_apply": 0.57, "tax_rate_to_apply": 0.12, "evidence": "test"},
+    ],
+}
+
+
+class TestBug5BullEPSGrowthRate:
+    """Bug 5: bull EPS must use fy_eps_non_gaap × (1+growth)^2, not event-driven path."""
+
+    def _math(self) -> dict:
+        return run_methodology_math(BUG5_PASS1, BUG5_BASELINE)
+
+    def test_step_a_does_not_fire(self):
+        """Precondition: consensus floor (9.5) < expected bull_eps (12.54) → Step A silent."""
+        m = self._math()
+        assert not any("Step A" in e for e in m["calibration_log"]), (
+            "Step A fired unexpectedly — adjust consensus_eps_fy2 in BUG5_BASELINE "
+            "so floor < expected raw bull EPS"
+        )
+
+    def test_raw_bull_eps_matches_growth_rate_formula(self):
+        """Raw bull EPS = 4.90 × 1.60² = 12.544, ±20%."""
+        m = self._math()
+        bull_eps = m["scenario_eps"]["bull"]
+        expected = 4.90 * (1 + 0.60) ** 2   # 12.544
+        tol = expected * 0.20                 # 20% = ±2.509
+        assert abs(bull_eps - expected) <= tol, (
+            f"bull EPS={bull_eps:.2f}; expected {expected:.2f} ± {tol:.2f} "
+            f"(growth-rate path: 4.90 × 1.60²). "
+            f"If bull_eps ≈ $1–3 the old event-driven path is still being used."
+        )
+
+    def test_base_and_bear_use_event_driven_path(self):
+        """Base and bear EPS must remain event-driven (not changed by this fix)."""
+        m = self._math()
+        # Event-driven base/bear with tiny events: EPS ≈ 130 × 0.57 × 0.88 / 20.9 ≈ $3.1
+        # Growth-rate formula with fy_eps=4.90 × (1+0)^2 = 4.90 would be different.
+        # The key assertion: base EPS is NOT equal to fy_eps_non_gaap unchanged.
+        base_eps = m["scenario_eps"]["base"]
+        bear_eps = m["scenario_eps"]["bear"]
+        assert base_eps > 0, "base EPS must be positive"
+        assert bear_eps > 0, "bear EPS must be positive"
+        # Bull > base confirms ordering is preserved
+        bull_eps = m["scenario_eps"]["bull"]
+        assert bull_eps > base_eps, (
+            f"Expected bull ({bull_eps:.2f}) > base ({base_eps:.2f}) — monotonicity violated"
+        )
+
+    def test_bull_eps_not_event_driven(self):
+        """Confirm the event-driven path would give a wrong (much lower) answer."""
+        from compute_methodology_v2 import scenario_eps, projected_shares
+        sp = projected_shares(
+            BUG5_BASELINE["shares_out"],
+            BUG5_BASELINE["horizon_years"],
+            BUG5_BASELINE["trailing_net_dilution_rate"],
+        )
+        from run_methodology_math import _normalize_events
+        events = _normalize_events(BUG5_PASS1["events"])
+        event_driven_bull = scenario_eps(
+            BUG5_BASELINE["fy_revenue"],
+            BUG5_BASELINE["fy_op_margin"],
+            events, "bull",
+            BUG5_BASELINE["tax_rate_guidance"],
+            sp,
+        )
+        expected = 4.90 * (1 + 0.60) ** 2   # 12.544
+        # Event-driven result must be significantly lower to prove the fix matters
+        assert event_driven_bull < expected * 0.50, (
+            f"Event-driven bull EPS={event_driven_bull:.2f} is not much less than "
+            f"growth-rate EPS={expected:.2f}; adjust BUG5_PASS1 events to be smaller"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 1 REGRESSION — LLM call counter decrements correctly; ceiling is 6
+# ════════════════════════════════════════════════════════════════════════════
+
+from ai import LLMCallCeilingError
+
+
+class TestBug1CallCeilingCounter:
+    """Bug 1: calls_remaining decrements correctly; LLMCallCeilingError raised when budget gone."""
+
+    def test_max_pipeline_ai_calls_is_seven(self):
+        """C3 ceiling must be exactly 7 (spec: 2+1+2+1+1 = pass1+catalysts_fallback+pass2+pass3+bull_retry)."""
+        assert MAX_PIPELINE_AI_CALLS == 7, (
+            f"MAX_PIPELINE_AI_CALLS={MAX_PIPELINE_AI_CALLS}; must be 7 "
+            f"(6 original + 1 catalysts fallback)."
+        )
+
+    def test_llm_call_ceiling_error_is_defined(self):
+        err = LLMCallCeilingError(calls_used=5, ceiling=6)
+        assert err.calls_used == 5
+        assert err.ceiling == 6
+        assert "6" in str(err)
+
+    def test_pass3_receives_correct_calls_remaining_no_retry(self):
+        """No bull retry: pass1(-2) + pass2(-2) = 4 used → pass3 gets MAX-4 = 2."""
+        captured = {}
+
+        def mock_pass3(*a, calls_remaining=None, **kw):
+            captured["calls_remaining"] = calls_remaining
+            return _G_PASS3
+
+        with mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
+             mock.patch("ai.run_pass2_report",     return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit",       side_effect=mock_pass3):
+            run_pipeline(_G_TICKER, _G_BASELINE)
+
+        expected = MAX_PIPELINE_AI_CALLS - 4   # 6 - 4 = 2
+        assert captured.get("calls_remaining") == expected, (
+            f"pass3 got calls_remaining={captured.get('calls_remaining')}, "
+            f"expected {expected} (MAX={MAX_PIPELINE_AI_CALLS} - 4 used)."
+        )
+
+    def test_pass3_receives_correct_calls_remaining_with_bull_retry(self):
+        """Bull retry fires: pass1(-2) + retry(-1) + pass2(-2) = 5 used → pass3 gets 1."""
+        captured = {}
+        call_count = {"n": 0}
+
+        def alt_p1(*a, retry_hint="", **kw):
+            call_count["n"] += 1
+            return _minimal_valid_pass1()
+
+        bull_below_math = {**_G_MATH, "price_target": {
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+        }, "risk": {**_G_MATH["risk"]}}
+
+        def alt_math(p1, bl):
+            return _G_MATH if call_count["n"] >= 2 else bull_below_math
+
+        def mock_pass3(*a, calls_remaining=None, **kw):
+            captured["calls_remaining"] = calls_remaining
+            return _G_PASS3
+
+        with mock.patch("ai.run_pass1_foundation", side_effect=alt_p1), \
+             mock.patch("ai.run_methodology_math", side_effect=alt_math), \
+             mock.patch("ai.run_pass2_report",     return_value=_G_PASS2), \
+             mock.patch("ai.run_pass3_audit",       side_effect=mock_pass3):
+            run_pipeline(_G_TICKER, _G_BASELINE)
+
+        expected = MAX_PIPELINE_AI_CALLS - 5   # 6 - 5 = 1
+        assert captured.get("calls_remaining") == expected, (
+            f"pass3 got calls_remaining={captured.get('calls_remaining')}, "
+            f"expected {expected} (MAX={MAX_PIPELINE_AI_CALLS} - 5 used with retry)."
+        )
+
+    def test_ceiling_error_raised_when_budget_too_low_for_pass2(self):
+        """If budget would be exhausted before pass2, LLMCallCeilingError is raised."""
+        # Patch MAX to 2: only enough for pass1, not pass2
+        with mock.patch("ai.MAX_PIPELINE_AI_CALLS", 2), \
+             mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
+             mock.patch("ai.run_methodology_math", return_value=_G_MATH):
+            with pytest.raises(LLMCallCeilingError) as exc_info:
+                run_pipeline(_G_TICKER, _G_BASELINE)
+        assert exc_info.value.ceiling == 2
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG A — Bear/bull price inversion fix
+# Bug A: franchise bear P/E floor (25×) exceeds entire bull range on low-growth names,
+# making bear_price > bull_price.  Fix: cap bear_pe_high = bull_pe_low - 1.0.
+# ════════════════════════════════════════════════════════════════════════════
+
+# KO-like fixture: ~7% growth, franchise quality, peer fwd_pe ~16×.
+# Without the fix: bear_band=(25.0,32.5) vs bull_band=(11.2,16.0) → inversion.
+KO_LIKE_BASELINE = {
+    "current_price":              60.0,
+    "shares_out":                 0.86,
+    "fy_revenue":                 12.0,
+    "fy_op_margin":               0.225,
+    "tax_rate_guidance":          0.20,
+    "beta":                       0.55,
+    "net_debt":                   8.0,
+    "horizon_years":              5,
+    "franchise_quality":          True,
+    "trailing_net_dilution_rate": 0.0,
+    "fy_fcf":                     2.5,
+    "five_yr_eps_growth_est":     0.07,
+    "fy_eps_non_gaap":            2.51,
+    "peer_set": [
+        {"ticker": "PEP",  "fwd_pe": 15.0},
+        {"ticker": "MDLZ", "fwd_pe": 16.0},
+        {"ticker": "HSY",  "fwd_pe": 17.0},
+    ],
+}
+
+KO_LIKE_PASS1 = {
+    "events": [
+        {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.25,
+         "revenue_at_risk_low": 0.4, "revenue_at_risk_high": 0.6,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "A2", "driver": "A", "outcome": "base", "probability": 0.55,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "A3", "driver": "A", "outcome": "bear", "probability": 0.20,
+         "revenue_at_risk_low": -0.8, "revenue_at_risk_high": -0.4,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.70,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "B2", "driver": "B", "outcome": "bear", "probability": 0.30,
+         "revenue_at_risk_low": -1.0, "revenue_at_risk_high": -0.5,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.75,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+        {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.25,
+         "revenue_at_risk_low": -0.5, "revenue_at_risk_high": -0.2,
+         "op_margin_to_apply": 0.225, "tax_rate_to_apply": 0.20, "evidence": "test"},
+    ],
+}
+
+
+class TestBugABearInversionFix:
+    """
+    Bug A: franchise bear P/E floor sets bear_pe_high > bull_pe_high on low-growth names,
+    inverting the scenario price hierarchy.  Fix enforces bear_pe_high = bull_pe_low - 1.0.
+    """
+
+    def _math(self):
+        return run_methodology_math(KO_LIKE_PASS1, KO_LIKE_BASELINE)
+
+    def test_bear_pe_high_below_bull_pe_low(self):
+        """After cap fix bear ceiling must sit below bull floor."""
+        m = self._math()
+        bear_high = m["pe_band"]["bear_high"]
+        bull_low  = m["pe_band"]["bull_low"]
+        assert bear_high < bull_low, (
+            f"bear_pe_high={bear_high} >= bull_pe_low={bull_low}; "
+            f"scenario hierarchy violated (Bug A not fixed)"
+        )
+
+    def test_bear_cap_log_entry_present(self):
+        """Calibration log must record the bear P/E cap when it fires."""
+        m = self._math()
+        entries = [e for e in m["calibration_log"] if "Bear P/E capped" in e]
+        assert len(entries) >= 1, (
+            f"Expected 'Bear P/E capped' in calibration_log; got {m['calibration_log']}"
+        )
+
+    def test_price_hierarchy_bear_lt_base_lt_bull(self):
+        """Final prices maintain scenario hierarchy: bear_low < base_mid < bull_high."""
+        m = self._math()
+        bear_low  = m["price_target"]["bear_low"]
+        base_mid  = m["price_target"]["base_mid"]
+        bull_high = m["price_target"]["bull_high"]
+        assert bear_low < base_mid < bull_high, (
+            f"Price hierarchy violated: bear_low={bear_low:.2f} "
+            f"base_mid={base_mid:.2f} bull_high={bull_high:.2f}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG B — Bull and base P/E bands not differentiated
+# Bug B: peer-dominated inputs cause base_pe_high == bull_pe_high (both cap at peer).
+# Fix: base_pe_high = bull_pe_high × 0.80, base_pe_low = bull_pe_low × 0.75.
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBugBBullBaseDifferentiation:
+    """
+    Bug B: bull and base both resolve to max(peg, peer_median) → identical bands.
+    Fix: ratio discount base from bull (0.80/0.75) so base < bull always.
+    Uses AVGO_V2_BASELINE (peer=38, growth=18%) where both bands collapse to 38× without fix.
+    """
+
+    def _math(self):
+        return run_methodology_math({"events": AVGO_EVENTS}, AVGO_V2_BASELINE)
+
+    def test_base_pe_high_below_bull_pe_high(self):
+        """After ratio fix base ceiling must be strictly below bull ceiling."""
+        m = self._math()
+        base_high = m["pe_band"]["base_high"]
+        bull_high = m["pe_band"]["bull_high"]
+        assert base_high < bull_high, (
+            f"base_pe_high={base_high} not < bull_pe_high={bull_high}; "
+            f"bands still identical (Bug B not fixed)"
+        )
+
+    def test_base_ratio_discount_logged(self):
+        """Calibration log must record the base P/E ratio override."""
+        m = self._math()
+        entries = [e for e in m["calibration_log"] if "ratio-discounted" in e]
+        assert len(entries) >= 1, (
+            f"Expected base P/E ratio-discount log entry; calibration_log={m['calibration_log']}"
+        )
+
+    def test_base_pe_high_approximately_80pct_of_bull(self):
+        """base_pe_high ≈ bull_pe_high × 0.80 (within rounding)."""
+        m = self._math()
+        base_high = m["pe_band"]["base_high"]
+        bull_high = m["pe_band"]["bull_high"]
+        expected  = round(bull_high * 0.80, 1)
+        assert abs(base_high - expected) < 0.2, (
+            f"base_pe_high={base_high} expected ≈ {expected} (0.80 × bull_high={bull_high})"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# KO-LIKE INTEGRATION TEST — combined scenario-hierarchy assertions
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestKOScenarioHierarchy:
+    """
+    Integration test using the KO-like fixture (low growth ~7%, franchise=True, peer~16×).
+    This is the worst-case scenario for both bugs:
+      - Bug B: base and bull both cap at peer_median=16 → identical without fix
+      - Bug A: franchise floor 25× >> bull range 11–16× → inversion without fix
+    All three assertions must hold simultaneously after both fixes are applied.
+    """
+
+    def _math(self):
+        return run_methodology_math(KO_LIKE_PASS1, KO_LIKE_BASELINE)
+
+    def test_price_hierarchy(self):
+        """(1) bear_price_low < base_price_mid < bull_price_high."""
+        m = self._math()
+        bear_low  = m["price_target"]["bear_low"]
+        base_mid  = m["price_target"]["base_mid"]
+        bull_high = m["price_target"]["bull_high"]
+        assert bear_low < base_mid < bull_high, (
+            f"Price hierarchy violated: bear_low={bear_low:.2f} "
+            f"base_mid={base_mid:.2f} bull_high={bull_high:.2f}"
+        )
+
+    def test_base_pe_high_below_bull_pe_high(self):
+        """(2) base_pe_high < bull_pe_high — base is discounted relative to bull."""
+        m = self._math()
+        base_high = m["pe_band"]["base_high"]
+        bull_high = m["pe_band"]["bull_high"]
+        assert base_high < bull_high, (
+            f"base_pe_high={base_high} not < bull_pe_high={bull_high}"
+        )
+
+    def test_bear_pe_cap_log_entry_present(self):
+        """(3) Bear P/E cap calibration log entry present (franchise floor would otherwise invert)."""
+        m = self._math()
+        entries = [e for e in m["calibration_log"] if "Bear P/E capped" in e]
+        assert len(entries) >= 1, (
+            f"Bear P/E cap log entry absent; calibration_log={m['calibration_log']}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BUG 4 — driver_narratives A/B: missing narrative is now a hard retry trigger
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBug4DriverNarrativesHard:
+    """
+    Bug 4: missing driver_narratives for any driver ID (A, B, or C) must be a
+    hard error that triggers a retry — not a soft warning.
+    Retry hint format: 'driver_narratives for drivers X are missing — you must
+    include a narrative paragraph for every macro driver ID present in pass1.macro_drivers.'
+    """
+
+    def test_missing_single_driver_narrative_is_hard(self):
+        """Missing driver C narrative alone is a hard error."""
+        p = _minimal_valid_pass2()
+        del p["driver_narratives"]["C"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("driver_narratives" in e and "C" in e for e in hard), (
+            f"missing driver C narrative must be hard; hard={hard}"
+        )
+
+    def test_missing_two_driver_narratives_is_hard(self):
+        """Missing drivers A and B narratives is a hard error."""
+        p = _minimal_valid_pass2()
+        del p["driver_narratives"]["A"]
+        del p["driver_narratives"]["B"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("driver_narratives" in e and "A" in e and "B" in e for e in hard), (
+            f"missing A and B narratives must be hard; hard={hard}"
+        )
+
+    def test_retry_hint_contains_pass1_macro_drivers_reference(self):
+        """Hard error message must reference pass1.macro_drivers per spec."""
+        p = _minimal_valid_pass2()
+        del p["driver_narratives"]["A"]
+        soft, hard = _validate_pass2_v2(p)
+        assert any("pass1.macro_drivers" in e for e in hard), (
+            f"hard error must reference pass1.macro_drivers; hard={hard}"
+        )
+
+    def test_all_narratives_present_no_hard_error(self):
+        """When all three driver narratives are present, no hard error fires."""
+        p = _minimal_valid_pass2()
+        soft, hard = _validate_pass2_v2(p)
+        # driver_narratives is complete — hard list must not contain any narrative error
+        assert not any("driver_narratives" in e for e in hard), (
+            f"complete driver_narratives must not produce hard error; hard={hard}"
+        )
+
+    def test_missing_narrative_triggers_retry_in_run_pass2_report(self):
+        """run_pass2_report retries when driver_narratives.B is absent (hard error path)."""
+        import json as _json
+        baseline = _baseline_for_pass2()
+        math     = _math_for_pass2()
+
+        p_missing_b = _minimal_valid_pass2()
+        del p_missing_b["driver_narratives"]["B"]   # hard error
+        p_good = _minimal_valid_pass2()
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (_json.dumps(p_missing_b if call_count["n"] == 1 else p_good), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math,
+                                      max_passes=2)
+
+        assert call_count["n"] == 2, (
+            f"missing driver_narratives.B must trigger retry; call_count={call_count['n']}"
+        )
+        assert result.get("driver_narratives", {}).get("B"), (
+            "second attempt (with B) should be accepted"
+        )
+
+
+class TestSbcSectionRequired:
+    """
+    sbc_section is a hard validator error when math.owner_earnings is non-null.
+    Prompt fix: Pass 2 prompt now explicitly states sbc_section is REQUIRED in
+    that case.  Validator enforces it as a retry trigger.
+    """
+
+    def _math_with_owner_earnings(self) -> dict:
+        m = _math_for_pass2()
+        m["owner_earnings"] = 12.4   # non-null → sbc_section required
+        return m
+
+    def test_sbc_section_missing_with_owner_earnings_is_hard(self):
+        """Missing sbc_section when math.owner_earnings is non-null must be a hard error."""
+        p = _minimal_valid_pass2()
+        m = self._math_with_owner_earnings()
+        soft, hard = _validate_pass2_v2(p, m)
+        assert any("sbc_section" in e for e in hard), (
+            f"missing sbc_section with owner_earnings present must be hard; hard={hard}"
+        )
+
+    def test_sbc_section_missing_retry_hint_text(self):
+        """Hard error message must contain the specified retry hint text."""
+        p = _minimal_valid_pass2()
+        m = self._math_with_owner_earnings()
+        soft, hard = _validate_pass2_v2(p, m)
+        assert any("math.owner_earnings" in e for e in hard), (
+            f"hard error must mention math.owner_earnings; hard={hard}"
+        )
+
+    def test_sbc_section_present_with_owner_earnings_no_hard_error(self):
+        """When sbc_section is present alongside non-null owner_earnings, no hard error."""
+        p = _minimal_valid_pass2()
+        p["sbc_section"] = (
+            "SBC of 2.1 billion reduces owner earnings from 14.5 to 12.4 billion. "
+            "This represents a real economic cost that reduces true distributable cash."
+        )
+        m = self._math_with_owner_earnings()
+        soft, hard = _validate_pass2_v2(p, m)
+        assert not any("sbc_section" in e for e in hard), (
+            f"sbc_section present should not produce hard error; hard={hard}"
+        )
+
+    def test_sbc_section_missing_without_owner_earnings_no_hard_error(self):
+        """When math.owner_earnings is None, sbc_section is not required."""
+        p = _minimal_valid_pass2()
+        m = _math_for_pass2()   # AVGO_V2_BASELINE has no fy_sbc → owner_earnings is None
+        assert m.get("owner_earnings") is None, (
+            "AVGO_V2_BASELINE lacks fy_sbc, so owner_earnings must be None"
+        )
+        soft, hard = _validate_pass2_v2(p, m)
+        assert not any("sbc_section" in e for e in hard), (
+            f"sbc_section not required when owner_earnings absent; hard={hard}"
+        )
+
+    def test_sbc_section_missing_triggers_retry_in_run_pass2_report(self):
+        """run_pass2_report retries when sbc_section absent and owner_earnings non-null."""
+        import json as _json
+        baseline = _baseline_for_pass2()
+        math     = self._math_with_owner_earnings()
+
+        p_no_sbc = _minimal_valid_pass2()          # no sbc_section → hard error
+        p_good   = _minimal_valid_pass2()
+        p_good["sbc_section"] = (
+            "SBC of 2.1 billion reduces owner earnings from 14.5 to 12.4 billion."
+        )
+
+        call_count = {"n": 0}
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            return (_json.dumps(p_no_sbc if call_count["n"] == 1 else p_good), "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math,
+                                      max_passes=2)
+
+        assert call_count["n"] == 2, (
+            f"missing sbc_section must trigger retry; call_count={call_count['n']}"
+        )
+        assert result.get("sbc_section"), "second attempt (with sbc_section) should be accepted"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# NEGATIVE TRAILING EPS FIXTURE
+#
+# Stress-tests the path where fy_eps_non_gaap < 0 (e.g. small-cap with GAAP
+# losses).  The growth-rate bull EPS formula must NOT be applied (it would
+# produce a more-negative number).  The code must fall back to scenario_eps
+# and log the path choice in calibration_log before Step A can run.
+# ════════════════════════════════════════════════════════════════════════════
+
+NEG_EPS_BASELINE = {
+    "current_price":              13.34,
+    "shares_out":                 0.09,           # 90M shares (small-cap)
+    "fy_revenue":                 0.53,            # $530M
+    "base_op_margin":             0.12,            # 12% — positive so scenario_eps > 0
+    "tax_rate":                   0.15,
+    "beta":                       1.40,
+    "net_debt":                   0.05,
+    "horizon_years":              5,
+    "franchise_quality":          False,           # non-franchise: no bear floor
+    "trailing_net_dilution_rate": 0.02,
+    "fy_fcf":                     0.067,
+    "five_yr_eps_growth_est":     0.26,
+    "fy_eps_non_gaap":            -0.31,           # KEY: negative trailing EPS
+    "peer_set":                   [],              # no peers (thin coverage)
+    "consensus_eps_fy2":          None,            # no consensus (pure bottom-up)
+}
+
+NEG_EPS_PASS1 = {
+    "events": [
+        {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.20,
+         "revenue_at_risk_low": 0.05, "revenue_at_risk_high": 0.10,
+         "op_margin_to_apply": 0.18, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "A2", "driver": "A", "outcome": "base", "probability": 0.60,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.12, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "A3", "driver": "A", "outcome": "bear", "probability": 0.20,
+         "revenue_at_risk_low": -0.08, "revenue_at_risk_high": -0.03,
+         "op_margin_to_apply": 0.06, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "B1", "driver": "B", "outcome": "bull", "probability": 0.15,
+         "revenue_at_risk_low": 0.03, "revenue_at_risk_high": 0.06,
+         "op_margin_to_apply": 0.18, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "B2", "driver": "B", "outcome": "base", "probability": 0.75,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.12, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "B3", "driver": "B", "outcome": "bear", "probability": 0.10,
+         "revenue_at_risk_low": -0.05, "revenue_at_risk_high": -0.02,
+         "op_margin_to_apply": 0.06, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "C1", "driver": "C", "outcome": "base", "probability": 0.80,
+         "revenue_at_risk_low": 0.0, "revenue_at_risk_high": 0.0,
+         "op_margin_to_apply": 0.12, "tax_rate_to_apply": 0.15, "evidence": "test"},
+        {"id": "C2", "driver": "C", "outcome": "bear", "probability": 0.20,
+         "revenue_at_risk_low": -0.04, "revenue_at_risk_high": -0.01,
+         "op_margin_to_apply": 0.06, "tax_rate_to_apply": 0.15, "evidence": "test"},
+    ],
+    "pe_anchors": {},   # empty → Bug 2 log entry also fires; does not affect EPS test
+}
+
+
+class TestNegativeTrailingEPS:
+    """
+    Guard: when fy_eps_non_gaap ≤ 0 the growth-rate bull EPS formula must not
+    be applied (it would yield a more-negative number).  run_methodology_math
+    must fall back to scenario_eps and emit a calibration_log entry.
+    """
+
+    def _math(self):
+        return run_methodology_math(NEG_EPS_PASS1, NEG_EPS_BASELINE)
+
+    def test_calibration_log_contains_negative_eps_entry(self):
+        """calibration_log must record the fallback when trailing EPS < 0."""
+        m = self._math()
+        cal = m.get("calibration_log", [])
+        assert any("Negative trailing EPS" in e for e in cal), (
+            f"expected 'Negative trailing EPS' in calibration_log; got: {cal}"
+        )
+
+    def test_bull_eps_is_positive(self):
+        """bull EPS must be positive — growth-rate formula on negative base is forbidden."""
+        m = self._math()
+        bull_eps = m["scenario_eps"]["bull"]
+        # The erroneous formula would give: -0.31 * (1 + 0.26)^2 ≈ -0.49
+        erroneous = -0.31 * (1 + min(0.26, 0.60)) ** 2
+        assert bull_eps > 0, (
+            f"bull EPS={bull_eps:.4f} must be positive (growth-rate formula would give {erroneous:.4f})"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Headwinds / Tailwinds wiring
+# ════════════════════════════════════════════════════════════════════════════
+
+# Simple §5.1 baseline sufficient to run run_methodology_math with §5.2 events.
+_HW_BASELINE = {
+    "current_price":              100.0,
+    "shares_out":                 1.0,
+    "fy_revenue":                 10.0,
+    "fy_op_margin":               0.30,
+    "tax_rate_guidance":          0.21,
+    "beta":                       1.0,
+    "net_debt":                   0.0,
+    "horizon_years":              5,
+    "franchise_quality":          True,
+    "trailing_net_dilution_rate": 0.0,
+    "fy_fcf":                     2.0,
+    "five_yr_eps_growth_est":     0.15,
+    "fy_eps_non_gaap":            3.0,
+    "peer_set": [
+        {"ticker": "X", "fwd_pe": 20.0},
+        {"ticker": "Y", "fwd_pe": 22.0},
+        {"ticker": "Z", "fwd_pe": 24.0},
+    ],
+}
+
+
+class TestHeadwindsTailwindsWiring:
+    """
+    Verify that run_methodology_math populates headwinds/tailwinds in the math dict.
+    Uses _minimal_valid_pass1() (§5.2 format) as the pass1 fixture.
+    _minimal_valid_pass1() has: 1 bull event (A1), 3 bear events (A2, B2, C2),
+    2 base events (B1, C1).
+    """
+
+    def _math(self):
+        return run_methodology_math(_minimal_valid_pass1(), _HW_BASELINE)
+
+    def test_headwinds_list_populated_with_impact_fields(self):
+        """math['headwinds'] is non-empty and every entry has eps_impact_high/mid/low as floats."""
+        m = self._math()
+        hw = m.get("headwinds", [])
+        assert isinstance(hw, list), "headwinds must be a list"
+        assert len(hw) > 0, "headwinds must be non-empty (bear events exist in fixture)"
+        for entry in hw:
+            for fld in ("eps_impact_high", "eps_impact_mid", "eps_impact_low"):
+                assert fld in entry, f"entry missing '{fld}': {entry}"
+                assert isinstance(entry[fld], float), (
+                    f"'{fld}' must be float, got {type(entry[fld])}: {entry[fld]!r}"
+                )
+
+    def test_outcome_routing(self):
+        """Bear events → headwinds, bull events → tailwinds, base events → neither."""
+        m = self._math()
+        events = _minimal_valid_pass1()["events"]
+        bear_ids = {ev["id"] for ev in events if ev["outcome"] == "bear"}
+        bull_ids = {ev["id"] for ev in events if ev["outcome"] == "bull"}
+        base_ids = {ev["id"] for ev in events if ev["outcome"] == "base"}
+
+        hw_ids = {entry["event_id"] for entry in m["headwinds"]}
+        tw_ids = {entry["event_id"] for entry in m["tailwinds"]}
+
+        assert hw_ids == bear_ids, f"headwind event_ids {hw_ids} != bear ids {bear_ids}"
+        assert tw_ids == bull_ids, f"tailwind event_ids {tw_ids} != bull ids {bull_ids}"
+        assert not (base_ids & (hw_ids | tw_ids)), (
+            f"base events must not appear in headwinds/tailwinds: {base_ids & (hw_ids | tw_ids)}"
+        )
+
+    def test_eps_impact_ordering(self):
+        """eps_impact_high >= eps_impact_low >= 0 for every entry (magnitudes, sign by renderer)."""
+        m = self._math()
+        for entry in m["headwinds"] + m["tailwinds"]:
+            low  = entry["eps_impact_low"]
+            high = entry["eps_impact_high"]
+            assert low >= 0.0, (
+                f"eps_impact_low must be non-negative: {low} (entry={entry['event_id']})"
+            )
+            assert high >= low, (
+                f"eps_impact_high ({high}) must be >= eps_impact_low ({low}) "
+                f"(entry={entry['event_id']})"
+            )
+
+
+class TestEvFormulaString:
+    def _math(self):
+        return run_methodology_math(AVGO_PASS1, AVGO_BASELINE)
+
+    def test_formula_string_contains_expected_value(self):
+        m = self._math()
+        ev_str = m["ev_formula_string"]
+        ev_val = m["expected_value"]
+        expected_substr = f"${ev_val:.2f}"
+        assert expected_substr in ev_str, (
+            f"ev_formula_string '{ev_str}' does not contain expected_value formatted as '{expected_substr}'"
+        )

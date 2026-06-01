@@ -150,13 +150,16 @@ def pe_band(
       pe_high = max(floor × 1.3, peer_haircut)   # bear band high: 30% above floor or peer-haircut
       pe_low  = floor
     """
-    peg_growth = max(growth_rate * 100, 1.0)
+    # Belt-and-suspenders: cap growth at 60% before multiplying — prevents 3-figure P/E
+    # from anomalous trailing earningsGrowth values (e.g. NVDA 214.5%).
+    peg_growth = max(min(growth_rate, 0.60) * 100, 1.0)
 
     if scenario == "bull":
         peg_ceiling = PEG_CEILING_BULL * peg_growth
         peg_floor   = PEG_FLOOR_BULL   * peg_growth
         peer = peer_median_pe if peer_median_pe is not None else peg_ceiling
         pe_high = max(peg_ceiling, peer)
+        pe_high = min(pe_high, 60.0)  # hard cap: bull P/E never exceeds 60×
         pe_low  = max(peg_floor,   0.7 * peer)
 
     elif scenario == "base":

@@ -88,6 +88,7 @@ investment_thesis (REQUIRED — ≥3 paragraphs, \\n\\n separated):
     macro driver from pass1_json determines whether the bull case materialises.
   Paragraph 3: cite expected_value, risk.expected_return_pct, and risk.prob_loss to
     characterise the risk/reward balance.
+    Cite math_json.ev_formula_string verbatim when showing the EV calculation. Do not construct the formula yourself.
 
 reverse_dcf_commentary (REQUIRED — exactly 1 paragraph):
   Elaborate on implied_fcf_cagr. State whether it is demanding or undemanding given
@@ -127,6 +128,14 @@ conclusion (REQUIRED — ≥2 paragraphs, \\n\\n separated):
   Paragraph 2: the monitoring framework — name 2-3 catalyst dates from
     pass1_json.catalysts[], citing the what_to_watch metric for each.
 
+sbc_section (CONDITIONAL):
+  If math_json.owner_earnings is non-null, sbc_section is REQUIRED — you must emit it.
+  This is not optional when SBC data is present. Omitting it when math_json.owner_earnings
+  is non-null will be treated as a validation error.
+  Content: cite math_json.owner_earnings and baseline_json.fy_sbc. Explain how SBC dilutes
+  reported FCF to arrive at true owner earnings. 1 tight paragraph.
+  If math_json.owner_earnings is null, omit this field entirely (set to null).
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT SCHEMA — emit ONLY this JSON, no markdown fences, no prose outside
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -146,7 +155,8 @@ OUTPUT SCHEMA — emit ONLY this JSON, no markdown fences, no prose outside
   },
   "financial_health": "string — exactly 1 paragraph citing fy_sbc, fy_fcf, fy_fcf_margin, net_debt, fy_op_margin",
   "recommendation_rationale": "string — 1-2 paragraphs justifying the recommendation label",
-  "conclusion": "string — ≥2 paragraphs (\\n\\n separated)"
+  "conclusion": "string — ≥2 paragraphs (\\n\\n separated)",
+  "sbc_section": "string or null — REQUIRED when math_json.owner_earnings is non-null; null or omitted otherwise"
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

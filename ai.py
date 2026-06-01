@@ -1224,8 +1224,9 @@ def _assemble_pipeline_output(
         "scenario_inputs": scenario_inputs,
         "macro_drivers":   _normalize_macro_drivers(pass1.get("macro_drivers")),
         "drivers":         [],    # Phase H: render v2 events as driver cards
-        "headwinds":       [],
-        "tailwinds":       [],
+        "headwinds":       math.get("headwinds", []),
+        "tailwinds":       math.get("tailwinds", []),
+        "ev_formula_string": math.get("ev_formula_string", ""),
         "concentration":   {},
         "monitoring_kpis": [],
         # Math + audit
