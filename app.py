@@ -347,11 +347,9 @@ def fetch_peers(ticker, sector, llm_peers=None):
 # ══════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_analysis(ticker, analysis_input_str, methodology_version="v1"):
+def _cached_analysis(ticker, analysis_input_str):
     data = json.loads(analysis_input_str)
-    if methodology_version == "v2":
-        return ai.run_pipeline(ticker, data)
-    return ai.run_two_pass(ticker, data)
+    return ai.run_pipeline(ticker, data)
 
 
 
@@ -1902,23 +1900,18 @@ if should_generate and ticker:
                 st.error(m["error"]); st.stop()
             st.write("Metrics computed")
 
-            # For v2: build §5.1 baseline (units in billions, §5.1 field names)
-            if METHODOLOGY_VERSION == "v2":
-                consensus_pack   = fmp_api.fetch_consensus_pack(ticker)
-                baseline         = calc_baseline(sd, consensus_pack=consensus_pack)
-                if "error" in baseline:
-                    st.error(baseline["error"]); st.stop()
-                analysis_input_str = json.dumps(
-                    {k: v for k, v in baseline.items() if k not in ["recent_news", "history_3y"]},
-                    sort_keys=True, default=str)
-            else:
-                analysis_input_str = json.dumps(
-                    {k: v for k, v in m.items() if k not in ["description", "news"]},
-                    sort_keys=True, default=str)
+            # Build §5.1 baseline (units in billions, §5.1 field names)
+            consensus_pack   = fmp_api.fetch_consensus_pack(ticker)
+            baseline         = calc_baseline(sd, consensus_pack=consensus_pack)
+            if "error" in baseline:
+                st.error(baseline["error"]); st.stop()
+            analysis_input_str = json.dumps(
+                {k: v for k, v in baseline.items() if k not in ["recent_news", "history_3y"]},
+                sort_keys=True, default=str)
 
             status.update(label=f"Analyzing {ticker}... (Step 3–6 of 6: AI + compute)")
             st.write("Step 3 of 6 - Running three-pass analysis (drivers → math → narrative → self-check)...")
-            a = _cached_analysis(ticker, analysis_input_str, METHODOLOGY_VERSION)
+            a = _cached_analysis(ticker, analysis_input_str)
             if isinstance(a, dict) and a.get("error"):
                 status.update(label="Analysis failed", state="error")
                 for d in a.get("details", []): st.code(d)
