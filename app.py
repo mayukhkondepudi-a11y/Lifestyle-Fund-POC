@@ -566,6 +566,163 @@ def render(ticker, m, a, data):
         st.markdown('<div class="sec">Business Overview</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="prose">{clean_latex(strip_html(a["business_overview"]))}</div>', unsafe_allow_html=True)
 
+    if a.get("revenue_architecture"):
+        st.markdown('<div class="sec">Revenue Architecture</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["revenue_architecture"]))}</div>', unsafe_allow_html=True)
+        ssr = a.get("scenario_segment_revenue")
+        if isinstance(ssr, dict) and ssr.get("segments"):
+            seg_header = "<tr><th>Segment</th><th>FY Rev</th><th>Bull FY+2</th><th>Base FY+2</th><th>Bear FY+2</th></tr>"
+            seg_rows = "".join(
+                f"<tr>"
+                f"<td style='font-weight:600;'>{strip_html(s.get('name', ''))}</td>"
+                f"<td class='nowrap'>{fmt_c(s.get('fy_revenue'), cur)}</td>"
+                f"<td class='nowrap' style='color:#4ade80;'>{fmt_c(s.get('bull'), cur)}</td>"
+                f"<td class='nowrap' style='color:#fbbf24;'>{fmt_c(s.get('base'), cur)}</td>"
+                f"<td class='nowrap' style='color:#f87171;'>{fmt_c(s.get('bear'), cur)}</td>"
+                f"</tr>"
+                for s in ssr["segments"]
+            )
+            st.markdown(pt_table(seg_header, seg_rows), unsafe_allow_html=True)
+            if ssr.get("any_derived"):
+                st.markdown('<div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Segment scenario growth derived from trailing YoY rates.</div>', unsafe_allow_html=True)
+
+    _cnd = a.get("concentration_and_dependencies")
+    if _cnd:
+        st.markdown('<div class="sec">Concentration &amp; Dependencies</div>', unsafe_allow_html=True)
+        _geo = _cnd.get("geographic_exposure", "") if isinstance(_cnd, dict) else ""
+        _tcc = _cnd.get("top_customer_concentration", "") if isinstance(_cnd, dict) else ""
+        _scd = _cnd.get("supply_chain_dependencies", "") if isinstance(_cnd, dict) else ""
+        _rar = _cnd.get("relationships_at_risk", "") if isinstance(_cnd, dict) else ""
+        if _geo or _tcc:
+            _col_l, _col_r = st.columns(2)
+            if _geo:
+                with _col_l:
+                    st.markdown('<div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-bottom:0.4rem;">Geographic Exposure</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="prose" style="font-size:0.86rem;">{clean_latex(strip_html(_geo))}</div>', unsafe_allow_html=True)
+            if _tcc:
+                with _col_r:
+                    st.markdown('<div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin-bottom:0.4rem;">Customer Concentration</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="prose" style="font-size:0.86rem;">{clean_latex(strip_html(_tcc))}</div>', unsafe_allow_html=True)
+        if _scd:
+            _scd_items = [x.strip() for x in _scd.split(";") if x.strip()]
+            if _scd_items:
+                _scd_html = "".join(f'<li style="margin-bottom:0.2rem;">{strip_html(x)}</li>' for x in _scd_items)
+                st.markdown(f'<div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.45);margin:0.8rem 0 0.3rem;">Supply Chain Dependencies</div><ul style="margin:0;padding-left:1.2rem;font-size:0.86rem;color:rgba(255,255,255,0.7);line-height:1.6;">{_scd_html}</ul>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="prose" style="font-size:0.86rem;">{clean_latex(strip_html(_scd))}</div>', unsafe_allow_html=True)
+        if _rar:
+            _rar_items = [x.strip() for x in _rar.split(";") if x.strip()]
+            if _rar_items:
+                _rar_html = "".join(f'<div style="padding:0.3rem 0;border-bottom:1px solid rgba(248,113,113,0.15);font-size:0.86rem;">{strip_html(x)}</div>' for x in _rar_items)
+                st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:6px;padding:0.7rem 1rem;margin-top:0.6rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.4rem;">Relationships at Risk</div>{_rar_html}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:6px;padding:0.7rem 1rem;margin-top:0.6rem;"><div style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#f87171;margin-bottom:0.3rem;">Relationships at Risk</div><div style="font-size:0.86rem;color:rgba(255,255,255,0.7);">{strip_html(_rar)}</div></div>', unsafe_allow_html=True)
+
+    if a.get("growth_drivers_and_moats"):
+        st.markdown('<div class="sec">Growth Drivers &amp; Moats</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["growth_drivers_and_moats"]))}</div>', unsafe_allow_html=True)
+
+    if a.get("margin_analysis"):
+        st.markdown('<div class="sec">Margin Analysis</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["margin_analysis"]))}</div>', unsafe_allow_html=True)
+        _sc_inp = a.get("scenario_inputs", {})
+        _bull_om = safe_float(_sc_inp.get("bull", {}).get("op_margin", 0))
+        _base_om = safe_float(_sc_inp.get("base", {}).get("op_margin", 0))
+        _bear_om = safe_float(_sc_inp.get("bear", {}).get("op_margin", 0))
+        if _bull_om or _base_om or _bear_om:
+            _mc1, _mc2, _mc3 = st.columns(3)
+            with _mc1: st.metric("Bull Op Margin", f"{_bull_om*100:.1f}%" if _bull_om else "—")
+            with _mc2: st.metric("Base Op Margin", f"{_base_om*100:.1f}%" if _base_om else "—")
+            with _mc3: st.metric("Bear Op Margin", f"{_bear_om*100:.1f}%" if _bear_om else "—")
+
+    if a.get("financial_health"):
+        st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["financial_health"]))}</div>', unsafe_allow_html=True)
+
+    if a.get("competitive_position"):
+        st.markdown('<div class="sec">Competitive Position</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["competitive_position"]))}</div>', unsafe_allow_html=True)
+
+    _fa = a.get("factor_analysis")
+    if _fa:
+        st.markdown('<div class="sec">Factor Analysis</div>', unsafe_allow_html=True)
+        _fa_items = list(_fa.values()) if isinstance(_fa, dict) else (_fa if isinstance(_fa, list) else [])
+        for _drv in _fa_items:
+            if not isinstance(_drv, dict):
+                continue
+            _drv_name = strip_html(_drv.get("name", _drv.get("driver_id", "")))
+            st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.85);margin:0.8rem 0 0.4rem;">{_drv_name}</div>', unsafe_allow_html=True)
+            for _oc in (_drv.get("outcomes") or []):
+                if not isinstance(_oc, dict):
+                    continue
+                _lbl   = _oc.get("label", "")
+                _prob  = safe_float(_oc.get("probability", 0))
+                _desc  = strip_html(_oc.get("description", ""))
+                _bar_color = "#4ade80" if _lbl == "optimistic" else ("#f87171" if _lbl == "pessimistic" else "#fbbf24")
+                _pct_str = f"{_prob*100:.0f}%"
+                _col_a, _col_b = st.columns([3, 7])
+                with _col_a:
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;"><span style="font-size:0.75rem;color:rgba(255,255,255,0.5);width:5rem;text-transform:capitalize;">{_lbl}</span><span style="font-size:0.8rem;font-weight:700;color:{_bar_color};">{_pct_str}</span></div>', unsafe_allow_html=True)
+                    st.progress(min(1.0, max(0.0, _prob)))
+                with _col_b:
+                    st.markdown(f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.6);padding:0.3rem 0;line-height:1.5;">{_desc}</div>', unsafe_allow_html=True)
+
+    _sae = a.get("scenario_analysis_extended")
+    if isinstance(_sae, dict) and _sae:
+        st.markdown('<div class="sec">Scenario Analysis — Extended</div>', unsafe_allow_html=True)
+        _ssr2 = a.get("scenario_segment_revenue")
+        for _sc_name, _sc_color, _sc_label in (
+            ("bull", "#4ade80", "Bull"), ("base", "#fbbf24", "Base"), ("bear", "#f87171", "Bear")
+        ):
+            _sc_data = _sae.get(_sc_name)
+            if not isinstance(_sc_data, dict):
+                continue
+            st.markdown(f'<div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{_sc_color};margin:0.8rem 0 0.3rem;">{_sc_label} Case</div>', unsafe_allow_html=True)
+            if isinstance(_ssr2, dict) and _ssr2.get("segments"):
+                _sr_header = "<tr><th>Segment</th><th>FY Rev</th><th>Projected FY+2</th></tr>"
+                _sr_rows = "".join(
+                    f"<tr><td>{strip_html(s.get('name',''))}</td><td class='nowrap'>{fmt_c(s.get('fy_revenue'), cur)}</td><td class='nowrap' style='color:{_sc_color};'>{fmt_c(s.get(_sc_name), cur)}</td></tr>"
+                    for s in _ssr2["segments"]
+                )
+                st.markdown(pt_table(_sr_header, _sr_rows), unsafe_allow_html=True)
+            _ht_summary = _sc_data.get("headwind_tailwind_summary", "")
+            _val_rat    = _sc_data.get("valuation_rationale", "")
+            if _ht_summary:
+                st.markdown(f'<div class="prose" style="font-size:0.86rem;margin-top:0.3rem;">{clean_latex(strip_html(_ht_summary))}</div>', unsafe_allow_html=True)
+            if _val_rat:
+                st.markdown(f'<div class="prose" style="font-size:0.86rem;color:rgba(255,255,255,0.55);">{clean_latex(strip_html(_val_rat))}</div>', unsafe_allow_html=True)
+
+    if a.get("valuation_vs_expectations"):
+        st.markdown('<div class="sec">Valuation vs. Expectations</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prose">{clean_latex(strip_html(a["valuation_vs_expectations"]))}</div>', unsafe_allow_html=True)
+
+    _st = sm.get("sensitivity_table") if isinstance(sm, dict) else None
+    if _st or a.get("sensitivity_check"):
+        st.markdown('<div class="sec">Sensitivity Check <span class="vtag">±10pp</span></div>', unsafe_allow_html=True)
+        if isinstance(_st, dict):
+            _sc1, _sc2, _sc3 = st.columns(3)
+            _minus = _st.get("minus_10pp", {})
+            _curr  = _st.get("current", {})
+            _plus  = _st.get("plus_10pp", {})
+            _drv_id = _st.get("driver", "A")
+            with _sc1:
+                st.metric(
+                    f"Driver {_drv_id} bull prob −10pp ({safe_float(_minus.get('bull_prob',0))*100:.0f}%)",
+                    f"{sym}{safe_float(_minus.get('expected_value',0)):,.0f}",
+                )
+            with _sc2:
+                st.metric(
+                    f"Driver {_drv_id} bull prob current ({safe_float(_curr.get('bull_prob',0))*100:.0f}%)",
+                    f"{sym}{safe_float(_curr.get('expected_value',0)):,.0f}",
+                )
+            with _sc3:
+                st.metric(
+                    f"Driver {_drv_id} bull prob +10pp ({safe_float(_plus.get('bull_prob',0))*100:.0f}%)",
+                    f"{sym}{safe_float(_plus.get('expected_value',0)):,.0f}",
+                )
+        if a.get("sensitivity_check"):
+            st.markdown(f'<div class="prose" style="margin-top:0.6rem;">{clean_latex(strip_html(a["sensitivity_check"]))}</div>', unsafe_allow_html=True)
+
     st.markdown('<div class="sec">Key Metrics</div>', unsafe_allow_html=True)
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.metric("Market Cap", fmt_c(m.get("market_cap"), cur))
