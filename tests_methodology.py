@@ -2572,11 +2572,11 @@ from ai import LLMCallCeilingError
 class TestBug1CallCeilingCounter:
     """Bug 1: calls_remaining decrements correctly; LLMCallCeilingError raised when budget gone."""
 
-    def test_max_pipeline_ai_calls_is_seven(self):
-        """C3 ceiling must be exactly 7 (spec: 2+1+2+1+1 = pass1+catalysts_fallback+pass2+pass3+bull_retry)."""
-        assert MAX_PIPELINE_AI_CALLS == 7, (
-            f"MAX_PIPELINE_AI_CALLS={MAX_PIPELINE_AI_CALLS}; must be 7 "
-            f"(6 original + 1 catalysts fallback)."
+    def test_max_pipeline_ai_calls_is_eight(self):
+        """C3 ceiling must be exactly 8 (spec: 2+1+2+1+1+1 = pass1+catalysts_fallback+pass2+pass3+bull_retry+section_retry)."""
+        assert MAX_PIPELINE_AI_CALLS == 8, (
+            f"MAX_PIPELINE_AI_CALLS={MAX_PIPELINE_AI_CALLS}; must be 8 "
+            f"(7 prior + 1 Pass 2 focused section retry)."
         )
 
     def test_llm_call_ceiling_error_is_defined(self):

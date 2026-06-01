@@ -47,8 +47,9 @@ SHARE_COUNT_PROJECTION = "trailing_net_change"      # B4: shares evolve via trai
 HEADLINE_METRIC = "implied_fcf_cagr"                # B1: reverse-DCF leads the report
 
 # C3 — global LLM call ceiling per pipeline run
-# Pass1 uses ≤2, catalysts fallback uses ≤1, Pass2 uses ≤2, Pass3 uses ≤1, bull-below retry uses ≤1 = 7 total.
-MAX_PIPELINE_AI_CALLS = 7
+# Pass1 uses ≤2, catalysts fallback uses ≤1, Pass2 uses ≤2, Pass3 uses ≤1, bull-below retry uses ≤1,
+# Pass2 focused section retry uses ≤1 = 8 total.
+MAX_PIPELINE_AI_CALLS = 8
 
 
 # ══════════════════════════════════════════════════════════════
