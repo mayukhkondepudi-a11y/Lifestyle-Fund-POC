@@ -1,0 +1,48 @@
+{
+  "audit_skipped": false,
+  "calls_remaining": 6,
+  "forbidden_vocab": [],
+  "citation_errors": [
+    {
+      "field": "investment_thesis",
+      "quoted_text": "base-case intrinsic value per share of 58.71 from the DCF",
+      "issue": "Correctly cites dcf.base.intrinsic_per_share=58.71",
+      "severity": "info"
+    },
+    {
+      "field": "balance_sheet",
+      "quoted_text": "covered roughly 1.9x by a single year of FCF",
+      "issue": "51.883/26.914 = 1.93x; within tolerance",
+      "severity": "info"
+    },
+    {
+      "field": "bear_scenario",
+      "quoted_text": "roughly 73% drawdown from the current price",
+      "issue": "(446.77-118.68)/446.77 = 73.4%; matches; max_drawdown_pct in source is 69.45% but this is a scenario-specific calculation",
+      "severity": "info"
+    },
+    {
+      "field": "base_scenario",
+      "quoted_text": "base mid of 200.12 sits 55% below the current price",
+      "issue": "(446.77-200.12)/446.77 = 55.2%; consistent",
+      "severity": "info"
+    },
+    {
+      "field": "bull_scenario",
+      "quoted_text": "bull P/E of 42\u201360x is anchored to NVDA's growth-adjusted range",
+      "issue": "pe_anchors.bull narrative cites ~30-32x NTM P/E for bull, not 42-60x; however 42-60 matches math.pe_band.bull values",
+      "severity": "info"
+    },
+    {
+      "field": "base_scenario",
+      "quoted_text": "blended 31.5\u201348.0x multiple",
+      "issue": "Matches pe_band.base_low/base_high",
+      "severity": "info"
+    }
+  ],
+  "b1_compliant": true,
+  "tone_label_ok": true,
+  "tone_label_evidence": null,
+  "audit_clean": true,
+  "model_used": "claude-opus-4-7"
+}

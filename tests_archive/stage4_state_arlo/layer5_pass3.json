@@ -1,0 +1,30 @@
+{
+  "audit_skipped": false,
+  "calls_remaining": 6,
+  "forbidden_vocab": [],
+  "citation_errors": [
+    {
+      "field": "scenario_commentary.bull",
+      "quoted_text": "supports a FY+2 price target of 27.48 at the bull_high P/E of 26.3x",
+      "issue": "pe_band.bull_high is 26.3 per math source; this matches. No error.",
+      "severity": "info"
+    },
+    {
+      "field": "scenario_commentary.base",
+      "quoted_text": "sell-side consensus FY1 EPS mid of 0.84",
+      "issue": "consensus_eps_fy1.mid=0.84 matches baseline. No error.",
+      "severity": "info"
+    },
+    {
+      "field": "driver_commentary.A",
+      "quoted_text": "anchored to consensus FY+2 revenue high of 624.9 million",
+      "issue": "consensus_revenue_fy2.high=624.9M matches baseline. No error.",
+      "severity": "info"
+    }
+  ],
+  "b1_compliant": true,
+  "tone_label_ok": true,
+  "tone_label_evidence": null,
+  "audit_clean": true,
+  "model_used": "claude-opus-4-7"
+}

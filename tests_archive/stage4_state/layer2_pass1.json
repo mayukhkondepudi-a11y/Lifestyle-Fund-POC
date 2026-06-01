@@ -1,0 +1,179 @@
+{
+  "corporate_dna": "Broadcom designs and supplies semiconductor and infrastructure software solutions, generating revenue from two segments: Semiconductor Solutions (networking ASICs/SerDes, wireless, broadband, storage) and Infrastructure Software (VMware, mainframe, security). Customers cannot easily switch because Broadcom's custom AI accelerators (XPUs for Google, Meta, ByteDance) are co-designed over multi-year cycles, its Tomahawk/Jericho switching silicon is embedded in hyperscaler fabrics, and VMware's vSphere/Cloud Foundation is operationally embedded in enterprise data centers with high migration costs. The franchise model converts hardware design wins and software renewals into ~42% FCF margins. The single most important ratio to watch is AI-related semiconductor revenue growth as a percentage of total revenue, alongside non-GAAP operating margin expansion, which together drive the EPS trajectory underpinning the consensus FY1 mid of $11.36 and FY2 mid of $18.44.",
+  "segments_enriched": [],
+  "primary_growth_driver": {
+    "name": "Custom AI XPU and Networking Silicon",
+    "narrative": "Broadcom's AI franchise spans custom ASIC accelerators (XPUs) co-developed with three named hyperscale customers and merchant Ethernet networking silicon (Tomahawk 5/6, Jericho3-AI). As hyperscalers scale training and inference clusters, both compute (XPU) and scale-out fabric (Ethernet) attach grow together. FY revenue grew 23.87% YoY to $63.887B, materially driven by the AI ramp, and the 5-year EPS growth estimate of 60% reflects analyst expectations that AI silicon revenue compounds at a multi-year rate. Consensus FY1 revenue midpoint of $103.1B vs FY2 midpoint of $160.2B implies the Street is underwriting a step-function AI acceleration. Operating leverage on this incremental revenue is significant given gross margin of 67.77%.",
+    "key_data_points": [
+      "fy_revenue_yoy = 23.87%",
+      "five_yr_eps_growth_est = 60%",
+      "fy_gross_margin = 67.77%",
+      "fy_op_margin = 40.81%",
+      "consensus_revenue_fy2 mid = $160.2B vs fy_revenue $63.9B"
+    ],
+    "tam_view": "Management has framed serviceable AI accelerator + networking TAM at $60\u201390B by 2027 across the three anchor hyperscale customers alone."
+  },
+  "peer_set_enriched": [
+    {
+      "ticker": "NVDA",
+      "rationale": "Primary merchant AI silicon comparable; sets the multiple ceiling for AI accelerator exposure."
+    },
+    {
+      "ticker": "MRVL",
+      "rationale": "Closest custom-ASIC and optical DSP peer with hyperscaler AI exposure."
+    },
+    {
+      "ticker": "MSFT",
+      "rationale": "Infrastructure-software comparable for the VMware franchise valuation anchor."
+    },
+    {
+      "ticker": "ORCL",
+      "rationale": "Comparable for sticky enterprise infrastructure software with recurring license/maintenance economics."
+    },
+    {
+      "ticker": "TXN",
+      "rationale": "Mature semis peer anchoring the bear-case multiple for non-AI semis exposure."
+    }
+  ],
+  "macro_drivers": {
+    "A": {
+      "label": "Custom AI XPU & Ethernet Networking Cycle",
+      "narrative": "Hyperscaler capex on training and inference clusters drives Broadcom's custom XPU ASIC revenue and merchant Ethernet switching silicon. With FY revenue up 23.87% and consensus FY2 revenue mid of $160.2B vs FY1 mid of $103.1B, the Street is pricing a multi-year AI step-up. This is THE driver because incremental AI silicon revenue carries high gross margin and disproportionately impacts EPS toward the 60% 5-year growth estimate."
+    },
+    "B": {
+      "label": "VMware & Infrastructure Software Renewal Annuity",
+      "narrative": "VMware's transition to subscription, combined with mainframe (CA) and Symantec security renewals, anchors the base case via sticky, high-margin recurring revenue. With fy_op_margin of 40.81% and fy_fcf_margin of 42.13%, the software franchise stabilizes earnings even if semi demand is lumpy. Multi-year ELA renewals and price uplifts provide visibility through FY26."
+    },
+    "C": {
+      "label": "Hyperscaler Insourcing & Customer Concentration Risk",
+      "narrative": "Broadcom's AI semi revenue is concentrated in three hyperscale ASIC customers. Any one (Google TPU, Meta MTIA, ByteDance) accelerating internal silicon teams, dual-sourcing to MRVL, or pivoting to merchant NVDA GPUs could compress the AI ramp. DSO expanded from 31.3 to 40.8 days, hinting at receivables concentration. Pricing pressure on next-gen XPU socket renewals is a structural multi-year overhang."
+    }
+  },
+  "events": [
+    {
+      "id": "A1",
+      "driver": "A",
+      "outcome": "bull",
+      "probability": 0.45,
+      "revenue_at_risk_low": 12.0,
+      "revenue_at_risk_high": 18.0,
+      "op_margin_to_apply": 0.5,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "Consensus FY2 revenue mid $160.2B vs FY1 mid $103.1B implies ~$57B incremental; bull capture of 25-30% of that step-up is consistent with five_yr_eps_growth_est of 60% (baseline_json)."
+    },
+    {
+      "id": "A2",
+      "driver": "A",
+      "outcome": "base",
+      "probability": 0.4,
+      "revenue_at_risk_low": 6.0,
+      "revenue_at_risk_high": 10.0,
+      "op_margin_to_apply": 0.45,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "Base aligns with consensus_revenue_fy1 mid of $103.1B vs fy_revenue $63.9B; AI silicon contributes the bulk of the ~$39B step-up, with this event sizing the incremental AI tranche."
+    },
+    {
+      "id": "A3",
+      "driver": "A",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 3.0,
+      "op_margin_to_apply": 0.4,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "Bear AI scenario tracks consensus_revenue_fy1 low of $85.6B, implying ~$22B step-up but with AI underdelivering; tied to fy_revenue baseline of $63.9B."
+    },
+    {
+      "id": "B1",
+      "driver": "B",
+      "outcome": "bull",
+      "probability": 0.3,
+      "revenue_at_risk_low": 1.5,
+      "revenue_at_risk_high": 2.5,
+      "op_margin_to_apply": 0.55,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "VMware subscription conversion uplift; baseline fy_op_margin 40.81% and fy_gross_margin 67.77% support high-margin software incrementals. tax_rate_guidance 0.21 applied."
+    },
+    {
+      "id": "B2",
+      "driver": "B",
+      "outcome": "base",
+      "probability": 0.55,
+      "revenue_at_risk_low": 0.5,
+      "revenue_at_risk_high": 1.5,
+      "op_margin_to_apply": 0.5,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Software annuity steady-state renewal; consistent with fy_fcf 26.914 and fy_ocf 27.537 indicating recurring cash conversion (baseline_json)."
+    },
+    {
+      "id": "B3",
+      "driver": "B",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.8,
+      "op_margin_to_apply": 0.45,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Enterprise VMware customer churn / down-sell pressure scenario, capped to small incremental given franchise stickiness reflected in fy_op_margin of 40.81%."
+    },
+    {
+      "id": "C1",
+      "driver": "C",
+      "outcome": "bull",
+      "probability": 0.2,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 1.0,
+      "op_margin_to_apply": 0.45,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "Insourcing risk fails to materialize and a fourth hyperscaler XPU customer is added; modest upside relative to fy_revenue $63.9B baseline."
+    },
+    {
+      "id": "C2",
+      "driver": "C",
+      "outcome": "base",
+      "probability": 0.45,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.0,
+      "op_margin_to_apply": 0.41,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "Status quo: three named hyperscale ASIC customers remain, no socket loss; baseline fy_op_margin 0.4081 holds."
+    },
+    {
+      "id": "C3",
+      "driver": "C",
+      "outcome": "bear",
+      "probability": 0.35,
+      "revenue_at_risk_low": 2.0,
+      "revenue_at_risk_high": 6.0,
+      "op_margin_to_apply": 0.4,
+      "tax_rate_to_apply": 0.13,
+      "evidence": "DSO expansion from 31.3 to 40.8 days signals concentrated receivables; loss of one XPU socket or pricing concession at renewal could remove 3-9% of fy_revenue ($63.9B)."
+    }
+  ],
+  "pe_anchors": {
+    "bull": {
+      "reasoning": "In a peak AI-capex scenario, AVGO trades toward NVDA's growth-adjusted multiple range (~35x fwd) given custom-ASIC moat and 42% FCF margin; PEG of ~0.7x on 50%+ EPS growth supports a 30-32x NTM P/E, premium to MRVL but discount to NVDA."
+    },
+    "base": {
+      "reasoning": "Blended multiple weighting MRVL's AI semi peer multiple (~25-28x fwd) with MSFT/ORCL infrastructure-software anchor (~25-30x) yields a base-case ~25x NTM P/E, reflecting the 50/50 semi/software mix."
+    },
+    "bear": {
+      "reasoning": "If AI ramp underperforms and VMware integration drags, AVGO de-rates toward TXN's mature-semis multiple (~22x fwd) blended with MRVL's downside (~18-20x), implying a ~16-18x NTM P/E."
+    }
+  },
+  "sbc_context": "FY SBC of $7.568B equals ~11.8% of fy_revenue ($63.887B) and ~32.7% of fy_net_income ($23.126B), a materially elevated level reflecting VMware integration retention grants and AI engineering talent compensation. Non-GAAP EPS of $4.77 excludes SBC, so the gap between non-GAAP and GAAP earnings is meaningful for valuation. Investors should watch whether SBC as a % of revenue moderates toward the high-single-digit range post-VMware integration; persistent double-digit SBC intensity would justify a discount to the non-GAAP P/E framework when comparing against peers like NVDA and MRVL.",
+  "contract_asset_context": null,
+  "catalysts": [
+    {
+      "date": "Q1 FY2026 (March 2026)",
+      "event": "AVGO Q1 FY2026 earnings \u2014 first quarter where consensus FY1 revenue mid of $103.1B run-rate must be visible",
+      "what_to_watch": "AI semiconductor revenue disclosure and whether quarterly AI run-rate exceeds $6B, validating the FY2 consensus mid of $160.2B trajectory"
+    },
+    {
+      "date": "Q2 FY2026 (June 2026)",
+      "event": "Hyperscaler capex guidance refresh from Google, Meta, Microsoft; AVGO Q2 print",
+      "what_to_watch": "Custom XPU customer count \u2014 confirmation of a fourth hyperscale ASIC engagement would validate Driver A bull case (event A1)"
+    }
+  ],
+  "model_used": "claude-opus-4-7"
+}

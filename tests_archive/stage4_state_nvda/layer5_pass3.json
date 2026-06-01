@@ -1,0 +1,42 @@
+{
+  "audit_skipped": false,
+  "calls_remaining": 7,
+  "forbidden_vocab": [],
+  "citation_errors": [
+    {
+      "field": "investment_thesis",
+      "quoted_text": "current 65.5% revenue growth pace",
+      "issue": "Baseline fy_revenue_yoy is 65.47%, rounds to 65.5% \u2014 within tolerance, no error",
+      "severity": "info"
+    },
+    {
+      "field": "scenario_commentary.bear",
+      "quoted_text": "displace 15\u201325% of internal training workloads over 2\u20133 years",
+      "issue": "Figure sourced from Driver C narrative in pass1; acceptable",
+      "severity": "info"
+    },
+    {
+      "field": "monitoring_framework",
+      "quoted_text": "10\u201315 billion of addressable revenue cited in Driver C",
+      "issue": "Matches Driver C narrative in pass1 ($10-15B export control impact); acceptable",
+      "severity": "info"
+    },
+    {
+      "field": "driver_c_section",
+      "quoted_text": "Customer concentration \u2014 roughly 40% from the top four hyperscalers",
+      "issue": "Matches pass1 events.C1 evidence (~40%); acceptable",
+      "severity": "info"
+    },
+    {
+      "field": "balance_sheet_discussion",
+      "quoted_text": "Stock-based compensation of 6.386 billion runs at roughly 3% of fy_revenue",
+      "issue": "6.386/215.938 = 2.96%, rounds to ~3%; acceptable",
+      "severity": "info"
+    }
+  ],
+  "b1_compliant": true,
+  "tone_label_ok": true,
+  "tone_label_evidence": null,
+  "audit_clean": true,
+  "model_used": "claude-opus-4-7"
+}

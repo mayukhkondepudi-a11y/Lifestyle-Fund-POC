@@ -1,0 +1,202 @@
+{
+  "corporate_dna": "Arlo Technologies designs and sells cloud-connected smart home security cameras, doorbells, and floodlights, increasingly monetised through Arlo Secure paid subscription services. The business model has shifted from one-time hardware sales toward recurring SaaS, with paid accounts and ARPU driving long-term value. Switching costs come from installed camera bases, cloud video history, and integrations with Apple HomeKit, Google, Amazon Alexa, and Samsung SmartThings \u2014 once a household standardises on Arlo, replacement and upgrade purchases stay in-ecosystem. Strategic partnerships (e.g., Verisure in Europe, Origin/ADT-style channel deals) provide multi-year subscriber pipelines. The single most important financial ratio to watch is service revenue gross margin combined with paid-account growth, because incremental subscription dollars carry ~70%+ gross margin versus low-teens hardware margin, and the blended fy_gross_margin of 43.99% is the swing variable for operating leverage. FCF margin of 12.64% on $529M revenue demonstrates the model is already self-funding, but durable re-rating depends on services mix expansion.",
+  "segments_enriched": [
+    {
+      "name": "Services (Arlo Secure subscriptions)",
+      "fy_revenue": null,
+      "share_pct": null,
+      "growth_yoy": null,
+      "gross_margin": null,
+      "sub_segments": [
+        {
+          "name": "Direct-to-consumer subscriptions",
+          "products": "Arlo Secure, Arlo Secure Plus",
+          "trend": "Paid account growth and ARPU expansion driving high-margin recurring revenue"
+        },
+        {
+          "name": "Strategic accounts",
+          "products": "Verisure partnership, Origin Wireless, channel/OEM service bundles",
+          "trend": "Multi-year contracted subscriber pipeline supporting predictable services growth"
+        }
+      ]
+    },
+    {
+      "name": "Products (Hardware)",
+      "fy_revenue": null,
+      "share_pct": null,
+      "growth_yoy": null,
+      "gross_margin": null,
+      "sub_segments": [
+        {
+          "name": "Cameras & doorbells",
+          "products": "Arlo Pro 5S, Ultra 2, Essential, Video Doorbell",
+          "trend": "Hardware sold near breakeven as customer-acquisition vehicle for services"
+        },
+        {
+          "name": "Accessories",
+          "products": "Floodlights, solar panels, mounts, hubs",
+          "trend": "Attach-rate driver but small standalone contribution"
+        }
+      ]
+    }
+  ],
+  "primary_growth_driver": {
+    "name": "Arlo Secure paid-subscriber and ARPU expansion",
+    "narrative": "Arlo's bull case rests on continued paid-account growth and ARPU lifts from tiered Arlo Secure plans (Secure, Secure Plus, Safe). Services revenue carries materially higher gross margin than hardware, so each incremental subscriber expands blended fy_gross_margin (43.99%) toward services-led levels in the 60\u201370% range. Five-year EPS growth consensus of 26.3% and PEG of 0.61 imply the market is underpricing this mix shift. Strategic accounts (e.g., Verisure) provide a contracted runway of subscriber additions independent of DTC marketing spend, while DSO compressing from 41.0 to 27.4 days indicates healthier collections as the services mix grows. Consensus FY1 revenue mid of $565.8M (vs. fy_revenue $529.3M, +6.9%) and FY2 mid of $615.2M embed continued services-led expansion.",
+    "key_data_points": [
+      "fy_revenue $529.3M with +3.6% YoY",
+      "fy_gross_margin 43.99% \u2014 services mix expanding",
+      "DSO improved from 41.0 to 27.4 days",
+      "Five-year EPS growth estimate 26.3%, PEG 0.61",
+      "Consensus FY1 revenue mid $565.8M; FY2 mid $615.2M"
+    ],
+    "tam_view": "Global smart home security market estimated at $50B+ and growing low-double-digits, with cloud video and AI-detection services as the fastest-growing sub-segment."
+  },
+  "peer_set_enriched": [
+    {
+      "ticker": "SNX",
+      "rationale": "Hardware-and-services connected device peer with similar mid-cap profile and channel-heavy distribution dynamics."
+    },
+    {
+      "ticker": "RING-private (Amazon)",
+      "rationale": "Closest direct product competitor in DIY home security cameras; sets pricing reference."
+    },
+    {
+      "ticker": "ADT",
+      "rationale": "Subscription-led home security peer offering a benchmark for services ARPU and churn economics."
+    },
+    {
+      "ticker": "LOGI",
+      "rationale": "Consumer hardware peer with services overlay (Logi Capture); useful for hardware gross-margin comparables."
+    }
+  ],
+  "macro_drivers": {
+    "A": {
+      "label": "Arlo Secure Paid Subscriber & ARPU Growth",
+      "narrative": "Services revenue compounds as the installed hardware base monetises into paid Secure subscriptions. Higher attach rates and tier-up to Secure Plus/Safe lift ARPU while incremental gross margin runs ~70%, expanding op leverage well above the current 1.15% op margin. This is the single most important variable for ARLO's re-rating."
+    },
+    "B": {
+      "label": "Strategic Account & Channel Stability (Verisure et al.)",
+      "narrative": "Multi-year strategic-account commitments (notably Verisure in Europe) provide contracted subscriber additions and hardware shipments independent of DTC demand swings. This recurring revenue anchor and improved collection cycle (DSO 27.4 vs 41.0) underpins the base-case revenue trajectory toward consensus $565.8M FY1."
+    },
+    "C": {
+      "label": "Big-Tech Camera Competition & Hardware Commoditisation",
+      "narrative": "Amazon Ring, Google Nest, Eufy, and Wyze compete aggressively on hardware price and bundled cloud services, pressuring Arlo's hardware ASPs and potentially subscription pricing. Hardware commoditisation could stall new-subscriber funnel growth and compress fy_gross_margin if services mix shift slows."
+    }
+  },
+  "events": [
+    {
+      "id": "A1",
+      "driver": "A",
+      "outcome": "bull",
+      "probability": 0.35,
+      "revenue_at_risk_low": 0.045,
+      "revenue_at_risk_high": 0.075,
+      "op_margin_to_apply": 0.15,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Consensus FY2 revenue high $624.9M vs fy_revenue $529.3M implies ~$95M upside; bull subset attributable to Secure ARPU/sub growth at 5-yr EPS CAGR 26.3%."
+    },
+    {
+      "id": "A2",
+      "driver": "A",
+      "outcome": "base",
+      "probability": 0.5,
+      "revenue_at_risk_low": 0.025,
+      "revenue_at_risk_high": 0.045,
+      "op_margin_to_apply": 0.1,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Consensus FY1 revenue mid $565.8M vs fy_revenue $529.3M = +$36.5M, consistent with steady paid-account growth and modest ARPU lift."
+    },
+    {
+      "id": "A3",
+      "driver": "A",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.015,
+      "op_margin_to_apply": 0.03,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "If Secure ARPU stalls and tier-up adoption disappoints, fy_revenue YoY +3.6% growth pace persists, well below consensus FY1 low $564.6M."
+    },
+    {
+      "id": "B1",
+      "driver": "B",
+      "outcome": "bull",
+      "probability": 0.3,
+      "revenue_at_risk_low": 0.02,
+      "revenue_at_risk_high": 0.035,
+      "op_margin_to_apply": 0.08,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "DSO improvement from 41.0 to 27.4 days signals strengthening strategic-account flows; expansion of Verisure-type partnerships could add incremental contracted subscribers."
+    },
+    {
+      "id": "B2",
+      "driver": "B",
+      "outcome": "base",
+      "probability": 0.55,
+      "revenue_at_risk_low": 0.01,
+      "revenue_at_risk_high": 0.025,
+      "op_margin_to_apply": 0.05,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Stable strategic-account contributions consistent with fy_revenue +3.6% YoY and FCF margin 12.64% on $529.3M base."
+    },
+    {
+      "id": "B3",
+      "driver": "B",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": -0.02,
+      "revenue_at_risk_high": 0.0,
+      "op_margin_to_apply": 0.02,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Loss or non-renewal of a major strategic account (e.g., Verisure terms reset) would reverse the DSO improvement (27.4 vs prior 41.0) and impair predictable services backlog."
+    },
+    {
+      "id": "C1",
+      "driver": "C",
+      "outcome": "bear",
+      "probability": 0.45,
+      "revenue_at_risk_low": -0.06,
+      "revenue_at_risk_high": -0.025,
+      "op_margin_to_apply": 0.02,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Amazon Ring/Google Nest hardware price competition pressures Arlo ASPs; fy_op_margin already thin at 1.15%, leaving little buffer if hardware GM compresses from 43.99% blended."
+    },
+    {
+      "id": "C2",
+      "driver": "C",
+      "outcome": "base",
+      "probability": 0.4,
+      "revenue_at_risk_low": -0.02,
+      "revenue_at_risk_high": 0.0,
+      "op_margin_to_apply": 0.04,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Competitive intensity persists but Arlo holds installed base; modest hardware ASP erosion consistent with fy_revenue YoY +3.6% growth."
+    },
+    {
+      "id": "C3",
+      "driver": "C",
+      "outcome": "bull",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.02,
+      "op_margin_to_apply": 0.08,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "If Eufy/Wyze data-privacy concerns or Ring regulatory scrutiny persist, Arlo gains premium DIY share; supported by consensus price target median $22 vs current $13.34."
+    }
+  ],
+  "pe_anchors": {
+    "bull": {
+      "reasoning": "In a bull scenario where Arlo Secure ARPU compounds and services mix dominates, ARLO deserves a SaaS-adjacent multiple closer to LOGI's hardware-plus-services range and ADT's subscription comps, supporting a ~22\u201325\u00d7 NTM P/E on PEG ~0.85\u00d7 against 26.3% 5-yr EPS growth."
+    },
+    "base": {
+      "reasoning": "Base case anchors to a blended hardware-and-services multiple between LOGI's mid-teens and ADT's high-teens fwd P/E, implying ~16\u201318\u00d7 NTM EPS \u2014 consistent with steady subscriber growth and modest margin expansion."
+    },
+    "bear": {
+      "reasoning": "If hardware commoditisation versus Amazon Ring and Google Nest dominates, ARLO compresses toward SNX-style low-double-digit hardware multiples (~10\u201312\u00d7 fwd P/E), reflecting margin pressure and stalled mix shift."
+    }
+  },
+  "model_used": "claude-opus-4-7",
+  "sbc_context": null,
+  "contract_asset_context": null
+}

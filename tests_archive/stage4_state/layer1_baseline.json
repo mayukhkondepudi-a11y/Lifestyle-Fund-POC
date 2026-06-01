@@ -1,0 +1,85 @@
+{
+  "ticker": "AVGO",
+  "company_name": "Broadcom Inc.",
+  "current_price": 446.77,
+  "shares_out": 4.734668184,
+  "market_cap": 2115.307700224,
+  "net_debt": 51.882998784,
+  "currency": "USD",
+  "fy_revenue": 63.887,
+  "fy_revenue_yoy": 0.2387,
+  "fy_gross_margin": 0.6777,
+  "fy_op_margin": 0.4081,
+  "fy_net_income": 23.126,
+  "fy_eps_non_gaap": 4.77,
+  "fy_fcf": 26.914,
+  "fy_fcf_margin": 0.4213,
+  "fy_sbc": 7.568,
+  "fy_contract_assets": null,
+  "prior_contract_assets": null,
+  "fy_software_revenue": null,
+  "fy_dso": 40.8,
+  "prior_dso": 31.3,
+  "fy_ocf": 27.537,
+  "fy_net_income_gaap": 23.126,
+  "tax_rate_guidance": 0.21,
+  "beta": 1.44,
+  "fwd_pe": 24.227072,
+  "trailing_pe": 86.920235,
+  "peg": 0.97,
+  "consensus_eps_fy1": {
+    "low": 10.24,
+    "mid": 11.36094,
+    "high": 13.31
+  },
+  "consensus_eps_fy2": {
+    "low": 13.35,
+    "mid": 18.44094,
+    "high": 21.45
+  },
+  "consensus_eps_fy3": null,
+  "consensus_revenue_fy1": {
+    "low": 85609000000.0,
+    "mid": 103089318650.0,
+    "high": 119246000000.0
+  },
+  "consensus_revenue_fy2": {
+    "low": 90654000000.0,
+    "mid": 160225004330.0,
+    "high": 197405000000.0
+  },
+  "consensus_price_target": {
+    "low": 215.88,
+    "median": 495.0,
+    "high": 630.0
+  },
+  "n_analysts": 43,
+  "five_yr_eps_growth_est": 0.6,
+  "segments": null,
+  "history_3y": [
+    {
+      "fy": "2023",
+      "revenue": 35.82,
+      "op_margin": 0.4593,
+      "fcf": 17.63,
+      "eps": 3.3
+    },
+    {
+      "fy": "2024",
+      "revenue": 51.57,
+      "op_margin": 0.2908,
+      "fcf": 19.41,
+      "eps": 1.23
+    },
+    {
+      "fy": "2025",
+      "revenue": 63.89,
+      "op_margin": 0.4081,
+      "fcf": 26.91,
+      "eps": 4.77
+    }
+  ],
+  "peer_set": [],
+  "recent_news": [],
+  "data_quality_warnings": []
+}

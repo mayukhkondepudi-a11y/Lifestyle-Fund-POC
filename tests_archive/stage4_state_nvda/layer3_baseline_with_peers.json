@@ -1,0 +1,124 @@
+{
+  "ticker": "NVDA",
+  "company_name": "NVIDIA Corporation",
+  "current_price": 215.33,
+  "shares_out": 24.221,
+  "market_cap": 5215.507972096,
+  "net_debt": -40.357998592,
+  "currency": "USD",
+  "fy_revenue": 215.938,
+  "fy_revenue_yoy": 0.6547,
+  "fy_gross_margin": 0.7107,
+  "fy_op_margin": 0.6038,
+  "fy_net_income": 120.067,
+  "fy_eps_non_gaap": 4.9,
+  "fy_fcf": 96.676,
+  "fy_fcf_margin": 0.4477,
+  "fy_sbc": 6.386,
+  "fy_contract_assets": null,
+  "prior_contract_assets": null,
+  "fy_software_revenue": null,
+  "fy_dso": 65.0,
+  "prior_dso": 64.5,
+  "fy_ocf": 102.718,
+  "fy_net_income_gaap": 120.067,
+  "tax_rate_guidance": 0.21,
+  "beta": 2.244,
+  "fwd_pe": 17.027882,
+  "trailing_pe": 43.94,
+  "peg": 0.66,
+  "consensus_eps_fy1": {
+    "low": 8.2,
+    "mid": 8.93516,
+    "high": 9.79
+  },
+  "consensus_eps_fy2": {
+    "low": 9.65,
+    "mid": 12.64573,
+    "high": 16.0
+  },
+  "consensus_eps_fy3": null,
+  "consensus_revenue_fy1": {
+    "low": 357215000000.0,
+    "mid": 391440837900.0,
+    "high": 415524773220.0
+  },
+  "consensus_revenue_fy2": {
+    "low": 416398000000.0,
+    "mid": 540452452410.0,
+    "high": 710010000000.0
+  },
+  "consensus_price_target": {
+    "low": 180.0,
+    "median": 284.0,
+    "high": 500.0
+  },
+  "n_analysts": 47,
+  "five_yr_eps_growth_est": 0.6,
+  "segments": null,
+  "history_3y": [
+    {
+      "fy": "2024",
+      "revenue": 60.92,
+      "op_margin": 0.5412,
+      "fcf": 27.02,
+      "eps": 1.19
+    },
+    {
+      "fy": "2025",
+      "revenue": 130.5,
+      "op_margin": 0.6242,
+      "fcf": 60.85,
+      "eps": 2.94
+    },
+    {
+      "fy": "2026",
+      "revenue": 215.94,
+      "op_margin": 0.6038,
+      "fcf": 96.68,
+      "eps": 4.9
+    }
+  ],
+  "peer_set": [
+    {
+      "ticker": "AMD",
+      "fwd_pe": 36.07458,
+      "growth": 0.7594,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "AVGO",
+      "fwd_pe": 22.681368,
+      "growth": 0.6075,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "INTC",
+      "fwd_pe": 77.83233,
+      "growth": 0.4152,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "TSM",
+      "fwd_pe": 20.726833,
+      "growth": 0.25030002,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "MRVL",
+      "fwd_pe": 35.994133,
+      "growth": 0.4294,
+      "op_margin": null,
+      "fcf_margin": null
+    }
+  ],
+  "recent_news": [],
+  "data_quality_warnings": [
+    "FCF DIVERGENCE: info=46335873024 vs computed=96676000000 (109%); using computed value.",
+    "PEG CONFLICT: API trailing PE=33.0 vs computed=43.9; using computed."
+  ]
+}

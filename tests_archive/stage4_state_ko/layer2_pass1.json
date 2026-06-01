@@ -1,0 +1,185 @@
+{
+  "corporate_dna": "Coca-Cola is the world's largest non-alcoholic beverage franchisor, generating revenue primarily by selling concentrates and syrups to a global network of independent bottlers who manufacture, package, and distribute finished beverages under ~200 brands including Coca-Cola, Sprite, Fanta, Dasani, Powerade, Minute Maid, and Costa Coffee. The asset-light franchise model produces structurally high gross margins (FY 61.6%) and operating margins (FY 31.1%). Customer switching costs are anchored by unmatched global distribution scale, century-old brand equity, and exclusive bottler territory contracts that lock shelf space at retailers. Pricing power and unit case volume growth in emerging markets are the core organic growth levers, while currency translation is the largest swing factor given ~65% of revenue is non-USD. The single most important financial ratio to watch is organic revenue growth (price/mix + concentrate volume), as it determines whether KO can sustain its premium-to-staples multiple. FCF conversion and dividend coverage (FY FCF $5.30B vs ~$8B dividend) are secondary watch items.",
+  "segments_enriched": [],
+  "primary_growth_driver": {
+    "name": "Global Price/Mix and Emerging Market Volume",
+    "narrative": "KO's bull case rests on its ability to push through 5-7% annual price/mix while sustaining low-single-digit unit case volume growth in emerging markets (India, Latin America, Africa). FY revenue of $47.94B grew only 1.87% YoY due to FX headwinds and refranchising, but underlying organic growth has run materially higher. The mechanism: concentrate price increases pass through bottlers at near-100% incremental margin, while volume in EM consumers trading up from informal beverages expands the base. With fy_op_margin at 31.1% and gross margin at 61.6%, every incremental dollar of organic revenue is highly accretive. Consensus FY1 revenue mid of $49.09B implies ~2.4% reported growth, suggesting analysts expect continued FX drag offsetting healthier organic trends.",
+    "key_data_points": [
+      "FY revenue $47.941B, YoY +1.87%",
+      "FY operating margin 31.1%",
+      "FY gross margin 61.63%",
+      "Consensus FY1 revenue mid $49.09B (low $48.35B, high $50.53B)",
+      "Consensus FY2 revenue mid $50.04B",
+      "5-yr EPS growth estimate 7.05%"
+    ],
+    "tam_view": "Global non-alcoholic ready-to-drink beverage TAM exceeds $1 trillion, with KO holding roughly 10% value share and meaningful runway in coffee, sports drinks, and premium water categories."
+  },
+  "peer_set_enriched": [
+    {
+      "ticker": "PEP",
+      "rationale": "Direct global beverage competitor with overlapping CSD, water, and sports drink portfolios; closest scale and margin comp."
+    },
+    {
+      "ticker": "KDP",
+      "rationale": "North American beverage peer (Keurig Dr Pepper) competing in CSDs, coffee, and water with similar distribution dynamics."
+    },
+    {
+      "ticker": "MNST",
+      "rationale": "Energy drink peer partially distributed via the Coca-Cola bottler system, sharing growth in functional beverages."
+    }
+  ],
+  "macro_drivers": [
+    {
+      "id": "A",
+      "label": "Global Price/Mix and EM Volume Expansion",
+      "narrative": "Concentrate pricing actions plus emerging-market unit case volume growth are the primary organic revenue lever. Because concentrate carries ~60%+ gross margins, incremental price/mix flows disproportionately to operating income. This is THE driver because KO's mature developed-market business cannot deliver bull-case EPS without EM acceleration and sustained pricing."
+    },
+    {
+      "id": "B",
+      "label": "Bottler Franchise System Recurring Stability",
+      "narrative": "KO's exclusive bottler contracts, brand equity, and global shelf presence produce recurring concentrate orders that are essentially annuity-like. Even in downturns, at-home consumption substitutes for away-from-home, cushioning volume. FY operating margin of 31.1% and FCF of $5.30B reflect the durability of this base, anchoring the base case regardless of macro swings."
+    },
+    {
+      "id": "C",
+      "label": "FX Translation and Sugar/Health Regulation Risk",
+      "narrative": "With ~65% of revenue non-USD, a strong dollar materially compresses reported revenue and EPS \u2014 visible in FY revenue growth of only 1.87% despite mid-single-digit organic growth. Compounding this is accelerating regulatory pressure (sugar taxes in UK, Mexico, expanding to US states; GLP-1 demand impact on sugary beverage consumption). These are structural headwinds with no near-term resolution."
+    }
+  ],
+  "events": [
+    {
+      "id": "A1",
+      "driver": "A",
+      "outcome": "bull",
+      "probability": 0.35,
+      "revenue_at_risk_low": 1.5,
+      "revenue_at_risk_high": 3.5,
+      "op_margin_to_apply": 0.34,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Consensus FY1 revenue high of $50.53B vs FY baseline $47.94B implies up to $2.6B upside; consensus FY2 high $53.84B suggests bull EM/price-mix outcome adds $3-3.5B over 24 months."
+    },
+    {
+      "id": "A2",
+      "driver": "A",
+      "outcome": "base",
+      "probability": 0.5,
+      "revenue_at_risk_low": 0.4,
+      "revenue_at_risk_high": 1.5,
+      "op_margin_to_apply": 0.311,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Consensus FY1 revenue mid $49.09B vs FY baseline $47.94B implies ~$1.15B incremental; aligns with 5-yr EPS growth estimate of 7.05%."
+    },
+    {
+      "id": "A3",
+      "driver": "A",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 0.4,
+      "op_margin_to_apply": 0.28,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Consensus FY1 revenue low $48.35B vs FY baseline $47.94B implies only ~$0.4B incremental \u2014 EM volume softness scenario."
+    },
+    {
+      "id": "B1",
+      "driver": "B",
+      "outcome": "base",
+      "probability": 0.6,
+      "revenue_at_risk_low": 0.5,
+      "revenue_at_risk_high": 1.2,
+      "op_margin_to_apply": 0.311,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "FY OCF $7.41B and FCF $5.30B demonstrate steady cash conversion of base concentrate business; FY net income $13.11B GAAP supports recurring franchise economics."
+    },
+    {
+      "id": "B2",
+      "driver": "B",
+      "outcome": "bull",
+      "probability": 0.25,
+      "revenue_at_risk_low": 1.0,
+      "revenue_at_risk_high": 2.0,
+      "op_margin_to_apply": 0.33,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "DSO improved from 27.7 to 23.1 days indicates strengthening bottler payment discipline and working-capital efficiency, signaling franchise system health."
+    },
+    {
+      "id": "B3",
+      "driver": "B",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk_low": -1.0,
+      "revenue_at_risk_high": 0.0,
+      "op_margin_to_apply": 0.29,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Data quality warning flags FCF divergence (info $3.12B vs computed $5.30B), suggesting potential variability in cash conversion that could pressure franchise reinvestment."
+    },
+    {
+      "id": "C1",
+      "driver": "C",
+      "outcome": "bear",
+      "probability": 0.45,
+      "revenue_at_risk_low": -2.5,
+      "revenue_at_risk_high": -1.0,
+      "op_margin_to_apply": 0.3,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "FY revenue growth of only 1.87% on baseline $47.94B reflects ongoing USD strength; further FX drag plus sugar-tax expansion could remove $1-2.5B of reported revenue versus organic trend."
+    },
+    {
+      "id": "C2",
+      "driver": "C",
+      "outcome": "base",
+      "probability": 0.4,
+      "revenue_at_risk_low": -1.0,
+      "revenue_at_risk_high": -0.2,
+      "op_margin_to_apply": 0.305,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "Baseline FY revenue YoY of 1.87% already embeds moderate FX and regulatory drag; base case assumes continued but contained $0.2-1.0B headwind."
+    },
+    {
+      "id": "C3",
+      "driver": "C",
+      "outcome": "bull",
+      "probability": 0.15,
+      "revenue_at_risk_low": 0.0,
+      "revenue_at_risk_high": 1.0,
+      "op_margin_to_apply": 0.315,
+      "tax_rate_to_apply": 0.21,
+      "evidence": "USD weakening scenario would reverse part of FX drag visible in FY revenue growth of 1.87%; consensus FY1 high $50.53B implicitly assumes favorable FX."
+    }
+  ],
+  "pe_anchors": {
+    "bull": {
+      "reasoning": "In a bull scenario where price/mix and EM volume re-accelerate, KO deserves a premium to PEP (which trades in the low-20s fwd P/E) and a meaningful premium to KDP given KO's superior global mix and higher operating margins \u2014 supports a ~26-27\u00d7 NTM multiple."
+    },
+    "base": {
+      "reasoning": "Base case anchors near PEP's fwd P/E (low-20s) given comparable scale, margin, and dividend profile; KDP trades at a modest discount reflecting its more regional footprint, justifying KO at ~22-23\u00d7 NTM."
+    },
+    "bear": {
+      "reasoning": "In a bear FX/regulatory scenario, KO compresses toward KDP's multiple (high-teens fwd P/E) and could trade below PEP given amplified EM FX exposure, implying ~18-19\u00d7 NTM."
+    }
+  },
+  "sbc_context": "FY stock-based compensation of $0.279B represents a modest 0.58% of FY revenue ($47.94B) and roughly 2.1% of FY net income ($13.11B), well below tech-sector norms. SBC dilution is immaterial to KO's per-share economics and is comfortably offset by ongoing share repurchases; the company's compensation structure remains predominantly cash-based, consistent with consumer staples peers.",
+  "contract_asset_context": null,
+  "catalysts": [
+    {
+      "date": "Q4 FY2025 earnings (February 2026)",
+      "event": "Coca-Cola Q4 and full-year FY2025 results \u2014 first read on full-year organic revenue growth versus 5-7% long-term algorithm",
+      "what_to_watch": "Organic revenue growth split between price/mix and unit case volume; FY2026 guidance for currency-neutral EPS growth"
+    },
+    {
+      "date": "Q1 FY2026 earnings (April 2026)",
+      "event": "Q1 FY2026 print \u2014 key test of EM volume momentum (India, Latin America) post holiday season",
+      "what_to_watch": "Unit case volume growth in Asia Pacific and Latin America segments; commentary on GLP-1 impact on sparkling volumes"
+    },
+    {
+      "date": "Q2 FY2026 earnings (July 2026)",
+      "event": "Q2 FY2026 \u2014 peak summer selling season results and mid-year guidance update",
+      "what_to_watch": "Whether FY26 organic revenue tracks within 5-6% guidance range; FX impact on reported EPS vs $3.49 consensus FY2 mid"
+    },
+    {
+      "date": "2026-02 (CAGNY Conference)",
+      "event": "Consumer Analyst Group of New York (CAGNY) conference presentation",
+      "what_to_watch": "Updated multi-year capital allocation framework, productivity savings targets, and any refranchising announcements affecting reported revenue base"
+    }
+  ],
+  "model_used": "claude-opus-4-7"
+}

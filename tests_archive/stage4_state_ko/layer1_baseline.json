@@ -1,0 +1,87 @@
+{
+  "ticker": "KO",
+  "company_name": "Coca-Cola Company (The)",
+  "current_price": 79.01,
+  "shares_out": 4.302482418,
+  "market_cap": 339.939131392,
+  "net_debt": 30.82699776,
+  "currency": "USD",
+  "fy_revenue": 47.941,
+  "fy_revenue_yoy": 0.0187,
+  "fy_gross_margin": 0.6163,
+  "fy_op_margin": 0.311,
+  "fy_net_income": 13.107,
+  "fy_eps_non_gaap": 3.04,
+  "fy_fcf": 5.296,
+  "fy_fcf_margin": 0.1105,
+  "fy_sbc": 0.279,
+  "fy_contract_assets": null,
+  "prior_contract_assets": null,
+  "fy_software_revenue": null,
+  "fy_dso": 23.1,
+  "prior_dso": 27.7,
+  "fy_ocf": 7.408,
+  "fy_net_income_gaap": 13.107,
+  "tax_rate_guidance": 0.21,
+  "beta": 0.356,
+  "fwd_pe": 22.680367,
+  "trailing_pe": 24.845913,
+  "peg": 4.12,
+  "consensus_eps_fy1": {
+    "low": 3.24,
+    "mid": 3.26595,
+    "high": 3.30909
+  },
+  "consensus_eps_fy2": {
+    "low": 3.388,
+    "mid": 3.48363,
+    "high": 3.56
+  },
+  "consensus_eps_fy3": null,
+  "consensus_revenue_fy1": {
+    "low": 48354400000.0,
+    "mid": 49088894110.0,
+    "high": 50529000000.0
+  },
+  "consensus_revenue_fy2": {
+    "low": 48670400000.0,
+    "mid": 50038196400.0,
+    "high": 53836000000.0
+  },
+  "consensus_price_target": {
+    "low": 71.38,
+    "median": 88.0,
+    "high": 92.0
+  },
+  "n_analysts": 23,
+  "five_yr_eps_growth_est": 0.0704816304134468,
+  "segments": null,
+  "history_3y": [
+    {
+      "fy": "2023",
+      "revenue": 45.75,
+      "op_margin": 0.2863,
+      "fcf": 9.75,
+      "eps": 2.47
+    },
+    {
+      "fy": "2024",
+      "revenue": 47.06,
+      "op_margin": 0.298,
+      "fcf": 4.74,
+      "eps": 2.46
+    },
+    {
+      "fy": "2025",
+      "revenue": 47.94,
+      "op_margin": 0.311,
+      "fcf": 5.3,
+      "eps": 3.04
+    }
+  ],
+  "peer_set": [],
+  "recent_news": [],
+  "data_quality_warnings": [
+    "FCF DIVERGENCE: info=3124250112 vs computed=5296000000 (70%); using computed value."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "audit_skipped": false,
+  "calls_remaining": 5,
+  "forbidden_vocab": [],
+  "citation_errors": [
+    {
+      "field": "scenario_commentary.bull",
+      "quoted_text": "the bull target sits 30% below current price",
+      "issue": "Bull_high 55.04 vs current 79.01 = ~30.3% below \u2014 within tolerance, acceptable",
+      "severity": "info"
+    },
+    {
+      "field": "financial_profile",
+      "quoted_text": "~8 billion annual dividend cited in corporate DNA",
+      "issue": "Dividend figure ~$8B is sourced from corporate_dna text \u2014 acceptable",
+      "severity": "info"
+    },
+    {
+      "field": "scenario_commentary.base",
+      "quoted_text": "consensus FY1 revenue mid of 49.09 billion (+2.4% reported)",
+      "issue": "Consensus FY1 mid is 49.089B (~2.4% over 47.94B) \u2014 matches",
+      "severity": "info"
+    },
+    {
+      "field": "monitoring",
+      "quoted_text": "3.49 consensus FY2 mid",
+      "issue": "Consensus FY2 EPS mid is 3.48363 (~3.48); 3.49 is within \u00b15% and appears in catalysts what_to_watch \u2014 acceptable",
+      "severity": "info"
+    }
+  ],
+  "b1_compliant": true,
+  "tone_label_ok": true,
+  "tone_label_evidence": null,
+  "audit_clean": true,
+  "model_used": "claude-opus-4-7"
+}

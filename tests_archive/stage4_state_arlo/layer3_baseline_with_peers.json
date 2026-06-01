@@ -1,0 +1,116 @@
+{
+  "ticker": "ARLO",
+  "company_name": "Arlo Technologies, Inc.",
+  "current_price": 13.34,
+  "shares_out": 0.108609817,
+  "market_cap": 1.448854912,
+  "net_debt": -0.159265,
+  "currency": "USD",
+  "fy_revenue": 0.529297,
+  "fy_revenue_yoy": 0.036,
+  "fy_gross_margin": 0.4399,
+  "fy_op_margin": 0.0115,
+  "fy_net_income": 0.014926,
+  "fy_eps_non_gaap": -0.31,
+  "fy_fcf": 0.066896,
+  "fy_fcf_margin": 0.1264,
+  "fy_sbc": 0.062333,
+  "fy_contract_assets": null,
+  "prior_contract_assets": null,
+  "fy_software_revenue": null,
+  "fy_dso": 27.4,
+  "prior_dso": 41.0,
+  "fy_ocf": 0.078722,
+  "fy_net_income_gaap": 0.014926,
+  "tax_rate_guidance": 0.21,
+  "beta": 1.595,
+  "fwd_pe": 13.502025,
+  "trailing_pe": -43.03,
+  "peg": 0.61,
+  "consensus_eps_fy1": {
+    "low": 0.8,
+    "mid": 0.84,
+    "high": 0.9
+  },
+  "consensus_eps_fy2": {
+    "low": 0.94,
+    "mid": 0.988,
+    "high": 1.1
+  },
+  "consensus_eps_fy3": null,
+  "consensus_revenue_fy1": {
+    "low": 564600000.0,
+    "mid": 565793400.0,
+    "high": 567200000.0
+  },
+  "consensus_revenue_fy2": {
+    "low": 602500000.0,
+    "mid": 615194400.0,
+    "high": 624900000.0
+  },
+  "consensus_price_target": {
+    "low": 19.0,
+    "median": 22.0,
+    "high": 24.0
+  },
+  "n_analysts": 5,
+  "five_yr_eps_growth_est": 0.263,
+  "segments": null,
+  "history_3y": [
+    {
+      "fy": "2023",
+      "revenue": 0.49,
+      "op_margin": -0.0507,
+      "fcf": 0.04,
+      "eps": -0.24
+    },
+    {
+      "fy": "2024",
+      "revenue": 0.51,
+      "op_margin": -0.0683,
+      "fcf": 0.05,
+      "eps": -0.31
+    },
+    {
+      "fy": "2025",
+      "revenue": 0.53,
+      "op_margin": 0.0115,
+      "fcf": 0.07,
+      "eps": null
+    }
+  ],
+  "peer_set": [
+    {
+      "ticker": "SNX",
+      "fwd_pe": 14.027711,
+      "growth": 0.1019,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "RING-private (Amazon)",
+      "fwd_pe": null,
+      "growth": null,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "ADT",
+      "fwd_pe": 6.928669,
+      "growth": 0.059699997,
+      "op_margin": null,
+      "fcf_margin": null
+    },
+    {
+      "ticker": "LOGI",
+      "fwd_pe": 19.59498,
+      "growth": 0.0614,
+      "op_margin": null,
+      "fcf_margin": null
+    }
+  ],
+  "recent_news": [],
+  "data_quality_warnings": [
+    "PEG CONFLICT: API trailing PE=47.6 vs computed=-43.0; using computed."
+  ]
+}

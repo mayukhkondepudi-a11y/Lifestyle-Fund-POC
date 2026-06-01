@@ -1,0 +1,79 @@
+{
+  "headline_metric": "implied_fcf_cagr",
+  "implied_fcf_cagr": 0.115335,
+  "discount_rate": 0.0608,
+  "shares_projected": 4.3025,
+  "scenario_eps": {
+    "bull": 3.48,
+    "base": 2.81,
+    "bear": 2.62
+  },
+  "pe_band": {
+    "bull_low": 11.0,
+    "bull_high": 15.8,
+    "base_low": 8.2,
+    "base_high": 12.6,
+    "bear_low": 9.0,
+    "bear_high": 10.0
+  },
+  "price_target": {
+    "bull_high": 55.04,
+    "bull_mid": 46.68,
+    "base_mid": 29.19,
+    "bear_low": 23.62
+  },
+  "joint_probs": {
+    "bull": 0.3158,
+    "base": 0.2105,
+    "bear": 0.4737
+  },
+  "driver_probs": {
+    "A": {
+      "bull": 0.35,
+      "base": 0.5,
+      "bear": 0.15
+    },
+    "B": {
+      "bull": 0.25,
+      "base": 0.6,
+      "bear": 0.15
+    },
+    "C": {
+      "bull": 0.15,
+      "base": 0.4,
+      "bear": 0.45
+    }
+  },
+  "expected_value": 32.7,
+  "risk": {
+    "prob_loss": 1.0,
+    "max_drawdown_pct": 0.6843,
+    "expected_return_pct": -0.5861,
+    "ev": 32.7
+  },
+  "breakeven_pe": 26.0,
+  "dcf": {
+    "bull": {
+      "enterprise_value": 269.69,
+      "equity_value": 238.86,
+      "intrinsic_per_share": 55.52
+    },
+    "base": {
+      "enterprise_value": 219.2,
+      "equity_value": 188.37,
+      "intrinsic_per_share": 43.78
+    },
+    "bear": {
+      "enterprise_value": 205.6,
+      "equity_value": 174.77,
+      "intrinsic_per_share": 40.62
+    }
+  },
+  "recommendation": "PASS",
+  "calibration_log": [
+    "Base P/E ratio-discounted: base_high 15.8\u219212.6, base_low 11.0\u21928.2 (0.80/0.75 of bull band)",
+    "Bear P/E capped below bull P/E to preserve scenario hierarchy (bear_high 32.5\u219210.0, bull_pe_low=11.0)",
+    "Step D: consensus_divergent=True \u2014 bull_high=$55.04 \u2264 current_price=$79.01"
+  ],
+  "consensus_divergent": true
+}
