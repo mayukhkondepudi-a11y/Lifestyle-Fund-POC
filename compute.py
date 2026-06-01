@@ -9,7 +9,7 @@ v3 changes:
 """
 
 import re
-from formatting import safe_float, fmt_n
+from formatting import safe_float
 
 
 # ══════════════════════════════════════════════════════════════
@@ -266,9 +266,9 @@ def calc(data):
 
 
 # ══════════════════════════════════════════════════════════════
-# §7.1  calc_baseline  (Phase B — built ALONGSIDE calc(), not replacing it)
+# §7.1  calc_baseline  (built ALONGSIDE calc(), not replacing it)
 # Produces the §5.1 baseline dict consumed by run_methodology_math and pass1.
-# calc() remains intact; deletion deferred to Phase H.
+# calc() remains intact — still used by app.py.
 # ══════════════════════════════════════════════════════════════
 
 def calc_baseline(data, consensus_pack=None, peer_tickers=None,

@@ -9,10 +9,8 @@ Usage:
 """
 from __future__ import annotations
 
-import json
 import sys
 import traceback
-from pathlib import Path
 
 TICKERS = ["AVGO", "KO", "ASML", "NVDA", "ADBE"]
 

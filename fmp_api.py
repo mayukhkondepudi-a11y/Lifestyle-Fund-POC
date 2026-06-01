@@ -4,13 +4,11 @@ yfinance is PRIMARY for all markets. FMP is FALLBACK for US stocks.
 """
 
 import json
-import os
 import time as _time
 import urllib.request
 import urllib.parse
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from typing import Optional
 
 try:

@@ -3,7 +3,6 @@
 import streamlit as st
 import pandas as pd
 import json
-import os
 from datetime import datetime
 from compute import clean_latex
 
@@ -46,8 +45,8 @@ _sc.html("""
 
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
-                    RESEND_API_KEY, DOMAIN_MAP, METHODOLOGY_VERSION)
-from formatting import (safe_float, get_sym, fmt_n, fmt_p, fmt_r, fmt_c,
+                    DOMAIN_MAP, METHODOLOGY_VERSION)
+from formatting import (safe_float, get_sym, fmt_p, fmt_r, fmt_c,
                          strip_html, clean_ticker)
 
 # FIX: fmt_eps_impact now correctly accepts sym as a required parameter
@@ -69,13 +68,11 @@ def pt_table(header_html, rows_html):
             f'<thead>{header_html}</thead>'
             f'<tbody>{rows_html}</tbody></table></div>')
 
-from github_store import (add_tracked_stock, load_screener_results_raw,
-                          load_tracker)
-from email_service import send_email, email_confirmation
+from github_store import add_tracked_stock
+from email_service import email_confirmation
 from compute import calc, calc_baseline
 import ai
 import fmp_api
-from logos import get_logo_html, get_logo_and_name_html
 
 # ── Session State ─────────────────────────────────────────────
 for key, default in [

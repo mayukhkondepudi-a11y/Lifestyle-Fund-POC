@@ -8,7 +8,6 @@ Calibration constants live in compute.py (§7.3 + C2).
 """
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from compute import (

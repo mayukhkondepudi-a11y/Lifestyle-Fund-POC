@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import datetime
 from openai import OpenAI
@@ -11,7 +10,7 @@ from compute import clean_latex
 
 from config import (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, FREE_MODELS,
                     FREE_MODELS_EXTENDED)
-from formatting import safe_float, fmt_c, fmt_n, fmt_p
+from formatting import safe_float
 from compute import (
     MAX_PIPELINE_AI_CALLS,
 )
@@ -1153,7 +1152,7 @@ def _assemble_pipeline_output(
             "base": base_mid,            # alias: render_track_box + scenario tabs
             "bear": bear_low,            # alias: scenario tabs
         },
-        "scenario_revenue":    {},       # v2 doesn't aggregate segment revenue; Phase H
+        "scenario_revenue":    {},       # v2 doesn't aggregate segment revenue
         "expected_value":      ev_val,
         "expected_return":     expected_return,
         "base_implied_return": base_implied,
@@ -1163,7 +1162,7 @@ def _assemble_pipeline_output(
         "violation_msg":       mono_msg,
         "bull_below_current":  bull_below,
         "bull_below_msg":      bull_below_msg,
-        "diagnostic":          {},       # stub; Phase H wires fundamentals signal check
+        "diagnostic":          {},       # stub; fundamentals signal check not wired
         "degraded_sections":   [],
     }
 
@@ -1223,7 +1222,7 @@ def _assemble_pipeline_output(
         "catalysts":       catalysts,
         "scenario_inputs": scenario_inputs,
         "macro_drivers":   _normalize_macro_drivers(pass1.get("macro_drivers")),
-        "drivers":         [],    # Phase H: render v2 events as driver cards
+        "drivers":         [],    # stub; v2 events not yet rendered as driver cards
         "headwinds":       math.get("headwinds", []),
         "tailwinds":       math.get("tailwinds", []),
         "ev_formula_string": math.get("ev_formula_string", ""),

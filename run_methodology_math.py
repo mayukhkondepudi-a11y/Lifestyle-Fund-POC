@@ -12,7 +12,6 @@ from typing import Any
 from compute import HEADLINE_METRIC, ANALYST_CONSENSUS_BULL_FLOOR_FRAC
 from compute_methodology_v2 import (
     headwind_eps_impact,
-    scenario_revenue,
     scenario_eps,
     pe_band,
     breakeven_pe,
@@ -24,13 +23,10 @@ from compute_methodology_v2 import (
     projected_shares,
     dcf_intrinsic_value,
     project_fcf,
-    owner_earnings as compute_owner_earnings,
     wacc as compute_wacc,
     recommendation,
     DEFAULT_TAX_RATE,
     DEFAULT_TERMINAL_GROWTH,
-    DEFAULT_RISK_FREE_RATE,
-    DEFAULT_EQUITY_RISK_PREMIUM,
 )
 
 
