@@ -1225,9 +1225,9 @@ class TestPass2Validator:
 
     def test_forbidden_capture_is_hard(self):
         p = _minimal_valid_pass2()
-        p["conclusion"] += " Investors can capture significant upside here."
+        p["conclusion"] += " The reward-to-risk capture ratio is 2.5x."
         soft, hard = _validate_pass2_v2(p)
-        assert any("capture" in e for e in hard)
+        assert any("capture ratio" in e for e in hard)
 
     def test_forbidden_degraded_is_hard(self):
         p = _minimal_valid_pass2()
@@ -1451,11 +1451,11 @@ class TestPass3ForbiddenVocabScan:
         hits = _scan_forbidden_vocab(p2)
         assert any(h["token"] == "Sharpe" for h in hits), "should detect 'Sharpe'"
 
-    def test_detects_capture(self):
+    def test_detects_capture_ratio(self):
         p2 = _pass2_with_body()
-        p2["body"] += " Investors can capture the upside from AI demand."
+        p2["body"] += " The reward-to-risk capture ratio is 2.5x."
         hits = _scan_forbidden_vocab(p2)
-        assert any(h["token"] == "capture" for h in hits), "should detect 'capture'"
+        assert any(h["token"] == "capture ratio" for h in hits), "should detect 'capture ratio'"
 
     def test_detects_degraded(self):
         p2 = _pass2_with_body()
@@ -1667,10 +1667,10 @@ class TestPass3CallCeiling:
     def test_audit_skipped_result_includes_forbidden_vocab(self):
         """Even when skipped, deterministic vocab scan results are returned."""
         ticker, baseline, pass1, math, pass2 = self._args()
-        pass2["body"] += " capture the gains here."
+        pass2["body"] += " The reward-to-risk capture ratio is 2.5x."
         result = run_pass3_audit(ticker, baseline, pass1, math, pass2, calls_remaining=0)
         assert result["audit_skipped"] is True
-        assert any(h["token"] == "capture" for h in result["forbidden_vocab"])
+        assert any(h["token"] == "capture ratio" for h in result["forbidden_vocab"])
 
 
 # ════════════════════════════════════════════════════════════════════════════

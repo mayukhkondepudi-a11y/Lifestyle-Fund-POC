@@ -109,10 +109,37 @@ def parse_json_response(raw, model="unknown"):
             a = json.loads(raw)
             a["model_used"] = model
             return a, None
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as _first_err:
             pass
 
-        # Repair truncated JSON
+        # Repair strategy 1: the most common LLM failure is an unescaped double-quote
+        # inside a string value in a later section, which makes json.loads fail even though
+        # all earlier sections are valid.  Walk *backwards* from the first parse error
+        # position (or the full length) looking for the last complete top-level key whose
+        # value closed cleanly, then close the outer object there.
+        try:
+            # Re-run the first parse to get the error position, then progressively shrink
+            # from that position looking for a clean close of the outer '{'.
+            import re as _re
+            err_pos = _first_err.pos if hasattr(_first_err, 'pos') and _first_err.pos else len(raw)
+            # Try closing at each top-level key boundary before the error
+            # A top-level key boundary looks like:  ..."lastvalue", "nextkey":
+            # We find the last comma that separates two top-level keys before err_pos.
+            search_zone = raw[:err_pos]
+            # Find all positions of pattern  },"  or  ","  at approximately depth-1
+            for m in reversed(list(_re.finditer(r'[}\]"]\s*,\s*"', search_zone))):
+                trunc = raw[:m.start() + 1]  # include the } or " char before the comma
+                trunc += "}" * (trunc.count("{") - trunc.count("}"))
+                try:
+                    a = json.loads(trunc)
+                    a["model_used"] = model
+                    return a, None
+                except json.JSONDecodeError:
+                    continue
+        except Exception:
+            pass
+
+        # Repair strategy 2: find last } and truncate (original approach)
         last_brace = raw.rfind("}")
         if last_brace > len(raw) * 0.5:
             attempt = raw[:last_brace + 1]
@@ -548,7 +575,7 @@ _PASS2_REQUIRED_SECTIONS = (
 )
 _PASS2_SCENARIO_KEYS  = ("bull", "base", "bear")
 _PASS2_DRIVER_KEYS    = ("A", "B", "C")
-_PASS2_FORBIDDEN      = ("Sharpe", "DEGRADED", "capture")
+_PASS2_FORBIDDEN      = ("Sharpe", "DEGRADED", "capture ratio")
 
 # Qualitative sections exempt from Pass 3 citation checks
 _PASS2_QUALITATIVE_SECTIONS = frozenset({
@@ -732,7 +759,7 @@ def run_pass2_report(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=6000)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=10000)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None (pass2 attempt 1)"])
 
@@ -742,7 +769,7 @@ def run_pass2_report(
             raise Pass1ValidationError([parse_err or "JSON parse failed (pass2 attempt 1)"])
         raw2, model2, _ = run_ai(
             _build_messages("PARSE ERROR: return ONLY a valid JSON object."),
-            max_tokens=6000,
+            max_tokens=10000,
         )
         if raw2 is None:
             raise Pass1ValidationError(["run_ai returned None on parse-repair retry (pass2)"])
@@ -761,7 +788,7 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in hard)
             + "\n\nRe-emit the complete corrected JSON. No forbidden words. No omitted sections."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=6000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
@@ -778,7 +805,7 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in soft)
             + "\n\nRe-emit the complete corrected JSON within 4500 total words."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=6000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
@@ -805,7 +832,7 @@ def run_pass2_report(
 # v2 PASS 3 — AUDIT
 # ══════════════════════════════════════════════════════════════
 
-_PASS3_FORBIDDEN = frozenset({"Sharpe", "DEGRADED", "capture"})
+_PASS3_FORBIDDEN = frozenset({"Sharpe", "DEGRADED", "capture ratio"})
 
 
 def _scan_forbidden_vocab(pass2: dict) -> list:
