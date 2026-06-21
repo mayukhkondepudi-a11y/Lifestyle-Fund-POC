@@ -104,24 +104,12 @@ def run_methodology_math(pass1: dict[str, Any], baseline: dict[str, Any]) -> dic
     shares_proj = projected_shares(shares_out, horizon_years, trailing_dilution)
 
     # ── Per-scenario EPS ─────────────────────────────────────────────────────
-    # Bull: fy_eps_non_gaap × (1 + capped_growth)^2 (FY+2 per B5).
-    # Growth-rate path: uses the same capped rate that drives the P/E band so
-    # EPS and multiple are consistent. Falls back to event-driven if fy_eps absent.
-    # calibration_log initialized here so the EPS path choice is logged before Step A.
+    # All three scenarios use the event-driven path. Step A below floors bull
+    # to 0.95 × consensus_high if the event-driven result is too low.
     calibration_log: list[str] = []
-    _EPS_HORIZON = 2
-    _bull_growth = min(growth_rate, 0.60)
-    _fy_eps = float(baseline.get("fy_eps_non_gaap") or 0.0)
-    if _fy_eps > 0:
-        bull_eps = _fy_eps * (1 + _bull_growth) ** _EPS_HORIZON
-    else:
-        calibration_log.append(
-            f"Negative trailing EPS ({_fy_eps:.2f}) — bull EPS from event-driven "
-            f"scenario_eps (growth-rate formula not applicable)"
-        )
-        bull_eps = scenario_eps(fy_revenue, base_op_margin, events, "bull", tax_rate, shares_proj)
-    base_eps  = scenario_eps(fy_revenue, base_op_margin, events, "base",  tax_rate, shares_proj)
-    bear_eps  = scenario_eps(fy_revenue, base_op_margin, events, "bear",  tax_rate, shares_proj)
+    bull_eps = scenario_eps(fy_revenue, base_op_margin, events, "bull", tax_rate, shares_proj)
+    base_eps = scenario_eps(fy_revenue, base_op_margin, events, "base", tax_rate, shares_proj)
+    bear_eps = scenario_eps(fy_revenue, base_op_margin, events, "bear", tax_rate, shares_proj)
 
     # ── §6 Step A: consensus bull EPS floor ─────────────────────────────────
 

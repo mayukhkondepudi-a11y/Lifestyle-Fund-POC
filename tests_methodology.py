@@ -2438,14 +2438,12 @@ class TestBug3MacroDriversShape:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# BUG 5 REGRESSION — bull EPS uses growth-rate formula, not event-driven path
+# BULL EPS EVENT-DRIVEN — all scenarios use scenario_eps; Step A is a genuine backstop
 # ════════════════════════════════════════════════════════════════════════════
 
-# Frozen NVDA-like inputs: fy_eps_non_gaap=4.90, bull_growth=0.60.
-# Expected raw bull EPS = 4.90 × 1.60² = 12.544 (before any Step A floor).
-# consensus_eps_fy2.high=10.0 → floor=9.5 < 12.544 → Step A does NOT fire.
-# Events have tiny rev deltas so the old event-driven path would give ~$1-2, proving
-# the growth-rate formula is used.
+# Frozen NVDA-like inputs. Tiny bull revenue events → raw event-driven bull EPS ≈ $3.12.
+# consensus_eps_fy2.high=10.0 → Step A floor=9.50 > $3.12 → Step A DOES fire.
+# This fixture tests that Step A is a working backstop when events are too conservative.
 
 BUG5_BASELINE = {
     "current_price":              120.0,
@@ -2466,11 +2464,11 @@ BUG5_BASELINE = {
         {"ticker": "INTC", "fwd_pe": 20.0},
         {"ticker": "QCOM", "fwd_pe": 18.0},
     ],
-    # consensus.high=10.0 → floor=9.5 < expected 12.544 → Step A does NOT fire
+    # consensus.high=10.0 → floor=9.50 > event-driven bull ~$3.12 → Step A fires
     "consensus_eps_fy2": {"low": 7.0, "mid": 8.5, "high": 10.0},
 }
 
-# Tiny revenue events so the old event-driven path would give ~$1-2 (wrong).
+# Tiny revenue events — raw event-driven bull ≈ $3.12, well below the Step A floor.
 BUG5_PASS1 = {
     "events": [
         {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.40,
@@ -2495,70 +2493,76 @@ BUG5_PASS1 = {
 }
 
 
-class TestBug5BullEPSGrowthRate:
-    """Bug 5: bull EPS must use fy_eps_non_gaap × (1+growth)^2, not event-driven path."""
+class TestBullEPSEventDriven:
+    """All three EPS scenarios use scenario_eps (event-driven).
+    Step A floors bull to 0.95 × consensus_high when events are too conservative."""
 
     def _math(self) -> dict:
         return run_methodology_math(BUG5_PASS1, BUG5_BASELINE)
 
-    def test_step_a_does_not_fire(self):
-        """Precondition: consensus floor (9.5) < expected bull_eps (12.54) → Step A silent."""
+    def test_step_a_fires_when_bull_events_too_small(self):
+        """BUG5 tiny events → raw event-driven bull ≈ $3.12 < floor $9.50 → Step A fires."""
         m = self._math()
-        assert not any("Step A" in e for e in m["calibration_log"]), (
-            "Step A fired unexpectedly — adjust consensus_eps_fy2 in BUG5_BASELINE "
-            "so floor < expected raw bull EPS"
+        step_a_entries = [e for e in m["calibration_log"] if "Step A" in e]
+        assert step_a_entries, (
+            f"Step A did not fire; calibration_log={m['calibration_log']}"
         )
-
-    def test_raw_bull_eps_matches_growth_rate_formula(self):
-        """Raw bull EPS = 4.90 × 1.60² = 12.544, ±20%."""
-        m = self._math()
+        expected_floor = 0.95 * BUG5_BASELINE["consensus_eps_fy2"]["high"]   # 9.50
         bull_eps = m["scenario_eps"]["bull"]
-        expected = 4.90 * (1 + 0.60) ** 2   # 12.544
-        tol = expected * 0.20                 # 20% = ±2.509
-        assert abs(bull_eps - expected) <= tol, (
-            f"bull EPS={bull_eps:.2f}; expected {expected:.2f} ± {tol:.2f} "
-            f"(growth-rate path: 4.90 × 1.60²). "
-            f"If bull_eps ≈ $1–3 the old event-driven path is still being used."
+        assert abs(bull_eps - expected_floor) < 0.01, (
+            f"bull_eps={bull_eps:.2f} != expected floor {expected_floor:.2f}"
         )
-
-    def test_base_and_bear_use_event_driven_path(self):
-        """Base and bear EPS must remain event-driven (not changed by this fix)."""
-        m = self._math()
-        # Event-driven base/bear with tiny events: EPS ≈ 130 × 0.57 × 0.88 / 20.9 ≈ $3.1
-        # Growth-rate formula with fy_eps=4.90 × (1+0)^2 = 4.90 would be different.
-        # The key assertion: base EPS is NOT equal to fy_eps_non_gaap unchanged.
-        base_eps = m["scenario_eps"]["base"]
-        bear_eps = m["scenario_eps"]["bear"]
-        assert base_eps > 0, "base EPS must be positive"
-        assert bear_eps > 0, "bear EPS must be positive"
-        # Bull > base confirms ordering is preserved
-        bull_eps = m["scenario_eps"]["bull"]
-        assert bull_eps > base_eps, (
-            f"Expected bull ({bull_eps:.2f}) > base ({base_eps:.2f}) — monotonicity violated"
-        )
-
-    def test_bull_eps_not_event_driven(self):
-        """Confirm the event-driven path would give a wrong (much lower) answer."""
-        from compute_methodology_v2 import scenario_eps, projected_shares
+        # Raw event-driven value (before Step A) must be well below the floor
+        from compute_methodology_v2 import scenario_eps as _scenario_eps, projected_shares
+        from run_methodology_math import _normalize_events
         sp = projected_shares(
             BUG5_BASELINE["shares_out"],
             BUG5_BASELINE["horizon_years"],
             BUG5_BASELINE["trailing_net_dilution_rate"],
         )
-        from run_methodology_math import _normalize_events
         events = _normalize_events(BUG5_PASS1["events"])
-        event_driven_bull = scenario_eps(
-            BUG5_BASELINE["fy_revenue"],
-            BUG5_BASELINE["fy_op_margin"],
+        raw_bull = _scenario_eps(
+            BUG5_BASELINE["fy_revenue"], BUG5_BASELINE["fy_op_margin"],
             events, "bull",
-            BUG5_BASELINE["tax_rate_guidance"],
-            sp,
+            BUG5_BASELINE["tax_rate_guidance"], sp,
         )
-        expected = 4.90 * (1 + 0.60) ** 2   # 12.544
-        # Event-driven result must be significantly lower to prove the fix matters
-        assert event_driven_bull < expected * 0.50, (
-            f"Event-driven bull EPS={event_driven_bull:.2f} is not much less than "
-            f"growth-rate EPS={expected:.2f}; adjust BUG5_PASS1 events to be smaller"
+        assert raw_bull < expected_floor * 0.50, (
+            f"raw event-driven bull={raw_bull:.2f} not well below floor {expected_floor:.2f}"
+        )
+
+    def test_bull_eps_is_event_driven(self):
+        """Bull EPS matches scenario_eps direct call — confirmed on AVGO_V2_BASELINE."""
+        from compute_methodology_v2 import scenario_eps as _scenario_eps, projected_shares
+        from run_methodology_math import _normalize_events
+        bl = AVGO_V2_BASELINE
+        m = run_methodology_math({"events": AVGO_EVENTS}, bl)
+        sp = projected_shares(
+            bl["shares_out"], bl.get("horizon_years", 5),
+            bl.get("trailing_net_dilution_rate", 0.0),
+        )
+        events = _normalize_events(AVGO_EVENTS)
+        expected = _scenario_eps(
+            bl["fy_revenue"], bl["fy_op_margin"], events, "bull",
+            bl.get("tax_rate_guidance", 0.21), sp,
+        )
+        assert abs(m["scenario_eps"]["bull"] - expected) < 0.01, (
+            f"bull EPS={m['scenario_eps']['bull']:.2f} != scenario_eps direct={expected:.2f}"
+        )
+        # AVGO_V2_BASELINE has no consensus_eps_fy2 → Step A must not fire
+        assert not any("Step A" in e for e in m.get("calibration_log", [])), (
+            "Step A fired unexpectedly on AVGO_V2_BASELINE (no consensus_eps_fy2)"
+        )
+
+    def test_base_and_bear_use_event_driven_path(self):
+        """Base and bear EPS are positive and bull > base (ordering preserved)."""
+        m = self._math()
+        base_eps = m["scenario_eps"]["base"]
+        bear_eps = m["scenario_eps"]["bear"]
+        assert base_eps > 0, "base EPS must be positive"
+        assert bear_eps > 0, "bear EPS must be positive"
+        bull_eps = m["scenario_eps"]["bull"]
+        assert bull_eps > base_eps, (
+            f"Expected bull ({bull_eps:.2f}) > base ({base_eps:.2f}) — monotonicity violated"
         )
 
 
@@ -2995,9 +2999,8 @@ class TestSbcSectionRequired:
 # NEGATIVE TRAILING EPS FIXTURE
 #
 # Stress-tests the path where fy_eps_non_gaap < 0 (e.g. small-cap with GAAP
-# losses).  The growth-rate bull EPS formula must NOT be applied (it would
-# produce a more-negative number).  The code must fall back to scenario_eps
-# and log the path choice in calibration_log before Step A can run.
+# losses).  scenario_eps uses revenue × margin, so negative trailing EPS never
+# contaminates the output — bull EPS is always positive.
 # ════════════════════════════════════════════════════════════════════════════
 
 NEG_EPS_BASELINE = {
@@ -3051,30 +3054,19 @@ NEG_EPS_PASS1 = {
 
 class TestNegativeTrailingEPS:
     """
-    Guard: when fy_eps_non_gaap ≤ 0 the growth-rate bull EPS formula must not
-    be applied (it would yield a more-negative number).  run_methodology_math
-    must fall back to scenario_eps and emit a calibration_log entry.
+    When fy_eps_non_gaap ≤ 0, scenario_eps (event-driven, revenue × margin)
+    naturally produces a positive bull EPS — no special case or log entry needed.
     """
 
     def _math(self):
         return run_methodology_math(NEG_EPS_PASS1, NEG_EPS_BASELINE)
 
-    def test_calibration_log_contains_negative_eps_entry(self):
-        """calibration_log must record the fallback when trailing EPS < 0."""
-        m = self._math()
-        cal = m.get("calibration_log", [])
-        assert any("Negative trailing EPS" in e for e in cal), (
-            f"expected 'Negative trailing EPS' in calibration_log; got: {cal}"
-        )
-
     def test_bull_eps_is_positive(self):
-        """bull EPS must be positive — growth-rate formula on negative base is forbidden."""
+        """bull EPS must be positive even when trailing EPS < 0."""
         m = self._math()
         bull_eps = m["scenario_eps"]["bull"]
-        # The erroneous formula would give: -0.31 * (1 + 0.26)^2 ≈ -0.49
-        erroneous = -0.31 * (1 + min(0.26, 0.60)) ** 2
         assert bull_eps > 0, (
-            f"bull EPS={bull_eps:.4f} must be positive (growth-rate formula would give {erroneous:.4f})"
+            f"bull EPS={bull_eps:.4f} must be positive"
         )
 
 
