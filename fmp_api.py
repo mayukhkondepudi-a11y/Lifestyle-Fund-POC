@@ -972,6 +972,7 @@ def fetch_consensus_pack(ticker: str) -> dict:
         "consensus_revenue_fy2":   None,
         "consensus_price_target":  None,
         "n_analysts":              None,
+        "consensus_fy2_source":    None,
     }
 
     # ── yfinance primary ────────────────────────────────────────
@@ -981,11 +982,12 @@ def fetch_consensus_pack(ticker: str) -> dict:
             s = yf.Ticker(ticker)
 
             # EPS estimates (earnings_estimate table: rows = "0q","+1q","0y","+1y","+2y")
+            # +1y = FY+1 (one year out) → consensus_eps_fy1
+            # +2y = FY+2 (two years out) → consensus_eps_fy2 (used by Step A and 2yr CAGR)
             try:
                 ee = getattr(s, "earnings_estimate", None)
                 if ee is not None and not ee.empty:
-                    _yf_fy_map = {"0y": "consensus_eps_fy1", "+1y": "consensus_eps_fy2",
-                                  "+2y": "consensus_eps_fy3"}
+                    _yf_fy_map = {"+1y": "consensus_eps_fy1", "+2y": "consensus_eps_fy2"}
                     for row_idx, key in _yf_fy_map.items():
                         if row_idx in ee.index:
                             r = ee.loc[row_idx]
@@ -1004,6 +1006,73 @@ def fetch_consensus_pack(ticker: str) -> dict:
                                         out["n_analysts"] = int(n)
                                     except Exception:
                                         pass
+            except Exception:
+                pass
+
+            # ── FY+2 source detection and fallback ───────────────
+            # When +2y is absent or numerically identical to +1y, it is not a genuine
+            # FY+2 estimate. Try FMP for a real figure; fall back to deriving from FY+1.
+            try:
+                _fy1_mid = (out["consensus_eps_fy1"] or {}).get("mid")
+                _fy2_mid = (out["consensus_eps_fy2"] or {}).get("mid")
+                _fy2_suspect = (
+                    out["consensus_eps_fy2"] is None
+                    or (
+                        _fy1_mid is not None
+                        and _fy2_mid is not None
+                        and abs(_fy2_mid - _fy1_mid) < 1e-6
+                    )
+                )
+                if not _fy2_suspect:
+                    out["consensus_fy2_source"] = "reported"
+                else:
+                    # Try FMP: sort annual entries ascending (nearest first); [1] = FY+2
+                    try:
+                        _ae = _fmp_get("/analyst-estimates", {"symbol": ticker, "limit": 4})
+                        if _ae and isinstance(_ae, list):
+                            _annual = sorted(
+                                [d for d in _ae if d.get("period") == "annual"],
+                                key=lambda x: x.get("date", ""),
+                            )
+                            if len(_annual) >= 2:
+                                _e2 = _annual[1]
+                                _m2 = _e2.get("estimatedEpsAvg")
+                                if _m2:
+                                    out["consensus_eps_fy2"] = {
+                                        "low":  float(_e2["estimatedEpsLow"]) if _e2.get("estimatedEpsLow") is not None else None,
+                                        "mid":  float(_m2),
+                                        "high": float(_e2["estimatedEpsHigh"]) if _e2.get("estimatedEpsHigh") is not None else None,
+                                    }
+                                    out["consensus_fy2_source"] = "fmp"
+                    except Exception:
+                        pass
+
+                    if out["consensus_fy2_source"] is None and _fy1_mid is not None:
+                        # Derive: fy2 = fy1 × (1 + growth), growth = fy1/trailing − 1, cap ±50%
+                        try:
+                            _trailing = None
+                            try:
+                                _info = getattr(s, "info", None) or {}
+                                _te = _info.get("trailingEps")
+                                if _te is not None:
+                                    _trailing = float(_te)
+                            except Exception:
+                                pass
+                            if _trailing and _trailing > 0:
+                                _g = min((_fy1_mid / _trailing) - 1.0, 0.50)
+                                _g = max(_g, -0.50)
+                                _fy1 = out["consensus_eps_fy1"] or {}
+                                _lo1 = _fy1.get("low")
+                                _hi1 = _fy1.get("high")
+                                out["consensus_eps_fy2"] = {
+                                    "low":  round(_lo1 * (1.0 + _g), 4) if _lo1 is not None else None,
+                                    "mid":  round(_fy1_mid * (1.0 + _g), 4),
+                                    "high": round(_hi1 * (1.0 + _g), 4) if _hi1 is not None else None,
+                                }
+                                out["consensus_fy2_source"] = "derived"
+                        except Exception:
+                            pass
+                    # If no fy1_mid: consensus_eps_fy2 stays None, source stays None
             except Exception:
                 pass
 

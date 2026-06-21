@@ -449,6 +449,7 @@ def calc_baseline(data, consensus_pack=None, peer_tickers=None,
     consensus_revenue_fy2   = cp.get("consensus_revenue_fy2")
     consensus_price_target  = cp.get("consensus_price_target")
     n_analysts              = cp.get("n_analysts")
+    consensus_fy2_source    = cp.get("consensus_fy2_source")
 
     # ── Five-year EPS growth estimate ─────────────────────────
     # Priority: 2yr implied CAGR from consensus (capped 60%) → revenueGrowth (capped 40%).
@@ -510,6 +511,10 @@ def calc_baseline(data, consensus_pack=None, peer_tickers=None,
         warnings.append("DATA QUALITY WARNING: EPS unavailable from all sources.")
     if consensus_eps_fy1 is None and consensus_eps_fy2 is None:
         warnings.append("DATA QUALITY WARNING: analyst EPS consensus unavailable.")
+    if consensus_fy2_source == "derived":
+        warnings.append(
+            "FY+2 consensus EPS derived from FY+1 (no distinct FY+2 estimate available)."
+        )
 
     return {
         "ticker":        ticker,
@@ -550,6 +555,7 @@ def calc_baseline(data, consensus_pack=None, peer_tickers=None,
         "consensus_revenue_fy2":  consensus_revenue_fy2,
         "consensus_price_target": consensus_price_target,
         "n_analysts":             n_analysts,
+        "consensus_fy2_source":   consensus_fy2_source,
 
         "five_yr_eps_growth_est": five_yr_eps_growth_est,
         "segments":               segments,

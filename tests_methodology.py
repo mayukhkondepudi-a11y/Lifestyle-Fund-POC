@@ -1946,20 +1946,21 @@ class TestPipelineOrchestrator:
 # ════════════════════════════════════════════════════════════════════════════
 
 class TestYFinanceConsensusIndexParsing:
-    """fetch_consensus_pack must map '+1y'/'+2y' period rows, not '1y'/'2y'."""
+    """fetch_consensus_pack must map '+1y'/'+2y' period rows, not '1y'/'2y'.
+    +1y → consensus_eps_fy1 (FY+1); +2y → consensus_eps_fy2 (FY+2 used in Step A)."""
 
     def _make_earnings_df(self):
         import pandas as pd
         return pd.DataFrame(
             {
-                "avg":             [2.39,  3.21, 11.36, 18.26],
-                "low":             [2.36,  2.69, 10.24, 13.35],
-                "high":            [2.50,  4.26, 13.31, 21.45],
-                "yearAgoEps":      [1.58,  1.69,  6.82, 11.36],
-                "numberOfAnalysts":[36,    35,    43,    42],
-                "growth":          [0.513, 0.898, 0.666, 0.608],
+                "avg":             [2.39,  3.21, 11.36, 18.26, 23.00],
+                "low":             [2.36,  2.69, 10.24, 13.35, 17.50],
+                "high":            [2.50,  4.26, 13.31, 21.45, 27.00],
+                "yearAgoEps":      [1.58,  1.69,  6.82, 11.36, 18.26],
+                "numberOfAnalysts":[36,    35,    43,    42,    40],
+                "growth":          [0.513, 0.898, 0.666, 0.608, 0.259],
             },
-            index=pd.Index(["0q", "+1q", "0y", "+1y"], name="period"),
+            index=pd.Index(["0q", "+1q", "0y", "+1y", "+2y"], name="period"),
         )
 
     def _make_revenue_df(self):
@@ -1986,18 +1987,148 @@ class TestYFinanceConsensusIndexParsing:
             "current": 414.14, "high": 630.0, "low": 215.88,
             "mean": 480.49, "median": 495.0,
         }
+        mock_ticker.info = {}
 
         with mock.patch("fmp_api.HAS_YF", True), \
              mock.patch("yfinance.Ticker", return_value=mock_ticker):
             result = fetch_consensus_pack("TEST")
 
-        assert result["consensus_eps_fy2"] is not None, (
-            "consensus_eps_fy2 is None — '+1y' period row was not matched"
+        # +1y row → consensus_eps_fy1 (the near FY+1 estimate)
+        assert result["consensus_eps_fy1"] is not None, (
+            "consensus_eps_fy1 is None — '+1y' period row was not matched"
         )
-        assert abs(result["consensus_eps_fy2"]["mid"] - 18.26) < 0.01
-        assert result["consensus_eps_fy1"] is not None
+        assert abs(result["consensus_eps_fy1"]["mid"] - 18.26) < 0.01
+
+        # +2y row → consensus_eps_fy2 (the FY+2 estimate used in Step A and 2yr CAGR)
+        assert result["consensus_eps_fy2"] is not None, (
+            "consensus_eps_fy2 is None — '+2y' period row was not matched"
+        )
+        assert abs(result["consensus_eps_fy2"]["mid"] - 23.00) < 0.01
+        assert result["consensus_fy2_source"] == "reported"
+
+        # revenue mapping unchanged
         assert result["consensus_revenue_fy2"] is not None
         assert abs(result["consensus_revenue_fy2"]["mid"] - 158.86e9) < 1e8
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# FY+2 consensus fallback — absent / identical / derived / missing-fy1
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestConsensusFY2Fallback:
+    """
+    fetch_consensus_pack sets consensus_fy2_source correctly and falls back
+    to derivation when the +2y yfinance row is absent or duplicates +1y.
+    """
+
+    def _make_ee_df(self, rows):
+        import pandas as pd
+        index = list(rows.keys())
+        return pd.DataFrame(
+            {
+                "avg":              [rows[r]["avg"] for r in index],
+                "low":              [rows[r].get("low") for r in index],
+                "high":             [rows[r].get("high") for r in index],
+                "numberOfAnalysts": [rows[r].get("numberOfAnalysts", 10) for r in index],
+            },
+            index=pd.Index(index, name="period"),
+        )
+
+    def _base_mock(self, ee_df, trailing_eps=None):
+        import unittest.mock as mock
+        import pandas as pd
+        t = mock.MagicMock()
+        t.earnings_estimate = ee_df
+        t.revenue_estimate = pd.DataFrame()
+        t.analyst_price_targets = {}
+        t.info = {"trailingEps": trailing_eps} if trailing_eps is not None else {}
+        return t
+
+    def test_reported_when_distinct_plus2y_row(self):
+        """Distinct +2y row (different avg from +1y) → source == 'reported', fy2 matches."""
+        import unittest.mock as mock
+        from fmp_api import fetch_consensus_pack
+
+        ee = self._make_ee_df({
+            "+1y": {"avg": 15.5, "low": 14.0, "high": 16.5},
+            "+2y": {"avg": 19.0, "low": 17.5, "high": 21.0},
+        })
+        mock_ticker = self._base_mock(ee)
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", return_value=mock_ticker), \
+             mock.patch("fmp_api._fmp_get", return_value=None):
+            result = fetch_consensus_pack("TEST")
+
+        assert result["consensus_fy2_source"] == "reported"
+        assert result["consensus_eps_fy1"] is not None
+        assert abs(result["consensus_eps_fy1"]["mid"] - 15.5) < 0.01
+        assert result["consensus_eps_fy2"] is not None
+        assert abs(result["consensus_eps_fy2"]["mid"] - 19.0) < 0.01
+
+    def test_derived_when_plus2y_absent(self):
+        """+2y row absent → FMP returns nothing → derived from FY+1 × growth, capped 50%."""
+        import unittest.mock as mock
+        from fmp_api import fetch_consensus_pack
+
+        ee = self._make_ee_df({
+            "+1y": {"avg": 15.0, "low": 13.5, "high": 16.5},
+        })
+        # trailing_eps=12.5 → growth = (15.0/12.5) - 1 = 0.20 → fy2.mid = 15.0 × 1.20 = 18.0
+        mock_ticker = self._base_mock(ee, trailing_eps=12.5)
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", return_value=mock_ticker), \
+             mock.patch("fmp_api._fmp_get", return_value=None):
+            result = fetch_consensus_pack("TEST")
+
+        assert result["consensus_fy2_source"] == "derived", (
+            f"expected 'derived' when +2y absent; got {result['consensus_fy2_source']!r}"
+        )
+        assert result["consensus_eps_fy2"] is not None
+        assert abs(result["consensus_eps_fy2"]["mid"] - 18.0) < 0.05
+
+    def test_derived_when_plus2y_identical_to_plus1y(self):
+        """+2y avg numerically identical to +1y → treated as absent → derived."""
+        import unittest.mock as mock
+        from fmp_api import fetch_consensus_pack
+
+        # Both rows have the exact same avg — data provider duplicated the row
+        ee = self._make_ee_df({
+            "+1y": {"avg": 15.0, "low": 13.5, "high": 16.5},
+            "+2y": {"avg": 15.0, "low": 13.5, "high": 16.5},
+        })
+        # trailing_eps=12.5 → growth=0.20 → fy2.mid=18.0
+        mock_ticker = self._base_mock(ee, trailing_eps=12.5)
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", return_value=mock_ticker), \
+             mock.patch("fmp_api._fmp_get", return_value=None):
+            result = fetch_consensus_pack("TEST")
+
+        assert result["consensus_fy2_source"] == "derived", (
+            f"identical +2y must be treated as absent; got {result['consensus_fy2_source']!r}"
+        )
+        assert result["consensus_eps_fy2"] is not None
+        assert abs(result["consensus_eps_fy2"]["mid"] - 18.0) < 0.05
+
+    def test_none_when_no_fy1_either(self):
+        """No FY+1 row and FMP empty → cannot derive → consensus_eps_fy2 is None."""
+        import unittest.mock as mock
+        import pandas as pd
+        from fmp_api import fetch_consensus_pack
+
+        # Empty DataFrame — no +1y or +2y rows
+        mock_ticker = self._base_mock(pd.DataFrame())
+
+        with mock.patch("fmp_api.HAS_YF", True), \
+             mock.patch("yfinance.Ticker", return_value=mock_ticker), \
+             mock.patch("fmp_api._fmp_get", return_value=None):
+            result = fetch_consensus_pack("TEST")
+
+        assert result["consensus_eps_fy2"] is None, (
+            f"fy2 must be None when no fy1 and FMP empty; got {result['consensus_eps_fy2']}"
+        )
 
 
 # ════════════════════════════════════════════════════════════════════════════
