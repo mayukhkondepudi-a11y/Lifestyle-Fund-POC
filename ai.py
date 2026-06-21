@@ -511,12 +511,30 @@ def run_pass1_foundation(
         if max_passes <= 1:
             raise Pass1ValidationError(hard)
         # Math-critical errors on first attempt — retry once with explicit fix instructions
+        _event_count_errors = [
+            e for e in hard if "too few" in e or "≥ 2 events" in e
+        ]
+        _event_guidance = ""
+        if _event_count_errors:
+            _event_guidance = (
+                "\n\nEVENT COUNT GUIDANCE: You produced too few events. "
+                "Each of the three drivers (A, B, C) MUST have at least 2 events — "
+                "one bull-outcome and one bear-outcome at minimum — for 6 events total. "
+                "If recent news does not provide direct evidence for a driver, construct events "
+                "from the driver structural logic: every driver has a plausible positive outcome "
+                "(the driver plays out favorably) and a plausible negative outcome (the driver "
+                "disappoints), regardless of whether a specific news article exists. Base the "
+                "revenue and margin assumptions on the segment data and the company business model. "
+                "EXPAND your previous output — keep all valid events you already produced and ADD "
+                "events to reach the minimum. Do not remove or shrink existing events."
+            )
         corrective = (
             "CRITICAL ERRORS — the following must be fixed or the output cannot be used:\n"
             + "\n".join(f"  - {e}" for e in hard)
+            + _event_guidance
             + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=8000)
         if raw2 is None:
             raise Pass1ValidationError(hard + (errs2 or []))
         pass1_r, parse_err_r = parse_json_response(raw2, model2)

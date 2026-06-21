@@ -699,6 +699,65 @@ class TestPassOneFoundationMocked:
                 run_pass1_foundation("TEST", baseline, max_passes=2)
         assert any("events" in e for e in exc_info.value.errors)
 
+    def test_too_few_events_corrective_hint_has_structural_guidance(self):
+        """Too-few-events hard error → retry hint contains structural-construction guidance."""
+        baseline = self._baseline()
+        import json
+        p_few = _minimal_valid_pass1()
+        p_few["events"] = p_few["events"][:3]   # 3 events — triggers hard error
+        first_raw  = json.dumps(p_few)
+        second_raw = json.dumps(_minimal_valid_pass1())
+
+        captured_user_msgs = []
+        call_count = {"n": 0}
+
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 2:
+                for m in msgs:
+                    if m["role"] == "user":
+                        captured_user_msgs.append(m["content"])
+            return (first_raw if call_count["n"] == 1 else second_raw, "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            run_pass1_foundation("TEST", baseline, max_passes=2)
+
+        assert captured_user_msgs, "expected a retry call to run_ai"
+        hint_text = captured_user_msgs[0]
+        assert "construct events from the driver structural logic" in hint_text, (
+            "retry hint must contain structural-construction guidance for too-few-events"
+        )
+
+    def test_driver_short_corrective_hint_has_structural_guidance(self):
+        """Driver-level too-few-events hard error → retry hint contains structural guidance."""
+        baseline = self._baseline()
+        import json
+        p_driver = _minimal_valid_pass1()
+        # Remove B2 so driver B has only 1 event — triggers "driver B must have ≥ 2 events"
+        p_driver["events"] = [e for e in p_driver["events"] if e["id"] != "B2"]
+        first_raw  = json.dumps(p_driver)
+        second_raw = json.dumps(_minimal_valid_pass1())
+
+        captured_user_msgs = []
+        call_count = {"n": 0}
+
+        def mock_run_ai(msgs, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 2:
+                for m in msgs:
+                    if m["role"] == "user":
+                        captured_user_msgs.append(m["content"])
+            return (first_raw if call_count["n"] == 1 else second_raw, "m", None)
+
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            run_pass1_foundation("TEST", baseline, max_passes=2)
+
+        assert captured_user_msgs, "expected a retry call to run_ai"
+        hint_text = captured_user_msgs[0]
+        assert "construct events from the driver structural logic" in hint_text, (
+            "retry hint must contain structural-construction guidance for driver-level event shortage"
+        )
+
 
 class TestC4BullCaseTooLowMath:
     """C4: verify math produces bull EPS << consensus when events are tiny."""
