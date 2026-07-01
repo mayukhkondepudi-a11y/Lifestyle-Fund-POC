@@ -1,0 +1,215 @@
+{
+  "breakeven_pe": 26.0,
+  "calibration_log": [
+    "Step A: bull EPS floored $3.01\u2192$3.38 (0.95\u00d7consensus_high=$3.56)",
+    "Base P/E ratio-discounted: base_high 12.0\u21925.6, base_low 9.2\u21923.7 (0.80/0.75 of bull band)",
+    "Bear P/E capped below bull P/E to preserve scenario hierarchy (bear_high 32.5\u21923.9, bull_pe_low=4.9)",
+    "Step D: consensus_divergent=True \u2014 bull_high=$23.67 \u2264 current_price=$79.01"
+  ],
+  "consensus_divergent": true,
+  "dcf": {
+    "base": {
+      "enterprise_value": 219.2,
+      "equity_value": 188.37,
+      "intrinsic_per_share": 43.78
+    },
+    "bear": {
+      "enterprise_value": 205.6,
+      "equity_value": 174.77,
+      "intrinsic_per_share": 40.62
+    },
+    "bull": {
+      "enterprise_value": 262.12,
+      "equity_value": 231.29,
+      "intrinsic_per_share": 53.76
+    }
+  },
+  "discount_rate": 0.0608,
+  "driver_outcome_probabilities": {
+    "A": {
+      "base": 0.5,
+      "bear": 0.15,
+      "bull": 0.35
+    },
+    "B": {
+      "base": 0.6,
+      "bear": 0.15,
+      "bull": 0.25
+    },
+    "C": {
+      "base": 0.4,
+      "bear": 0.45,
+      "bull": 0.15
+    }
+  },
+  "driver_probs": {
+    "A": {
+      "base": 0.5,
+      "bear": 0.15,
+      "bull": 0.35
+    },
+    "B": {
+      "base": 0.6,
+      "bear": 0.15,
+      "bull": 0.25
+    },
+    "C": {
+      "base": 0.4,
+      "bear": 0.45,
+      "bull": 0.15
+    }
+  },
+  "ev_formula_string": "0.3158\u00d7$20.12 + 0.2105\u00d7$13.05 + 0.4737\u00d7$8.92 = $13.33",
+  "expected_value": 13.33,
+  "headline_metric": "implied_fcf_cagr",
+  "headwinds": [
+    {
+      "base_eps_impact": 0.0103,
+      "bear_eps_impact": 0.0,
+      "bull_eps_impact": 0.0206,
+      "driver": "A",
+      "eps_impact_high": 0.0206,
+      "eps_impact_low": 0.0,
+      "eps_impact_mid": 0.0103,
+      "event_id": "A3",
+      "name": "A \u2014 bear",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk": 0.2,
+      "revenue_at_risk_high": 0.4,
+      "revenue_at_risk_low": 0.0
+    },
+    {
+      "base_eps_impact": 0.0266,
+      "bear_eps_impact": 0.0,
+      "bull_eps_impact": 0.0532,
+      "driver": "B",
+      "eps_impact_high": 0.0532,
+      "eps_impact_low": 0.0,
+      "eps_impact_mid": 0.0266,
+      "event_id": "B3",
+      "name": "B \u2014 bear",
+      "outcome": "bear",
+      "probability": 0.15,
+      "revenue_at_risk": 0.5,
+      "revenue_at_risk_high": 1.0,
+      "revenue_at_risk_low": 0.0
+    },
+    {
+      "base_eps_impact": 0.0964,
+      "bear_eps_impact": 0.0551,
+      "bull_eps_impact": 0.1377,
+      "driver": "C",
+      "eps_impact_high": 0.1377,
+      "eps_impact_low": 0.0551,
+      "eps_impact_mid": 0.0964,
+      "event_id": "C1",
+      "name": "C \u2014 bear",
+      "outcome": "bear",
+      "probability": 0.45,
+      "revenue_at_risk": 1.75,
+      "revenue_at_risk_high": 2.5,
+      "revenue_at_risk_low": 1.0
+    }
+  ],
+  "implied_fcf_cagr": 0.115335,
+  "joint_probs": {
+    "base": 0.2105,
+    "bear": 0.4737,
+    "bull": 0.3158
+  },
+  "owner_earnings": 5.017,
+  "pe_band": {
+    "base_high": 5.6,
+    "base_low": 3.7,
+    "bear_high": 3.9,
+    "bear_low": 2.9,
+    "bull_high": 7.0,
+    "bull_low": 4.9
+  },
+  "price_target": {
+    "base_mid": 13.05,
+    "bear_low": 7.61,
+    "bull_high": 23.67,
+    "bull_mid": 20.12
+  },
+  "recommendation": "PASS",
+  "risk": {
+    "ev": 13.33,
+    "expected_return_pct": -0.8313,
+    "max_drawdown_pct": 0.8871,
+    "prob_loss": 1.0
+  },
+  "scenario_eps": {
+    "base": 2.81,
+    "bear": 2.62,
+    "bull": 3.38
+  },
+  "scenario_segment_revenue": null,
+  "sensitivity_table": {
+    "current": {
+      "bull_prob": 0.3158,
+      "expected_value": 13.33
+    },
+    "driver": "A",
+    "minus_10pp": {
+      "bull_prob": 0.268,
+      "expected_value": 12.77
+    },
+    "plus_10pp": {
+      "bull_prob": 0.3656,
+      "expected_value": 13.9
+    }
+  },
+  "shares_projected": 4.3025,
+  "tailwinds": [
+    {
+      "base_eps_impact": 0.1561,
+      "bear_eps_impact": 0.0936,
+      "bull_eps_impact": 0.2185,
+      "driver": "A",
+      "eps_impact_high": 0.2185,
+      "eps_impact_low": 0.0936,
+      "eps_impact_mid": 0.1561,
+      "event_id": "A1",
+      "name": "A \u2014 bull",
+      "outcome": "bull",
+      "probability": 0.35,
+      "revenue_at_risk": 2.5,
+      "revenue_at_risk_high": 3.5,
+      "revenue_at_risk_low": 1.5
+    },
+    {
+      "base_eps_impact": 0.0909,
+      "bear_eps_impact": 0.0606,
+      "bull_eps_impact": 0.1212,
+      "driver": "B",
+      "eps_impact_high": 0.1212,
+      "eps_impact_low": 0.0606,
+      "eps_impact_mid": 0.0909,
+      "event_id": "B2",
+      "name": "B \u2014 bull",
+      "outcome": "bull",
+      "probability": 0.25,
+      "revenue_at_risk": 1.5,
+      "revenue_at_risk_high": 2.0,
+      "revenue_at_risk_low": 1.0
+    },
+    {
+      "base_eps_impact": 0.0289,
+      "bear_eps_impact": 0.0,
+      "bull_eps_impact": 0.0578,
+      "driver": "C",
+      "eps_impact_high": 0.0578,
+      "eps_impact_low": 0.0,
+      "eps_impact_mid": 0.0289,
+      "event_id": "C3",
+      "name": "C \u2014 bull",
+      "outcome": "bull",
+      "probability": 0.15,
+      "revenue_at_risk": 0.5,
+      "revenue_at_risk_high": 1.0,
+      "revenue_at_risk_low": 0.0
+    }
+  ]
+}
