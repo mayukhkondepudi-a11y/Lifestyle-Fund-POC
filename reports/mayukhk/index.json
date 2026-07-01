@@ -196,5 +196,14 @@
     "timestamp": "2026-06-21 16:39",
     "recommendation": "WATCH",
     "expected_return": 0.7802
+  },
+  {
+    "report_id": "CLS_2026-07-01",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 13:49",
+    "recommendation": "WATCH",
+    "expected_return": 0.7802
   }
 ]
