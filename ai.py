@@ -44,9 +44,31 @@ PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 # AI RUNNER (single canonical implementation)
 # ══════════════════════════════════════════════════════════════
 
+# ── Per-call LLM telemetry ───────────────────────────────────────────────────
+# Every run_ai call appends one record here (stop_reason, token usage, truncation
+# flag, and the raw text). Live/validate harnesses read get_call_log() and persist
+# it so stop_reason + output_tokens land in the run artifact — the fields needed to
+# tell a truncation apart from a clean-but-incomplete completion.
+_CALL_LOG: list[dict] = []
+
+
+def reset_call_log() -> None:
+    _CALL_LOG.clear()
+
+
+def get_call_log() -> list[dict]:
+    return [dict(e) for e in _CALL_LOG]
+
+
 def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
            free_models=None):
-    """Try Anthropic first, then fall back to OpenRouter free models."""
+    """
+    Try Anthropic first, then fall back to OpenRouter free models.
+
+    A response with stop_reason == "max_tokens" (Anthropic) / finish_reason ==
+    "length" (OpenRouter) is a TRUNCATED completion: it is treated as a FAILED
+    call (returns None + a TRUNCATED error), never returned as if complete.
+    """
     if free_models is None:
         free_models = FREE_MODELS
 
@@ -64,7 +86,24 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                 max_tokens=max_tokens,
             )
             text = r.content[0].text.strip()
-            print(f"  AI response via {model} ({len(text)} chars)")
+            stop = getattr(r, "stop_reason", None)
+            usage = getattr(r, "usage", None)
+            in_tok = getattr(usage, "input_tokens", None) if usage else None
+            out_tok = getattr(usage, "output_tokens", None) if usage else None
+            truncated = (stop == "max_tokens")
+            _CALL_LOG.append({
+                "model": model, "stop_reason": stop, "input_tokens": in_tok,
+                "output_tokens": out_tok, "max_tokens": max_tokens,
+                "chars": len(text), "truncated": truncated, "text": text,
+            })
+            if truncated:
+                print(f"  ⚠️ TRUNCATED: {model} hit max_tokens={max_tokens} "
+                      f"(output_tokens={out_tok}, {len(text)} chars) — treating as FAILED")
+                return None, model, [
+                    f"TRUNCATED: {model} stop_reason=max_tokens output_tokens={out_tok} "
+                    f"max_tokens={max_tokens}"
+                ]
+            print(f"  AI response via {model} ({len(text)} chars, stop={stop}, out_tok={out_tok})")
             return text, model, None
         except Exception as e:
             err = f"Claude: {str(e)[:120]}"
@@ -80,6 +119,19 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                                 "X-Title": "PickR"},
             )
             text = r.choices[0].message.content.strip()
+            fr = getattr(r.choices[0], "finish_reason", None)
+            usage = getattr(r, "usage", None)
+            out_tok = getattr(usage, "completion_tokens", None) if usage else None
+            truncated = (fr == "length")
+            _CALL_LOG.append({
+                "model": fm, "stop_reason": fr, "input_tokens": None,
+                "output_tokens": out_tok, "max_tokens": max_tokens,
+                "chars": len(text), "truncated": truncated, "text": text,
+            })
+            if truncated:
+                print(f"  ⚠️ TRUNCATED: {fm} finish_reason=length "
+                      f"(output_tokens={out_tok}, {len(text)} chars) — treating as FAILED")
+                return None, fm, [f"TRUNCATED: {fm} finish_reason=length output_tokens={out_tok}"]
             print(f"  AI response via {fm} ({len(text)} chars)")
             return text, fm, None
         except Exception as e:
@@ -807,15 +859,34 @@ def run_pass2_report(
             + "\n\nRe-emit the complete corrected JSON. No forbidden words. No omitted sections."
         )
         raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
+
+        # Best-of the two attempts, ranked by completeness. "Best" = fewest missing
+        # REQUIRED sections, then fewest total hard errors, then fewest soft. This
+        # guarantees a more-complete retry is never discarded in favour of a
+        # more-incomplete first attempt (the previous "keep first" bug).
+        def _incompleteness(hs, ss):
+            req_missing = sum(1 for e in hs if e.startswith("missing required section"))
+            return (req_missing, len(hs), len(ss))
+
+        candidates = [(pass2, soft, hard, model)]
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
                 soft_r, hard_r = _validate_pass2_v2(p2r, math)
-                if hard_r:
-                    print(f"  Pass2 v2 retry introduced hard regressions ({hard_r[:2]}); "
-                          "keeping first attempt.")
-                else:
-                    pass2, soft, model = p2r, soft_r, model2
+                candidates.append((p2r, soft_r, hard_r, model2))
+
+        pass2, soft, hard, model = min(
+            candidates, key=lambda c: _incompleteness(c[2], c[1])
+        )
+
+        # Fail loud: never ship an incomplete report. If even the best candidate
+        # still has hard errors (e.g. a required section missing), refuse to ship.
+        if hard:
+            print(f"  Pass2 v2 FAILED after {max_passes} attempts "
+                  f"(best candidate hard errors: {hard[:3]}) — refusing to ship")
+            raise Pass1ValidationError(
+                ["Pass 2 incomplete after retry — refusing to ship an incomplete report"] + hard
+            )
 
     elif soft and max_passes >= 2:
         corrective = (
@@ -1104,15 +1175,17 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
         pass2           = run_pass2_report(ticker, baseline, pass1, math)
         calls_remaining -= 2
     except Pass1ValidationError as exc:
-        print(f"  run_pipeline: Pass 2 failed ({exc}) — stub narrative")
-        calls_remaining -= 1   # at least one call was attempted
-        pass2 = {
-            "investment_thesis": "Narrative unavailable due to generation error.",
-            "reverse_dcf_commentary": "", "scenario_commentary": {},
-            "driver_narratives": {}, "financial_health": "",
-            "recommendation_rationale": "",
-            "conclusion": "Analysis complete. Full narrative could not be generated.",
-            "body": "", "model_used": "N/A",
+        # Fail loud — never silently ship an incomplete narrative. Return an error
+        # report (same shape as the Pass 1 failure path) so the app halts and shows
+        # the failure rather than rendering a stub.
+        print(f"  run_pipeline: Pass 2 FAILED ({exc}) — refusing to ship incomplete report")
+        details = exc.args[0] if (exc.args and isinstance(exc.args[0], list)) else [str(exc)]
+        return {
+            "error":   "Pass 2 narrative incomplete — report withheld",
+            "details": details,
+            "recommendation": "WATCH", "conviction": "Low", "model_used": "N/A",
+            "scenario_math": _empty_scenario_math(),
+            "pass3": {}, "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
         }
 
     # ── Pass 3: §5.5 audit ───────────────────────────────────────────────────

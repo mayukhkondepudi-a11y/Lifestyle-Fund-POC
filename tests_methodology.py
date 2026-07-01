@@ -12,6 +12,8 @@ from __future__ import annotations
 import math
 import pytest
 
+import ai
+
 from compute_methodology_v2 import (
     scenario_eps,
     pe_bands,
@@ -1072,6 +1074,44 @@ class TestPass2FoundationMocked:
         # Should have kept first attempt (which had investment_thesis)
         assert result.get("investment_thesis"), "first attempt's investment_thesis should be kept"
 
+    def test_required_section_missing_after_retry_fails_loud(self):
+        """Change 2(b): if a required section is still missing after retry, raise —
+        never ship an incomplete report."""
+        import json
+        baseline = _baseline_for_pass2(); math = _math_for_pass2()
+        p_bad = _minimal_valid_pass2()
+        del p_bad["recommendation_rationale"]   # hard: missing required section
+        # Retry ALSO missing it (same hard error)
+        def mock_run_ai(msgs, **kwargs):
+            return (json.dumps(p_bad), "m", None)
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            with pytest.raises(Pass1ValidationError) as ei:
+                run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math, max_passes=2)
+        msg = str(ei.value)
+        assert "incomplete" in msg.lower()
+        assert "recommendation_rationale" in msg
+
+    def test_more_complete_retry_not_discarded(self):
+        """Change 2(c): a retry that is MORE complete than the first attempt must be
+        kept, never discarded in favour of the more-incomplete first attempt."""
+        import json
+        baseline = _baseline_for_pass2(); math = _math_for_pass2()
+        # First: missing TWO required sections (recommendation_rationale + conclusion)
+        p_first = _minimal_valid_pass2()
+        del p_first["recommendation_rationale"]; del p_first["conclusion"]
+        # Retry: complete (all required present)
+        p_retry = _minimal_valid_pass2()
+        n = {"i": 0}
+        def mock_run_ai(msgs, **kwargs):
+            n["i"] += 1
+            return (json.dumps(p_first if n["i"] == 1 else p_retry), "m2", None)
+        with mock.patch("ai.run_ai", side_effect=mock_run_ai):
+            result = run_pass2_report("AVGO", baseline, _minimal_valid_pass1(), math, max_passes=2)
+        assert result.get("recommendation_rationale"), "more-complete retry must be kept"
+        assert result.get("conclusion")
+        assert result.get("model_used") == "m2"
+
+
     def test_word_count_in_body(self):
         baseline = _baseline_for_pass2()
         math = _math_for_pass2()
@@ -1080,6 +1120,41 @@ class TestPass2FoundationMocked:
         body_wc = len(result["body"].split())
         assert body_wc <= 4500, f"body word count {body_wc} exceeds 4500"
         assert body_wc > 50, "body is suspiciously short"
+
+
+class TestRunAiTruncation:
+    """Change 1: stop_reason == max_tokens is a FAILED (truncated) completion, not
+    a success, and every call is recorded in the telemetry log."""
+
+    def _fake_resp(self, stop_reason, text='{"ok": true}', out_tok=500):
+        u = type("U", (), {"input_tokens": 10, "output_tokens": out_tok})()
+        b = type("B", (), {"text": text})()
+        return type("R", (), {"stop_reason": stop_reason, "usage": u, "content": [b]})()
+
+    def test_max_tokens_flagged_truncated_not_returned_clean(self):
+        ai.reset_call_log()
+        fake = self._fake_resp("max_tokens", text='{"cut": "off mid', out_tok=10000)
+        with mock.patch.object(ai, "_an_client") as client:
+            client.messages.create.return_value = fake
+            text, model, errors = ai.run_ai([{"role": "user", "content": "x"}], max_tokens=10000)
+        assert text is None, "truncated response must NOT be returned as clean text"
+        assert errors and "TRUNCATED" in errors[0]
+        log = ai.get_call_log()
+        assert len(log) == 1 and log[0]["truncated"] is True
+        assert log[0]["stop_reason"] == "max_tokens"
+        assert log[0]["output_tokens"] == 10000
+
+    def test_end_turn_returned_clean_and_logged(self):
+        ai.reset_call_log()
+        fake = self._fake_resp("end_turn", text='{"ok": true}', out_tok=400)
+        with mock.patch.object(ai, "_an_client") as client:
+            client.messages.create.return_value = fake
+            text, model, errors = ai.run_ai([{"role": "user", "content": "x"}], max_tokens=10000)
+        assert text == '{"ok": true}'
+        assert errors is None
+        log = ai.get_call_log()
+        assert len(log) == 1 and log[0]["truncated"] is False
+        assert log[0]["stop_reason"] == "end_turn" and log[0]["output_tokens"] == 400
 
 
 # ── E3: Smoke harness structural checks — 5 tickers × 3 runs ────────────────
@@ -1599,14 +1674,17 @@ class TestPipelineOrchestrator:
         assert result["scenario_math"]["bull_below_current"] is True
         assert "90.00" in result["scenario_math"]["bull_below_msg"]
 
-    def test_pass2_failure_uses_stub_narrative(self):
+    def test_pass2_failure_fails_loud(self):
+        # Fail loud: a Pass 2 failure must NOT silently ship a stub narrative — it
+        # returns an error report so the app halts.
         with mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
              mock.patch("ai.run_methodology_math", return_value=_G_MATH), \
              mock.patch("ai.run_pass2_report",     side_effect=Pass1ValidationError(["gen error"])), \
              mock.patch("ai.run_pass3_audit",       return_value=_G_PASS3):
             result = run_pipeline(_G_TICKER, _G_BASELINE)
-        assert "Narrative unavailable" in result["investment_thesis"]
-        assert result["model_used"] == "N/A"
+        assert result.get("error"), "Pass 2 failure must produce an error report"
+        assert "incomplete" in result["error"].lower()
+        assert "investment_thesis" not in result or not result.get("investment_thesis")
 
     def test_catalysts_bridged_with_bull_signal(self):
         # 3 catalysts to avoid the catalysts-fallback call (which would need a real API key)
