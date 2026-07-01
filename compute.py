@@ -17,23 +17,51 @@ from formatting import safe_float
 # Changing any constant requires regenerating the AVGO regression fixture.
 # ══════════════════════════════════════════════════════════════
 
-# Correlation multipliers (§8.3) — weight independent driver probs into joint probs
-BULL_CORRELATION_MULTIPLIER = 3.0
-BEAR_CORRELATION_MULTIPLIER = 4.5
+# ── Probability engine (transparent; NO skew multipliers) ──────────────────
+# Joint scenario probs = normalized mean of per-driver outcome probabilities.
+# The former BULL/BEAR correlation multipliers (3.0/4.5) are REMOVED: they had
+# no empirical basis and inverted bull-leaning driver inputs into bear-heavy
+# joint distributions (scenario-core rewrite).
 
-# PEG-anchored P/E band (§7)
-PEG_FLOOR_BULL   = 0.7
-PEG_CEILING_BULL = 1.0
-PEG_BASE_LOW     = 1.3
-PEG_BASE_HIGH    = 1.7
+# ── Scenario growth (organic base anchor × per-scenario tilt) ──────────────
+MAX_BASE_GROWTH     = 0.35    # annual CAGR cap on the organic base-growth anchor
+MIN_BASE_GROWTH     = -0.10   # organic anchor may reflect modest decline
+BULL_GROWTH_MULT    = 1.3     # bull growth = base × this (+ event tilt)
+BASE_GROWTH_MULT    = 1.0
+BEAR_GROWTH_MULT    = 0.5     # bear moderates growth; event tilt can push it negative
+MAX_SCENARIO_GROWTH = 0.60    # upper clamp on any single-scenario annual growth
+BEAR_GROWTH_FLOOR   = None    # NO lower floor — bear revenue may contract (cyclicals)
+HORIZON             = 2       # FY+2 fair-value horizon (B5)
 
-# Bear P/E floors (B3: conditional on FRANCHISE_QUALITY_REQUIRED_FOR_BEAR_FLOOR)
+# ── P/E bands (peer-anchored; PEG demoted to annotation) ───────────────────
+RERATE_PREMIUM   = 0.25    # bull P/E = base_pe × (1 + this), capped at ceiling
+DERATE_DISCOUNT  = 0.30    # bear P/E = base_pe × (1 − this), then franchise floor
+BULL_PE_CEILING  = 45.0    # absolute cap on bull P/E
+PE_FLOOR         = 10.0    # absolute floor on any P/E point
+QUALITY_ADJ_LOW  = 0.8     # peer-multiple quality-adjustment bounds
+QUALITY_ADJ_HIGH = 1.3
+# No-peer fallback: bounded growth-informed anchor (PEG≈1), logged when it fires.
+NO_PEER_PE_MIN   = 12.0
+NO_PEER_PE_MAX   = 30.0
+NO_PEER_PEG      = 1.0
+
+# Bear P/E franchise floor (B3: applies ONLY when franchise_quality derives True)
 BEAR_PE_NOMINAL_FLOOR = 25.0
-BEAR_PE_STRESS_FLOOR  = 15.0
 
-# Consensus backstop calibration (B2)
-ANALYST_CONSENSUS_BULL_FLOOR_FRAC = 0.95   # bull EPS ≥ 95% of consensus high
-ANALYST_CONSENSUS_HARD_GAP_FRAC   = 0.75   # bear EPS ≤ 75% of consensus low
+# ── Consensus sanity band (warn-only; NEVER replaces a computed number) ────
+SANITY_BAND_FRAC = 0.15                    # warn if scenario EPS outside consensus ±15%
+ANALYST_CONSENSUS_HARD_GAP_FRAC = 0.75     # retained only for legacy validate_phase_c.py
+
+# ── Reverse-DCF stability guard ────────────────────────────────────────────
+REVDCF_TINY_FCF_YIELD = 0.02   # below this FCF/mktcap yield, flag implied CAGR unstable
+
+# ── Franchise-quality derivation thresholds (used in calc_baseline) ────────
+# Durable franchise ⇒ (ROE > 15%) AND (gross margin > 30%) AND (positive FCF).
+# Gross margin is the pricing-power / moat proxy: it excludes leverage-inflated
+# ROE names with no pricing power (e.g. thin-margin EMS/contract manufacturers
+# like CLS at ~12% gross), which must NOT receive the 25× bear P/E floor.
+FRANCHISE_ROE_THRESHOLD          = 0.15
+FRANCHISE_GROSS_MARGIN_THRESHOLD = 0.30
 
 # DCF defaults
 DEFAULT_TAX_RATE            = 0.21
@@ -42,13 +70,12 @@ DEFAULT_RISK_FREE_RATE      = 0.045
 DEFAULT_EQUITY_RISK_PREMIUM = 0.055
 
 # C2 — named calibration switches
-FRANCHISE_QUALITY_REQUIRED_FOR_BEAR_FLOOR = True   # B3: bear floor only for quality franchises
-SHARE_COUNT_PROJECTION = "trailing_net_change"      # B4: shares evolve via trailing dilution rate
-HEADLINE_METRIC = "implied_fcf_cagr"                # B1: reverse-DCF leads the report
+SHARE_COUNT_PROJECTION = "trailing_net_change"        # B4: shares evolve via trailing dilution rate
+HEADLINE_METRIC = "recommendation_and_base_return"    # leads report; reverse-DCF + EV in body
 
 # C3 — global LLM call ceiling per pipeline run
-# Pass1 uses ≤2, catalysts fallback uses ≤1, Pass2 uses ≤2, Pass3 uses ≤1, bull-below retry uses ≤1,
-# Pass2 focused section retry uses ≤1 = 8 total.
+# Pass1 ≤2, catalysts fallback ≤1, Pass2 ≤2, Pass3 ≤1, bull-below retry ≤1,
+# Pass2 focused section retry ≤1 = 8 total.
 MAX_PIPELINE_AI_CALLS = 8
 
 
@@ -469,6 +496,21 @@ def calc_baseline(data, consensus_pack=None, peer_tickers=None,
         if _rev_growth_raw is not None:
             five_yr_eps_growth_est = min(safe_float(_rev_growth_raw), 0.40)
 
+    # ── Franchise quality (gates the bear P/E floor — B3) ─────
+    # Derived, never defaulted True: a durable franchise clears ROE > 15% AND
+    # has positive FCF.  Cyclicals (e.g. EMS names) derive False and get a pure
+    # peer-derate bear with no 25× floor.
+    roe = safe_float(g("returnOnEquity"))
+    franchise_quality = bool(
+        roe is not None and roe > FRANCHISE_ROE_THRESHOLD
+        and fy_gross_margin is not None and fy_gross_margin > FRANCHISE_GROSS_MARGIN_THRESHOLD
+        and fy_fcf is not None and fy_fcf > 0
+    )
+
+    # ── Trailing net dilution rate (B4: shares evolve over horizon) ───
+    # CAGR of share count; negative = net buyback.  0.0 when history unavailable.
+    trailing_net_dilution_rate = _compute_dilution_rate(_extract_shares_history(bs))
+
     # ── Segments (FMP) ────────────────────────────────────────
     segments = None
     try:
@@ -547,6 +589,9 @@ def calc_baseline(data, consensus_pack=None, peer_tickers=None,
         "fwd_pe":            fwd_pe,
         "trailing_pe":       trailing_pe,
         "peg":               peg,
+        "roe":               roe,
+        "franchise_quality":            franchise_quality,
+        "trailing_net_dilution_rate":   trailing_net_dilution_rate,
 
         "consensus_eps_fy1":      consensus_eps_fy1,
         "consensus_eps_fy2":      consensus_eps_fy2,

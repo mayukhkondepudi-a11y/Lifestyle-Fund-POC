@@ -1,0 +1,29 @@
+{
+  "segments_enriched": [
+    {"name": "Connectivity & Cloud Solutions (CCS)", "fy_revenue": 8.2, "growth_yoy": 0.45, "share_pct": 0.66, "gross_margin": null},
+    {"name": "Advanced Technology Solutions (ATS)",  "fy_revenue": 4.2, "growth_yoy": 0.05, "share_pct": 0.34, "gross_margin": null}
+  ],
+  "peer_set_enriched": [
+    {"ticker": "FLEX", "rationale": "Largest direct EMS peer with cloud/datacenter ODM exposure."},
+    {"ticker": "JBL",  "rationale": "Diversified EMS comparable, closest revenue mix."},
+    {"ticker": "SANM", "rationale": "Smaller US EMS peer, industrial/medical mix."}
+  ],
+  "macro_drivers": {
+    "A": "Hyperscaler AI Capex Cycle (HPS Ramp)",
+    "B": "ATS Backlog & Diversified Industrial Stability",
+    "C": "Hyperscaler Customer Concentration & Insourcing"
+  },
+  "events": [
+    {"id": "A1", "driver": "A", "outcome": "bull", "probability": 0.40, "revenue_at_risk_low": 1.5, "revenue_at_risk_high": 2.5, "op_margin_to_apply": 0.11,  "tax_rate_to_apply": 0.21},
+    {"id": "A2", "driver": "A", "outcome": "base", "probability": 0.45, "revenue_at_risk_low": 0.5, "revenue_at_risk_high": 1.5, "op_margin_to_apply": 0.095, "tax_rate_to_apply": 0.21},
+    {"id": "A3", "driver": "A", "outcome": "bear", "probability": 0.15, "revenue_at_risk_low": 0.3, "revenue_at_risk_high": 0.7, "op_margin_to_apply": 0.07,  "tax_rate_to_apply": 0.21},
+    {"id": "B2", "driver": "B", "outcome": "bull", "probability": 0.25, "revenue_at_risk_low": 0.3, "revenue_at_risk_high": 0.7, "op_margin_to_apply": 0.10,  "tax_rate_to_apply": 0.21},
+    {"id": "B1", "driver": "B", "outcome": "base", "probability": 0.60, "revenue_at_risk_low": 0.2, "revenue_at_risk_high": 0.6, "op_margin_to_apply": 0.09,  "tax_rate_to_apply": 0.21},
+    {"id": "B3", "driver": "B", "outcome": "bear", "probability": 0.15, "revenue_at_risk_low": 0.1, "revenue_at_risk_high": 0.3, "op_margin_to_apply": 0.07,  "tax_rate_to_apply": 0.21},
+    {"id": "C3", "driver": "C", "outcome": "bull", "probability": 0.15, "revenue_at_risk_low": 0.3, "revenue_at_risk_high": 0.8, "op_margin_to_apply": 0.10,  "tax_rate_to_apply": 0.21},
+    {"id": "C2", "driver": "C", "outcome": "base", "probability": 0.40, "revenue_at_risk_low": 0.2, "revenue_at_risk_high": 0.6, "op_margin_to_apply": 0.075, "tax_rate_to_apply": 0.21},
+    {"id": "C1", "driver": "C", "outcome": "bear", "probability": 0.45, "revenue_at_risk_low": 1.0, "revenue_at_risk_high": 1.8, "op_margin_to_apply": 0.06,  "tax_rate_to_apply": 0.21}
+  ],
+  "catalysts": [],
+  "model_used": "fixture-hand-built-from-CLS-pdf"
+}

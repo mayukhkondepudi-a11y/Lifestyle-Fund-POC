@@ -1,225 +1,240 @@
 {
+  "headline_metric": "recommendation_and_base_return",
+  "recommendation": "WATCH",
+  "base_case_return": 0.073,
+  "base_growth": 0.35,
+  "base_growth_source": "consensus_revenue_cagr",
+  "implied_fcf_cagr": 0.54,
+  "reverse_dcf_unstable": true,
+  "discount_rate": 0.1491,
+  "shares_projected": 24.221,
+  "scenario_eps": {
+    "bull": 10.82,
+    "base": 7.7,
+    "bear": 4.19
+  },
+  "scenario_revenue": {
+    "bull": 552.8013,
+    "base": 393.547,
+    "bear": 236.483
+  },
+  "scenario_margin": {
+    "bull": 0.6,
+    "base": 0.6,
+    "bear": 0.5432
+  },
+  "pe_band": {
+    "bull_low": 37.5,
+    "bull_high": 37.5,
+    "base_low": 30.0,
+    "base_high": 30.0,
+    "bear_low": 21.0,
+    "bear_high": 21.0,
+    "source": "no_peer_fallback"
+  },
+  "pe_points": {
+    "bull": 37.5,
+    "base": 30.0,
+    "bear": 21.0
+  },
+  "price_target": {
+    "bull": 405.68,
+    "base": 231.05,
+    "bear": 87.99,
+    "bull_mid": 405.68,
+    "base_mid": 231.05,
+    "bear_mid": 87.99,
+    "bull_high": 466.53,
+    "bear_low": 74.79
+  },
+  "joint_probs": {
+    "bull": 0.2333,
+    "base": 0.45,
+    "bear": 0.3167
+  },
+  "driver_probs": {
+    "A": {
+      "bull": 0.45,
+      "base": 0.4,
+      "bear": 0.15
+    },
+    "B": {
+      "bull": 0.25,
+      "base": 0.6,
+      "bear": 0.15
+    },
+    "C": {
+      "bull": 0.0,
+      "base": 0.35,
+      "bear": 0.65
+    }
+  },
+  "expected_value": 226.48,
+  "risk": {
+    "prob_loss": 0.3167,
+    "max_drawdown_pct": 0.5914,
+    "expected_return_pct": 0.0518,
+    "ev": 226.48
+  },
   "breakeven_pe": 43.9,
-  "calibration_log": [
-    "Step A: bull EPS floored $5.77\u2192$15.20 (0.95\u00d7consensus_high=$16.00)",
-    "Base P/E ratio-discounted: base_high 102.0\u219248.0, base_low 78.0\u219231.5 (0.80/0.75 of bull band)"
-  ],
-  "consensus_divergent": false,
   "dcf": {
+    "bull": {
+      "enterprise_value": 1606.8,
+      "equity_value": 1647.16,
+      "intrinsic_per_share": 68.01
+    },
     "base": {
       "enterprise_value": 784.87,
       "equity_value": 825.23,
       "intrinsic_per_share": 34.07
     },
     "bear": {
-      "enterprise_value": 611.18,
-      "equity_value": 651.54,
-      "intrinsic_per_share": 26.9
-    },
-    "bull": {
-      "enterprise_value": 2073.64,
-      "equity_value": 2114.0,
-      "intrinsic_per_share": 87.28
+      "enterprise_value": 254.86,
+      "equity_value": 295.22,
+      "intrinsic_per_share": 12.19
     }
   },
-  "discount_rate": 0.1491,
-  "driver_outcome_probabilities": {
-    "A": {
-      "base": 0.4,
-      "bear": 0.15,
-      "bull": 0.45
-    },
-    "B": {
-      "base": 0.6,
-      "bear": 0.15,
-      "bull": 0.25
-    },
-    "C": {
-      "base": 0.35,
-      "bear": 0.65,
-      "bull": 0.0
-    }
-  },
-  "driver_probs": {
-    "A": {
-      "base": 0.4,
-      "bear": 0.15,
-      "bull": 0.45
-    },
-    "B": {
-      "base": 0.6,
-      "bear": 0.15,
-      "bull": 0.25
-    },
-    "C": {
-      "base": 0.35,
-      "bear": 0.65,
-      "bull": 0.0
-    }
-  },
-  "ev_formula_string": "0.2718\u00d7$775.20 + 0.1748\u00d7$193.38 + 0.5534\u00d7$102.24 = $301.08",
-  "expected_value": 301.08,
-  "headline_metric": "implied_fcf_cagr",
+  "calibration_log": [
+    "Base growth clamped to 0.35 bound",
+    "Sanity: base EPS $7.70 outside consensus band [$8.20, $18.40] (informational; not adjusted)",
+    "Sanity: bear EPS $4.19 outside consensus band [$8.20, $18.40] (informational; not adjusted)",
+    "P/E from no-peer growth fallback (base_pe=30.0); peer multiples unavailable",
+    "franchise_quality=False \u2014 no 25\u00d7 bear P/E floor (pure peer-derate bear)",
+    "Reverse-DCF unstable: FCF yield 1.9% < 2% \u2014 implied CAGR 54% is a small-denominator artifact, read directionally"
+  ],
+  "owner_earnings": 90.29,
   "headwinds": [
     {
-      "base_eps_impact": 0.0965,
-      "bear_eps_impact": 0.0,
-      "bull_eps_impact": 0.193,
-      "driver": "A",
-      "eps_impact_high": 0.193,
-      "eps_impact_low": 0.0,
-      "eps_impact_mid": 0.0965,
       "event_id": "A3",
       "name": "A \u2014 bear",
+      "driver": "A",
       "outcome": "bear",
       "probability": 0.15,
-      "revenue_at_risk": 5.0,
+      "revenue_at_risk_low": 0.0,
       "revenue_at_risk_high": 10.0,
-      "revenue_at_risk_low": 0.0
+      "revenue_at_risk": 5.0,
+      "eps_impact_high": 0.193,
+      "eps_impact_mid": 0.0965,
+      "eps_impact_low": 0.0,
+      "bull_eps_impact": 0.193,
+      "base_eps_impact": 0.0965,
+      "bear_eps_impact": 0.0
     },
     {
-      "base_eps_impact": 0.0579,
-      "bear_eps_impact": 0.0,
-      "bull_eps_impact": 0.1158,
-      "driver": "B",
-      "eps_impact_high": 0.1158,
-      "eps_impact_low": 0.0,
-      "eps_impact_mid": 0.0579,
       "event_id": "B3",
       "name": "B \u2014 bear",
+      "driver": "B",
       "outcome": "bear",
       "probability": 0.15,
-      "revenue_at_risk": 3.0,
+      "revenue_at_risk_low": 0.0,
       "revenue_at_risk_high": 6.0,
-      "revenue_at_risk_low": 0.0
+      "revenue_at_risk": 3.0,
+      "eps_impact_high": 0.1158,
+      "eps_impact_mid": 0.0579,
+      "eps_impact_low": 0.0,
+      "bull_eps_impact": 0.1158,
+      "base_eps_impact": 0.0579,
+      "bear_eps_impact": 0.0
     },
     {
-      "base_eps_impact": 0.3562,
-      "bear_eps_impact": 0.2035,
-      "bull_eps_impact": 0.5089,
-      "driver": "C",
-      "eps_impact_high": 0.5089,
-      "eps_impact_low": 0.2035,
-      "eps_impact_mid": 0.3562,
       "event_id": "C1",
       "name": "C \u2014 bear",
+      "driver": "C",
       "outcome": "bear",
       "probability": 0.5,
-      "revenue_at_risk": 17.5,
+      "revenue_at_risk_low": 10.0,
       "revenue_at_risk_high": 25.0,
-      "revenue_at_risk_low": 10.0
+      "revenue_at_risk": 17.5,
+      "eps_impact_high": 0.5089,
+      "eps_impact_mid": 0.3562,
+      "eps_impact_low": 0.2035,
+      "bull_eps_impact": 0.5089,
+      "base_eps_impact": 0.3562,
+      "bear_eps_impact": 0.2035
     },
     {
-      "base_eps_impact": 0.5475,
-      "bear_eps_impact": 0.365,
-      "bull_eps_impact": 0.7299,
-      "driver": "C",
-      "eps_impact_high": 0.7299,
-      "eps_impact_low": 0.365,
-      "eps_impact_mid": 0.5475,
       "event_id": "C3",
       "name": "C \u2014 bear",
+      "driver": "C",
       "outcome": "bear",
       "probability": 0.15,
-      "revenue_at_risk": 30.0,
+      "revenue_at_risk_low": 20.0,
       "revenue_at_risk_high": 40.0,
-      "revenue_at_risk_low": 20.0
+      "revenue_at_risk": 30.0,
+      "eps_impact_high": 0.7299,
+      "eps_impact_mid": 0.5475,
+      "eps_impact_low": 0.365,
+      "bull_eps_impact": 0.7299,
+      "base_eps_impact": 0.5475,
+      "bear_eps_impact": 0.365
     }
   ],
-  "implied_fcf_cagr": 0.535193,
-  "joint_probs": {
-    "base": 0.1748,
-    "bear": 0.5534,
-    "bull": 0.2718
-  },
-  "owner_earnings": 90.29,
-  "pe_band": {
-    "base_high": 48.0,
-    "base_low": 31.5,
-    "bear_high": 32.5,
-    "bear_low": 25.0,
-    "bull_high": 60.0,
-    "bull_low": 42.0
-  },
-  "price_target": {
-    "base_mid": 193.38,
-    "bear_low": 88.91,
-    "bull_high": 912.0,
-    "bull_mid": 775.2
-  },
-  "recommendation": "PASS",
-  "risk": {
-    "ev": 301.08,
-    "expected_return_pct": 0.3982,
-    "max_drawdown_pct": 0.5252,
-    "prob_loss": 0.7282
-  },
-  "scenario_eps": {
-    "base": 4.86,
-    "bear": 3.56,
-    "bull": 15.2
-  },
-  "scenario_segment_revenue": {
-    "any_derived": true,
-    "segments": [
-      {
-        "base": 591.2452,
-        "bear": 309.093,
-        "bull": 552.8013,
-        "fy_revenue": 215.938,
-        "growth_source": "derived",
-        "name": "Consolidated (segment detail not provided in baseline)"
-      }
-    ]
-  },
-  "sensitivity_table": {
-    "current": {
-      "bull_prob": 0.2718,
-      "expected_value": 301.08
-    },
-    "driver": "A",
-    "minus_10pp": {
-      "bull_prob": 0.2286,
-      "expected_value": 271.7
-    },
-    "plus_10pp": {
-      "bull_prob": 0.3168,
-      "expected_value": 331.67
-    }
-  },
-  "shares_projected": 24.221,
   "tailwinds": [
     {
-      "base_eps_impact": 1.2432,
-      "bear_eps_impact": 1.0265,
-      "bull_eps_impact": 1.4599,
-      "driver": "A",
-      "eps_impact_high": 1.4599,
-      "eps_impact_low": 1.0265,
-      "eps_impact_mid": 1.2432,
       "event_id": "A1",
       "name": "A \u2014 bull",
+      "driver": "A",
       "outcome": "bull",
       "probability": 0.45,
-      "revenue_at_risk": 54.5,
+      "revenue_at_risk_low": 45.0,
       "revenue_at_risk_high": 64.0,
-      "revenue_at_risk_low": 45.0
+      "revenue_at_risk": 54.5,
+      "eps_impact_high": 1.4599,
+      "eps_impact_mid": 1.2432,
+      "eps_impact_low": 1.0265,
+      "bull_eps_impact": 1.4599,
+      "base_eps_impact": 1.2432,
+      "bear_eps_impact": 1.0265
     },
     {
-      "base_eps_impact": 0.3937,
-      "bear_eps_impact": 0.2779,
-      "bull_eps_impact": 0.5096,
-      "driver": "B",
-      "eps_impact_high": 0.5096,
-      "eps_impact_low": 0.2779,
-      "eps_impact_mid": 0.3937,
       "event_id": "B2",
       "name": "B \u2014 bull",
+      "driver": "B",
       "outcome": "bull",
       "probability": 0.25,
-      "revenue_at_risk": 17.0,
+      "revenue_at_risk_low": 12.0,
       "revenue_at_risk_high": 22.0,
-      "revenue_at_risk_low": 12.0
+      "revenue_at_risk": 17.0,
+      "eps_impact_high": 0.5096,
+      "eps_impact_mid": 0.3937,
+      "eps_impact_low": 0.2779,
+      "bull_eps_impact": 0.5096,
+      "base_eps_impact": 0.3937,
+      "bear_eps_impact": 0.2779
     }
-  ]
+  ],
+  "ev_formula_string": "0.2333\u00d7$405.68 + 0.4500\u00d7$231.05 + 0.3167\u00d7$87.99 = $226.48",
+  "driver_outcome_probabilities": {
+    "A": {
+      "bull": 0.45,
+      "base": 0.4,
+      "bear": 0.15
+    },
+    "B": {
+      "bull": 0.25,
+      "base": 0.6,
+      "bear": 0.15
+    },
+    "C": {
+      "bull": 0.0,
+      "base": 0.35,
+      "bear": 0.65
+    }
+  },
+  "sensitivity_table": {
+    "driver": "A",
+    "minus_10pp": {
+      "bull_prob": 0.2,
+      "expected_value": 215.91
+    },
+    "current": {
+      "bull_prob": 0.2333,
+      "expected_value": 226.48
+    },
+    "plus_10pp": {
+      "bull_prob": 0.2667,
+      "expected_value": 237.09
+    }
+  },
+  "scenario_segment_revenue": null
 }
