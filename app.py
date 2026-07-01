@@ -1187,20 +1187,20 @@ def render(ticker, m, a, data):
             if narrative:
                 st.markdown(f'<div style="font-size:0.95rem;color:rgba(255,255,255,0.78);line-height:1.8;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
 
-    # ── EV reconciliation ──
-    if pt_dict.get("bull") and pt_dict.get("base") and pt_dict.get("bear"):
-        bu_p = final_probs.get("bull", 0); bu_t = pt_dict.get("bull", 0)
-        ba_p = final_probs.get("base", 0); ba_t = pt_dict.get("base", 0)
-        be_p = final_probs.get("bear", 0); be_t = pt_dict.get("bear", 0)
-        ev_check = bu_p * bu_t + ba_p * ba_t + be_p * be_t
+    # ── EV reconciliation (single source of truth) ──
+    # Render the math layer's own ev_formula_string verbatim. The app NEVER
+    # recomputes EV — the previous app-side recomputation used a different bear
+    # price (bear_low) and different weight rounding than the headline EV, so it
+    # contradicted the headline. Display exactly what the math computed.
+    ev_formula = sm.get("ev_formula_string", "")
+    if ev_formula:
         st.markdown(
             f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.55);'
             f'margin:0.6rem 0 1rem;padding:0.6rem 0.9rem;'
             f'background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.15);'
             f'border-radius:4px;font-family:ui-monospace,monospace;">'
-            f'EV = {bu_p:.2f}×{sym}{bu_t:,.2f} + {ba_p:.2f}×{sym}{ba_t:,.2f} + {be_p:.2f}×{sym}{be_t:,.2f} = '
-            f'<strong style="color:rgba(255,255,255,0.85);">{sym}{ev_check:,.2f}</strong>'
-            f'&nbsp;— integer-percent weights, single source of truth'
+            f'EV = {clean_latex(ev_formula)}'
+            f'&nbsp;— probability-weighted scenario mids, single source of truth'
             f'</div>',
             unsafe_allow_html=True
         )
@@ -1596,16 +1596,12 @@ with left_col:
         'border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem">'
         '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.5rem;'
         'line-height:1.25;letter-spacing:-0.02em;">'
-        'The research your broker <span style="color:#c03030">won\'t write</span> for you.</h1>'
+        'AI assisted <span style="color:#c03030">stock research</span>.</h1>'
         '<p style="font-size:1.02rem;color:rgba(255,255,255,0.55);line-height:1.8;'
         'max-width:620px;margin:0 0 1rem;">'
         'Sell-side research is biased. Reddit is noise. PickR runs a structured quality, '
         'growth, and valuation analysis across three price scenarios — for any US or Indian stock.</p>'
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">'
-        '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
-        'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
-        'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'
-        '&#10003; No credit card</span>'
         '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
         'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
         'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'

@@ -1415,7 +1415,7 @@ _G_MATH = {
     "implied_fcf_cagr": 0.08,
     "joint_probs":   {"bull": 0.25, "base": 0.55, "bear": 0.20},
     "scenario_eps":  {"bull": 8.0,  "base": 6.0,  "bear": 4.0},
-    "price_target":  {"bull_high": 150.0, "bull_mid": 130.0, "base_mid": 110.0, "bear_low": 70.0},
+    "price_target":  {"bull_high": 150.0, "bull_mid": 130.0, "base_mid": 110.0, "bear_mid": 82.0, "bear_low": 70.0},
     "pe_band":       {"bull_low": 18, "bull_high": 22, "base_low": 16, "base_high": 20, "bear_low": 12, "bear_high": 16},
     "risk":          {"prob_loss": 0.20, "max_drawdown_pct": 0.30, "expected_return_pct": 0.10, "ev": 110.0},
     "expected_value": 110.0, "recommendation": "BUY",
@@ -1510,7 +1510,10 @@ class TestPipelineOrchestrator:
         assert "bull" in pt and "base" in pt and "bear" in pt
         assert pt["bull"] == _G_MATH["price_target"]["bull_mid"]
         assert pt["base"] == _G_MATH["price_target"]["base_mid"]
-        assert pt["bear"] == _G_MATH["price_target"]["bear_low"]
+        # Single source of truth: the bear alias is the MID (EV price), not the
+        # display-only range low. This is the fix for the two-EV contradiction.
+        assert pt["bear"] == _G_MATH["price_target"]["bear_mid"]
+        assert pt["bear_low"] == _G_MATH["price_target"]["bear_low"]
 
     def test_final_probabilities_equals_joint_probs(self):
         with _pipeline_mocks():
@@ -1561,7 +1564,7 @@ class TestPipelineOrchestrator:
 
     def test_bull_below_triggers_retry(self):
         bull_below_math  = {**_G_MATH, "price_target": {
-            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_mid": 70.0, "bear_low": 60.0,
         }, "risk": {**_G_MATH["risk"]}}
         bull_above_math  = _G_MATH
 
@@ -1584,7 +1587,7 @@ class TestPipelineOrchestrator:
 
     def test_bull_below_flag_set_when_retry_fails(self):
         bull_below_math = {**_G_MATH, "price_target": {
-            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_mid": 70.0, "bear_low": 60.0,
         }, "risk": {**_G_MATH["risk"]}}
 
         with mock.patch("ai.run_pass1_foundation", return_value=_minimal_valid_pass1()), \
@@ -2292,7 +2295,7 @@ class TestBug1CallCeilingCounter:
             return _minimal_valid_pass1()
 
         bull_below_math = {**_G_MATH, "price_target": {
-            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_low": 60.0,
+            "bull_high": 95.0, "bull_mid": 90.0, "base_mid": 80.0, "bear_mid": 70.0, "bear_low": 60.0,
         }, "risk": {**_G_MATH["risk"]}}
 
         def alt_math(p1, bl):

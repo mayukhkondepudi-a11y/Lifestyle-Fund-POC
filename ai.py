@@ -1172,18 +1172,23 @@ def _assemble_pipeline_output(
     pe_band_d     = math.get("pe_band", {})
 
     # ── Derived scalars ──────────────────────────────────────────────────────
+    # bear_mid is the probability-weighted bear PRICE (single source of truth for
+    # EV/risk).  bear_low is a display-only range extreme (bear_mid × 0.85) and is
+    # NEVER used in EV or risk — that divergence was the two-EV bug.
     bull_mid  = safe_float(pt.get("bull_mid", 0))
     base_mid  = safe_float(pt.get("base_mid", 0))
+    bear_mid  = safe_float(pt.get("bear_mid", pt.get("bear", 0)))
     bear_low  = safe_float(pt.get("bear_low", 0))
 
     ev_val          = safe_float(risk.get("ev", math.get("expected_value", 0)))
     expected_return = safe_float(risk.get("expected_return_pct", 0))
     prob_loss       = safe_float(risk.get("prob_loss", 0))
     prob_positive   = round(max(0.0, 1.0 - prob_loss), 4)
-    base_implied    = round(base_mid / current_price - 1, 4) if current_price > 0 and base_mid > 0 else 0.0
+    base_implied    = safe_float(math.get("base_case_return",
+                        round(base_mid / current_price - 1, 4) if current_price > 0 and base_mid > 0 else 0.0))
 
-    # Upside/downside ratio (matches v1 derivation in compute.py)
-    price_map    = {"bull": bull_mid, "base": base_mid, "bear": bear_low}
+    # Upside/downside ratio — uses the same bear_mid the EV uses (no divergence).
+    price_map    = {"bull": bull_mid, "base": base_mid, "bear": bear_mid}
     upside_sum   = sum(
         joint_probs.get(s, 0) * (price_map[s] / current_price - 1)
         for s in ("bull", "base", "bear")
@@ -1203,10 +1208,10 @@ def _assemble_pipeline_output(
 
     # ── Sanity flags ─────────────────────────────────────────────────────────
     mono_viol = (
-        bull_mid > 0 and base_mid > 0 and bear_low > 0
-        and not (bull_mid > base_mid > bear_low)
+        bull_mid > 0 and base_mid > 0 and bear_mid > 0
+        and not (bull_mid > base_mid > bear_mid)
     )
-    mono_msg      = (f"Non-monotonic targets: bull={bull_mid:.2f} / base={base_mid:.2f} / bear={bear_low:.2f}." if mono_viol else "")
+    mono_msg      = (f"Non-monotonic targets: bull={bull_mid:.2f} / base={base_mid:.2f} / bear={bear_mid:.2f}." if mono_viol else "")
     bull_below_msg = (f"Bull target ({bull_mid:.2f}) below current price ({current_price:.2f})." if bull_below else "")
 
     # ── Recommendation + conviction (deterministic) ──────────────────────────
@@ -1255,11 +1260,12 @@ def _assemble_pipeline_output(
         "eps":                 math.get("scenario_eps", {}),
         "price_target": {
             **pt,
-            "bull": bull_mid,            # alias: render EV reconciliation + scenario tabs
+            "bull": bull_mid,            # alias: scenario tabs (probability-weighted mid)
             "base": base_mid,            # alias: render_track_box + scenario tabs
-            "bear": bear_low,            # alias: scenario tabs
+            "bear": bear_mid,            # alias: scenario tabs — MID (EV price), not range low
+            "bear_low": bear_low,        # display-only range extreme
         },
-        "scenario_revenue":    {},       # v2 doesn't aggregate segment revenue
+        "scenario_revenue":    math.get("scenario_revenue", {}),
         "expected_value":      ev_val,
         "expected_return":     expected_return,
         "base_implied_return": base_implied,
