@@ -1,0 +1,23 @@
+{
+  "_comment": "STRUCTURAL SIGNALS ONLY. recommendation, base_case_return, expected_value, and all scenario prices/EPS are DELIBERATELY EXCLUDED: they are derived from Pass 1 (LLM, sampled at temperature 1.0) and vary run-to-run (e.g. NVDA swung PASS<->BUY between two identical-input batches), so freezing them would make this golden flaky. Only reproducible structural/audit signals are frozen here.",
+  "audit_clean": true,
+  "b1_compliant": true,
+  "citations_outside_source": [],
+  "field_path_litter_count": 0,
+  "forbidden_vocab": [],
+  "sections_present": [
+    "business_overview",
+    "competitive_position",
+    "conclusion",
+    "financial_health",
+    "growth_drivers_and_moats",
+    "investment_thesis",
+    "margin_analysis",
+    "recommendation_rationale",
+    "revenue_architecture",
+    "reverse_dcf_commentary",
+    "sensitivity_check",
+    "valuation_vs_expectations"
+  ],
+  "ticker": "AVGO"
+}
