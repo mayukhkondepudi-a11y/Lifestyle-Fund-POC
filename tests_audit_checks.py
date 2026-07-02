@@ -13,9 +13,43 @@ from audit_checks import (
     WORD_COUNT_CEILING,
     citation_check,
     forbidden_vocab_check,
+    field_path_litter_check,
     section_gating_check,
     word_count_check,
 )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# field_path_litter_check
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestFieldPathLitterCheck:
+    def test_clean_prose_passes(self):
+        text = ("The recommendation is BUY, with a base-case return of 14.6% and a "
+                "base target of 414.45 built on FY+2 EPS of 14.08 at a 28.9x multiple.")
+        assert field_path_litter_check(text) == []
+
+    def test_bare_json_name_flagged(self):
+        text = "The implied CAGR is 49 percent, but math_json flags it as unreliable."
+        hits = field_path_litter_check(text)
+        assert len(hits) == 1
+        assert hits[0]["path"] == "math_json"
+        assert "unreliable" in hits[0]["context"]
+
+    def test_dotted_paths_flagged_with_strings(self):
+        text = ("eps_impact reaches 1.3051 per math_json.tailwinds and the bear side "
+                "per math_json.headwinds; segments per baseline_json.segments are absent.")
+        paths = {h["path"] for h in field_path_litter_check(text)}
+        assert paths == {"math_json.tailwinds", "math_json.headwinds", "baseline_json.segments"}
+
+    def test_all_three_source_names_caught(self):
+        text = "See math_json, pass1_json, and baseline_json for the values."
+        paths = {h["path"] for h in field_path_litter_check(text)}
+        assert paths == {"math_json", "pass1_json", "baseline_json"}
+
+    def test_hit_is_hard_failure_signal(self):
+        # Any hit is non-empty ⇒ the caller treats it as a hard audit failure.
+        assert field_path_litter_check("value per math_json.scenario_margin here") != []
 
 
 # ════════════════════════════════════════════════════════════════════════════

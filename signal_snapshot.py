@@ -28,6 +28,7 @@ from typing import Any
 from audit_checks import (
     citation_check,
     forbidden_vocab_check,
+    field_path_litter_check,
     section_gating_check,
     word_count_check,
 )
@@ -71,6 +72,7 @@ def capture_signals(
     fv_hits    = forbidden_vocab_check(body)
     cite_misses = citation_check(body, math_dict)
     gate_viols  = section_gating_check(math_dict, pass2_result)
+    litter_hits = field_path_litter_check(body)
 
     sections_present = sorted(
         k for k in _REQUIRED_SECTIONS if pass2_result.get(k)
@@ -79,7 +81,7 @@ def capture_signals(
         k for k in _REQUIRED_SECTIONS if not pass2_result.get(k)
     )
 
-    audit_clean = (not fv_hits) and (not gate_viols)
+    audit_clean = (not fv_hits) and (not gate_viols) and (not litter_hits)
 
     return {
         "ticker":                   ticker,
@@ -90,6 +92,7 @@ def capture_signals(
         "forbidden_vocab":          fv_hits,
         "citation_misses":          cite_misses,
         "section_gate_violations":  gate_viols,
+        "field_path_litter":        litter_hits,
         "pass3_audit_clean":        audit_clean,
     }
 

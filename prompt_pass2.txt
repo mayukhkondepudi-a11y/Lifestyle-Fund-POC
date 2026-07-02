@@ -97,10 +97,27 @@ CITATION DISCIPLINE:
   Every number in your narrative MUST be verbatim from math_json, pass1_json, or baseline_json
   UNLESS the section is explicitly marked QUALITATIVE below.
   DO NOT compute, derive, round differently, or recall from training data.
-  NEVER write raw field paths in prose. Write the NUMBER in plain English, not the JSON
-  path that produced it. WRONG: "a base target of 338.90 per math_json.price_target.base_mid".
-  RIGHT: "a base-case target of 338.90". The reader must never see "math_json", "pass1_json",
-  "baseline_json", or a dotted field path anywhere in the narrative.
+  HARD RULE (auto-enforced): NEVER write a JSON field path in prose. The words
+  "math_json", "pass1_json", "baseline_json" — and any dotted path such as
+  "math_json.tailwinds" or "baseline_json.segments" — must NOT appear anywhere in
+  any narrative section. Write the NUMBER in plain English instead.
+    WRONG: "a base target of 338.90 per math_json.price_target.base_mid"
+    WRONG: "eps_impact reaches 1.3051 per math_json.tailwinds"
+    WRONG: "math_json flags this as unreliable"
+    RIGHT: "a base-case target of 338.90"
+    RIGHT: "the bull EPS uplift reaches 1.3051"
+    RIGHT: "the model flags this figure as unreliable"
+  An automated deterministic check scans the rendered narrative and REJECTS any
+  report containing a field path. There is no exception — not even to explain
+  where a number came from.
+
+  PEER / COMPANY MULTIPLES — SOURCE VALUE ONLY: every P/E, growth rate, or other
+  multiple you attribute to a peer or to the company MUST be the value provided in
+  the data (pass1_json.peer_set_enriched fwd_pe/growth, or baseline_json fields).
+  NEVER cite a multiple from memory. If the source gives AMD forward P/E as 41.05,
+  the prose says 41.05 — never a remembered "~25x". If a peer's multiple is not in
+  the provided data, name the peer WITHOUT a numeric multiple rather than recalling
+  one from training data.
   NO dollar signs ($) — write "41.22" not "$41.22". Write "14.5 billion" not "$14.5B".
   NO open-ended ranges ("12%+") unless that exact bound appears in source.
   If a number is not in source, use qualitative direction (growing, expanding, contracting).
@@ -180,8 +197,10 @@ competitive_position (REQUIRED — 250-300 words):
   QUALITATIVE. Moat durability, named competitors, and key competitive threats.
   Reference the peer set from pass1_json.peer_set_enriched by name — list the peers
   and characterise where {ticker} sits relative to them on growth and valuation.
-  If peer fwd_pe values appear in pass1_json.peer_set_enriched, you may cite them
-  as they are in the allowed source.
+  If peer fwd_pe values appear in the peer data, cite them EXACTLY as given in the
+  source — never substitute a multiple you remember for that company. If a peer has
+  no multiple in the source, name it without a number. (See "PEER / COMPANY
+  MULTIPLES — SOURCE VALUE ONLY" above.)
   Do not fabricate market share percentages or revenue figures beyond what appears
   in source data.
 

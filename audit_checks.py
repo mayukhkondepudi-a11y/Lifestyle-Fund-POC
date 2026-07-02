@@ -74,6 +74,34 @@ def forbidden_vocab_check(narrative_text: str) -> list[dict[str, str]]:
     return hits
 
 
+# ── Field-path litter: JSON source names / dotted paths leaking into prose ───
+# The narrative must reference numbers by their plain value only — never the JSON
+# field path that produced them (e.g. "math_json.tailwinds", "baseline_json").
+# This is a DETERMINISTIC gate: it does not depend on the LLM obeying a prompt
+# rule. Matches "<word>_json" optionally followed by dotted sub-fields.
+_FIELD_PATH_RE = re.compile(r"\b\w+_json(?:\.\w+)*")
+
+
+def field_path_litter_check(narrative_text: str) -> list[dict[str, str]]:
+    """
+    Scan *narrative_text* for JSON field-path litter (baseline_json, pass1_json,
+    math_json, and dotted paths like math_json.tailwinds).
+
+    Returns a list of hit dicts:
+        {"path": str, "context": str}  — one entry per occurrence.
+    Empty list means no litter found (check passes). Any hit is a hard failure.
+    """
+    hits: list[dict[str, str]] = []
+    for m in _FIELD_PATH_RE.finditer(narrative_text):
+        ctx_start = max(0, m.start() - 30)
+        ctx_end   = min(len(narrative_text), m.end() + 30)
+        hits.append({
+            "path":    m.group(0),
+            "context": narrative_text[ctx_start:ctx_end].strip(),
+        })
+    return hits
+
+
 def word_count_check(narrative_text: str) -> dict[str, Any]:
     """
     Count words in *narrative_text* and compare against WORD_COUNT_CEILING.

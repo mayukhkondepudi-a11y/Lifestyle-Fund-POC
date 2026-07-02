@@ -86,6 +86,16 @@ class TestCaptureSignalsShape:
         assert sigs["pass3_audit_clean"] is True
         assert sigs["forbidden_vocab"] == []
         assert sigs["section_gate_violations"] == []
+        assert sigs["field_path_litter"] == []
+
+    def test_field_path_litter_surfaces_and_gates_audit(self):
+        p2 = _minimal_pass2()
+        # inject a field-path leak into the body the signal layer scans
+        p2["body"] = (p2.get("body", "") or "") + " see math_json.tailwinds for the impact"
+        sigs = capture_signals("AVGO", p2, _minimal_math())
+        assert sigs["field_path_litter"], "litter must surface in signals"
+        assert sigs["field_path_litter"][0]["path"] == "math_json.tailwinds"
+        assert sigs["pass3_audit_clean"] is False, "litter must gate audit_clean to False"
 
     def test_all_required_sections_present(self):
         sigs = capture_signals("AVGO", _minimal_pass2(), _minimal_math())
