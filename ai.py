@@ -40,6 +40,20 @@ PASS2_PROMPT  = _load_prompt("prompt_pass2.txt")
 PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 
 
+# ── LLM output-token budgets (reviewable in one place) ───────────────────────
+# Set generously ABOVE observed real output so a complete response fits; the
+# truncation guard in run_ai still FAILS LOUD if a call hits the ceiling even at
+# these budgets (a truncation at a generous budget is a real signal, not noise —
+# we do NOT auto-retry with a higher budget).
+#
+# Pass 1: observed 4500 output_tokens (truncated exactly at the old 4500 ceiling).
+#   9000 gives ~2× headroom so a complete pass1 JSON fits.
+# Pass 2: observed ~27k chars (~8-9k tokens) against the old 10000 ceiling.
+#   16000 gives clear headroom (~2× real output) above the largest observed body.
+PASS1_MAX_TOKENS = 9000
+PASS2_MAX_TOKENS = 16000
+
+
 # ══════════════════════════════════════════════════════════════
 # AI RUNNER (single canonical implementation)
 # ══════════════════════════════════════════════════════════════
@@ -537,7 +551,7 @@ def run_pass1_foundation(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=4500)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None on first attempt"])
 
@@ -549,7 +563,7 @@ def run_pass1_foundation(
             "PARSE ERROR: Your previous response could not be parsed as JSON. "
             "Return ONLY a valid JSON object — no prose, no markdown, no fences."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(errs2 or ["run_ai returned None on JSON-repair retry"])
         pass1, parse_err2 = parse_json_response(raw2, model2)
@@ -586,7 +600,7 @@ def run_pass1_foundation(
             + _event_guidance
             + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=8000)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(hard + (errs2 or []))
         pass1_r, parse_err_r = parse_json_response(raw2, model2)
@@ -607,7 +621,7 @@ def run_pass1_foundation(
             + "\n\nInclude ALL fields from the output schema, especially 'catalysts'. "
             "Re-emit the complete corrected JSON."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is not None:
             pass1_r, parse_err_r = parse_json_response(raw2, model2)
             if not parse_err_r and pass1_r is not None:
@@ -829,7 +843,7 @@ def run_pass2_report(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=10000)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS2_MAX_TOKENS)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None (pass2 attempt 1)"])
 
@@ -839,7 +853,7 @@ def run_pass2_report(
             raise Pass1ValidationError([parse_err or "JSON parse failed (pass2 attempt 1)"])
         raw2, model2, _ = run_ai(
             _build_messages("PARSE ERROR: return ONLY a valid JSON object."),
-            max_tokens=10000,
+            max_tokens=PASS2_MAX_TOKENS,
         )
         if raw2 is None:
             raise Pass1ValidationError(["run_ai returned None on parse-repair retry (pass2)"])
@@ -858,7 +872,7 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in hard)
             + "\n\nRe-emit the complete corrected JSON. No forbidden words. No omitted sections."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=PASS2_MAX_TOKENS)
 
         # Best-of the two attempts, ranked by completeness. "Best" = fewest missing
         # REQUIRED sections, then fewest total hard errors, then fewest soft. This
@@ -894,7 +908,7 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in soft)
             + "\n\nRe-emit the complete corrected JSON within 4500 total words."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=PASS2_MAX_TOKENS)
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:

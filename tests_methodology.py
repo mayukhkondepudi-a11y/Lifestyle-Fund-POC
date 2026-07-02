@@ -1156,6 +1156,15 @@ class TestRunAiTruncation:
         assert len(log) == 1 and log[0]["truncated"] is False
         assert log[0]["stop_reason"] == "end_turn" and log[0]["output_tokens"] == 400
 
+    def test_token_budgets_raised_with_headroom(self):
+        """Guard against a silent revert of the Pass 1 / Pass 2 output-token budgets.
+        Both must sit with real headroom above observed output (Pass 1 truncated at
+        4500; Pass 2 body ran ~8-9k tokens)."""
+        assert ai.PASS1_MAX_TOKENS == 9000, "Pass 1 budget changed — re-review headroom"
+        assert ai.PASS2_MAX_TOKENS == 16000, "Pass 2 budget changed — re-review headroom"
+        assert ai.PASS1_MAX_TOKENS >= 2 * 4500     # ~2× the observed Pass 1 truncation ceiling
+        assert ai.PASS2_MAX_TOKENS > 10000         # clear headroom above the old Pass 2 ceiling
+
 
 # ── E3: Smoke harness structural checks — 5 tickers × 3 runs ────────────────
 
