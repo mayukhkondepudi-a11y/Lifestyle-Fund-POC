@@ -1165,26 +1165,23 @@ class TestRunAiTruncation:
         assert ai.PASS1_MAX_TOKENS >= 2 * 4500     # ~2× the observed Pass 1 truncation ceiling
         assert ai.PASS2_MAX_TOKENS > 10000         # clear headroom above the old Pass 2 ceiling
 
-    def test_pass1_does_not_send_temperature(self):
-        """Guard against re-introducing a temperature on the Pass 1 call.
-        claude-opus-4-7 rejects any temperature value (HTTP 400 "deprecated for
-        this model"), which silently falls Pass 1 back to free models. Pass 1 must
-        therefore send NO temperature (run_ai only forwards it when non-None)."""
-        assert ai.PASS1_TEMPERATURE is None, (
-            "PASS1_TEMPERATURE must be None — opus-4-7 rejects temperature; applying "
-            "it breaks Pass 1. See the sampling-temperature note in ai.py."
-        )
-        import json
-        baseline = _baseline_for_pass2()
-        captured = {}
-        def _spy_run_ai(messages, **kwargs):
-            captured.update(kwargs)
-            return (json.dumps(_minimal_valid_pass1()), "m", None)
-        with mock.patch("ai.run_ai", side_effect=_spy_run_ai):
-            ai.run_pass1_foundation("AVGO", baseline)
-        assert captured.get("temperature") is None, (
-            f"Pass 1 must NOT send a temperature (opus-4-7 rejects it), "
-            f"got {captured.get('temperature')!r}"
+    def test_run_ai_does_not_pass_temperature_to_anthropic(self):
+        """Guard against re-introducing a temperature param. Anthropic Opus 4.7/4.8
+        reject a custom temperature (HTTP 400 "deprecated for this model"), which
+        silently falls the call back to free models. run_ai must send NO temperature
+        to the Anthropic client."""
+        fake = type("R", (), {
+            "stop_reason": "end_turn",
+            "usage": type("U", (), {"input_tokens": 5, "output_tokens": 5})(),
+            "content": [type("B", (), {"text": '{"ok": true}'})()],
+        })()
+        with mock.patch.object(ai, "_an_client") as client:
+            client.messages.create.return_value = fake
+            ai.run_ai([{"role": "user", "content": "x"}], max_tokens=100)
+        _, kwargs = client.messages.create.call_args
+        assert "temperature" not in kwargs, (
+            f"run_ai must not send temperature to Anthropic (Opus 4.7+ rejects it); "
+            f"got kwargs keys {sorted(kwargs)}"
         )
 
 

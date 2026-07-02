@@ -53,15 +53,10 @@ PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 PASS1_MAX_TOKENS = 9000
 PASS2_MAX_TOKENS = 16000
 
-# ── Sampling temperature ─────────────────────────────────────────────────────
-# NOTE (2026-07-02): claude-opus-4-7 REJECTS any temperature value with HTTP 400
-# ("`temperature` is deprecated for this model"). Pinning Pass 1's temperature
-# therefore makes the Anthropic call fail and silently fall back to lower-quality
-# free models. The temperature lever is NOT available on this model, so
-# PASS1_TEMPERATURE is intentionally NOT applied to any call. run_ai still accepts
-# a temperature kwarg for models that do support it. Reducing the Pass-1
-# recommendation variance (NVDA swung PASS<->BUY) needs a different approach.
-PASS1_TEMPERATURE = None  # unusable on opus-4-7; kept for a temperature-capable model
+# NOTE: no sampling-temperature knob. Anthropic Opus 4.7/4.8 REJECT a custom
+# temperature with HTTP 400 ("`temperature` is deprecated for this model"), so
+# run_ai does not pass one at all. Reducing Pass-1 recommendation variance needs
+# a different approach (see backlog).
 
 
 # ══════════════════════════════════════════════════════════════
@@ -85,12 +80,12 @@ def get_call_log() -> list[dict]:
 
 
 def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
-           free_models=None, temperature=None):
+           free_models=None):
     """
     Try Anthropic first, then fall back to OpenRouter free models.
 
-    temperature: when None, no temperature is sent (provider default, ~1.0).
-    Pass a low value to reduce sampling variance (see PASS1_TEMPERATURE).
+    No temperature is sent: Anthropic Opus 4.7/4.8 reject a custom temperature
+    with HTTP 400 ("`temperature` is deprecated for this model").
 
     A response with stop_reason == "max_tokens" (Anthropic) / finish_reason ==
     "length" (OpenRouter) is a TRUNCATED completion: it is treated as a FAILED
@@ -108,13 +103,10 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                     system_msg = m["content"]
                 else:
                     user_msgs.append(m)
-            _an_kwargs = dict(
+            r = _an_client.messages.create(
                 model=model, system=system_msg, messages=user_msgs,
                 max_tokens=max_tokens,
             )
-            if temperature is not None:
-                _an_kwargs["temperature"] = temperature
-            r = _an_client.messages.create(**_an_kwargs)
             text = r.content[0].text.strip()
             stop = getattr(r, "stop_reason", None)
             usage = getattr(r, "usage", None)
@@ -143,14 +135,11 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
     errors = [err]
     for fm in free_models:
         try:
-            _or_kwargs = dict(
+            r = _or_client.chat.completions.create(
                 model=fm, messages=messages, max_tokens=max_tokens,
                 extra_headers={"HTTP-Referer": "https://pickr.streamlit.app",
                                 "X-Title": "PickR"},
             )
-            if temperature is not None:
-                _or_kwargs["temperature"] = temperature
-            r = _or_client.chat.completions.create(**_or_kwargs)
             text = r.choices[0].message.content.strip()
             fr = getattr(r.choices[0], "finish_reason", None)
             usage = getattr(r, "usage", None)
