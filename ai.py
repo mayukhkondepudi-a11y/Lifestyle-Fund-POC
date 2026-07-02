@@ -54,12 +54,14 @@ PASS1_MAX_TOKENS = 9000
 PASS2_MAX_TOKENS = 16000
 
 # ── Sampling temperature ─────────────────────────────────────────────────────
-# Pass 1 sets the driver probabilities / events / margins that flow
-# DETERMINISTICALLY into EV and the recommendation, so its sampling variance
-# directly moves the BUY/PASS verdict (NVDA swung PASS<->BUY between two
-# identical-input runs at the API default of 1.0). Pin Pass 1 low to stabilise it.
-# Pass 2 / Pass 3 keep the API default (no temperature passed) for now.
-PASS1_TEMPERATURE = 0.2
+# NOTE (2026-07-02): claude-opus-4-7 REJECTS any temperature value with HTTP 400
+# ("`temperature` is deprecated for this model"). Pinning Pass 1's temperature
+# therefore makes the Anthropic call fail and silently fall back to lower-quality
+# free models. The temperature lever is NOT available on this model, so
+# PASS1_TEMPERATURE is intentionally NOT applied to any call. run_ai still accepts
+# a temperature kwarg for models that do support it. Reducing the Pass-1
+# recommendation variance (NVDA swung PASS<->BUY) needs a different approach.
+PASS1_TEMPERATURE = None  # unusable on opus-4-7; kept for a temperature-capable model
 
 
 # ══════════════════════════════════════════════════════════════
@@ -568,7 +570,7 @@ def run_pass1_foundation(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None on first attempt"])
 
@@ -580,7 +582,7 @@ def run_pass1_foundation(
             "PARSE ERROR: Your previous response could not be parsed as JSON. "
             "Return ONLY a valid JSON object — no prose, no markdown, no fences."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(errs2 or ["run_ai returned None on JSON-repair retry"])
         pass1, parse_err2 = parse_json_response(raw2, model2)
@@ -617,7 +619,7 @@ def run_pass1_foundation(
             + _event_guidance
             + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(hard + (errs2 or []))
         pass1_r, parse_err_r = parse_json_response(raw2, model2)
@@ -638,7 +640,7 @@ def run_pass1_foundation(
             + "\n\nInclude ALL fields from the output schema, especially 'catalysts'. "
             "Re-emit the complete corrected JSON."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is not None:
             pass1_r, parse_err_r = parse_json_response(raw2, model2)
             if not parse_err_r and pass1_r is not None:

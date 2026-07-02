@@ -1165,10 +1165,15 @@ class TestRunAiTruncation:
         assert ai.PASS1_MAX_TOKENS >= 2 * 4500     # ~2× the observed Pass 1 truncation ceiling
         assert ai.PASS2_MAX_TOKENS > 10000         # clear headroom above the old Pass 2 ceiling
 
-    def test_pass1_called_with_low_temperature(self):
-        """Guard against a silent revert to the API default temperature (~1.0).
-        Pass 1's sampling variance moves the recommendation, so it must be pinned low."""
-        assert ai.PASS1_TEMPERATURE == 0.2, "Pass 1 temperature changed — re-review stability"
+    def test_pass1_does_not_send_temperature(self):
+        """Guard against re-introducing a temperature on the Pass 1 call.
+        claude-opus-4-7 rejects any temperature value (HTTP 400 "deprecated for
+        this model"), which silently falls Pass 1 back to free models. Pass 1 must
+        therefore send NO temperature (run_ai only forwards it when non-None)."""
+        assert ai.PASS1_TEMPERATURE is None, (
+            "PASS1_TEMPERATURE must be None — opus-4-7 rejects temperature; applying "
+            "it breaks Pass 1. See the sampling-temperature note in ai.py."
+        )
         import json
         baseline = _baseline_for_pass2()
         captured = {}
@@ -1177,8 +1182,8 @@ class TestRunAiTruncation:
             return (json.dumps(_minimal_valid_pass1()), "m", None)
         with mock.patch("ai.run_ai", side_effect=_spy_run_ai):
             ai.run_pass1_foundation("AVGO", baseline)
-        assert captured.get("temperature") == ai.PASS1_TEMPERATURE, (
-            f"Pass 1 must call run_ai with temperature={ai.PASS1_TEMPERATURE}, "
+        assert captured.get("temperature") is None, (
+            f"Pass 1 must NOT send a temperature (opus-4-7 rejects it), "
             f"got {captured.get('temperature')!r}"
         )
 
