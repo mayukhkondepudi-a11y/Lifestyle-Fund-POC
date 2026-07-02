@@ -7,6 +7,7 @@ exact pass1/math the pipeline used, and writes _live_out_<TICKER>.json for the
 deterministic + narrative checks. Does NOT bless any golden.
 """
 import os, sys, json, re, traceback
+from datetime import datetime, timezone
 
 # ── Load secrets.toml into env BEFORE importing config/ai ────────────────────
 for line in open(".streamlit/secrets.toml"):
@@ -60,7 +61,11 @@ except Exception as e:
 # inspectable without another live run.
 out["call_log"] = ai.get_call_log()
 
-json.dump(out, open(f"_live_out_{ticker}.json", "w"), indent=2, default=str)
-print("OK" if out.get("ok") else "FAIL", "->", f"_live_out_{ticker}.json")
+# Timestamped filename so repeated runs of the same ticker no longer overwrite
+# each other — future recommendation swings stay diffable.
+_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+_fname = f"_live_out_{ticker}_{_ts}.json"
+json.dump(out, open(_fname, "w"), indent=2, default=str)
+print("OK" if out.get("ok") else "FAIL", "->", _fname)
 if out.get("exception"):
     print(out["exception"])

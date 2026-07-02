@@ -1165,6 +1165,23 @@ class TestRunAiTruncation:
         assert ai.PASS1_MAX_TOKENS >= 2 * 4500     # ~2× the observed Pass 1 truncation ceiling
         assert ai.PASS2_MAX_TOKENS > 10000         # clear headroom above the old Pass 2 ceiling
 
+    def test_pass1_called_with_low_temperature(self):
+        """Guard against a silent revert to the API default temperature (~1.0).
+        Pass 1's sampling variance moves the recommendation, so it must be pinned low."""
+        assert ai.PASS1_TEMPERATURE == 0.2, "Pass 1 temperature changed — re-review stability"
+        import json
+        baseline = _baseline_for_pass2()
+        captured = {}
+        def _spy_run_ai(messages, **kwargs):
+            captured.update(kwargs)
+            return (json.dumps(_minimal_valid_pass1()), "m", None)
+        with mock.patch("ai.run_ai", side_effect=_spy_run_ai):
+            ai.run_pass1_foundation("AVGO", baseline)
+        assert captured.get("temperature") == ai.PASS1_TEMPERATURE, (
+            f"Pass 1 must call run_ai with temperature={ai.PASS1_TEMPERATURE}, "
+            f"got {captured.get('temperature')!r}"
+        )
+
 
 # ── E3: Smoke harness structural checks — 5 tickers × 3 runs ────────────────
 

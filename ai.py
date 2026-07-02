@@ -53,6 +53,14 @@ PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 PASS1_MAX_TOKENS = 9000
 PASS2_MAX_TOKENS = 16000
 
+# ── Sampling temperature ─────────────────────────────────────────────────────
+# Pass 1 sets the driver probabilities / events / margins that flow
+# DETERMINISTICALLY into EV and the recommendation, so its sampling variance
+# directly moves the BUY/PASS verdict (NVDA swung PASS<->BUY between two
+# identical-input runs at the API default of 1.0). Pin Pass 1 low to stabilise it.
+# Pass 2 / Pass 3 keep the API default (no temperature passed) for now.
+PASS1_TEMPERATURE = 0.2
+
 
 # ══════════════════════════════════════════════════════════════
 # AI RUNNER (single canonical implementation)
@@ -75,9 +83,12 @@ def get_call_log() -> list[dict]:
 
 
 def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
-           free_models=None):
+           free_models=None, temperature=None):
     """
     Try Anthropic first, then fall back to OpenRouter free models.
+
+    temperature: when None, no temperature is sent (provider default, ~1.0).
+    Pass a low value to reduce sampling variance (see PASS1_TEMPERATURE).
 
     A response with stop_reason == "max_tokens" (Anthropic) / finish_reason ==
     "length" (OpenRouter) is a TRUNCATED completion: it is treated as a FAILED
@@ -95,10 +106,13 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                     system_msg = m["content"]
                 else:
                     user_msgs.append(m)
-            r = _an_client.messages.create(
+            _an_kwargs = dict(
                 model=model, system=system_msg, messages=user_msgs,
                 max_tokens=max_tokens,
             )
+            if temperature is not None:
+                _an_kwargs["temperature"] = temperature
+            r = _an_client.messages.create(**_an_kwargs)
             text = r.content[0].text.strip()
             stop = getattr(r, "stop_reason", None)
             usage = getattr(r, "usage", None)
@@ -127,11 +141,14 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
     errors = [err]
     for fm in free_models:
         try:
-            r = _or_client.chat.completions.create(
+            _or_kwargs = dict(
                 model=fm, messages=messages, max_tokens=max_tokens,
                 extra_headers={"HTTP-Referer": "https://pickr.streamlit.app",
                                 "X-Title": "PickR"},
             )
+            if temperature is not None:
+                _or_kwargs["temperature"] = temperature
+            r = _or_client.chat.completions.create(**_or_kwargs)
             text = r.choices[0].message.content.strip()
             fr = getattr(r.choices[0], "finish_reason", None)
             usage = getattr(r, "usage", None)
@@ -551,7 +568,7 @@ def run_pass1_foundation(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None on first attempt"])
 
@@ -563,7 +580,7 @@ def run_pass1_foundation(
             "PARSE ERROR: Your previous response could not be parsed as JSON. "
             "Return ONLY a valid JSON object — no prose, no markdown, no fences."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
         if raw2 is None:
             raise Pass1ValidationError(errs2 or ["run_ai returned None on JSON-repair retry"])
         pass1, parse_err2 = parse_json_response(raw2, model2)
@@ -600,7 +617,7 @@ def run_pass1_foundation(
             + _event_guidance
             + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
         if raw2 is None:
             raise Pass1ValidationError(hard + (errs2 or []))
         pass1_r, parse_err_r = parse_json_response(raw2, model2)
@@ -621,7 +638,7 @@ def run_pass1_foundation(
             + "\n\nInclude ALL fields from the output schema, especially 'catalysts'. "
             "Re-emit the complete corrected JSON."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS, temperature=PASS1_TEMPERATURE)
         if raw2 is not None:
             pass1_r, parse_err_r = parse_json_response(raw2, model2)
             if not parse_err_r and pass1_r is not None:
