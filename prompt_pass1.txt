@@ -48,9 +48,12 @@ Under each driver, create EVENTS. Each event represents one possible outcome bra
   - outcome "base"  → what happens when this driver plays out as expected
   - outcome "bear"  → what happens when this driver fires negatively
 
-PROBABILITY RULE: For each driver, the probabilities of all its events MUST SUM TO 1.0
-(±0.02). Example: if driver A has events with probabilities 0.50 (bull), 0.35 (base),
-0.15 (bear), those sum to 1.00. ✓
+PROBABILITY RULE: Choose each event's probability from the PROBABILITY LADDER (see
+NUMERIC DISCIPLINE below) — never an off-ladder value. For each driver, the ladder
+values you pick should sum to approximately 1.0 (±0.05). Example: driver A with
+0.50 (bull), 0.40 (base), 0.10 (bear) — all on the ladder — sums to 1.00. ✓
+(The math layer re-normalizes each driver's probabilities, so pick from the ladder
+first, then confirm the three are close to 1.0.)
 
 REVENUE RULE: revenue_at_risk_low and revenue_at_risk_high are the range of incremental
 revenue this event adds (positive) or removes (negative) from the FY baseline.
@@ -182,7 +185,7 @@ HARD VALIDATION RULES (machine-checked; violations trigger retry)
 1. macro_drivers: EXACTLY 3 entries with ids "A", "B", "C". No more, no fewer.
 
 2. events: 6–12 total. Each driver (A, B, C) must have AT LEAST 2 events.
-   Events within the same driver must have probabilities summing to 1.0 (±0.02).
+   Events within the same driver must have ladder probabilities summing to 1.0 (±0.05).
 
 3. Per event: probability ∈ [0.0, 1.0]; revenue_at_risk_high ≥ revenue_at_risk_low ≥ 0;
    op_margin_to_apply ∈ [0.0, 1.0]; tax_rate_to_apply ∈ [0.0, 0.50];
@@ -222,3 +225,32 @@ DISQUALIFYING PATTERNS — AVOID THESE
 
 Return ONLY valid JSON matching the schema above. No HTML. No markdown. No text before
 or after the JSON object.
+
+NUMERIC DISCIPLINE (apply to every number you assign):
+
+1. PROBABILITY LADDER. When assigning a probability to any driver or outcome,
+   choose the single nearest value from this fixed ladder — never a value
+   between rungs:
+     0.10  0.25  0.40  0.50  0.60  0.75  0.90
+   Map your judgment to a rung: near-certain → 0.90, likely → 0.75,
+   leans-yes → 0.60, genuine toss-up → 0.50, leans-no → 0.40,
+   unlikely → 0.25, remote → 0.10.
+   TIE-BREAK: when torn between two rungs, choose the one closer to 0.50
+   (the more conservative, less-extreme estimate). This rule is mandatory —
+   it exists so the same situation always yields the same number.
+
+2. USE SOURCED VALUES, NEVER ESTIMATE WHAT IS GIVEN. For any figure present
+   in the provided data (consensus revenue/EPS, current margins, segment
+   figures, peer multiples), use the provided value exactly. Only estimate a
+   number when it is genuinely absent from the data.
+
+3. ROUNDING FOR ESTIMATED VALUES. When you must estimate:
+     - revenue-at-risk: round to the nearest 1% of the relevant segment revenue
+     - operating-margin deltas: round to the nearest 0.5 percentage point
+   Do not output more precision than these increments.
+
+4. FIXED SELECTION AND ORDER. Identify drivers strictly in order of
+   materiality (largest absolute revenue impact first), breaking ties
+   alphabetically by name. Include only genuinely material drivers; do not
+   pad the list with marginal ones. Consistent ranking means the drivers that
+   move the result are the same every run.
