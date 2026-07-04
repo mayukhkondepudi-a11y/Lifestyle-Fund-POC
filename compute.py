@@ -36,8 +36,11 @@ BEAR_GROWTH_FLOOR   = None    # NO lower floor — bear revenue may contract (cy
 HORIZON             = 2       # FY+2 fair-value horizon (B5)
 
 # ── P/E bands (peer-anchored; PEG demoted to annotation) ───────────────────
-RERATE_PREMIUM   = 0.25    # bull P/E = base_pe × (1 + this), capped at ceiling
-DERATE_DISCOUNT  = 0.30    # bear P/E = base_pe × (1 − this), then franchise floor
+RERATE_PREMIUM   = 0.125   # bull P/E = base_pe × (1 + this), capped at ceiling
+                           # (was 0.25) — halved to narrow the scenario P/E spread,
+                           #  deliberately dampening P/E co-movement with EPS
+DERATE_DISCOUNT  = 0.15    # bear P/E = base_pe × (1 − this), then franchise floor
+                           # (was 0.30) — halved alongside RERATE_PREMIUM (same rationale)
 BULL_PE_CEILING  = 45.0    # absolute cap on bull P/E
 PE_FLOOR         = 10.0    # absolute floor on any P/E point
 QUALITY_ADJ_LOW  = 0.8     # peer-multiple quality-adjustment bounds
