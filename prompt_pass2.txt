@@ -12,19 +12,21 @@ PYTHON-COMPUTED MATH (§5.3 — the ONLY numbers you may cite from this block)
 {math_json}
 
 Key fields in math_json:
-  implied_fcf_cagr                   — annualised FCF growth rate implied by current price (B1 HEADLINE)
-  scenario_eps.{bull,base,bear}      — EPS under each scenario
-  scenarios.{bull,base,bear}.op_margin  — operating margin under each scenario
-  price_target.bull_high             — bull price target at upper P/E bound
-  price_target.base_mid              — base price target at mid P/E
-  price_target.bear_low              — bear price target at lower P/E bound
+  recommendation                     — BUY / WATCH / PASS (HEADLINE; do not contradict)
+  base_case_return                   — (base_mid − current_price) / current_price (HEADLINE)
+  scenario_eps.{bull,base,bear}      — FY+2 EPS under each scenario
+  scenario_margin.{bull,base,bear}   — operating margin under each scenario
+  price_target.{bull,base,bear}      — probability-weighted price target (MID) per scenario
+  price_target.bull_high             — bull upper display-range extreme
+  price_target.bear_low              — bear lower display-range extreme
   joint_probs.{bull,base,bear}       — probability-weighted scenario weights
-  expected_value                     — probability-weighted expected price
+  expected_value                     — probability-weighted expected price (EV)
   risk.expected_return_pct           — (EV − current_price) / current_price
   risk.prob_loss                     — probability of price < current_price
-  recommendation                     — BUY / WATCH / PASS (do not contradict)
-  calibration_log                    — list of calibration steps fired (cite if non-empty)
-  consensus_divergent                — true if bull_price_high ≤ current_price despite positive consensus
+  implied_fcf_cagr                   — reverse-DCF reality check (BODY paragraph, not headline)
+  reverse_dcf_unstable               — true when FCF base is tiny; implied_fcf_cagr then unreliable
+  base_growth                        — organic base-case annual growth anchor
+  calibration_log                    — list of calibration notes fired (reference if relevant)
   headwinds                          — list of bear/downside events with eps_impact fields
   tailwinds                          — list of bull/upside events with eps_impact fields
   sensitivity_table                  — {minus_10pp, plus_10pp} with expected_value and bull_prob at each
@@ -65,11 +67,18 @@ Key fields in baseline_json:
 MANDATORY WRITING RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-B1 — REVERSE-DCF LEADS:
-  investment_thesis MUST open with a paragraph that states math_json.implied_fcf_cagr and
-  interprets what growth rate the market is pricing into {ticker} today. Then state whether
-  this is demanding or modest relative to the base-case earnings trajectory visible in the
-  scenario_eps and price_target fields. This is the single most important paragraph.
+HEADLINE — RECOMMENDATION + BASE-CASE RETURN LEADS:
+  investment_thesis MUST open with a paragraph that leads with the recommendation
+  (BUY / WATCH / PASS from math_json.recommendation) and the base-case return
+  (math_json.base_case_return) versus the current price — i.e. what a buyer earns if
+  the base case plays out. Then frame the scenario spread (bull vs bear price and EPS)
+  and the expected value. This is the single most important paragraph.
+
+  The reverse-DCF (implied_fcf_cagr) is a supporting REALITY CHECK, not the headline:
+  cover it in reverse_dcf_commentary, not the opening line. When
+  math_json.reverse_dcf_unstable is true, explicitly caveat that the implied growth
+  figure is unreliable because the current free-cash-flow base is very small, and lean
+  on the scenario EPS/price framework instead.
 
 B5 — FY+2 FRAMING:
   All forward references use relative framing: "FY+2" for two fiscal years out,
@@ -88,6 +97,27 @@ CITATION DISCIPLINE:
   Every number in your narrative MUST be verbatim from math_json, pass1_json, or baseline_json
   UNLESS the section is explicitly marked QUALITATIVE below.
   DO NOT compute, derive, round differently, or recall from training data.
+  HARD RULE (auto-enforced): NEVER write a JSON field path in prose. The words
+  "math_json", "pass1_json", "baseline_json" — and any dotted path such as
+  "math_json.tailwinds" or "baseline_json.segments" — must NOT appear anywhere in
+  any narrative section. Write the NUMBER in plain English instead.
+    WRONG: "a base target of 338.90 per math_json.price_target.base_mid"
+    WRONG: "eps_impact reaches 1.3051 per math_json.tailwinds"
+    WRONG: "math_json flags this as unreliable"
+    RIGHT: "a base-case target of 338.90"
+    RIGHT: "the bull EPS uplift reaches 1.3051"
+    RIGHT: "the model flags this figure as unreliable"
+  An automated deterministic check scans the rendered narrative and REJECTS any
+  report containing a field path. There is no exception — not even to explain
+  where a number came from.
+
+  PEER / COMPANY MULTIPLES — SOURCE VALUE ONLY: every P/E, growth rate, or other
+  multiple you attribute to a peer or to the company MUST be the value provided in
+  the data (pass1_json.peer_set_enriched fwd_pe/growth, or baseline_json fields).
+  NEVER cite a multiple from memory. If the source gives AMD forward P/E as 41.05,
+  the prose says 41.05 — never a remembered "~25x". If a peer's multiple is not in
+  the provided data, name the peer WITHOUT a numeric multiple rather than recalling
+  one from training data.
   NO dollar signs ($) — write "41.22" not "$41.22". Write "14.5 billion" not "$14.5B".
   NO open-ended ranges ("12%+") unless that exact bound appears in source.
   If a number is not in source, use qualitative direction (growing, expanding, contracting).
@@ -152,8 +182,8 @@ growth_drivers_and_moats (REQUIRED — 400-500 words):
 margin_analysis (REQUIRED — 200-300 words):
   Current operating margin from baseline_json.fy_op_margin (cite verbatim).
   For each scenario (bull/base/bear), state the expected operating margin trajectory
-  citing math_json.scenarios.bull.op_margin, math_json.scenarios.base.op_margin,
-  math_json.scenarios.bear.op_margin verbatim.
+  citing math_json.scenario_margin.bull, math_json.scenario_margin.base,
+  math_json.scenario_margin.bear verbatim (write the number, not the field path).
   If these fields are null/absent in math_json, note that margin by scenario is not
   separately modelled and discuss directional expectations only.
   Explain the key drivers of margin expansion or compression in each scenario.
@@ -167,8 +197,10 @@ competitive_position (REQUIRED — 250-300 words):
   QUALITATIVE. Moat durability, named competitors, and key competitive threats.
   Reference the peer set from pass1_json.peer_set_enriched by name — list the peers
   and characterise where {ticker} sits relative to them on growth and valuation.
-  If peer fwd_pe values appear in pass1_json.peer_set_enriched, you may cite them
-  as they are in the allowed source.
+  If peer fwd_pe values appear in the peer data, cite them EXACTLY as given in the
+  source — never substitute a multiple you remember for that company. If a peer has
+  no multiple in the source, name it without a number. (See "PEER / COMPANY
+  MULTIPLES — SOURCE VALUE ONLY" above.)
   Do not fabricate market share percentages or revenue figures beyond what appears
   in source data.
 
@@ -229,15 +261,15 @@ reverse_dcf_commentary (REQUIRED — exactly 1 paragraph):
   the earnings base in baseline_json. Explain what the buyer is implicitly betting on.
 
 scenario_commentary.bull (REQUIRED — 1 paragraph):
-  Cite: joint_probs.bull, price_target.bull_high, scenario_eps.bull, and which
-  driver(s) must fire positively per pass1_json.macro_drivers.
+  Cite: joint_probs.bull, price_target.bull (the probability-weighted bull target),
+  scenario_eps.bull, and which driver(s) must fire positively per pass1_json.macro_drivers.
 
 scenario_commentary.base (REQUIRED — 1 paragraph):
-  Cite: joint_probs.base, price_target.base_mid, scenario_eps.base.
+  Cite: joint_probs.base, price_target.base, scenario_eps.base.
 
 scenario_commentary.bear (REQUIRED — 1 paragraph):
-  Cite: joint_probs.bear, price_target.bear_low, scenario_eps.bear,
-  and the primary structural risk driver from pass1_json.macro_drivers[id=C].
+  Cite: joint_probs.bear, price_target.bear (the probability-weighted bear target),
+  scenario_eps.bear, and the primary structural risk driver from pass1_json.macro_drivers[id=C].
 
 driver_narratives.A / .B / .C (REQUIRED — one paragraph per driver):
   For each macro driver (A, B, C), write one paragraph:
@@ -248,9 +280,9 @@ driver_narratives.A / .B / .C (REQUIRED — one paragraph per driver):
 
 recommendation_rationale (REQUIRED — 1-2 paragraphs):
   Justify the math_json.recommendation label from the numbers.
-  Reference expected_value vs baseline_json.current_price, joint_probs, and
-  cite calibration_log entries if any fired (Step A or Step D).
-  If consensus_divergent is true, acknowledge it and explain the implication.
+  Reference expected_value vs baseline_json.current_price, base_case_return, joint_probs,
+  and reference any relevant calibration_log notes (e.g. a non-franchise bear derate, a
+  consensus sanity-band flag, or reverse_dcf_unstable) in plain English.
 
 conclusion (REQUIRED — ≥2 paragraphs, \\n\\n separated):
   Paragraph 1: restate the thesis in one sentence referencing the recommendation.
@@ -279,7 +311,7 @@ OUTPUT SCHEMA — emit ONLY this JSON, no markdown fences, no prose outside
     "relationships_at_risk": "string — 2-3 named relationships that could deteriorate"
   },
   "growth_drivers_and_moats": "string — 400-500 words on named growth drivers and moat analysis",
-  "margin_analysis": "string — 200-300 words citing fy_op_margin and scenarios.*.op_margin verbatim",
+  "margin_analysis": "string — 200-300 words citing fy_op_margin and scenario_margin.* verbatim",
   "competitive_position": "string — 250-300 words on moat, named competitors, key threats (qualitative)",
   "factor_analysis": [
     {

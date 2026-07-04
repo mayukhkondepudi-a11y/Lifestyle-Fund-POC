@@ -18,16 +18,40 @@ Do not follow v2's framing, sequencing, or financial calibration where v3 has su
 
 ## 1. CURRENT BUILD STATE — update this block as you go
 
-> This is the most important section. Read it before doing anything. The two hard-stop actions below must NOT be executed in their current state.
+> This is the most important section. Read it before doing anything. The scenario-core rewrite and the calibration pass are now MERGED to main (tag `calibration-merged`, 2026-07-04). The merged-state summary below is current; the dated build log further down is pre-rewrite history, kept for provenance.
 
 Deferred non-blocking items are tracked in POST_POC_BACKLOG.md — consult it before declaring a phase complete, and append flagged items there rather than leaving them in conversation.
 
-- **API credits for the pipeline's own LLM calls: RESTORED (2026-05-30).** Live Opus 4.7 pipeline calls confirmed working.
-- **Feature flag `METHODOLOGY_VERSION` points at: `v2`.** Phase I complete (2026-05-31).
-- **Phases built: 0, A, B, C, D, E, F, G, I** (commits f90dcc4 through a421f94). **Live pipeline verified on v2: AVGO, NVDA, KO, ASML, ARLO — all 5 layers PASS on all 5 tickers.**
-- **Built-but-unverified phases are marked in code with TODO/UNVERIFIED comments. Leave those markers in place.**
+### MERGED POST-CALIBRATION STATE (2026-07-04) — current
 
-### PHASE I COMPLETE (2026-05-31)
+Scenario-core rewrite + calibration pass merged to `main` (`--no-ff`, tag `calibration-merged`). Free loop fully green at merge: **306 passed, 4 skipped, 4 live-deselected** (run the suite by explicit file list — the `tests_*.py` names are NOT picked up by bare `pytest`; there is no `python_files` override).
+
+**Deterministic engine (`run_methodology_math` + `compute_methodology_v2`):**
+- Unified bottom-up scenario chain — one `scenario_eps` path (revenue × margin) for bull/base/bear; no separate bull-EPS formula.
+- Single-source EV — probability-weighted mean of the three scenario MID prices; no correlation multipliers; risk/EV/recommendation all derive from those three mids.
+- Peer-anchored P/E: `base_pe = clamp(peer_median × quality_adj, 10, 45)`; `bull_pe = base_pe × (1 + RERATE_PREMIUM)`, `bear_pe = base_pe × (1 − DERATE_DISCOUNT)`, bear franchise-floored only when the floor sits below base.
+- **Calibration constants (this pass):** `MAX_BASE_GROWTH = 0.40` (was 0.35); `RERATE_PREMIUM = 0.125`, `DERATE_DISCOUNT = 0.15` (both halved to narrow the scenario P/E spread — base_pe untouched).
+- 5 math goldens (AVGO/NVDA/KO/ARLO/CLS) + the CLS B7 hand-calc oracle re-blessed to the new constants (goldens regenerated with content-signature checks; oracle re-derived independently).
+
+**Pipeline / AI robustness:**
+- Truncation guard — Pass 1/2/3 fail loud on truncated output (stop-reason checked; token budgets raised).
+- Pass 2 fail-loud — missing sections / missing `driver_narratives` / missing `sbc_section` (when `owner_earnings` non-null) are hard errors → corrective retry. No silent DEGRADED path.
+- Temperature deprecated/removed — Opus 4.7+ rejects the param; Pass 1 no longer sets it.
+
+**Report / renderer:**
+- Op-margin labeled by period: metrics panel "Op. Margin (TTM)"; effective base scenario op margin (event-weighted, FY-basis) surfaced in Margin Analysis.
+- Driver names shown alongside bare A/B/C in the headwind/tailwind, factor, and sensitivity tables.
+
+**Deferred items live in `POST_POC_BACKLOG.md` — consult it before declaring anything done.** Three UNGOVERNED-INPUT reliability items sit near the BUY/WATCH threshold and are NOT yet resolved:
+- **#14** operating margin is LLM-assigned (per-event `op_margin_to_apply`), not Python-owned — a direct EPS multiplier.
+- **quality_adj growth premium** — the peer-multiple premium (and its 1.30 cap) is a calibration seam.
+- **#15** peer-set composition is ungoverned — verdict swings with which comparables are fetched each live run.
+
+**Consequence: borderline-name verdicts (e.g. CLS) are NOT yet reproducible run-to-run.** Recommendation stability (#1) and full live validation of the merged engine remain OPEN — no live LLM validation has been run on this merge.
+
+### Historical build log (pre-rewrite v2 through Phase I) — SUPERSEDED by the merged-state block above; kept for provenance. Descriptions of PEG-based P/E bands, bull-EPS paths, and per-bug fixes below reflect the pre-rewrite engine, not the current one.
+
+#### PHASE I COMPLETE (2026-05-31)
 All three hard stops cleared:
 - **Step 1** (`phase-i-compute-v1-deletions`, 8b0ee63): 21 v1 compute functions deleted, CAGR caps removed.
 - **Step 2** (`phase-i-ai-v1-deletions`, 26365e0): 12 v1 AI functions deleted including `_emit_degraded_report`, `run_two_pass`.

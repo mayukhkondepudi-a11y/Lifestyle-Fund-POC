@@ -435,6 +435,20 @@ def render(ticker, m, a, data):
     rev_dict         = sm.get("scenario_revenue", {})
     scenario_inputs  = a.get("scenario_inputs", {})
 
+    # ── Driver-label lookup (Stage 1a: name bare A/B/C in tables) ──
+    # Authoritative id→label map from the normalized macro_drivers dict.
+    # Returns "A — Hyperscaler AI Capex Cycle" or None when no label is available
+    # (callers fall back to the pre-existing display string so nothing is lost).
+    _macro_drivers = a.get("macro_drivers") if isinstance(a.get("macro_drivers"), dict) else {}
+
+    def _driver_label(driver_id):
+        if not driver_id:
+            return None
+        ent = _macro_drivers.get(driver_id)
+        lbl = ent.get("label") if isinstance(ent, dict) else None
+        lbl = strip_html(lbl).strip() if lbl else ""
+        return f"{driver_id} — {lbl}" if lbl else None
+
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
     # ── Masthead ──
@@ -634,6 +648,21 @@ def render(ticker, m, a, data):
             with _mc1: st.metric("Bull Op Margin", f"{_bull_om*100:.1f}%" if _bull_om else "—")
             with _mc2: st.metric("Base Op Margin", f"{_base_om*100:.1f}%" if _base_om else "—")
             with _mc3: st.metric("Bear Op Margin", f"{_bear_om*100:.1f}%" if _bear_om else "—")
+        # Surface the effective base operating margin the scenario EPS is actually
+        # built on (event-weighted scenario_margin.base, FY-basis) so the reader can
+        # tell it apart from the TTM figure in Key Metrics. Display-only; pulled from
+        # the computed math, never hardcoded.
+        _eff_margins = sm.get("scenario_margin") if isinstance(sm, dict) else None
+        if isinstance(_eff_margins, dict) and _eff_margins.get("base") is not None:
+            _eff_base = safe_float(_eff_margins.get("base"))
+            st.markdown(
+                f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin:0.4rem 0 0.2rem;">'
+                f'Effective base op margin (scenario model): '
+                f'<span style="font-weight:700;color:rgba(255,255,255,0.85);">{_eff_base*100:.1f}%</span>'
+                f' &nbsp;·&nbsp; FY-basis operating margin the scenario EPS is built on — '
+                f'distinct from the TTM figure shown in Key Metrics.</div>',
+                unsafe_allow_html=True,
+            )
 
     if a.get("financial_health"):
         st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
@@ -650,7 +679,10 @@ def render(ticker, m, a, data):
         for _drv in _fa_items:
             if not isinstance(_drv, dict):
                 continue
-            _drv_name = strip_html(_drv.get("name", _drv.get("driver_id", "")))
+            _drv_did  = strip_html(_drv.get("driver_id", ""))
+            _drv_nm   = strip_html(_drv.get("name", ""))
+            # Prefix the driver id so factor rows tie back to the A/B/C scenario drivers.
+            _drv_name = f"{_drv_did} — {_drv_nm}" if _drv_did and _drv_nm else (_drv_nm or _drv_did)
             st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.85);margin:0.8rem 0 0.4rem;">{_drv_name}</div>', unsafe_allow_html=True)
             for _oc in (_drv.get("outcomes") or []):
                 if not isinstance(_oc, dict):
@@ -705,19 +737,26 @@ def render(ticker, m, a, data):
             _curr  = _st.get("current", {})
             _plus  = _st.get("plus_10pp", {})
             _drv_id = _st.get("driver", "A")
+            # Name the perturbed driver once (width-safe); metric labels stay short below.
+            _drv_full = _driver_label(_drv_id) or f"Driver {_drv_id}"
+            st.markdown(
+                f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin:0.2rem 0 0.5rem;">'
+                f'Perturbing <span style="font-weight:700;color:rgba(255,255,255,0.85);">{_drv_full}</span> bull probability</div>',
+                unsafe_allow_html=True,
+            )
             with _sc1:
                 st.metric(
-                    f"Driver {_drv_id} bull prob −10pp ({safe_float(_minus.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob −10pp ({safe_float(_minus.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_minus.get('expected_value',0)):,.0f}",
                 )
             with _sc2:
                 st.metric(
-                    f"Driver {_drv_id} bull prob current ({safe_float(_curr.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob current ({safe_float(_curr.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_curr.get('expected_value',0)):,.0f}",
                 )
             with _sc3:
                 st.metric(
-                    f"Driver {_drv_id} bull prob +10pp ({safe_float(_plus.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob +10pp ({safe_float(_plus.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_plus.get('expected_value',0)):,.0f}",
                 )
         if a.get("sensitivity_check"):
@@ -735,7 +774,7 @@ def render(ticker, m, a, data):
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"), cur))
     with c2: st.metric("Gross Margin", fmt_p(m.get("gross_margin")))
-    with c3: st.metric("Op. Margin", fmt_p(m.get("operating_margin")))
+    with c3: st.metric("Op. Margin (TTM)", fmt_p(m.get("operating_margin")))
     with c4: st.metric("Net Margin", fmt_p(m.get("profit_margin")))
     with c5: st.metric("ROE", fmt_p(m.get("roe")))
     with c6: st.metric("FCF Yield", fmt_p(m.get("fcf_yield")))
@@ -927,7 +966,7 @@ def render(ticker, m, a, data):
             # FIX: fmt_eps_impact now receives `sym` and correct is_headwind=True for headwinds
             hw_rows = "".join(
                 f'<tr>'
-                f'<td style="font-weight:600;">{strip_html(hw.get("name",""))}</td>'
+                f'<td style="font-weight:600;">{_driver_label(hw.get("driver")) or strip_html(hw.get("name",""))}</td>'
                 f'<td class="nowrap">{fmt_p(hw.get("probability"))}</td>'
                 f'<td class="nowrap">{fmt_c(hw.get("revenue_at_risk"), cur)}</td>'
                 f'<td class="nowrap">{fmt_eps_impact(hw.get("bull_eps_impact", 0), sym, is_headwind=True)}</td>'
@@ -944,7 +983,7 @@ def render(ticker, m, a, data):
             # FIX: fmt_eps_impact now receives `sym` — was missing in original tailwind call
             tw_rows = "".join(
                 f'<tr>'
-                f'<td style="font-weight:600;">{strip_html(tw.get("name",""))}</td>'
+                f'<td style="font-weight:600;">{_driver_label(tw.get("driver")) or strip_html(tw.get("name",""))}</td>'
                 f'<td class="nowrap">{fmt_p(tw.get("probability"))}</td>'
                 f'<td class="nowrap">{fmt_c(tw.get("revenue_opportunity"), cur)}</td>'
                 f'<td class="nowrap">{fmt_eps_impact(tw.get("bull_eps_impact", 0), sym, is_headwind=False)}</td>'
@@ -1187,20 +1226,20 @@ def render(ticker, m, a, data):
             if narrative:
                 st.markdown(f'<div style="font-size:0.95rem;color:rgba(255,255,255,0.78);line-height:1.8;margin:0.8rem 0;padding:1rem;background:rgba(255,255,255,0.02);border-radius:6px;">{narrative}</div>', unsafe_allow_html=True)
 
-    # ── EV reconciliation ──
-    if pt_dict.get("bull") and pt_dict.get("base") and pt_dict.get("bear"):
-        bu_p = final_probs.get("bull", 0); bu_t = pt_dict.get("bull", 0)
-        ba_p = final_probs.get("base", 0); ba_t = pt_dict.get("base", 0)
-        be_p = final_probs.get("bear", 0); be_t = pt_dict.get("bear", 0)
-        ev_check = bu_p * bu_t + ba_p * ba_t + be_p * be_t
+    # ── EV reconciliation (single source of truth) ──
+    # Render the math layer's own ev_formula_string verbatim. The app NEVER
+    # recomputes EV — the previous app-side recomputation used a different bear
+    # price (bear_low) and different weight rounding than the headline EV, so it
+    # contradicted the headline. Display exactly what the math computed.
+    ev_formula = sm.get("ev_formula_string", "")
+    if ev_formula:
         st.markdown(
             f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.55);'
             f'margin:0.6rem 0 1rem;padding:0.6rem 0.9rem;'
             f'background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.15);'
             f'border-radius:4px;font-family:ui-monospace,monospace;">'
-            f'EV = {bu_p:.2f}×{sym}{bu_t:,.2f} + {ba_p:.2f}×{sym}{ba_t:,.2f} + {be_p:.2f}×{sym}{be_t:,.2f} = '
-            f'<strong style="color:rgba(255,255,255,0.85);">{sym}{ev_check:,.2f}</strong>'
-            f'&nbsp;— integer-percent weights, single source of truth'
+            f'EV = {clean_latex(ev_formula)}'
+            f'&nbsp;— probability-weighted scenario mids, single source of truth'
             f'</div>',
             unsafe_allow_html=True
         )
@@ -1596,16 +1635,12 @@ with left_col:
         'border:1px solid rgba(255,255,255,0.07);border-radius:10px;margin-top:0.5rem">'
         '<h1 style="font-size:2rem;font-weight:800;color:#fff;margin:0 0 0.5rem;'
         'line-height:1.25;letter-spacing:-0.02em;">'
-        'The research your broker <span style="color:#c03030">won\'t write</span> for you.</h1>'
+        'AI assisted <span style="color:#c03030">stock research</span>.</h1>'
         '<p style="font-size:1.02rem;color:rgba(255,255,255,0.55);line-height:1.8;'
         'max-width:620px;margin:0 0 1rem;">'
         'Sell-side research is biased. Reddit is noise. PickR runs a structured quality, '
         'growth, and valuation analysis across three price scenarios — for any US or Indian stock.</p>'
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">'
-        '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
-        'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
-        'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'
-        '&#10003; No credit card</span>'
         '<span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;'
         'font-weight:600;color:rgba(255,255,255,0.75);background:rgba(74,222,128,0.08);'
         'border:1px solid rgba(74,222,128,0.22);border-radius:20px;padding:0.2rem 0.7rem;">'

@@ -66,12 +66,17 @@ AUDIT TASKS
    - Numbers that appear in pass1_json.events[] evidence fields
    - Numbers that appear in pass1_json.catalysts[] what_to_watch fields
 
-2. B1 COMPLIANCE
-   The investment_thesis section must open with an interpretation of the
-   implied FCF CAGR embedded in the current price. "Opens with" = first
-   paragraph contains "FCF", "CAGR", "free cash flow", or "growth rate implied".
-   Set b1_compliant=false ONLY if the first paragraph is entirely absent of
-   FCF/CAGR language. If the section is missing entirely, set b1_compliant=false.
+2. B1 COMPLIANCE (HEADLINE FRAMING)
+   The investment_thesis section must OPEN by leading with the recommendation
+   and the base-case return versus the current price (the headline framing).
+   "Opens with" = the first paragraph states the recommendation (BUY / WATCH /
+   PASS) AND the base-case return or base-case price target vs current price.
+   Set b1_compliant=false ONLY if the first paragraph does NEITHER (neither the
+   recommendation nor the base-case return/target appears up front) — for
+   example, if it leads instead with the reverse-DCF / implied FCF CAGR. If the
+   investment_thesis section is missing entirely, set b1_compliant=false.
+   NOTE: the reverse-DCF / implied FCF CAGR belongs in the BODY
+   (reverse_dcf_commentary), NOT the opening — do not require it up front.
 
 3. TONE vs RECOMMENDATION
    Assess overall narrative tone against the recommendation label.

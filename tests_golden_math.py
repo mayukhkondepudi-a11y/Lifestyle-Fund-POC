@@ -41,6 +41,7 @@ _ARCHIVE_DIRS: dict[str, pathlib.Path] = {
     "NVDA": _ARCHIVE / "stage4_state_nvda",
     "KO":   _ARCHIVE / "stage4_state_ko",
     "ARLO": _ARCHIVE / "stage4_state_arlo",
+    "CLS":  _ARCHIVE / "stage4_state_cls",
 }
 
 _SENTINELS = list(_ARCHIVE_DIRS.keys())

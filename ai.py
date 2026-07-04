@@ -40,13 +40,57 @@ PASS2_PROMPT  = _load_prompt("prompt_pass2.txt")
 PASS3_PROMPT  = _load_prompt("prompt_pass3.txt")
 
 
+# ── LLM output-token budgets (reviewable in one place) ───────────────────────
+# Set generously ABOVE observed real output so a complete response fits; the
+# truncation guard in run_ai still FAILS LOUD if a call hits the ceiling even at
+# these budgets (a truncation at a generous budget is a real signal, not noise —
+# we do NOT auto-retry with a higher budget).
+#
+# Pass 1: observed 4500 output_tokens (truncated exactly at the old 4500 ceiling).
+#   9000 gives ~2× headroom so a complete pass1 JSON fits.
+# Pass 2: observed ~27k chars (~8-9k tokens) against the old 10000 ceiling.
+#   16000 gives clear headroom (~2× real output) above the largest observed body.
+PASS1_MAX_TOKENS = 9000
+PASS2_MAX_TOKENS = 16000
+
+# NOTE: no sampling-temperature knob. Anthropic Opus 4.7/4.8 REJECT a custom
+# temperature with HTTP 400 ("`temperature` is deprecated for this model"), so
+# run_ai does not pass one at all. Reducing Pass-1 recommendation variance needs
+# a different approach (see backlog).
+
+
 # ══════════════════════════════════════════════════════════════
 # AI RUNNER (single canonical implementation)
 # ══════════════════════════════════════════════════════════════
 
+# ── Per-call LLM telemetry ───────────────────────────────────────────────────
+# Every run_ai call appends one record here (stop_reason, token usage, truncation
+# flag, and the raw text). Live/validate harnesses read get_call_log() and persist
+# it so stop_reason + output_tokens land in the run artifact — the fields needed to
+# tell a truncation apart from a clean-but-incomplete completion.
+_CALL_LOG: list[dict] = []
+
+
+def reset_call_log() -> None:
+    _CALL_LOG.clear()
+
+
+def get_call_log() -> list[dict]:
+    return [dict(e) for e in _CALL_LOG]
+
+
 def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
            free_models=None):
-    """Try Anthropic first, then fall back to OpenRouter free models."""
+    """
+    Try Anthropic first, then fall back to OpenRouter free models.
+
+    No temperature is sent: Anthropic Opus 4.7/4.8 reject a custom temperature
+    with HTTP 400 ("`temperature` is deprecated for this model").
+
+    A response with stop_reason == "max_tokens" (Anthropic) / finish_reason ==
+    "length" (OpenRouter) is a TRUNCATED completion: it is treated as a FAILED
+    call (returns None + a TRUNCATED error), never returned as if complete.
+    """
     if free_models is None:
         free_models = FREE_MODELS
 
@@ -64,7 +108,24 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                 max_tokens=max_tokens,
             )
             text = r.content[0].text.strip()
-            print(f"  AI response via {model} ({len(text)} chars)")
+            stop = getattr(r, "stop_reason", None)
+            usage = getattr(r, "usage", None)
+            in_tok = getattr(usage, "input_tokens", None) if usage else None
+            out_tok = getattr(usage, "output_tokens", None) if usage else None
+            truncated = (stop == "max_tokens")
+            _CALL_LOG.append({
+                "model": model, "stop_reason": stop, "input_tokens": in_tok,
+                "output_tokens": out_tok, "max_tokens": max_tokens,
+                "chars": len(text), "truncated": truncated, "text": text,
+            })
+            if truncated:
+                print(f"  ⚠️ TRUNCATED: {model} hit max_tokens={max_tokens} "
+                      f"(output_tokens={out_tok}, {len(text)} chars) — treating as FAILED")
+                return None, model, [
+                    f"TRUNCATED: {model} stop_reason=max_tokens output_tokens={out_tok} "
+                    f"max_tokens={max_tokens}"
+                ]
+            print(f"  AI response via {model} ({len(text)} chars, stop={stop}, out_tok={out_tok})")
             return text, model, None
         except Exception as e:
             err = f"Claude: {str(e)[:120]}"
@@ -80,6 +141,19 @@ def run_ai(messages, max_tokens=4000, model="claude-opus-4-7",
                                 "X-Title": "PickR"},
             )
             text = r.choices[0].message.content.strip()
+            fr = getattr(r.choices[0], "finish_reason", None)
+            usage = getattr(r, "usage", None)
+            out_tok = getattr(usage, "completion_tokens", None) if usage else None
+            truncated = (fr == "length")
+            _CALL_LOG.append({
+                "model": fm, "stop_reason": fr, "input_tokens": None,
+                "output_tokens": out_tok, "max_tokens": max_tokens,
+                "chars": len(text), "truncated": truncated, "text": text,
+            })
+            if truncated:
+                print(f"  ⚠️ TRUNCATED: {fm} finish_reason=length "
+                      f"(output_tokens={out_tok}, {len(text)} chars) — treating as FAILED")
+                return None, fm, [f"TRUNCATED: {fm} finish_reason=length output_tokens={out_tok}"]
             print(f"  AI response via {fm} ({len(text)} chars)")
             return text, fm, None
         except Exception as e:
@@ -485,7 +559,7 @@ def run_pass1_foundation(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=4500)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS1_MAX_TOKENS)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None on first attempt"])
 
@@ -497,7 +571,7 @@ def run_pass1_foundation(
             "PARSE ERROR: Your previous response could not be parsed as JSON. "
             "Return ONLY a valid JSON object — no prose, no markdown, no fences."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(errs2 or ["run_ai returned None on JSON-repair retry"])
         pass1, parse_err2 = parse_json_response(raw2, model2)
@@ -534,7 +608,7 @@ def run_pass1_foundation(
             + _event_guidance
             + "\n\nRe-emit the complete corrected JSON. Do not omit any fields."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=8000)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is None:
             raise Pass1ValidationError(hard + (errs2 or []))
         pass1_r, parse_err_r = parse_json_response(raw2, model2)
@@ -555,7 +629,7 @@ def run_pass1_foundation(
             + "\n\nInclude ALL fields from the output schema, especially 'catalysts'. "
             "Re-emit the complete corrected JSON."
         )
-        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=4500)
+        raw2, model2, errs2 = run_ai(_build_messages(corrective), max_tokens=PASS1_MAX_TOKENS)
         if raw2 is not None:
             pass1_r, parse_err_r = parse_json_response(raw2, model2)
             if not parse_err_r and pass1_r is not None:
@@ -777,7 +851,7 @@ def run_pass2_report(
         ]
 
     # ── First attempt ────────────────────────────────────────────────────────
-    raw, model, errors = run_ai(_build_messages(), max_tokens=10000)
+    raw, model, errors = run_ai(_build_messages(), max_tokens=PASS2_MAX_TOKENS)
     if raw is None:
         raise Pass1ValidationError(errors or ["run_ai returned None (pass2 attempt 1)"])
 
@@ -787,7 +861,7 @@ def run_pass2_report(
             raise Pass1ValidationError([parse_err or "JSON parse failed (pass2 attempt 1)"])
         raw2, model2, _ = run_ai(
             _build_messages("PARSE ERROR: return ONLY a valid JSON object."),
-            max_tokens=10000,
+            max_tokens=PASS2_MAX_TOKENS,
         )
         if raw2 is None:
             raise Pass1ValidationError(["run_ai returned None on parse-repair retry (pass2)"])
@@ -806,16 +880,35 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in hard)
             + "\n\nRe-emit the complete corrected JSON. No forbidden words. No omitted sections."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=PASS2_MAX_TOKENS)
+
+        # Best-of the two attempts, ranked by completeness. "Best" = fewest missing
+        # REQUIRED sections, then fewest total hard errors, then fewest soft. This
+        # guarantees a more-complete retry is never discarded in favour of a
+        # more-incomplete first attempt (the previous "keep first" bug).
+        def _incompleteness(hs, ss):
+            req_missing = sum(1 for e in hs if e.startswith("missing required section"))
+            return (req_missing, len(hs), len(ss))
+
+        candidates = [(pass2, soft, hard, model)]
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
                 soft_r, hard_r = _validate_pass2_v2(p2r, math)
-                if hard_r:
-                    print(f"  Pass2 v2 retry introduced hard regressions ({hard_r[:2]}); "
-                          "keeping first attempt.")
-                else:
-                    pass2, soft, model = p2r, soft_r, model2
+                candidates.append((p2r, soft_r, hard_r, model2))
+
+        pass2, soft, hard, model = min(
+            candidates, key=lambda c: _incompleteness(c[2], c[1])
+        )
+
+        # Fail loud: never ship an incomplete report. If even the best candidate
+        # still has hard errors (e.g. a required section missing), refuse to ship.
+        if hard:
+            print(f"  Pass2 v2 FAILED after {max_passes} attempts "
+                  f"(best candidate hard errors: {hard[:3]}) — refusing to ship")
+            raise Pass1ValidationError(
+                ["Pass 2 incomplete after retry — refusing to ship an incomplete report"] + hard
+            )
 
     elif soft and max_passes >= 2:
         corrective = (
@@ -823,7 +916,7 @@ def run_pass2_report(
             + "\n".join(f"  - {e}" for e in soft)
             + "\n\nRe-emit the complete corrected JSON within 4500 total words."
         )
-        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=10000)
+        raw2, model2, _ = run_ai(_build_messages(corrective), max_tokens=PASS2_MAX_TOKENS)
         if raw2 is not None:
             p2r, pe_r = parse_json_response(raw2, model2)
             if not pe_r and p2r is not None:
@@ -1104,15 +1197,17 @@ def run_pipeline(ticker: str, baseline: dict) -> dict:
         pass2           = run_pass2_report(ticker, baseline, pass1, math)
         calls_remaining -= 2
     except Pass1ValidationError as exc:
-        print(f"  run_pipeline: Pass 2 failed ({exc}) — stub narrative")
-        calls_remaining -= 1   # at least one call was attempted
-        pass2 = {
-            "investment_thesis": "Narrative unavailable due to generation error.",
-            "reverse_dcf_commentary": "", "scenario_commentary": {},
-            "driver_narratives": {}, "financial_health": "",
-            "recommendation_rationale": "",
-            "conclusion": "Analysis complete. Full narrative could not be generated.",
-            "body": "", "model_used": "N/A",
+        # Fail loud — never silently ship an incomplete narrative. Return an error
+        # report (same shape as the Pass 1 failure path) so the app halts and shows
+        # the failure rather than rendering a stub.
+        print(f"  run_pipeline: Pass 2 FAILED ({exc}) — refusing to ship incomplete report")
+        details = exc.args[0] if (exc.args and isinstance(exc.args[0], list)) else [str(exc)]
+        return {
+            "error":   "Pass 2 narrative incomplete — report withheld",
+            "details": details,
+            "recommendation": "WATCH", "conviction": "Low", "model_used": "N/A",
+            "scenario_math": _empty_scenario_math(),
+            "pass3": {}, "data_quality_warnings": list(baseline.get("data_quality_warnings", []) or []),
         }
 
     # ── Pass 3: §5.5 audit ───────────────────────────────────────────────────
@@ -1172,18 +1267,23 @@ def _assemble_pipeline_output(
     pe_band_d     = math.get("pe_band", {})
 
     # ── Derived scalars ──────────────────────────────────────────────────────
+    # bear_mid is the probability-weighted bear PRICE (single source of truth for
+    # EV/risk).  bear_low is a display-only range extreme (bear_mid × 0.85) and is
+    # NEVER used in EV or risk — that divergence was the two-EV bug.
     bull_mid  = safe_float(pt.get("bull_mid", 0))
     base_mid  = safe_float(pt.get("base_mid", 0))
+    bear_mid  = safe_float(pt.get("bear_mid", pt.get("bear", 0)))
     bear_low  = safe_float(pt.get("bear_low", 0))
 
     ev_val          = safe_float(risk.get("ev", math.get("expected_value", 0)))
     expected_return = safe_float(risk.get("expected_return_pct", 0))
     prob_loss       = safe_float(risk.get("prob_loss", 0))
     prob_positive   = round(max(0.0, 1.0 - prob_loss), 4)
-    base_implied    = round(base_mid / current_price - 1, 4) if current_price > 0 and base_mid > 0 else 0.0
+    base_implied    = safe_float(math.get("base_case_return",
+                        round(base_mid / current_price - 1, 4) if current_price > 0 and base_mid > 0 else 0.0))
 
-    # Upside/downside ratio (matches v1 derivation in compute.py)
-    price_map    = {"bull": bull_mid, "base": base_mid, "bear": bear_low}
+    # Upside/downside ratio — uses the same bear_mid the EV uses (no divergence).
+    price_map    = {"bull": bull_mid, "base": base_mid, "bear": bear_mid}
     upside_sum   = sum(
         joint_probs.get(s, 0) * (price_map[s] / current_price - 1)
         for s in ("bull", "base", "bear")
@@ -1203,10 +1303,10 @@ def _assemble_pipeline_output(
 
     # ── Sanity flags ─────────────────────────────────────────────────────────
     mono_viol = (
-        bull_mid > 0 and base_mid > 0 and bear_low > 0
-        and not (bull_mid > base_mid > bear_low)
+        bull_mid > 0 and base_mid > 0 and bear_mid > 0
+        and not (bull_mid > base_mid > bear_mid)
     )
-    mono_msg      = (f"Non-monotonic targets: bull={bull_mid:.2f} / base={base_mid:.2f} / bear={bear_low:.2f}." if mono_viol else "")
+    mono_msg      = (f"Non-monotonic targets: bull={bull_mid:.2f} / base={base_mid:.2f} / bear={bear_mid:.2f}." if mono_viol else "")
     bull_below_msg = (f"Bull target ({bull_mid:.2f}) below current price ({current_price:.2f})." if bull_below else "")
 
     # ── Recommendation + conviction (deterministic) ──────────────────────────
@@ -1255,11 +1355,12 @@ def _assemble_pipeline_output(
         "eps":                 math.get("scenario_eps", {}),
         "price_target": {
             **pt,
-            "bull": bull_mid,            # alias: render EV reconciliation + scenario tabs
+            "bull": bull_mid,            # alias: scenario tabs (probability-weighted mid)
             "base": base_mid,            # alias: render_track_box + scenario tabs
-            "bear": bear_low,            # alias: scenario tabs
+            "bear": bear_mid,            # alias: scenario tabs — MID (EV price), not range low
+            "bear_low": bear_low,        # display-only range extreme
         },
-        "scenario_revenue":    {},       # v2 doesn't aggregate segment revenue
+        "scenario_revenue":    math.get("scenario_revenue", {}),
         "expected_value":      ev_val,
         "expected_return":     expected_return,
         "base_implied_return": base_implied,
