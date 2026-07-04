@@ -435,6 +435,20 @@ def render(ticker, m, a, data):
     rev_dict         = sm.get("scenario_revenue", {})
     scenario_inputs  = a.get("scenario_inputs", {})
 
+    # ── Driver-label lookup (Stage 1a: name bare A/B/C in tables) ──
+    # Authoritative id→label map from the normalized macro_drivers dict.
+    # Returns "A — Hyperscaler AI Capex Cycle" or None when no label is available
+    # (callers fall back to the pre-existing display string so nothing is lost).
+    _macro_drivers = a.get("macro_drivers") if isinstance(a.get("macro_drivers"), dict) else {}
+
+    def _driver_label(driver_id):
+        if not driver_id:
+            return None
+        ent = _macro_drivers.get(driver_id)
+        lbl = ent.get("label") if isinstance(ent, dict) else None
+        lbl = strip_html(lbl).strip() if lbl else ""
+        return f"{driver_id} — {lbl}" if lbl else None
+
     st.markdown('<div class="rpt-card">', unsafe_allow_html=True)
 
     # ── Masthead ──
@@ -650,7 +664,10 @@ def render(ticker, m, a, data):
         for _drv in _fa_items:
             if not isinstance(_drv, dict):
                 continue
-            _drv_name = strip_html(_drv.get("name", _drv.get("driver_id", "")))
+            _drv_did  = strip_html(_drv.get("driver_id", ""))
+            _drv_nm   = strip_html(_drv.get("name", ""))
+            # Prefix the driver id so factor rows tie back to the A/B/C scenario drivers.
+            _drv_name = f"{_drv_did} — {_drv_nm}" if _drv_did and _drv_nm else (_drv_nm or _drv_did)
             st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.85);margin:0.8rem 0 0.4rem;">{_drv_name}</div>', unsafe_allow_html=True)
             for _oc in (_drv.get("outcomes") or []):
                 if not isinstance(_oc, dict):
@@ -705,19 +722,26 @@ def render(ticker, m, a, data):
             _curr  = _st.get("current", {})
             _plus  = _st.get("plus_10pp", {})
             _drv_id = _st.get("driver", "A")
+            # Name the perturbed driver once (width-safe); metric labels stay short below.
+            _drv_full = _driver_label(_drv_id) or f"Driver {_drv_id}"
+            st.markdown(
+                f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin:0.2rem 0 0.5rem;">'
+                f'Perturbing <span style="font-weight:700;color:rgba(255,255,255,0.85);">{_drv_full}</span> bull probability</div>',
+                unsafe_allow_html=True,
+            )
             with _sc1:
                 st.metric(
-                    f"Driver {_drv_id} bull prob −10pp ({safe_float(_minus.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob −10pp ({safe_float(_minus.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_minus.get('expected_value',0)):,.0f}",
                 )
             with _sc2:
                 st.metric(
-                    f"Driver {_drv_id} bull prob current ({safe_float(_curr.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob current ({safe_float(_curr.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_curr.get('expected_value',0)):,.0f}",
                 )
             with _sc3:
                 st.metric(
-                    f"Driver {_drv_id} bull prob +10pp ({safe_float(_plus.get('bull_prob',0))*100:.0f}%)",
+                    f"Bull prob +10pp ({safe_float(_plus.get('bull_prob',0))*100:.0f}%)",
                     f"{sym}{safe_float(_plus.get('expected_value',0)):,.0f}",
                 )
         if a.get("sensitivity_check"):
@@ -927,7 +951,7 @@ def render(ticker, m, a, data):
             # FIX: fmt_eps_impact now receives `sym` and correct is_headwind=True for headwinds
             hw_rows = "".join(
                 f'<tr>'
-                f'<td style="font-weight:600;">{strip_html(hw.get("name",""))}</td>'
+                f'<td style="font-weight:600;">{_driver_label(hw.get("driver")) or strip_html(hw.get("name",""))}</td>'
                 f'<td class="nowrap">{fmt_p(hw.get("probability"))}</td>'
                 f'<td class="nowrap">{fmt_c(hw.get("revenue_at_risk"), cur)}</td>'
                 f'<td class="nowrap">{fmt_eps_impact(hw.get("bull_eps_impact", 0), sym, is_headwind=True)}</td>'
@@ -944,7 +968,7 @@ def render(ticker, m, a, data):
             # FIX: fmt_eps_impact now receives `sym` — was missing in original tailwind call
             tw_rows = "".join(
                 f'<tr>'
-                f'<td style="font-weight:600;">{strip_html(tw.get("name",""))}</td>'
+                f'<td style="font-weight:600;">{_driver_label(tw.get("driver")) or strip_html(tw.get("name",""))}</td>'
                 f'<td class="nowrap">{fmt_p(tw.get("probability"))}</td>'
                 f'<td class="nowrap">{fmt_c(tw.get("revenue_opportunity"), cur)}</td>'
                 f'<td class="nowrap">{fmt_eps_impact(tw.get("bull_eps_impact", 0), sym, is_headwind=False)}</td>'
