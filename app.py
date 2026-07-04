@@ -116,6 +116,22 @@ if "initialized" not in st.session_state:
 # Restore identity from the cookie before any auth-gated logic reads it.
 restore_session_from_cookie()
 
+# Cookie-hydration gate: extra_streamlit_components' CookieManager returns {} on
+# the first script run after a full page reload (the browser round-trip that
+# reads document.cookie hasn't finished yet). The stock-selection anchor links
+# (?_qt=...) trigger exactly such a reload, so a signed-in guest transiently
+# looks logged-out and the guest CTA reappears. Give the component (rendered at
+# line ~107) a beat to deliver before rendering any logged-out / guest-CTA UI or
+# acting on _qt. Bounded by a counter so genuinely logged-out users don't hang;
+# session_state is wiped on each reload, so this re-arms once per fresh load.
+if not st.session_state.get("authenticated"):
+    _cw = st.session_state.get("_cookie_waits", 0)
+    if _cw < 2:
+        st.session_state["_cookie_waits"] = _cw + 1
+        import time as _t
+        _t.sleep(0.2)  # wall-clock beat for the cookie iframe round-trip
+        st.rerun()
+
 if st.session_state.get("show_auth"):
     render_auth_modal()
     if st.session_state.pop("_just_authed", False):
