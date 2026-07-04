@@ -50,19 +50,29 @@ def _math(ticker: str) -> dict:
 
 
 # ── 1. CLS HAND-CALC ORACLE ──────────────────────────────────────────────────
-# Independently hand-computed from the fixture (base_growth capped at 0.35,
-# forward-rebased segment revenue, rev-at-risk-weighted margins, peer-anchored
-# P/E with quality_adj = 0.35/0.3122 = 1.1211, no franchise bear floor).
+# Independently hand-computed from the fixture (base_growth capped at 0.40 —
+# MAX_BASE_GROWTH raised from 0.35; forward-rebased segment revenue, rev-at-risk-
+# weighted margins, peer-anchored P/E with quality_adj = 0.40/0.3122 = 1.2812,
+# RERATE_PREMIUM 0.125 / DERATE_DISCOUNT 0.15 (halved), no franchise bear floor).
+#
+# Hand derivation of the two anchor numbers (peer_median_pe=21.25, peer_g=0.3122,
+# segs CCS=8.2@0.45 / ATS=4.2@0.05, gbar=3.90/12.4=0.314516, tax=0.21,
+# shares_proj=0.11497):
+#   base rev  = 8.2·(1+0.40·1.4308)^2 + 4.2·(1+0.40·0.1590)^2 = 20.2716+4.7511 = 25.0227
+#   base mgn  = (0.095·1.0+0.09·0.4+0.075·0.4)/1.8 = 0.161/1.8 = 0.089444
+#   base EPS  = 25.0227 · 0.089444 · 0.79 / 0.11497 = 15.38
+#   base P/E  = 21.25 · 1.2812 = 27.23   (bull=27.226·1.125=30.63, bear=27.226·0.85=23.14)
+#   base tgt  = 15.3791 · 27.23 = 418.77
 
 CLS_EXPECTED = {
-    "base_growth":  0.35,
-    "eps":   {"bull": 18.91,  "base": 14.23,  "bear": 7.51},
-    "pe":    {"bull": 29.78,  "base": 23.82,  "bear": 16.68},
-    "price": {"bull": 563.03, "base": 338.90, "bear": 125.27},
+    "base_growth":  0.40,
+    "eps":   {"bull": 18.97,  "base": 15.38,  "bear": 7.85},
+    "pe":    {"bull": 30.63,  "base": 27.23,  "bear": 23.14},
+    "price": {"bull": 581.20, "base": 418.77, "bear": 181.62},
     "joint": {"bull": 0.2667, "base": 0.4833, "bear": 0.25},
-    "ev": 345.27,
-    "base_case_return": -0.0903,
-    "recommendation": "PASS",
+    "ev": 402.80,
+    "base_case_return": 0.1241,
+    "recommendation": "WATCH",
 }
 
 

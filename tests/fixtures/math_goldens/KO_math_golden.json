@@ -24,28 +24,28 @@
     "bear": 0.2963
   },
   "pe_band": {
-    "bull_low": 15.0,
-    "bull_high": 15.0,
+    "bull_low": 13.5,
+    "bull_high": 13.5,
     "base_low": 12.0,
     "base_high": 12.0,
-    "bear_low": 10.0,
-    "bear_high": 10.0,
+    "bear_low": 10.2,
+    "bear_high": 10.2,
     "source": "no_peer_fallback"
   },
   "pe_points": {
-    "bull": 15.0,
+    "bull": 13.5,
     "base": 12.0,
-    "bear": 10.0
+    "bear": 10.2
   },
   "price_target": {
-    "bull": 50.95,
+    "bull": 45.86,
     "base": 34.12,
-    "bear": 25.32,
-    "bull_mid": 50.95,
+    "bear": 25.83,
+    "bull_mid": 45.86,
     "base_mid": 34.12,
-    "bear_mid": 25.32,
-    "bull_high": 58.59,
-    "bear_low": 21.52
+    "bear_mid": 25.83,
+    "bull_high": 52.74,
+    "bear_low": 21.96
   },
   "joint_probs": {
     "bull": 0.25,
@@ -69,12 +69,12 @@
       "bear": 0.45
     }
   },
-  "expected_value": 36.13,
+  "expected_value": 34.98,
   "risk": {
     "prob_loss": 1.0,
-    "max_drawdown_pct": 0.6795,
-    "expected_return_pct": -0.5427,
-    "ev": 36.13
+    "max_drawdown_pct": 0.6731,
+    "expected_return_pct": -0.5573,
+    "ev": 34.98
   },
   "breakeven_pe": 26.0,
   "dcf": {
@@ -202,7 +202,7 @@
       "bear_eps_impact": 0.0
     }
   ],
-  "ev_formula_string": "0.2500\u00d7$50.95 + 0.5000\u00d7$34.12 + 0.2500\u00d7$25.32 = $36.13",
+  "ev_formula_string": "0.2500\u00d7$45.86 + 0.5000\u00d7$34.12 + 0.2500\u00d7$25.83 = $34.98",
   "driver_outcome_probabilities": {
     "A": {
       "bull": 0.35,
@@ -224,15 +224,15 @@
     "driver": "A",
     "minus_10pp": {
       "bull_prob": 0.2167,
-      "expected_value": 35.27
+      "expected_value": 34.32
     },
     "current": {
       "bull_prob": 0.25,
-      "expected_value": 36.13
+      "expected_value": 34.98
     },
     "plus_10pp": {
       "bull_prob": 0.2833,
-      "expected_value": 36.98
+      "expected_value": 35.65
     }
   },
   "scenario_segment_revenue": null

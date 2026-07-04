@@ -1,22 +1,22 @@
 {
   "headline_metric": "recommendation_and_base_return",
-  "recommendation": "PASS",
-  "base_case_return": -0.0903,
-  "base_growth": 0.35,
+  "recommendation": "WATCH",
+  "base_case_return": 0.1241,
+  "base_growth": 0.4,
   "base_growth_source": "consensus_revenue_cagr",
   "implied_fcf_cagr": 0.57,
   "reverse_dcf_unstable": true,
   "discount_rate": 0.1134,
   "shares_projected": 0.115,
   "scenario_eps": {
-    "bull": 18.91,
-    "base": 14.23,
-    "bear": 7.51
+    "bull": 18.97,
+    "base": 15.38,
+    "bear": 7.85
   },
   "scenario_revenue": {
-    "bull": 25.8216,
-    "base": 23.1493,
-    "bear": 17.2573
+    "bull": 25.9151,
+    "base": 25.0227,
+    "bear": 18.0357
   },
   "scenario_margin": {
     "bull": 0.1066,
@@ -24,28 +24,28 @@
     "bear": 0.0633
   },
   "pe_band": {
-    "bull_low": 29.78,
-    "bull_high": 29.78,
-    "base_low": 23.82,
-    "base_high": 23.82,
-    "bear_low": 16.68,
-    "bear_high": 16.68,
+    "bull_low": 30.63,
+    "bull_high": 30.63,
+    "base_low": 27.23,
+    "base_high": 27.23,
+    "bear_low": 23.14,
+    "bear_high": 23.14,
     "source": "peer"
   },
   "pe_points": {
-    "bull": 29.78,
-    "base": 23.82,
-    "bear": 16.68
+    "bull": 30.63,
+    "base": 27.23,
+    "bear": 23.14
   },
   "price_target": {
-    "bull": 563.03,
-    "base": 338.9,
-    "bear": 125.27,
-    "bull_mid": 563.03,
-    "base_mid": 338.9,
-    "bear_mid": 125.27,
-    "bull_high": 647.48,
-    "bear_low": 106.48
+    "bull": 581.2,
+    "base": 418.77,
+    "bear": 181.62,
+    "bull_mid": 581.2,
+    "base_mid": 418.77,
+    "bear_mid": 181.62,
+    "bull_high": 668.38,
+    "bear_low": 154.38
   },
   "joint_probs": {
     "bull": 0.2667,
@@ -69,19 +69,19 @@
       "bear": 0.45
     }
   },
-  "expected_value": 345.27,
+  "expected_value": 402.8,
   "risk": {
-    "prob_loss": 0.7333,
-    "max_drawdown_pct": 0.6637,
-    "expected_return_pct": -0.0732,
-    "ev": 345.27
+    "prob_loss": 0.25,
+    "max_drawdown_pct": 0.5125,
+    "expected_return_pct": 0.0812,
+    "ev": 402.8
   },
   "breakeven_pe": 45.3,
   "dcf": {
     "bull": {
-      "enterprise_value": 10.28,
-      "equity_value": 9.78,
-      "intrinsic_per_share": 85.04
+      "enterprise_value": 8.7,
+      "equity_value": 8.2,
+      "intrinsic_per_share": 71.3
     },
     "base": {
       "enterprise_value": 5.48,
@@ -89,14 +89,14 @@
       "intrinsic_per_share": 43.29
     },
     "bear": {
-      "enterprise_value": 1.53,
-      "equity_value": 1.03,
-      "intrinsic_per_share": 8.94
+      "enterprise_value": 1.44,
+      "equity_value": 0.94,
+      "intrinsic_per_share": 8.16
     }
   },
   "calibration_log": [
-    "Base growth clamped to 0.35 bound",
-    "Sanity: bear EPS $7.51 outside consensus band [$10.37, $34.33] (informational; not adjusted)",
+    "Base growth clamped to 0.40 bound",
+    "Sanity: bear EPS $7.85 outside consensus band [$10.37, $34.33] (informational; not adjusted)",
     "franchise_quality=False \u2014 no 25\u00d7 bear P/E floor (pure peer-derate bear)",
     "Reverse-DCF unstable: FCF yield 1.1% < 2% \u2014 implied CAGR 57% is a small-denominator artifact, read directionally"
   ],
@@ -201,7 +201,7 @@
       "bear_eps_impact": 0.2061
     }
   ],
-  "ev_formula_string": "0.2667\u00d7$563.03 + 0.4833\u00d7$338.90 + 0.2500\u00d7$125.27 = $345.27",
+  "ev_formula_string": "0.2667\u00d7$581.20 + 0.4833\u00d7$418.77 + 0.2500\u00d7$181.62 = $402.80",
   "driver_outcome_probabilities": {
     "A": {
       "bull": 0.4,
@@ -223,15 +223,15 @@
     "driver": "A",
     "minus_10pp": {
       "bull_prob": 0.2333,
-      "expected_value": 330.63
+      "expected_value": 389.44
     },
     "current": {
       "bull_prob": 0.2667,
-      "expected_value": 345.27
+      "expected_value": 402.8
     },
     "plus_10pp": {
       "bull_prob": 0.3,
-      "expected_value": 359.85
+      "expected_value": 416.11
     }
   },
   "scenario_segment_revenue": {
@@ -240,16 +240,16 @@
         "name": "Connectivity & Cloud Solutions (CCS)",
         "fy_revenue": 8.2,
         "bull": 20.992,
-        "base": 18.4689,
-        "bear": 12.8204,
+        "base": 20.2716,
+        "bear": 13.5644,
         "growth_source": "scenario_multiplier_rebased"
       },
       {
         "name": "Advanced Technology Solutions (ATS)",
         "fy_revenue": 4.2,
-        "bull": 4.8296,
-        "base": 4.6804,
-        "bear": 4.4369,
+        "bull": 4.9231,
+        "base": 4.7511,
+        "bear": 4.4713,
         "growth_source": "scenario_multiplier_rebased"
       }
     ],

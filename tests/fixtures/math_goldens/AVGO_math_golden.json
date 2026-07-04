@@ -1,22 +1,22 @@
 {
   "headline_metric": "recommendation_and_base_return",
   "recommendation": "PASS",
-  "base_case_return": -0.4117,
-  "base_growth": 0.35,
+  "base_case_return": -0.3673,
+  "base_growth": 0.4,
   "base_growth_source": "consensus_revenue_cagr",
   "implied_fcf_cagr": 0.51,
   "reverse_dcf_unstable": true,
   "discount_rate": 0.1115,
   "shares_projected": 4.7347,
   "scenario_eps": {
-    "bull": 13.62,
-    "base": 8.76,
-    "bear": 5.48
+    "bull": 13.76,
+    "base": 9.42,
+    "bear": 5.72
   },
   "scenario_revenue": {
-    "bull": 161.9113,
-    "base": 116.4341,
-    "bear": 81.4077
+    "bull": 163.5507,
+    "base": 125.2185,
+    "bear": 85.0535
   },
   "scenario_margin": {
     "bull": 0.5043,
@@ -24,28 +24,28 @@
     "bear": 0.4034
   },
   "pe_band": {
-    "bull_low": 37.5,
-    "bull_high": 37.5,
+    "bull_low": 33.75,
+    "bull_high": 33.75,
     "base_low": 30.0,
     "base_high": 30.0,
-    "bear_low": 21.0,
-    "bear_high": 21.0,
+    "bear_low": 25.5,
+    "bear_high": 25.5,
     "source": "no_peer_fallback"
   },
   "pe_points": {
-    "bull": 37.5,
+    "bull": 33.75,
     "base": 30.0,
-    "bear": 21.0
+    "bear": 25.5
   },
   "price_target": {
-    "bull": 510.88,
-    "base": 262.85,
-    "bear": 115.07,
-    "bull_mid": 510.88,
-    "base_mid": 262.85,
-    "bear_mid": 115.07,
-    "bull_high": 587.51,
-    "bear_low": 97.81
+    "bull": 464.45,
+    "base": 282.69,
+    "bear": 145.98,
+    "bull_mid": 464.45,
+    "base_mid": 282.69,
+    "bear_mid": 145.98,
+    "bull_high": 534.12,
+    "bear_low": 124.08
   },
   "joint_probs": {
     "bull": 0.3167,
@@ -69,19 +69,19 @@
       "bear": 0.35
     }
   },
-  "expected_value": 309.4,
+  "expected_value": 310.66,
   "risk": {
     "prob_loss": 0.6834,
-    "max_drawdown_pct": 0.7424,
-    "expected_return_pct": -0.3075,
-    "ev": 309.4
+    "max_drawdown_pct": 0.6733,
+    "expected_return_pct": -0.3047,
+    "ev": 310.66
   },
   "breakeven_pe": 93.7,
   "dcf": {
     "bull": {
-      "enterprise_value": 888.26,
-      "equity_value": 836.38,
-      "intrinsic_per_share": 176.65
+      "enterprise_value": 769.03,
+      "equity_value": 717.14,
+      "intrinsic_per_share": 151.47
     },
     "base": {
       "enterprise_value": 329.88,
@@ -89,15 +89,15 @@
       "intrinsic_per_share": 58.71
     },
     "bear": {
-      "enterprise_value": 125.64,
-      "equity_value": 73.76,
-      "intrinsic_per_share": 15.58
+      "enterprise_value": 118.86,
+      "equity_value": 66.97,
+      "intrinsic_per_share": 14.15
     }
   },
   "calibration_log": [
-    "Base growth clamped to 0.35 bound",
-    "Sanity: base EPS $8.76 outside consensus band [$11.35, $24.67] (informational; not adjusted)",
-    "Sanity: bear EPS $5.48 outside consensus band [$11.35, $24.67] (informational; not adjusted)",
+    "Base growth clamped to 0.40 bound",
+    "Sanity: base EPS $9.42 outside consensus band [$11.35, $24.67] (informational; not adjusted)",
+    "Sanity: bear EPS $5.72 outside consensus band [$11.35, $24.67] (informational; not adjusted)",
     "P/E from no-peer growth fallback (base_pe=30.0); peer multiples unavailable",
     "franchise_quality=False \u2014 no 25\u00d7 bear P/E floor (pure peer-derate bear)",
     "Reverse-DCF unstable: FCF yield 1.3% < 2% \u2014 implied CAGR 51% is a small-denominator artifact, read directionally"
@@ -203,7 +203,7 @@
       "bear_eps_impact": 0.0
     }
   ],
-  "ev_formula_string": "0.3167\u00d7$510.88 + 0.4667\u00d7$262.85 + 0.2167\u00d7$115.07 = $309.40",
+  "ev_formula_string": "0.3167\u00d7$464.45 + 0.4667\u00d7$282.69 + 0.2167\u00d7$145.98 = $310.66",
   "driver_outcome_probabilities": {
     "A": {
       "bull": 0.45,
@@ -225,15 +225,15 @@
     "driver": "A",
     "minus_10pp": {
       "bull_prob": 0.2833,
-      "expected_value": 296.17
+      "expected_value": 300.01
     },
     "current": {
       "bull_prob": 0.3167,
-      "expected_value": 309.4
+      "expected_value": 310.66
     },
     "plus_10pp": {
       "bull_prob": 0.35,
-      "expected_value": 322.57
+      "expected_value": 321.25
     }
   },
   "scenario_segment_revenue": null

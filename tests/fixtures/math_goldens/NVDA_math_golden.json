@@ -1,8 +1,8 @@
 {
   "headline_metric": "recommendation_and_base_return",
   "recommendation": "WATCH",
-  "base_case_return": 0.073,
-  "base_growth": 0.35,
+  "base_case_return": 0.1539,
+  "base_growth": 0.4,
   "base_growth_source": "consensus_revenue_cagr",
   "implied_fcf_cagr": 0.54,
   "reverse_dcf_unstable": true,
@@ -10,13 +10,13 @@
   "shares_projected": 24.221,
   "scenario_eps": {
     "bull": 10.82,
-    "base": 7.7,
-    "bear": 4.19
+    "base": 8.28,
+    "bear": 4.39
   },
   "scenario_revenue": {
     "bull": 552.8013,
-    "base": 393.547,
-    "bear": 236.483
+    "base": 423.2385,
+    "bear": 247.9168
   },
   "scenario_margin": {
     "bull": 0.6,
@@ -24,28 +24,28 @@
     "bear": 0.5432
   },
   "pe_band": {
-    "bull_low": 37.5,
-    "bull_high": 37.5,
+    "bull_low": 33.75,
+    "bull_high": 33.75,
     "base_low": 30.0,
     "base_high": 30.0,
-    "bear_low": 21.0,
-    "bear_high": 21.0,
+    "bear_low": 25.5,
+    "bear_high": 25.5,
     "source": "no_peer_fallback"
   },
   "pe_points": {
-    "bull": 37.5,
+    "bull": 33.75,
     "base": 30.0,
-    "bear": 21.0
+    "bear": 25.5
   },
   "price_target": {
-    "bull": 405.68,
-    "base": 231.05,
-    "bear": 87.99,
-    "bull_mid": 405.68,
-    "base_mid": 231.05,
-    "bear_mid": 87.99,
-    "bull_high": 466.53,
-    "bear_low": 74.79
+    "bull": 365.11,
+    "base": 248.48,
+    "bear": 112.01,
+    "bull_mid": 365.11,
+    "base_mid": 248.48,
+    "bear_mid": 112.01,
+    "bull_high": 419.88,
+    "bear_low": 95.21
   },
   "joint_probs": {
     "bull": 0.2333,
@@ -69,19 +69,19 @@
       "bear": 0.65
     }
   },
-  "expected_value": 226.48,
+  "expected_value": 232.47,
   "risk": {
     "prob_loss": 0.3167,
-    "max_drawdown_pct": 0.5914,
-    "expected_return_pct": 0.0518,
-    "ev": 226.48
+    "max_drawdown_pct": 0.4798,
+    "expected_return_pct": 0.0796,
+    "ev": 232.47
   },
   "breakeven_pe": 43.9,
   "dcf": {
     "bull": {
-      "enterprise_value": 1606.8,
-      "equity_value": 1647.16,
-      "intrinsic_per_share": 68.01
+      "enterprise_value": 1372.6,
+      "equity_value": 1412.96,
+      "intrinsic_per_share": 58.34
     },
     "base": {
       "enterprise_value": 784.87,
@@ -89,15 +89,14 @@
       "intrinsic_per_share": 34.07
     },
     "bear": {
-      "enterprise_value": 254.86,
-      "equity_value": 295.22,
-      "intrinsic_per_share": 12.19
+      "enterprise_value": 244.44,
+      "equity_value": 284.8,
+      "intrinsic_per_share": 11.76
     }
   },
   "calibration_log": [
-    "Base growth clamped to 0.35 bound",
-    "Sanity: base EPS $7.70 outside consensus band [$8.20, $18.40] (informational; not adjusted)",
-    "Sanity: bear EPS $4.19 outside consensus band [$8.20, $18.40] (informational; not adjusted)",
+    "Base growth clamped to 0.40 bound",
+    "Sanity: bear EPS $4.39 outside consensus band [$8.20, $18.40] (informational; not adjusted)",
     "P/E from no-peer growth fallback (base_pe=30.0); peer multiples unavailable",
     "franchise_quality=False \u2014 no 25\u00d7 bear P/E floor (pure peer-derate bear)",
     "Reverse-DCF unstable: FCF yield 1.9% < 2% \u2014 implied CAGR 54% is a small-denominator artifact, read directionally"
@@ -203,7 +202,7 @@
       "bear_eps_impact": 0.2779
     }
   ],
-  "ev_formula_string": "0.2333\u00d7$405.68 + 0.4500\u00d7$231.05 + 0.3167\u00d7$87.99 = $226.48",
+  "ev_formula_string": "0.2333\u00d7$365.11 + 0.4500\u00d7$248.48 + 0.3167\u00d7$112.01 = $232.47",
   "driver_outcome_probabilities": {
     "A": {
       "bull": 0.45,
@@ -225,15 +224,15 @@
     "driver": "A",
     "minus_10pp": {
       "bull_prob": 0.2,
-      "expected_value": 215.91
+      "expected_value": 224.04
     },
     "current": {
       "bull_prob": 0.2333,
-      "expected_value": 226.48
+      "expected_value": 232.47
     },
     "plus_10pp": {
       "bull_prob": 0.2667,
-      "expected_value": 237.09
+      "expected_value": 240.92
     }
   },
   "scenario_segment_revenue": null
