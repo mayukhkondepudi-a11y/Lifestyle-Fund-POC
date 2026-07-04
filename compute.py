@@ -24,7 +24,9 @@ from formatting import safe_float
 # joint distributions (scenario-core rewrite).
 
 # ── Scenario growth (organic base anchor × per-scenario tilt) ──────────────
-MAX_BASE_GROWTH     = 0.35    # annual CAGR cap on the organic base-growth anchor
+MAX_BASE_GROWTH     = 0.40    # annual CAGR cap on the organic base-growth anchor
+                              # (was 0.35; raised to 0.40 as a deliberate calibration
+                              #  decision — the 0.35 cap was clipping genuine high-growers)
 MIN_BASE_GROWTH     = -0.10   # organic anchor may reflect modest decline
 BULL_GROWTH_MULT    = 1.3     # bull growth = base × this (+ event tilt)
 BASE_GROWTH_MULT    = 1.0
