@@ -1,0 +1,709 @@
+{
+  "ticker": "CLS",
+  "date": "2026-06-21",
+  "timestamp": "2026-06-21 16:39",
+  "company_name": "Celestica, Inc.",
+  "recommendation": "WATCH",
+  "conviction": "Medium",
+  "expected_value": 663.23,
+  "expected_return": 0.7802,
+  "risk_adjusted_score": null,
+  "metrics": {
+    "company_name": "Celestica, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Components",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 372.55,
+    "market_cap": 42833227776,
+    "enterprise_value": 43396931584,
+    "trailing_pe": 45.267315,
+    "forward_pe": 24.9,
+    "peg_ratio": null,
+    "price_to_sales": 3.1062655,
+    "ev_to_ebitda": 31.44,
+    "gross_margin": 0.12019,
+    "operating_margin": 0.066199996,
+    "profit_margin": 0.069520004,
+    "roe": 0.52454,
+    "roa": 0.10663,
+    "trailing_eps": 8.23,
+    "forward_eps": 14.96026,
+    "earnings_growth": 1.473,
+    "total_revenue": 13789299712,
+    "revenue_growth": 0.528,
+    "free_cashflow": 458300000.0,
+    "operating_cashflow": 885500032,
+    "total_cash": 378000000,
+    "total_debt": 941699968,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.481,
+    "week_52_high": 474.03,
+    "week_52_low": 130.68,
+    "ma_50": 385.5034,
+    "ma_200": 313.2519,
+    "insider_pct": 0.0111,
+    "institution_pct": 0.72063005,
+    "shares_outstanding": 114973107,
+    "fcf_yield": 0.010699637262844602,
+    "stmt_trailing_eps": 7.16,
+    "stmt_eps_series": {
+      "2022": 1.18,
+      "2023": 2.03,
+      "2024": 3.61,
+      "2025": 7.16
+    },
+    "debt_to_equity": 0.35,
+    "current_ratio": 1.44,
+    "revenue_cagr": 0.1956,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6658,
+    "eps_cagr_raw": 0.8239,
+    "net_income_cagr": 0.6658,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.8239,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 80.9pp from historical CAGR (82.4%). Treat historical with caution.",
+    "peg_historical_cagr": 82.4,
+    "price_5y_return": 4694.72,
+    "price_5y_high": 418.93,
+    "price_5y_low": 7.35
+  },
+  "analysis": {
+    "recommendation": "WATCH",
+    "conviction": "Medium",
+    "model_used": "claude-opus-4-7",
+    "investment_thesis": "The market is currently pricing Celestica at an implied free-cash-flow CAGR of 56.9956% per math_json.implied_fcf_cagr \u2014 a growth rate consistent with a hyper-growth software platform rather than an EMS/ODM manufacturer. Measured against the base-case earnings trajectory in the model \u2014 FY+2 EPS of 9.03 per math_json.scenario_eps.base and a base-case price target of 359.05 per math_json.price_target.base_mid \u2014 this implied rate is demanding. The base case alone does not clear the current price of 372.55; the equity requires meaningful bull-case probability weight to justify entry today. This is the headline observation that frames everything below: the multiple is reasonable on next-year EPS, but the embedded growth assumption sits well above the base-case earnings path. FY+2 price target range spans 1701.45 at the bull high per math_json.price_target.bull_high to 206.15 at the bear low per math_json.price_target.bear_low \u2014 a wide range that mirrors the bull/bear EPS gap between 28.36 and 8.25. The macro driver that determines whether the bull case materialises is Driver A \u2014 Hyperscaler AI Capex Cycle (HPS Ramp) \u2014 per pass1_json.macro_drivers. Without sustained hyperscaler capex extending through the 800G and 1.6T platform transitions, the bull EPS of 28.36 does not print, and the price compresses toward the base or bear bands. Driver C (customer concentration and insourcing) is the dominant downside variable, carrying a bear-outcome probability of 0.45. probability-weighted expected value is 663.23 per math_json.expected_value, calculated as 0.3322\u00d7\\\\$1446.23 + 0.2007\u00d7\\\\$359.05 + 0.4671\u00d7\\\\$237.07 = \\\\$663.23. Against the current price of 372.55, this implies an expected return of 78.02% per math_json.risk.expected_return_pct, with a probability of loss of 66.78% per math_json.risk.prob_loss. The combination is structurally lopsided: high expected return coexists with a high probability of loss because the bull tail is large enough to dominate the mean despite a bear-heavy joint probability distribution (bear weight 0.4671). This is a barbell payoff, not a high-conviction central case, and it is the reason the recommendation is WATCH rather than BUY.",
+    "reverse_dcf_commentary": "The implied free-cash-flow CAGR of 56.9956% per math_json.implied_fcf_cagr is demanding measured against the current FCF base of 0.4583 billion in baseline_json. Even granting a sustained hyperscaler AI capex cycle, sustaining nearly 57% FCF compounding requires not only top-line growth at or above the bull-case trajectory but also material operating-margin expansion above the current 8.64% and disciplined working-capital management given fy_dso of 77.7 days. The implicit bet is twofold: that HPS mix-shift compounds gross margin above the current 12.06% baseline while hyperscaler customers remain concentrated and loyal; and that no capex digestion or insourcing event interrupts the ramp through the 800G and 1.6T transitions. These are not unreasonable bets, but they are bull-case bets, and a buyer at the current price is paying for them at less than the bull-case joint probability of 0.3322.",
+    "recommendation_rationale": "",
+    "conclusion": "",
+    "financial_health": "",
+    "scenario_commentary": {
+      "bull": "The bull case carries a joint probability of 0.3322 per math_json.joint_probs.bull, with a price target of 1701.45 at the upper P/E bound per math_json.price_target.bull_high and FY+2 EPS of 28.36 per math_json.scenario_eps.bull. For this case to materialise, Driver A (Hyperscaler AI Capex Cycle / HPS Ramp) must fire positively with the bull outcome, ideally supported by Driver B optimistic (ATS capital-equipment recovery and healthtech wins) and Driver C optimistic (customer diversification). The dominant requirement is sustained hyperscaler AI capex through the 800G and 1.6T platform refreshes with Celestica retaining or expanding share at the two anchor customers.",
+      "base": "The base case carries a joint probability of 0.2007 per math_json.joint_probs.base, with a price target of 359.05 per math_json.price_target.base_mid and FY+2 EPS of 9.03 per math_json.scenario_eps.base. This case maps to consensus FY+1 revenue mid of 19.19 billion with CCS/HPS contributing the majority of incremental growth at an applied operating margin of 9.5%, ATS delivering mid-single-digit growth on aerospace and defense backlog, and modest pricing pressure on hyperscaler program re-bids that does not breach the 8.64% operating margin floor.",
+      "bear": "The bear case carries a joint probability of 0.4671 per math_json.joint_probs.bear, with a price target of 206.15 at the lower P/E bound per math_json.price_target.bear_low and FY+2 EPS of 8.25 per math_json.scenario_eps.bear. The primary structural risk is Driver C \u2014 Hyperscaler Customer Concentration & Insourcing \u2014 per pass1_json.macro_drivers, where two hyperscalers reportedly account for >40% of CCS revenue and in-house ASIC or switch programs could remove up to 1.4 billion of revenue mid at compressed 6% incremental operating margin. The bear-outcome probability for Driver C is 0.45, the highest single bear-side weight in the model."
+    },
+    "driver_narratives": {
+      "A": "Driver A \u2014 Hyperscaler AI Capex Cycle (HPS Ramp) \u2014 is the dominant earnings swing factor in the model. The mechanism is direct: CCS/HPS revenue is gated by hyperscaler capex on AI training and inference clusters and on the 400G\u2192800G\u21921.6T networking refresh, with two anchor hyperscaler customers driving the program win rate. An extended capex up-cycle compounds both revenue growth and mix-shift toward higher-margin HPS work; a digestion pause compresses both. The most important event is A1 (bull outcome), tied to the FY+1 consensus revenue high of 19.83 billion and the consensus EPS high of 19.90 baseline. The probability distribution leans modestly toward the base outcome (0.45) with a near-equal bull weight (0.4) and a contained bear weight (0.15).",
+      "B": "Driver B \u2014 ATS Backlog & Diversified Industrial Stability \u2014 is the underwriter of the revenue floor rather than the upside engine. The mechanism is straightforward: aerospace, defense, healthtech, and capital-equipment programs carry multi-quarter backlog with longer life cycles and contractual price escalators, supporting a gross margin floor near the reported 12.06% baseline. The most important event is B1 (base outcome), reflecting mid-single-digit growth on aerospace and defense backlog consistent with the FY blended revenue YoY of 28.46% in which ATS lagged CCS. The probability distribution leans heavily toward the base outcome (0.6) with a meaningful bull tail (0.25) tied to semicap recovery and a small bear tail (0.15).",
+      "C": "Driver C \u2014 Hyperscaler Customer Concentration & Insourcing \u2014 is the dominant structural risk. The mechanism is that two hyperscalers reportedly account for >40% of CCS revenue, and in-house ASIC or switch programs could displace Celestica ODM share at the next platform refresh, drive program re-bids at lower margin, or impose capex digestion pauses. The most important event is C1 (bear outcome), which models revenue at risk of 1.4 billion mid at a compressed 6% operating margin, consistent with the consensus EPS low of 12.20 baseline. The probability distribution leans bear: the pessimistic outcome carries the highest weight at 0.45, with a base weight of 0.4 and only 0.15 to the bull outcome."
+    },
+    "business_overview": "Celestica is an electronics manufacturing services (EMS) and supply-chain solutions provider headquartered in Toronto, structured into two reporting segments: Connectivity & Cloud Solutions (CCS) and Advanced Technology Solutions (ATS). The revenue model is transactional and program-based rather than subscription: Celestica earns revenue by manufacturing custom hardware \u2014 hyperscale switches, AI compute platforms, storage racks, avionics, medical imaging assemblies, and capital-equipment modules \u2014 for OEM customers under multi-year design-win contracts. Within CCS, the higher-value Hardware Platform Solutions (HPS) business co-engineers custom 400G and 800G Ethernet switches and AI server platforms with hyperscaler customers, which is closer to an ODM relationship than a pure contract-manufacturing one. ATS serves aerospace and defense, healthtech, and industrial/capital-equipment OEMs under longer-cycle programs with contractual price escalators. Recurring revenue in a software sense does not apply, but program stickiness is high: hyperscaler qualification cycles run 12\u201324 months, custom switch designs are co-developed, and certified aerospace and medical programs face stringent re-qualification barriers, which together create meaningful switching costs once Celestica is designed in. The customer base is concentrated among hyperscalers and large industrial OEMs, and program wins compound over time as platforms refresh (e.g., 400G \u2192 800G \u2192 1.6T networking). The single most important operational variable is CCS operating margin and HPS revenue mix, because incremental HPS dollars carry materially higher operating leverage than legacy EMS assembly work and drive the swing between bull and bear EPS outcomes.",
+    "revenue_architecture": "Celestica's FY revenue base is 12.3909 billion, growing 28.46% YoY per baseline, split across two reported segments. Connectivity & Cloud Solutions (CCS) generated 8.2 billion in FY revenue, representing 66.0% of total, with YoY growth of 45.0%. CCS contains two sub-segments: Hardware Platform Solutions (HPS), where 400G/800G Ethernet switches, custom AI compute platforms, and DC storage are driving rapid growth tied to hyperscaler AI/networking demand; and Enterprise Communications, which supplies server and storage racks for cloud customers and tracks steady cloud capex. Gross margin at the segment level is not separately reported in source, but management commentary indicates HPS mix is structurally higher-margin than legacy EMS assembly. Under math_json.scenario_segment_revenue (any_derived: true), CCS revenue projects to 20.992 billion in the bull case, 17.2405 billion in base, and 10.5634 billion in bear \u2014 the wide bull-to-bear range reflects the leverage of CCS to hyperscaler AI capex. Technology Solutions (ATS) generated 4.2 billion in FY revenue, representing 34.0% of total, with YoY growth of 5.0%. ATS contains Aerospace & Defense (avionics and radar subsystems, supported by a stable defense backlog) and Industrial/HealthTech/Capital Equipment (semicap modules, EV power electronics, medical imaging assemblies), where a soft industrial cycle is currently offsetting a semicap recovery. Segment gross margin is not separately disclosed in source. Under math_json.scenario_segment_revenue (any_derived: true), ATS revenue projects to 4.8536 billion in bull, 4.6305 billion in base, and 4.3269 billion in bear \u2014 a much tighter range that reflects the contractual stability of backlog-driven aerospace and defense programs. asymmetry between the two segments is the architectural fact of the equity: CCS provides almost all of the upside variance and almost all of the downside variance, while ATS underwrites a relatively stable revenue floor. Blended FY+1 consensus revenue mid sits at 19.19 billion per baseline, implying roughly 55% growth, with the overwhelming majority sourced from CCS and the HPS sub-segment.",
+    "growth_drivers_and_moats": "Driver A \u2014 Hyperscaler AI Capex Cycle (HPS Ramp). CCS/HPS revenue is directly tied to hyperscaler capex for AI training and inference clusters and the 400G\u2192800G\u21921.6T networking refresh. Two anchor hyperscaler customers drive the bulk of program wins, and an extended capex up-cycle compounds both revenue growth and mix-shift toward higher-margin HPS work. This is the dominant swing factor in the model: per math_json.tailwinds, event A1 (bull outcome, probability 0.4) carries an EPS impact of 2.721 at the high end and 2.3053 at the mid, while the corresponding bear event A3 (probability 0.15) carries a bear-side EPS impact of 0.0962 at the low end. The moat here is co-engineering depth: Celestica is designed-in with at least two top-five hyperscalers on 400G and emerging 800G platforms, and qualification cycles of 12\u201324 months make mid-program switching prohibitively costly for the customer. B \u2014 ATS Backlog & Diversified Industrial Stability. ATS provides multi-quarter backlog with longer program life cycles and contractual price escalators across aerospace, defense, healthtech, and capital equipment. This recurring base supports a gross margin floor near the reported FY level of 12.06% and underwrites the consensus base-case revenue trajectory while CCS oscillates with hyperscaler order patterns. Per math_json.tailwinds, event B2 (bull outcome, probability 0.25) carries a base-case EPS impact of 0.4466, reflecting capital-equipment recovery plus healthtech program wins. The moat is regulatory: aerospace and medical assemblies require AS9100 and FDA-aligned certifications that take years to obtain and are line-specific. C \u2014 Hyperscaler Customer Concentration & Insourcing. This is the dominant structural risk rather than a growth driver, and the model assigns it a pessimistic probability of 0.45. Per math_json.headwinds, event C1 (bear outcome) carries a base-case EPS impact of 0.5772 and a bull-side impact of 0.8245, reflecting the scale of revenue at risk (1.4 billion mid). On the upside, event C3 (probability 0.15) \u2014 customer diversification via new hyperscaler/Tier-2 wins \u2014 carries a base EPS impact of 0.3779. The moat protecting against the bear outcome is partial: switching costs are high once designed in, but hyperscaler in-house ASIC programs are funded at scale and represent a credible long-term substitution path at the next platform refresh. all three drivers, the persistent moat sources are (a) co-engineering depth with hyperscalers, (b) regulatory certification on the ATS side, and (c) scale advantages in component allocation and global manufacturing footprint that smaller EMS peers cannot replicate. The vulnerability is that none of these moats fully insulate Celestica from a determined hyperscaler decision to insource networking silicon and switch design.",
+    "margin_analysis": "Current operating margin sits at 8.64% per baseline (fy_op_margin 0.0864), having expanded as HPS mix has grown within CCS. Scenario-level operating margins are not separately surfaced in math_json.scenarios \u2014 the math layer reports scenario EPS rather than scenario op_margin directly \u2014 so margin trajectory by scenario is inferred from the op_margin_to_apply values in the underlying pass1_json events. In the bull case, event A1 applies an 11.0% operating margin to incremental CCS/HPS revenue and event B2 applies 10.0% to incremental ATS revenue, consistent with sustained mix-shift toward HPS and capital-equipment recovery; blended company operating margin would expand materially above the current 8.64% base under these inputs. In the base case, events A2 (9.5%) and B1 (9.0%) anchor a modest improvement from current levels, with margin lift driven by incremental HPS volume offset by mix dilution from steady legacy EMS. In the bear case, events A3 and B3 each apply 7.0% to constrained incremental revenue while event C1 applies 6.0% on lost or re-bid hyperscaler programs, implying meaningful margin compression versus the current 8.64% base as fixed-cost absorption deteriorates and pricing on re-bid programs falls toward commoditised EMS economics. The key driver throughout is HPS revenue mix within CCS \u2014 every scenario's margin path is, mechanically, a function of how much HPS volume Celestica ships and at what contribution margin.",
+    "competitive_position": "Celestica competes within the global EMS/ODM industry against a defined peer set. Per pass1_json.peer_set_enriched, the named peers are FLEX (fwd P/E 21.25, growth 52.97%), the largest direct EMS peer with similar cloud/datacenter exposure and ODM ambitions; JBL (fwd P/E 22.21, growth 31.22%), a diversified EMS comparable with growing cloud and AI server work and the closest revenue mix to Celestica; and SANM (fwd P/E 18.54, growth 16.33%), a smaller U.S. EMS peer with an industrial and medical mix comparable to Celestica's ATS segment. Against this set, Celestica trades at a forward P/E of 24.90, a premium to all three named peers, which is being justified by superior CCS/HPS growth and stronger AI-related EPS leverage \u2014 its baseline five-year EPS growth estimate sits at 60.0% and PEG at 1.0. competitive position rests on three pillars: co-engineering depth with hyperscalers on custom 400G/800G switches and AI server platforms; ATS certifications in aerospace, defense, and medical that gate entry for sub-scale competitors; and global manufacturing scale that supports component allocation during constrained cycles. FLEX is the most direct ODM threat given its scale and similar ambitions, JBL is closing the gap on AI server work, and SANM is not a meaningful threat at the hyperscaler tier but competes hard on industrial and medical programs. principal competitive threat is not from these EMS peers but from hyperscaler insourcing \u2014 internal ASIC and switch programs at the anchor customers could erode Celestica's ODM premium at the next refresh cycle. This is the single threat that could compress both EPS and the multiple toward FLEX/SANM levels.",
+    "valuation_vs_expectations": "Celestica trades at a forward P/E of 24.90 and trailing P/E of 45.27 per baseline. To support the current price, the market is implicitly pricing a free-cash-flow CAGR of 56.9956% per math_json.implied_fcf_cagr \u2014 an extraordinarily demanding rate that sits well above any sustainable industrial growth profile. This is the central tension in the equity: the multiple looks reasonable on consensus EPS, but the FCF growth required to backfill the current price is closer to a hyper-growth software trajectory than to an EMS/ODM business cycle. The base case in the model assigns FY+2 EPS of 9.03 per math_json.scenario_eps.base, and the base-case price target sits at 359.05 per math_json.price_target.base_mid \u2014 below the current price of 372.55. In other words, the base-case framing implies the current multiple already prices in more than the base-case earnings trajectory supports, and the equity needs the bull case (joint probability 0.3322) to do most of the work to clear the current price. The bull case requires sustained hyperscaler AI capex through the 800G and 1.6T transitions plus a successful HPS margin mix-shift; the base case alone does not. The market is therefore pricing in roughly bull-case fundamentals at less than bull-case probability, which compresses the margin of safety. A buyer at 372.55 today is implicitly betting that hyperscaler AI capex extends without digestion and that customer concentration does not reverse \u2014 a tight set of assumptions given driver C bear probability of 0.45.",
+    "sensitivity_check": "Shifting Hyperscaler AI Capex Cycle (HPS Ramp) bull probability by +/-10pp moves expected value from 605.28 at bull prob 0.2847 to 723.46 at bull prob 0.3816. The expected value is moderately sensitive to driver A \u2014 a 10pp shift moves EV by roughly 60 dollars in either direction, which is meaningful but not extreme, suggesting the recommendation is reasonably robust to plausible re-weightings of the hyperscaler capex outcome distribution.",
+    "concentration_and_dependencies": {
+      "geographic_exposure": "Celestica's manufacturing footprint spans North America (Canada, U.S., Mexico), Asia (Thailand, Malaysia, China), and Europe (primarily Romania). Revenue is recognised where customers are billed; end-customer destinations are heavily skewed to North America given the hyperscaler concentration, with roughly 70%+ of revenue ultimately attributable to U.S.-headquartered customers (estimate), with the remainder distributed across Europe and Asia-based industrial and aerospace OEMs (estimate).",
+      "top_customer_concentration": "Per pass1_json macro driver C, two hyperscaler customers reportedly account for >40% of CCS revenue, which translates to roughly 25\u201330% of total company revenue (estimate). Top-5 customer concentration is materially higher given additional hyperscaler and aerospace anchor accounts. This concentration is the single largest structural risk and a recurring topic in management disclosure.",
+      "supply_chain_dependencies": "Key dependencies include advanced silicon (merchant networking ASICs, optical components, and AI accelerators sourced from a small set of suppliers including Broadcom, Marvell, and NVIDIA), high-speed PCB substrates, advanced packaging capacity, and contract logistics for time-sensitive hyperscaler deliveries. Component allocation during constrained cycles (notably advanced packaging and high-bandwidth memory) is a recurring constraint, and any tariff or export-control change affecting cross-border component flow between Asia and North America directly impacts cost and lead times.",
+      "relationships_at_risk": "Three relationships warrant monitoring: (1) the two anchor hyperscaler customers in CCS, where in-house ASIC and switch programs could displace Celestica ODM share at the next platform refresh; (2) merchant silicon partners (Broadcom in particular), whose roadmap timing on 800G/1.6T directly gates HPS revenue ramp; and (3) regulatory exposure to U.S. and Chinese export-control regimes governing advanced AI components, which can re-route or delay shipments at short notice."
+    },
+    "factor_analysis": [
+      {
+        "driver_id": "A",
+        "name": "Hyperscaler AI Capex Cycle (HPS Ramp)",
+        "outcomes": [
+          {
+            "label": "optimistic",
+            "probability": 0.4,
+            "description": "Sustained hyperscaler AI capex up-cycle drives HPS revenue ramp at 800G with two anchor customers, lifting CCS operating margin toward the 11% applied in event A1 and pushing FY+1 revenue toward the consensus high of 19.83 billion."
+          },
+          {
+            "label": "neutral",
+            "probability": 0.45,
+            "description": "Hyperscaler capex moderates to consensus FY+1 revenue mid of 19.19 billion with HPS contributing the majority of incremental growth, consistent with the baseline five-year EPS growth estimate of 60%."
+          },
+          {
+            "label": "pessimistic",
+            "probability": 0.15,
+            "description": "Hyperscaler AI capex pause limits incremental HPS revenue, with FY+1 revenue settling near the consensus low of 18.99 billion and operating margin on incremental work compressed to 7%."
+          }
+        ]
+      },
+      {
+        "driver_id": "B",
+        "name": "ATS Backlog & Diversified Industrial Stability",
+        "outcomes": [
+          {
+            "label": "optimistic",
+            "probability": 0.25,
+            "description": "Capital-equipment (semicap) recovery combined with healthtech program wins lifts ATS growth above its current 5.0% YoY, with operating margin on incremental ATS revenue near the 10% applied in event B2."
+          },
+          {
+            "label": "neutral",
+            "probability": 0.6,
+            "description": "ATS delivers mid-single-digit growth on aerospace and defense backlog with operating margin on incremental work near 9%, consistent with stable program economics."
+          },
+          {
+            "label": "pessimistic",
+            "probability": 0.15,
+            "description": "Industrial weakness keeps ATS revenue effectively flat, with working-capital sensitivity visible in fy_dso of 77.7 days and operating margin on incremental work compressed to 7%."
+          }
+        ]
+      },
+      {
+        "driver_id": "C",
+        "name": "Hyperscaler Customer Concentration & Insourcing",
+        "outcomes": [
+          {
+            "label": "optimistic",
+            "probability": 0.15,
+            "description": "Customer diversification via new hyperscaler or Tier-2 wins reduces concentration, with incremental revenue near 0.55 billion mid at a 10% operating margin and the multiple sustaining a premium to EMS peers."
+          },
+          {
+            "label": "neutral",
+            "probability": 0.4,
+            "description": "Modest pricing pressure on program re-bids compresses incremental margin to 7.5% but does not breach the 8.64% baseline operating margin floor."
+          },
+          {
+            "label": "pessimistic",
+            "probability": 0.45,
+            "description": "Loss of share to internal hyperscaler ASIC or switch programs removes up to 1.4 billion of revenue mid at a 6% operating margin, consistent with the consensus EPS low of 12.20 and the bear-case multiple compression toward FLEX/SANM levels."
+          }
+        ]
+      }
+    ],
+    "scenario_analysis_extended": {
+      "bull": {
+        "segment_revenue_note": "Aggregate bull-case revenue build sums CCS at 20.992 billion and ATS at 4.8536 billion (any_derived: true), driven almost entirely by CCS/HPS expansion on the 800G ramp.",
+        "headwind_tailwind_summary": "The bull case is anchored by tailwind A1 with a bull EPS impact of 2.721, supplemented by B2 at 0.6184 and C3 at 0.5497. The combined tailwind contribution dominates residual bear-case headwinds and drives FY+2 EPS to 28.36 per math_json.scenario_eps.",
+        "valuation_rationale": "Scenario EPS of 28.36 supports the bull P/E band of 42.0\u201360.0; per the calibration_log, the bull EPS was floored at 0.95\u00d7 consensus_high of 29.85, and the premium multiple reflects sustained 30\u201340% forward EPS growth at PEG near 1.0x versus mid-teens peer multiples."
+      },
+      "base": {
+        "segment_revenue_note": "Aggregate base-case revenue build sums CCS at 17.2405 billion and ATS at 4.6305 billion (any_derived: true), consistent with consensus FY+1 revenue mid of 19.19 billion.",
+        "headwind_tailwind_summary": "The base case nets tailwind A1 base EPS impact of 2.3053 and B2 of 0.4466 against headwind C1 base EPS impact of 0.5772 and A3/B3 contributions of 0.2405 and 0.0721 respectively. The residual reflects modest pricing pressure on program re-bids without a breach of the operating margin floor.",
+        "valuation_rationale": "Scenario EPS of 9.03 supports the base P/E band of 31.5\u201348.0; per the calibration_log, the base P/E was ratio-discounted to 0.80/0.75 of the bull band, anchoring a blended EMS multiple with a premium for AI mix."
+      },
+      "bear": {
+        "segment_revenue_note": "Aggregate bear-case revenue build sums CCS at 10.5634 billion and ATS at 4.3269 billion (any_derived: true), reflecting hyperscaler share loss in CCS while ATS holds via backlog.",
+        "headwind_tailwind_summary": "The bear case is dominated by headwind C1 with a base EPS impact of 0.5772 and a bull-side impact of 0.8245, layered with A3 at 0.2405 and B3 at 0.0721. These combined headwinds reflect hyperscaler insourcing materialising alongside an AI capex pause.",
+        "valuation_rationale": "Scenario EPS of 8.25 supports the bear P/E band of 25.0\u201332.5, reflecting multiple compression toward FLEX and SANM levels at 18\u201322x as Celestica loses its ODM premium and reverts toward commoditised EMS economics."
+      }
+    },
+    "headwind_narrative": "",
+    "tailwind_narrative": "",
+    "market_pricing_commentary": "",
+    "segments": [
+      {
+        "name": "Connectivity & Cloud Solutions (CCS)",
+        "current_revenue": 8.2,
+        "pct_of_total": 66.0,
+        "gross_margin": null,
+        "yoy_growth": 0.45,
+        "trajectory": "",
+        "primary_driver": ""
+      },
+      {
+        "name": "Advanced Technology Solutions (ATS)",
+        "current_revenue": 4.2,
+        "pct_of_total": 34.0,
+        "gross_margin": null,
+        "yoy_growth": 0.05,
+        "trajectory": "",
+        "primary_driver": ""
+      }
+    ],
+    "peer_tickers": [
+      "FLEX",
+      "JBL",
+      "SANM"
+    ],
+    "catalysts": [
+      {
+        "date": "Q3 FY2026",
+        "event": "Celestica Q3 FY2026 earnings \u2014 CCS/HPS revenue growth and 800G switch program update",
+        "what_to_watch": "HPS revenue growth >40% YoY and CCS segment op margin expansion above 9%",
+        "bull_signal": "HPS revenue growth >40% YoY and CCS segment op margin expansion above 9%",
+        "bear_signal": ""
+      },
+      {
+        "date": "Q4 FY2026",
+        "event": "FY2027 revenue & EPS guide at Q4 earnings",
+        "what_to_watch": "Guide above consensus FY+2 revenue mid $26.88B and EPS mid $22.44 (baseline)",
+        "bull_signal": "Guide above consensus FY+2 revenue mid $26.88B and EPS mid $22.44 (baseline)",
+        "bear_signal": ""
+      },
+      {
+        "date": "2027-01-31",
+        "event": "Analyst/Investor briefing on 1.6T networking design wins",
+        "what_to_watch": "Number of hyperscaler customers committed to 1.6T HPS platforms and ramp timing",
+        "bull_signal": "Number of hyperscaler customers committed to 1.6T HPS platforms and ramp timing",
+        "bear_signal": ""
+      },
+      {
+        "date": "Q1 FY2027",
+        "event": "Q1 FY2027 earnings \u2014 first read on hyperscaler capex digestion risk",
+        "what_to_watch": "Whether CCS book-to-bill remains >1.0 and any customer concentration disclosure shift",
+        "bull_signal": "Whether CCS book-to-bill remains >1.0 and any customer concentration disclosure shift",
+        "bear_signal": ""
+      },
+      {
+        "date": "Q2 FY2027",
+        "event": "Q2 FY2027 earnings \u2014 ATS recovery confirmation",
+        "what_to_watch": "ATS YoY growth turning positive mid-single-digits with semicap/healthtech contribution",
+        "bull_signal": "ATS YoY growth turning positive mid-single-digits with semicap/healthtech contribution",
+        "bear_signal": ""
+      }
+    ],
+    "scenario_inputs": {
+      "bull": {
+        "op_margin": 0.1068,
+        "pe_multiple_pick": 51.0
+      },
+      "base": {
+        "op_margin": 0.0914,
+        "pe_multiple_pick": 39.75
+      },
+      "bear": {
+        "op_margin": 0.0635,
+        "pe_multiple_pick": 28.75
+      }
+    },
+    "macro_drivers": {
+      "A": {
+        "label": "Hyperscaler AI Capex Cycle (HPS Ramp)",
+        "narrative": "CCS/HPS revenue is directly tied to hyperscaler capex for AI training/inference clusters and the 400G\u2192800G networking refresh. Two anchor hyperscaler customers drive program wins; an extended capex up-cycle compounds revenue and mix-shifts margin upward. This is the dominant swing factor between bull and bear EPS outcomes given consensus FY+1 EPS range of $12.2-$19.9."
+      },
+      "B": {
+        "label": "ATS Backlog & Diversified Industrial Stability",
+        "narrative": "ATS (aerospace/defense, healthtech, capital equipment) provides a multi-quarter backlog with longer program life cycles and contractual price escalators. This recurring base supports gross margin floor near 12% and underwrites the consensus base-case revenue trajectory while CCS oscillates with hyperscaler order patterns."
+      },
+      "C": {
+        "label": "Hyperscaler Customer Concentration & Insourcing",
+        "narrative": "Two hyperscalers reportedly account for >40% of CCS revenue. Risks include in-house ASIC/switch programs displacing Celestica ODM share, program re-bids at lower margin, or capex digestion pauses. Given fwd P/E of 24.9x and high beta (1.48), any concentrated customer loss compresses both EPS and the multiple."
+      }
+    },
+    "drivers": [],
+    "headwinds": [
+      {
+        "event_id": "A3",
+        "name": "A \u2014 bear",
+        "driver": "A",
+        "outcome": "bear",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.2,
+        "revenue_at_risk_high": 0.8,
+        "revenue_at_risk": 0.5,
+        "eps_impact_high": 0.3848,
+        "eps_impact_mid": 0.2405,
+        "eps_impact_low": 0.0962,
+        "bull_eps_impact": 0.3848,
+        "base_eps_impact": 0.2405,
+        "bear_eps_impact": 0.0962
+      },
+      {
+        "event_id": "B3",
+        "name": "B \u2014 bear",
+        "driver": "B",
+        "outcome": "bear",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.0,
+        "revenue_at_risk_high": 0.3,
+        "revenue_at_risk": 0.15,
+        "eps_impact_high": 0.1443,
+        "eps_impact_mid": 0.0721,
+        "eps_impact_low": 0.0,
+        "bull_eps_impact": 0.1443,
+        "base_eps_impact": 0.0721,
+        "bear_eps_impact": 0.0
+      },
+      {
+        "event_id": "C1",
+        "name": "C \u2014 bear",
+        "driver": "C",
+        "outcome": "bear",
+        "probability": 0.45,
+        "revenue_at_risk_low": 0.8,
+        "revenue_at_risk_high": 2.0,
+        "revenue_at_risk": 1.4,
+        "eps_impact_high": 0.8245,
+        "eps_impact_mid": 0.5772,
+        "eps_impact_low": 0.3298,
+        "bull_eps_impact": 0.8245,
+        "base_eps_impact": 0.5772,
+        "bear_eps_impact": 0.3298
+      }
+    ],
+    "tailwinds": [
+      {
+        "event_id": "A1",
+        "name": "A \u2014 bull",
+        "driver": "A",
+        "outcome": "bull",
+        "probability": 0.4,
+        "revenue_at_risk_low": 2.5,
+        "revenue_at_risk_high": 3.6,
+        "revenue_at_risk": 3.05,
+        "eps_impact_high": 2.721,
+        "eps_impact_mid": 2.3053,
+        "eps_impact_low": 1.8896,
+        "bull_eps_impact": 2.721,
+        "base_eps_impact": 2.3053,
+        "bear_eps_impact": 1.8896
+      },
+      {
+        "event_id": "B2",
+        "name": "B \u2014 bull",
+        "driver": "B",
+        "outcome": "bull",
+        "probability": 0.25,
+        "revenue_at_risk_low": 0.4,
+        "revenue_at_risk_high": 0.9,
+        "revenue_at_risk": 0.65,
+        "eps_impact_high": 0.6184,
+        "eps_impact_mid": 0.4466,
+        "eps_impact_low": 0.2748,
+        "bull_eps_impact": 0.6184,
+        "base_eps_impact": 0.4466,
+        "bear_eps_impact": 0.2748
+      },
+      {
+        "event_id": "C3",
+        "name": "C \u2014 bull",
+        "driver": "C",
+        "outcome": "bull",
+        "probability": 0.15,
+        "revenue_at_risk_low": 0.3,
+        "revenue_at_risk_high": 0.8,
+        "revenue_at_risk": 0.55,
+        "eps_impact_high": 0.5497,
+        "eps_impact_mid": 0.3779,
+        "eps_impact_low": 0.2061,
+        "bull_eps_impact": 0.5497,
+        "base_eps_impact": 0.3779,
+        "bear_eps_impact": 0.2061
+      }
+    ],
+    "scenario_segment_revenue": {
+      "segments": [
+        {
+          "name": "Connectivity & Cloud Solutions (CCS)",
+          "fy_revenue": 8.2,
+          "growth_source": "derived",
+          "bull": 20.992,
+          "base": 17.2405,
+          "bear": 10.5634
+        },
+        {
+          "name": "Advanced Technology Solutions (ATS)",
+          "fy_revenue": 4.2,
+          "growth_source": "derived",
+          "bull": 4.8536,
+          "base": 4.6305,
+          "bear": 4.3269
+        }
+      ],
+      "any_derived": true
+    },
+    "ev_formula_string": "0.3322\u00d7$1446.23 + 0.2007\u00d7$359.05 + 0.4671\u00d7$237.07 = $663.23",
+    "concentration": {},
+    "monitoring_kpis": [],
+    "scenario_math": {
+      "headline_metric": "implied_fcf_cagr",
+      "implied_fcf_cagr": 0.569956,
+      "discount_rate": 0.1134,
+      "shares_projected": 0.115,
+      "scenario_eps": {
+        "bull": 28.36,
+        "base": 9.03,
+        "bear": 8.25
+      },
+      "pe_band": {
+        "bull_low": 42.0,
+        "bull_high": 60.0,
+        "base_low": 31.5,
+        "base_high": 48.0,
+        "bear_low": 25.0,
+        "bear_high": 32.5
+      },
+      "price_target": {
+        "bull_high": 1701.45,
+        "bull_mid": 1446.23,
+        "base_mid": 359.05,
+        "bear_low": 206.15,
+        "bull": 1446.23,
+        "base": 359.05,
+        "bear": 206.15
+      },
+      "joint_probs": {
+        "bull": 0.3322,
+        "base": 0.2007,
+        "bear": 0.4671
+      },
+      "driver_probs": {
+        "A": {
+          "bull": 0.4,
+          "base": 0.45,
+          "bear": 0.15
+        },
+        "B": {
+          "bull": 0.25,
+          "base": 0.6,
+          "bear": 0.15
+        },
+        "C": {
+          "bull": 0.15,
+          "base": 0.4,
+          "bear": 0.45
+        }
+      },
+      "expected_value": 663.23,
+      "risk": {
+        "prob_loss": 0.6678,
+        "max_drawdown_pct": 0.3637,
+        "expected_return_pct": 0.7802,
+        "ev": 663.23
+      },
+      "breakeven_pe": 52.0,
+      "dcf": {
+        "bull": {
+          "enterprise_value": 15.26,
+          "equity_value": 14.7,
+          "intrinsic_per_share": 127.82
+        },
+        "base": {
+          "enterprise_value": 5.47,
+          "equity_value": 4.91,
+          "intrinsic_per_share": 42.71
+        },
+        "bear": {
+          "enterprise_value": 5.06,
+          "equity_value": 4.5,
+          "intrinsic_per_share": 39.11
+        }
+      },
+      "recommendation": "WATCH",
+      "calibration_log": [
+        "Step A: bull EPS floored $10.49\u2192$28.36 (0.95\u00d7consensus_high=$29.85)",
+        "Base P/E ratio-discounted: base_high 102.0\u219248.0, base_low 78.0\u219231.5 (0.80/0.75 of bull band)"
+      ],
+      "consensus_divergent": false,
+      "owner_earnings": 0.3885,
+      "headwinds": [
+        {
+          "event_id": "A3",
+          "name": "A \u2014 bear",
+          "driver": "A",
+          "outcome": "bear",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.2,
+          "revenue_at_risk_high": 0.8,
+          "revenue_at_risk": 0.5,
+          "eps_impact_high": 0.3848,
+          "eps_impact_mid": 0.2405,
+          "eps_impact_low": 0.0962,
+          "bull_eps_impact": 0.3848,
+          "base_eps_impact": 0.2405,
+          "bear_eps_impact": 0.0962
+        },
+        {
+          "event_id": "B3",
+          "name": "B \u2014 bear",
+          "driver": "B",
+          "outcome": "bear",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.0,
+          "revenue_at_risk_high": 0.3,
+          "revenue_at_risk": 0.15,
+          "eps_impact_high": 0.1443,
+          "eps_impact_mid": 0.0721,
+          "eps_impact_low": 0.0,
+          "bull_eps_impact": 0.1443,
+          "base_eps_impact": 0.0721,
+          "bear_eps_impact": 0.0
+        },
+        {
+          "event_id": "C1",
+          "name": "C \u2014 bear",
+          "driver": "C",
+          "outcome": "bear",
+          "probability": 0.45,
+          "revenue_at_risk_low": 0.8,
+          "revenue_at_risk_high": 2.0,
+          "revenue_at_risk": 1.4,
+          "eps_impact_high": 0.8245,
+          "eps_impact_mid": 0.5772,
+          "eps_impact_low": 0.3298,
+          "bull_eps_impact": 0.8245,
+          "base_eps_impact": 0.5772,
+          "bear_eps_impact": 0.3298
+        }
+      ],
+      "tailwinds": [
+        {
+          "event_id": "A1",
+          "name": "A \u2014 bull",
+          "driver": "A",
+          "outcome": "bull",
+          "probability": 0.4,
+          "revenue_at_risk_low": 2.5,
+          "revenue_at_risk_high": 3.6,
+          "revenue_at_risk": 3.05,
+          "eps_impact_high": 2.721,
+          "eps_impact_mid": 2.3053,
+          "eps_impact_low": 1.8896,
+          "bull_eps_impact": 2.721,
+          "base_eps_impact": 2.3053,
+          "bear_eps_impact": 1.8896
+        },
+        {
+          "event_id": "B2",
+          "name": "B \u2014 bull",
+          "driver": "B",
+          "outcome": "bull",
+          "probability": 0.25,
+          "revenue_at_risk_low": 0.4,
+          "revenue_at_risk_high": 0.9,
+          "revenue_at_risk": 0.65,
+          "eps_impact_high": 0.6184,
+          "eps_impact_mid": 0.4466,
+          "eps_impact_low": 0.2748,
+          "bull_eps_impact": 0.6184,
+          "base_eps_impact": 0.4466,
+          "bear_eps_impact": 0.2748
+        },
+        {
+          "event_id": "C3",
+          "name": "C \u2014 bull",
+          "driver": "C",
+          "outcome": "bull",
+          "probability": 0.15,
+          "revenue_at_risk_low": 0.3,
+          "revenue_at_risk_high": 0.8,
+          "revenue_at_risk": 0.55,
+          "eps_impact_high": 0.5497,
+          "eps_impact_mid": 0.3779,
+          "eps_impact_low": 0.2061,
+          "bull_eps_impact": 0.5497,
+          "base_eps_impact": 0.3779,
+          "bear_eps_impact": 0.2061
+        }
+      ],
+      "ev_formula_string": "0.3322\u00d7$1446.23 + 0.2007\u00d7$359.05 + 0.4671\u00d7$237.07 = $663.23",
+      "driver_outcome_probabilities": {
+        "A": {
+          "bull": 0.4,
+          "base": 0.45,
+          "bear": 0.15
+        },
+        "B": {
+          "bull": 0.25,
+          "base": 0.6,
+          "bear": 0.15
+        },
+        "C": {
+          "bull": 0.15,
+          "base": 0.4,
+          "bear": 0.45
+        }
+      },
+      "sensitivity_table": {
+        "driver": "A",
+        "minus_10pp": {
+          "bull_prob": 0.2847,
+          "expected_value": 605.28
+        },
+        "current": {
+          "bull_prob": 0.3322,
+          "expected_value": 663.23
+        },
+        "plus_10pp": {
+          "bull_prob": 0.3816,
+          "expected_value": 723.46
+        }
+      },
+      "scenario_segment_revenue": {
+        "segments": [
+          {
+            "name": "Connectivity & Cloud Solutions (CCS)",
+            "fy_revenue": 8.2,
+            "growth_source": "derived",
+            "bull": 20.992,
+            "base": 17.2405,
+            "bear": 10.5634
+          },
+          {
+            "name": "Advanced Technology Solutions (ATS)",
+            "fy_revenue": 4.2,
+            "growth_source": "derived",
+            "bull": 4.8536,
+            "base": 4.6305,
+            "bear": 4.3269
+          }
+        ],
+        "any_derived": true
+      },
+      "final_probabilities": {
+        "bull": 0.3322,
+        "base": 0.2007,
+        "bear": 0.4671
+      },
+      "eps": {
+        "bull": 28.36,
+        "base": 9.03,
+        "bear": 8.25
+      },
+      "scenario_revenue": {},
+      "expected_return": 0.7802,
+      "base_implied_return": -0.0362,
+      "prob_positive": 0.3322,
+      "upside_downside_ratio": 4.4344,
+      "monotonicity_violation": false,
+      "violation_msg": "",
+      "bull_below_current": false,
+      "bull_below_msg": "",
+      "diagnostic": {},
+      "degraded_sections": []
+    },
+    "python_outputs": {},
+    "pass3": {
+      "audit_skipped": false,
+      "calls_remaining": 3,
+      "forbidden_vocab": [],
+      "citation_errors": [
+        {
+          "field": "ev_calculation",
+          "quoted_text": "0.4671\u00d7$237.07 = $663.23",
+          "issue": "Bear price target cited as $237.07 in EV formula but bear_low is $206.15; $237.07 not in allowed sources",
+          "severity": "info"
+        },
+        {
+          "field": "macro_overview",
+          "quoted_text": "FY+1 revenue toward the consensus high of 19.83 billion",
+          "issue": "consensus_revenue_fy1.high is 19.831 billion \u2014 within tolerance, OK",
+          "severity": "info"
+        }
+      ],
+      "b1_compliant": true,
+      "tone_label_ok": true,
+      "tone_label_evidence": null,
+      "audit_clean": true,
+      "model_used": "claude-opus-4-7",
+      "consistency_flags": [
+        {
+          "field": "ev_calculation",
+          "issue": "Bear price target cited as $237.07 in EV formula but bear_low is $206.15; $237.07 not in allowed sources",
+          "severity": "info"
+        },
+        {
+          "field": "macro_overview",
+          "issue": "consensus_revenue_fy1.high is 19.831 billion \u2014 within tolerance, OK",
+          "severity": "info"
+        }
+      ],
+      "numbers_outside_source": [],
+      "tone_label_mismatch": false
+    },
+    "data_quality_warnings": [
+      "FCF DIVERGENCE: info=646862528 vs computed=458300000 (29%); using computed value.",
+      "FY+2 consensus EPS derived from FY+1 (no distinct FY+2 estimate available)."
+    ],
+    "rec_override_reason": ""
+  }
+}

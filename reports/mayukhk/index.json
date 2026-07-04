@@ -115,5 +115,104 @@
     "timestamp": "2026-05-09 02:33",
     "recommendation": "BUY",
     "expected_return": 0.3496
+  },
+  {
+    "report_id": "MELI_2026-05-09",
+    "ticker": "MELI",
+    "company_name": "MercadoLibre, Inc.",
+    "date": "2026-05-09",
+    "timestamp": "2026-05-09 11:15",
+    "recommendation": "WATCH",
+    "expected_return": 0.2983
+  },
+  {
+    "report_id": "CLS_2026-05-09",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-05-09",
+    "timestamp": "2026-05-09 16:21",
+    "recommendation": "PASS",
+    "expected_return": -0.4017
+  },
+  {
+    "report_id": "CLS_2026-05-10",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-05-10",
+    "timestamp": "2026-05-10 03:59",
+    "recommendation": "PASS",
+    "expected_return": -0.2565
+  },
+  {
+    "report_id": "TRV_2026-05-31",
+    "ticker": "TRV",
+    "company_name": "The Travelers Companies, Inc.",
+    "date": "2026-05-31",
+    "timestamp": "2026-05-31 06:51",
+    "recommendation": "BUY",
+    "expected_return": 0.3496
+  },
+  {
+    "report_id": "MARUTI.NS_2026-05-31",
+    "ticker": "MARUTI.NS",
+    "company_name": "MARUTI SUZUKI INDIA LTD.",
+    "date": "2026-05-31",
+    "timestamp": "2026-05-31 06:52",
+    "recommendation": "BUY",
+    "expected_return": 0.1383
+  },
+  {
+    "report_id": "CLS_2026-05-31",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-05-31",
+    "timestamp": "2026-05-31 13:25",
+    "recommendation": "PASS",
+    "expected_return": -0.0142
+  },
+  {
+    "report_id": "CLS_2026-06-01",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-06-01",
+    "timestamp": "2026-06-01 17:13",
+    "recommendation": "PASS",
+    "expected_return": -0.0084
+  },
+  {
+    "report_id": "CLS_2026-06-14",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-06-14",
+    "timestamp": "2026-06-14 01:02",
+    "recommendation": "PASS",
+    "expected_return": -0.01
+  },
+  {
+    "report_id": "CLS_2026-06-21",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-06-21",
+    "timestamp": "2026-06-21 16:39",
+    "recommendation": "WATCH",
+    "expected_return": 0.7802
+  },
+  {
+    "report_id": "CLS_2026-07-01",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 13:49",
+    "recommendation": "WATCH",
+    "expected_return": 0.7802
+  },
+  {
+    "report_id": "CLS_2026-07-04",
+    "ticker": "CLS",
+    "company_name": "Celestica, Inc.",
+    "date": "2026-07-04",
+    "timestamp": "2026-07-04 12:39",
+    "recommendation": "WATCH",
+    "expected_return": 0.1135
   }
 ]

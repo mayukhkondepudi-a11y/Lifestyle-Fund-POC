@@ -1,0 +1,1085 @@
+{
+  "ticker": "CLS",
+  "date": "2026-05-09",
+  "timestamp": "2026-05-09 06:06",
+  "company_name": "Celestica, Inc.",
+  "recommendation": "WATCH",
+  "conviction": "Medium",
+  "expected_value": 391.03,
+  "expected_return": 0.0412,
+  "risk_adjusted_score": -0.07,
+  "metrics": {
+    "company_name": "Celestica, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Components",
+    "country": "Canada",
+    "currency": "USD",
+    "current_price": 375.55,
+    "market_cap": 43178147840,
+    "enterprise_value": 43741851648,
+    "trailing_pe": 45.4661,
+    "forward_pe": 25.01,
+    "peg_ratio": null,
+    "price_to_sales": 3.1312792,
+    "ev_to_ebitda": 31.69,
+    "gross_margin": 0.12019,
+    "operating_margin": 0.066199996,
+    "profit_margin": 0.069520004,
+    "roe": 0.52454,
+    "roa": 0.10663,
+    "trailing_eps": 8.26,
+    "forward_eps": 15.01876,
+    "earnings_growth": 1.473,
+    "total_revenue": 13789299712,
+    "revenue_growth": 0.528,
+    "free_cashflow": 458300000.0,
+    "operating_cashflow": 885500032,
+    "total_cash": 378000000,
+    "total_debt": 941699968,
+    "dividend_yield": null,
+    "payout_ratio": 0.0,
+    "beta": 1.478,
+    "week_52_high": 435.0,
+    "week_52_low": 95.67,
+    "ma_50": 327.4948,
+    "ma_200": 287.175,
+    "insider_pct": 0.01087,
+    "institution_pct": 0.72333,
+    "shares_outstanding": 114973107,
+    "fcf_yield": 0.01061416533423959,
+    "reverse_dcf": {
+      "available": true,
+      "implied_fcf_cagr": 0.5433,
+      "wacc_used": 0.1,
+      "terminal_growth": 0.03,
+      "sector": "Technology",
+      "base_fcf": 458300000.0,
+      "target_ev": 43741850302.0,
+      "terminal_value_pct": 0.8381,
+      "tv_pct_flag": true,
+      "note": "At 375.55/share, market prices in 54.3% FCF CAGR over 5yr (10% WACC, 3.0% terminal growth). Terminal value is 84% of EV \u2014 high sensitivity to terminal assumptions."
+    },
+    "stmt_trailing_eps": 7.16,
+    "stmt_eps_series": {
+      "2022": 1.18,
+      "2023": 2.03,
+      "2024": 3.61,
+      "2025": 7.16
+    },
+    "debt_to_equity": 0.35,
+    "current_ratio": 1.44,
+    "revenue_cagr": 0.1956,
+    "revenue_cagr_years": 3,
+    "net_income_cagr_raw": 0.6658,
+    "eps_cagr_raw": 0.8239,
+    "net_income_cagr": 0.4,
+    "ni_cagr_years": 3,
+    "eps_cagr": 0.4,
+    "eps_cagr_years": 3,
+    "peg_growth_used": 1.5,
+    "peg_growth_source": "earnings_growth",
+    "peg_growth_conflict": "Forward growth (1.5%, earnings_growth) diverges 38.5pp from historical CAGR (40.0%). Treat historical with caution.",
+    "peg_historical_cagr": 40.0,
+    "data_quality_warnings": [
+      "DATA QUALITY WARNING: revenue_growth (52.8%) and earnings_growth (1.5%) diverge by 51.3pp. Likely stale or scope-mismatched yfinance data."
+    ],
+    "price_5y_return": 4365.52,
+    "price_5y_high": 418.93,
+    "price_5y_low": 7.35
+  },
+  "analysis": {
+    "recommendation": "WATCH",
+    "conviction": "Medium",
+    "investment_thesis": "We rate Celestica WATCH with an expected return of 4.1 percent and a base-case implied return of 7.2 percent over 12 months. The stock has re-rated dramatically (up over 4,300 percent in five years) on the back of hyperscaler AI infrastructure spending, and the market is now pricing in roughly 54 percent FCF CAGR over five years versus our base case of 20 percent revenue growth. While the probability of a positive return remains high at 90 percent, the asymmetry has narrowed: the upside-to-downside ratio is only 1.59 and the bear case implies a 70 percent drawdown if hyperscaler capex digests sharply. We want to own the franchise but at a better entry point.",
+    "business_overview": "Celestica is a Toronto-headquartered electronics manufacturing services (EMS) company that designs, manufactures, and provides supply chain services for some of the world's largest technology, aerospace, defense, healthcare, and industrial OEMs. Historically a low-margin contract manufacturer, the company has repositioned itself over the past five years toward higher-value design-led manufacturing, with a particular focus on hyperscale data center infrastructure, where it now both assembles customer-designed gear and sells its own Hardware Platform Solutions (HPS) networking switches based on Broadcom Tomahawk silicon.\n\nThe business reports through two segments. Connectivity & Cloud Solutions (CCS) is the dominant engine at roughly 9.1 billion in trailing revenue (66 percent of the 13.79 billion total), serving hyperscalers and large enterprise customers with custom AI/ML compute, storage platforms, and 400G/800G networking switches. Advanced Technology Solutions (ATS) at roughly 4.69 billion (34 percent) covers Aerospace & Defense, HealthTech, Industrial (EV charging, solar inverters), and Capital Equipment programs. CCS is the growth and margin story; ATS provides program longevity and counter-cyclical ballast.",
+    "revenue_architecture": "On a trailing basis, CCS generated 9.1 billion in revenue with gross margin of 11.5 percent, growing 85 percent year over year as the HPS sub-segment more than doubled. ATS contributed 4.69 billion at 10.5 percent gross margin, growing only 5 percent as Aerospace & Defense and HealthTech strength was offset by Industrial weakness in EV charging and solar inverter customers working through inventory. Total trailing revenue stands at 13.79 billion with consolidated operating margin of 6.6 percent.\n\nLooking forward, our base case projects 16.85 billion in revenue (roughly 22 percent growth), driven primarily by continued CCS scale on hyperscaler AI build-outs and incremental HPS networking penetration, with ATS recovering modestly as Industrial troughs and A&D backlog converts. The bull case at 22.55 billion (64 percent growth) assumes Celestica wins meaningful additional rack-scale integration scope on next-generation NVIDIA-based and custom XPU programs, plus a successful 1.6T networking transition in late 2026. The bear case at 8.8 billion reflects a sharp hyperscaler capex digestion combined with ODM displacement on next-gen rack programs, where Taiwanese players (Quanta, Wiwynn, Foxconn) have historically held more share.\n\nThe key forward risk is concentration: CCS is now two-thirds of the business, and within CCS a small handful of hyperscaler customers drive the majority of growth. A single major customer reallocating orders can move consolidated revenue by 1-2 billion in either direction.",
+    "growth_drivers": "The primary structural driver is hyperscaler AI infrastructure spending. Celestica is a manufacturing partner to multiple top-five hyperscalers on custom compute, storage, and networking platforms, and its HPS proprietary switches (DS series, built on Broadcom Tomahawk 5 and the upcoming Tomahawk 6) are sold direct at higher margins than traditional EMS work. The 800G-to-1.6T networking transition starting in late 2026 represents up to 2 billion in incremental revenue opportunity in the bull case, with margin re-rating because HPS sells at a higher gross margin than contract manufacturing.\n\nThe second driver is rack-scale integration for AI clusters. As hyperscalers move from board-level to fully integrated liquid-cooled racks, the dollar content per system rises sharply. Celestica is positioned to win incremental scope on at least one top-three hyperscaler's custom XPU program, with each major program win adding 500 million to 1 billion in annualized revenue. This is the principal lever distinguishing the bull case from the base case.\n\nThe third driver, often underappreciated, is ATS Aerospace & Defense. The A&D backlog has grown materially on commercial aerospace recovery and defense electronics demand, and conversion into 2026 revenue provides visible, higher-margin growth (up to 600 million in the bull case) that offsets Industrial softness. HealthTech also continues to grow steadily on imaging and diagnostic platforms.",
+    "margin_analysis": "Trailing operating margin of 6.6 percent reflects the EMS heritage of the business: thin gross margins (12.0 percent consolidated) with disciplined SG&A. The base case projects expansion to 7.0 percent operating margin, driven by modest operating leverage on 22 percent revenue growth, partially offset by tariff absorption and program ramp costs as the company duplicates capacity in Thailand and Mexico. The bull case at 7.8 percent operating margin requires the HPS proprietary networking mix to scale meaningfully and 1.6T to ramp on schedule, lifting blended gross margin while fixed costs are spread over 35 percent more revenue.\n\nThe bear case sees compression to 5.5 percent operating margin from negative operating leverage on revenue decline, plus duplicate footprint costs during tariff-driven manufacturing transitions. The asymmetry is meaningful: a 230 basis point swing in operating margin across scenarios maps to a near-50 percent swing in EPS (7.96 in the bear, 11.77 in the bull, 14.37 in the base), illustrating how operating leverage cuts both ways in a thin-margin model.",
+    "financial_health": "The balance sheet is healthy and supportive. Total debt of 942 million against total cash of 378 million and equity that supports a 0.35 debt-to-equity ratio leaves Celestica well within investment-grade leverage parameters. Trailing free cash flow of 458 million translates to a 1.06 percent FCF yield at the current price (a measure of how much cash the business generates relative to its market value), which is modest and reflects the substantial re-rating the stock has already enjoyed. Operating cash flow of 886 million covers capex and working capital with room to spare. ROE of 52.5 percent and ROA of 10.7 percent are excellent for an EMS business, though some of the ROE is leverage-amplified.\n\nCapital allocation has been disciplined: no dividend (payout ratio is zero), with cash deployed toward working capital, capacity expansion, and modest share repurchases. There are no significant goodwill or dilution concerns. The principal balance sheet watch item is working capital intensity as AI program ramps consume inventory and receivables faster than profits convert to cash.",
+    "competitive_position": "Celestica competes in a crowded EMS field against Jabil, Flex, Sanmina, Benchmark Electronics, and increasingly the Taiwanese ODMs (Quanta, Wiwynn, Foxconn Industrial Internet) that dominate hyperscaler server and rack assembly. The traditional EMS business has limited moat: customers can and do dual-source, and switching costs are real but not prohibitive. Celestica's differentiation comes from two places: deep design-led engagement on hyperscaler custom platforms where it has been embedded for years, and the HPS proprietary networking products that compete with Arista and Cisco at the hyperscaler level on a merchant-silicon basis.\n\nThe durability of these advantages is genuine but not unlimited. Quanta and Wiwynn have historically held more share on NVIDIA reference rack designs, and the GB200/GB300 cycle is a real competitive battleground where Celestica must win incremental scope rather than defending an installed base. The HPS franchise is the strongest moat: building a credible 400G/800G/1.6T switch portfolio with hyperscaler design wins is a multi-year exercise that would-be entrants cannot easily replicate.",
+    "headwind_narrative": "The dominant risk is hyperscaler capex digestion. After two years of triple-digit AI infrastructure growth, the top-five buyers may pause or reallocate orders mid-2026 as deployed capacity is absorbed, putting up to 1.8 billion of revenue at risk in the bear case. We assign this a 40 percent probability over the next 12 months, and it is the single variable that most determines whether the bear case materializes. Closely related is ODM displacement on next-generation AI racks: even if total hyperscaler spending stays high, Celestica must win incremental scope on the GB200/GB300 and successor cycles against Quanta, Wiwynn, and Foxconn, with up to 1.2 billion in revenue contingent on these awards.\n\nThe two secondary headwinds are tariff and trade policy escalation (45 percent probability, 500 million revenue at risk plus margin compression from duplicate footprint costs in Thailand and Mexico) and continued Industrial sub-segment weakness in EV charging, solar, and semiconductor capital equipment (55 percent probability, 400 million at risk). The Industrial trough is the most likely to occur but the lowest in magnitude; the hyperscaler digestion is the lowest probability but the highest impact.",
+    "tailwind_narrative": "The biggest opportunity is the 800G-to-1.6T networking ramp, which we assign a 65 percent probability and which contributes up to 2 billion in incremental revenue in the bull case. Because HPS sells direct to hyperscalers at higher margin than EMS work, this transition simultaneously lifts growth and gross margin, which is why it is the central pillar of the bull thesis. Second, AI rack-scale integration wins (50 percent probability, up to 1.5 billion in incremental revenue) hinge on Celestica securing scope on at least one top-three hyperscaler's custom XPU program over the next 12 to 18 months.\n\nThe most reliable tailwind is Aerospace & Defense backlog conversion, where we assign a 70 percent probability and up to 600 million in revenue opportunity. This is higher-margin, longer-cycle business that offsets Industrial softness and provides visibility into 2026 even if hyperscaler trends turn choppy. Together, the three tailwinds underpin the base case and are necessary but not sufficient for the bull.",
+    "market_pricing_commentary": "The reverse DCF (Python-computed at 10 percent WACC and 3.0 percent terminal growth) implies that at 375.55 per share, the market is pricing in a 54.3 percent free cash flow CAGR over the next five years, with terminal value representing 84 percent of enterprise value (a high-sensitivity flag). Our base case assumes 22 percent revenue growth and operating margin expanding to 7.0 percent, which translates to FCF growth well below 54 percent. To justify the current price, an investor must believe that hyperscaler AI capex compounds at near-current rates for another five years, that Celestica wins material incremental rack-scale and HPS networking scope, and that operating margin re-rates above 8 percent. That is plausible in the bull case but is not the central expectation.",
+    "scenario_commentary": "The bull case (40 percent probability, 447.18 target, 19.1 percent return) requires a clean 1.6T ramp starting late 2026, at least one major rack-scale integration win, and HPS mix shift driving operating margin to 7.8 percent. Revenue reaches 22.55 billion and EPS hits 11.77, supporting a 38x multiple if AI growth visibility remains intact. This is a credible but not easy outcome and depends on Celestica winning competitive bids against the Taiwanese ODMs.\n\nThe base case (50 percent probability, 402.46 target, 7.2 percent return) assumes 16.85 billion in revenue (roughly 22 percent growth), operating margin expanding modestly to 7.0 percent partially offset by tariff absorption and ramp costs, and EPS of 14.37 valued at a 28x multiple as the AI growth premium normalizes. This is the most likely outcome and reflects continued execution without a step-function change.\n\nThe bear case (10 percent probability, 111.48 target, 70 percent drawdown) breaks on the combination of hyperscaler capex digestion (1.8 billion revenue impact) and ODM displacement (1.2 billion revenue impact), pushing revenue down to 8.8 billion and operating margin to 5.5 percent. EPS falls to 7.96 and the multiple compresses to 14x as the market re-rates the business back toward EMS-peer levels. The probability is low, but the magnitude is severe, which is why the upside-to-downside ratio of 1.59 is less attractive than the headline 90 percent positive-return probability suggests.",
+    "conclusion": "Celestica is a high-quality franchise riding a powerful AI infrastructure tailwind, but the stock has already re-rated to price in roughly 54 percent FCF CAGR over five years, which exceeds our base case. Every scenario hinges on a single variable: hyperscaler capex sustainability and Celestica's share of the next-generation rack and networking cycle. We are watching for two near-term catalysts: confirmation of design wins on the GB300/post-GB300 rack cycle (driving the base-versus-bull question) and any signals of capex moderation from top hyperscalers in their 2026 guidance (driving the base-versus-bear question). At a meaningfully better entry point this becomes a BUY; at 375.55 with the bear case implying a 70 percent drawdown, we prefer to wait.",
+    "model_used": "claude-opus-4-7",
+    "segments": [
+      {
+        "name": "Connectivity & Cloud Solutions (CCS)",
+        "current_revenue": 9100000000,
+        "pct_of_total": 0.66,
+        "gross_margin": 0.115,
+        "yoy_growth": 0.85,
+        "primary_driver": "Hyperscaler demand for custom AI/ML compute, networking switches (400G/800G), and storage platforms from Hyperscale Communications and Enterprise customers, with the HPS sub-segment growing over 100 percent YoY.",
+        "trajectory": "accelerating"
+      },
+      {
+        "name": "Advanced Technology Solutions (ATS)",
+        "current_revenue": 4689299712,
+        "pct_of_total": 0.34,
+        "gross_margin": 0.105,
+        "yoy_growth": 0.05,
+        "primary_driver": "Aerospace & Defense, Industrial, HealthTech, and Capital Equipment programs; A&D and HealthTech are growing while Industrial (EV charging, solar inverters) is soft due to capex destocking.",
+        "trajectory": "stable"
+      }
+    ],
+    "concentration": {
+      "top_customer_pct": 0.28,
+      "top_5_customers_pct": 0.65,
+      "geographic_split": null,
+      "critical_dependencies": [
+        "Heavy reliance on a small number of US hyperscaler customers (Meta, Alphabet, AWS, Microsoft) for the bulk of CCS growth, with one customer estimated above 25 percent of total revenue.",
+        "Dependence on third-party silicon (Broadcom, Marvell, NVIDIA) for the merchant networking and AI compute platforms it manufactures and integrates.",
+        "Asia-based manufacturing and assembly footprint (Thailand, Malaysia, China) exposed to tariff regimes and US-China trade restrictions on advanced compute.",
+        "Customer-furnished demand forecasts and inventory pass-through model means working-capital swings track hyperscaler ordering cadence."
+      ],
+      "relationships_at_risk": [
+        "Largest hyperscaler customer's potential shift toward in-house ODM relationships or direct-to-Taiwanese ODM (Quanta, Foxconn) for next-gen AI racks.",
+        "Renewals on multi-year HPS networking programs as 800G transitions to 1.6T platforms in 2026-2027 could see share reallocation.",
+        "Industrial sub-segment exposure to weak EV charging and renewables capex cycle into 2026."
+      ]
+    },
+    "headwinds": [
+      {
+        "name": "Hyperscaler capex digestion",
+        "description": "After two years of triple-digit AI infrastructure spend growth, one or more of Celestica's top hyperscaler customers could pause or reallocate orders mid-2026 as they digest deployed capacity. Given CCS now represents two-thirds of revenue, even a single customer slowdown materially compresses growth.",
+        "probability": 0.4,
+        "revenue_at_risk": 1800000000,
+        "bull_impact": {
+          "revenue": -100000000,
+          "eps": -0.06
+        },
+        "base_impact": {
+          "revenue": -600000000,
+          "eps": -0.36
+        },
+        "bear_impact": {
+          "revenue": -1800000000,
+          "eps": -1.2
+        },
+        "bull_eps_impact": -0.96,
+        "base_eps_impact": -0.87,
+        "bear_eps_impact": -0.68
+      },
+      {
+        "name": "ODM displacement on next-gen AI racks",
+        "description": "Taiwanese ODMs (Quanta, Wiwynn, Foxconn) are aggressively bidding for NVIDIA GB200/GB300 rack-scale integration, an area where Celestica has historically had less share. Loss of incremental program awards in the 1.6T networking and rack-integration cycle would cap CCS growth even if total customer spend stays high.",
+        "probability": 0.35,
+        "revenue_at_risk": 1200000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -400000000,
+          "eps": -0.24
+        },
+        "bear_impact": {
+          "revenue": -1200000000,
+          "eps": -0.8
+        },
+        "bull_eps_impact": -0.64,
+        "base_eps_impact": -0.58,
+        "bear_eps_impact": -0.45
+      },
+      {
+        "name": "Tariff and trade policy escalation",
+        "description": "US tariffs on China-origin networking and server hardware, plus potential expansion of export controls on advanced compute platforms, could disrupt the Asia manufacturing footprint and force costly footprint shifts to Thailand/Mexico. Margin compression from duplicate cost during transitions is the key risk.",
+        "probability": 0.45,
+        "revenue_at_risk": 500000000,
+        "bull_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "base_impact": {
+          "revenue": -150000000,
+          "eps": -0.2
+        },
+        "bear_impact": {
+          "revenue": -500000000,
+          "eps": -0.55
+        },
+        "bull_eps_impact": -0.27,
+        "base_eps_impact": -0.24,
+        "bear_eps_impact": -0.19
+      },
+      {
+        "name": "Industrial sub-segment weakness",
+        "description": "EV charging infrastructure, solar inverters, and semiconductor capital equipment customers within ATS are working through inventory and demand softness. A prolonged trough into 2026 would keep ATS growth in low single digits and weigh on consolidated margin mix.",
+        "probability": 0.55,
+        "revenue_at_risk": 400000000,
+        "bull_impact": {
+          "revenue": -50000000,
+          "eps": -0.04
+        },
+        "base_impact": {
+          "revenue": -200000000,
+          "eps": -0.15
+        },
+        "bear_impact": {
+          "revenue": -400000000,
+          "eps": -0.3
+        },
+        "bull_eps_impact": -0.21,
+        "base_eps_impact": -0.19,
+        "bear_eps_impact": -0.15
+      }
+    ],
+    "tailwinds": [
+      {
+        "name": "800G/1.6T networking ramp",
+        "description": "Celestica's HPS proprietary networking products (DS series switches based on Broadcom Tomahawk 5/6) are sold direct to hyperscalers at higher margin than traditional EMS work. A successful 1.6T transition starting late 2026 could re-rate both growth and gross margin.",
+        "probability": 0.65,
+        "revenue_opportunity": 2000000000,
+        "bull_impact": {
+          "revenue": 2000000000,
+          "eps": 1.5
+        },
+        "base_impact": {
+          "revenue": 800000000,
+          "eps": 0.6
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 1.07,
+        "base_eps_impact": 0.96,
+        "bear_eps_impact": 0.76
+      },
+      {
+        "name": "AI rack-scale integration wins",
+        "description": "Celestica is positioned to win incremental scope on liquid-cooled AI rack integration for at least one top-three hyperscaler's custom XPU program. Each major program win adds 500M-1B in annualized revenue.",
+        "probability": 0.5,
+        "revenue_opportunity": 1500000000,
+        "bull_impact": {
+          "revenue": 1500000000,
+          "eps": 1.0
+        },
+        "base_impact": {
+          "revenue": 500000000,
+          "eps": 0.3
+        },
+        "bear_impact": {
+          "revenue": 0,
+          "eps": 0.0
+        },
+        "bull_eps_impact": 0.8,
+        "base_eps_impact": 0.72,
+        "bear_eps_impact": 0.57
+      },
+      {
+        "name": "Aerospace & Defense backlog conversion",
+        "description": "ATS A&D backlog has grown materially with new program wins on commercial aerospace recovery and defense electronics. Conversion of this backlog into 2026 revenue provides visible, higher-margin growth offsetting Industrial weakness.",
+        "probability": 0.7,
+        "revenue_opportunity": 600000000,
+        "bull_impact": {
+          "revenue": 600000000,
+          "eps": 0.3
+        },
+        "base_impact": {
+          "revenue": 300000000,
+          "eps": 0.15
+        },
+        "bear_impact": {
+          "revenue": 100000000,
+          "eps": 0.05
+        },
+        "bull_eps_impact": 0.32,
+        "base_eps_impact": 0.29,
+        "bear_eps_impact": 0.23
+      }
+    ],
+    "macro_drivers": [
+      {
+        "name": "Hyperscaler AI capex trajectory",
+        "measures": "Aggregate 2026-2027 capex growth from the top four US hyperscalers and how much of it flows to networking, custom compute, and storage that Celestica builds.",
+        "bull_outcome": {
+          "description": "Top-4 hyperscaler capex grows 25 percent or more in 2026 with networking and custom silicon share rising, sustaining CCS growth above 40 percent.",
+          "probability": 0.35
+        },
+        "base_outcome": {
+          "description": "Hyperscaler capex grows 10-20 percent with some moderation in growth rate; CCS grows 20-30 percent.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Capex flat-to-down as hyperscalers digest 2024-2025 buildout; CCS growth decelerates sharply to single digits or contracts.",
+          "probability": 0.15
+        }
+      },
+      {
+        "name": "Celestica share of next-gen AI/networking platforms",
+        "measures": "Whether Celestica retains or expands wallet share on GB200/GB300/Trainium racks and 800G/1.6T switching versus Taiwanese ODMs.",
+        "bull_outcome": {
+          "description": "Celestica wins incremental rack-integration scope and dominant share on at least one hyperscaler's 1.6T networking platform.",
+          "probability": 0.3
+        },
+        "base_outcome": {
+          "description": "Celestica holds existing share, participates in new programs at current proportion; revenue tracks customer spend.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Quanta/Foxconn capture meaningful share on next-gen rack programs; Celestica loses scope on at least one major customer.",
+          "probability": 0.2
+        }
+      },
+      {
+        "name": "Operating margin trajectory",
+        "measures": "Whether mix shift to higher-margin HPS proprietary products and operating leverage on volume push consolidated operating margin from 6.6 percent toward 7.5-8.0 percent.",
+        "bull_outcome": {
+          "description": "HPS scale and 1.6T mix lift operating margin to 7.5 percent or above by year-end 2026.",
+          "probability": 0.35
+        },
+        "base_outcome": {
+          "description": "Operating margin expands modestly to 6.8-7.2 percent on volume leverage offset by tariff and ramp costs.",
+          "probability": 0.5
+        },
+        "bear_outcome": {
+          "description": "Operating margin compresses below 6.0 percent on tariff absorption, footprint transition costs, and unfavorable mix.",
+          "probability": 0.15
+        }
+      }
+    ],
+    "scenarios": {
+      "bull": {
+        "segment_builds": [
+          {
+            "name": "Connectivity & Cloud Solutions (CCS)",
+            "projected_revenue": 13200000000,
+            "growth_rate": 0.45,
+            "rationale": "1.6T networking ramp plus rack-integration program wins drive sustained 40-plus percent CCS growth."
+          },
+          {
+            "name": "Advanced Technology Solutions (ATS)",
+            "projected_revenue": 5400000000,
+            "growth_rate": 0.15,
+            "rationale": "A&D backlog conversion accelerates while Industrial recovers off trough."
+          }
+        ],
+        "total_headwind_revenue": -150000000,
+        "total_headwind_eps": -0.1,
+        "total_tailwind_revenue": 4100000000,
+        "total_tailwind_eps": 2.8,
+        "total_revenue": 18600000000,
+        "operating_margin": 0.078,
+        "margin_rationale": "Mix shift toward higher-margin HPS proprietary networking plus operating leverage on 35 percent revenue growth lift operating margin to 7.8 percent.",
+        "net_margin": 0.06,
+        "tax_rate": 0.2,
+        "projected_eps": 9.7,
+        "pe_multiple": 38,
+        "pe_rationale": "AI-infrastructure peer multiples (Vertiv, Coherent) trade at 35-45x forward when growth is reaccelerating; 38x reflects sustained hyper-growth plus margin expansion.",
+        "price_target": 368.6,
+        "narrative": "CCS sustains 45 percent growth as Celestica wins meaningful 1.6T networking and rack-integration scope, HPS proprietary mix expands operating margin toward 8 percent, and ATS A&D backlog converts. Even in the bull case, the stock has limited upside from current levels because the market has already pulled forward most of the 2026 narrative.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "base": {
+        "segment_builds": [
+          {
+            "name": "Connectivity & Cloud Solutions (CCS)",
+            "projected_revenue": 11700000000,
+            "growth_rate": 0.286,
+            "rationale": "CCS grows 28 percent as hyperscaler spend remains robust but moderates from 2025 pace; HPS continues to outgrow EMS portion."
+          },
+          {
+            "name": "Advanced Technology Solutions (ATS)",
+            "projected_revenue": 4900000000,
+            "growth_rate": 0.045,
+            "rationale": "ATS grows mid-single-digits as A&D and HealthTech offset continued Industrial softness."
+          }
+        ],
+        "total_headwind_revenue": -1350000000,
+        "total_headwind_eps": -0.95,
+        "total_tailwind_revenue": 1600000000,
+        "total_tailwind_eps": 1.05,
+        "total_revenue": 16600000000,
+        "operating_margin": 0.07,
+        "margin_rationale": "Modest operating leverage on 20 percent revenue growth pushes operating margin from 6.6 to 7.0 percent, partially offset by tariff absorption and program ramp costs.",
+        "net_margin": 0.054,
+        "tax_rate": 0.2,
+        "projected_eps": 7.8,
+        "pe_multiple": 28,
+        "pe_rationale": "Anchored to current 25x forward P/E with a modest premium reflecting durable AI-infrastructure positioning; consistent with EMS peers (Jabil, Flex) re-rated for AI exposure.",
+        "price_target": 218.4,
+        "narrative": "Hyperscaler capex moderates but stays strongly positive, Celestica holds existing share without major new program wins, and operating margin expands modestly. Most likely outcome over a 12-month horizon, with the stock derating from current levels as growth normalizes from the 2025 spike.",
+        "headwinds": [],
+        "tailwinds": []
+      },
+      "bear": {
+        "segment_builds": [
+          {
+            "name": "Connectivity & Cloud Solutions (CCS)",
+            "projected_revenue": 8200000000,
+            "growth_rate": -0.099,
+            "rationale": "Hyperscaler capex digestion plus loss of share to ODMs on next-gen rack programs causes CCS to contract roughly 10 percent."
+          },
+          {
+            "name": "Advanced Technology Solutions (ATS)",
+            "projected_revenue": 4400000000,
+            "growth_rate": -0.062,
+            "rationale": "Industrial trough deepens and Capital Equipment customers further cut orders, partially offset by A&D resilience."
+          }
+        ],
+        "total_headwind_revenue": -3900000000,
+        "total_headwind_eps": -2.85,
+        "total_tailwind_revenue": 100000000,
+        "total_tailwind_eps": 0.05,
+        "total_revenue": 12600000000,
+        "operating_margin": 0.055,
+        "margin_rationale": "Negative operating leverage on revenue decline plus tariff absorption and footprint transition costs compress operating margin to 5.5 percent.",
+        "net_margin": 0.041,
+        "tax_rate": 0.22,
+        "projected_eps": 4.5,
+        "pe_multiple": 14,
+        "pe_rationale": "On loss of confidence in AI durability, multiple compresses to traditional EMS range (Jabil, Flex trade 12-16x in down cycles); represents 44 percent discount to current forward 25x.",
+        "price_target": 63.0,
+        "narrative": "Hyperscaler digestion materializes simultaneously with ODM share loss on GB300/1.6T programs, sending CCS into contraction. Tariff costs and Industrial weakness compound margin pressure, and the multiple collapses as the market reprices Celestica back toward traditional EMS economics.",
+        "headwinds": [],
+        "tailwinds": []
+      }
+    },
+    "catalysts": [],
+    "peer_tickers": [],
+    "market_expectations": {
+      "implied_growth_rate": 0.3,
+      "basis": "At 25x forward P/E and PEG=1.0 framework, the market is pricing roughly 25-30 percent forward earnings growth; reverse DCF implies 54 percent FCF CAGR, indicating meaningful expectations baked in.",
+      "vs_base_case": "fairly valued",
+      "commentary": "Our base case projects EPS of approximately 7.80 versus consensus forward EPS of 15.02, which suggests consensus is far more bullish than our base. Either consensus is correctly pricing rapid hyperscaler-driven scale that we are under-modeling, or the stock is materially overvalued on more conservative assumptions. The skew is asymmetrically negative at current price."
+    },
+    "sensitivity": {
+      "dominant_driver": "Hyperscaler AI capex trajectory",
+      "current_bull_probability": 0.35,
+      "ev_if_bull_plus_10": 235.0,
+      "ev_if_bull_minus_10": 195.0,
+      "interpretation": "Hyperscaler capex is the dominant variable; a 10-point shift in the bull probability moves expected value by roughly 20 dollars per share, but even the bull-favored case leaves the stock below current price."
+    },
+    "scenario_math": {
+      "scenarios": {
+        "bull": {
+          "probability": 0.395,
+          "segment_builds": [
+            {
+              "name": "Connectivity & Cloud Solutions (CCS)",
+              "projected_revenue": 13200000000,
+              "growth_rate": 0.45,
+              "rationale": "1.6T networking ramp plus rack-integration program wins drive sustained 40-plus percent CCS growth."
+            },
+            {
+              "name": "Advanced Technology Solutions (ATS)",
+              "projected_revenue": 5400000000,
+              "growth_rate": 0.15,
+              "rationale": "A&D backlog conversion accelerates while Industrial recovers off trough."
+            }
+          ],
+          "segment_revenue_total": 18600000000.0,
+          "total_headwind_revenue": -150000000.0,
+          "total_headwind_eps": -0.1,
+          "total_tailwind_revenue": 4100000000.0,
+          "total_tailwind_eps": 2.8,
+          "total_revenue": 22550000000.0,
+          "revenue_growth": 0.6353,
+          "operating_margin": 0.078,
+          "net_margin": 0.06,
+          "margin_rationale": "Mix shift toward higher-margin HPS proprietary networking plus operating leverage on 35 percent revenue growth lift operating margin to 7.8 percent.",
+          "projected_eps": 11.77,
+          "llm_eps": 9.7,
+          "eps_flag": "Python EPS (11.77) differs from LLM EPS (9.70) by 21.3%. Using Python.",
+          "pe_multiple": 38.0,
+          "pe_multiple_raw_llm": 38.0,
+          "pe_rationale": "AI-infrastructure peer multiples (Vertiv, Coherent) trade at 35-45x forward when growth is reaccelerating; 38x reflects sustained hyper-growth plus margin expansion.",
+          "price_target": 447.18,
+          "implied_return": 0.1907,
+          "breakeven_pe": 31.91,
+          "fcf_yield_at_target": 0.0146,
+          "narrative": "CCS sustains 45 percent growth as Celestica wins meaningful 1.6T networking and rack-integration scope, HPS proprietary mix expands operating margin toward 8 percent, and ATS A&D backlog converts. Even in the bull case, the stock has limited upside from current levels because the market has already pulled forward most of the 2026 narrative."
+        },
+        "base": {
+          "probability": 0.505,
+          "segment_builds": [
+            {
+              "name": "Connectivity & Cloud Solutions (CCS)",
+              "projected_revenue": 11700000000,
+              "growth_rate": 0.286,
+              "rationale": "CCS grows 28 percent as hyperscaler spend remains robust but moderates from 2025 pace; HPS continues to outgrow EMS portion."
+            },
+            {
+              "name": "Advanced Technology Solutions (ATS)",
+              "projected_revenue": 4900000000,
+              "growth_rate": 0.045,
+              "rationale": "ATS grows mid-single-digits as A&D and HealthTech offset continued Industrial softness."
+            }
+          ],
+          "segment_revenue_total": 16600000000.0,
+          "total_headwind_revenue": -1350000000.0,
+          "total_headwind_eps": -0.95,
+          "total_tailwind_revenue": 1600000000.0,
+          "total_tailwind_eps": 1.05,
+          "total_revenue": 16850000000.0,
+          "revenue_growth": 0.222,
+          "operating_margin": 0.07,
+          "net_margin": 0.054,
+          "margin_rationale": "Modest operating leverage on 20 percent revenue growth pushes operating margin from 6.6 to 7.0 percent, partially offset by tariff absorption and program ramp costs.",
+          "projected_eps": 14.37,
+          "llm_eps": 7.8,
+          "eps_flag": "GAAP EPS suppressed by acquisition amortisation (Python GAAP=7.91, LLM=7.80, forward_eps non-GAAP consensus=15.02). Scaled to non-GAAP using forward_eps x rev_growth (1.22x) x margin ratio (1.06x) = 19.41.",
+          "pe_multiple": 28.0,
+          "pe_multiple_raw_llm": 28.0,
+          "pe_rationale": "Anchored to current 25x forward P/E with a modest premium reflecting durable AI-infrastructure positioning; consistent with EMS peers (Jabil, Flex) re-rated for AI exposure.",
+          "price_target": 402.46,
+          "implied_return": 0.0717,
+          "breakeven_pe": 19.35,
+          "fcf_yield_at_target": 0.009,
+          "narrative": "Hyperscaler capex moderates but stays strongly positive, Celestica holds existing share without major new program wins, and operating margin expands modestly. Most likely outcome over a 12-month horizon, with the stock derating from current levels as growth normalizes from the 2025 spike.",
+          "monotonicity_flag": "MONOTONICITY: base price target (543.36) was >= ceiling (447.18); clamped to 402.46."
+        },
+        "bear": {
+          "probability": 0.1,
+          "segment_builds": [
+            {
+              "name": "Connectivity & Cloud Solutions (CCS)",
+              "projected_revenue": 8200000000,
+              "growth_rate": -0.099,
+              "rationale": "Hyperscaler capex digestion plus loss of share to ODMs on next-gen rack programs causes CCS to contract roughly 10 percent."
+            },
+            {
+              "name": "Advanced Technology Solutions (ATS)",
+              "projected_revenue": 4400000000,
+              "growth_rate": -0.062,
+              "rationale": "Industrial trough deepens and Capital Equipment customers further cut orders, partially offset by A&D resilience."
+            }
+          ],
+          "segment_revenue_total": 12600000000.0,
+          "total_headwind_revenue": -3900000000.0,
+          "total_headwind_eps": -2.85,
+          "total_tailwind_revenue": 100000000.0,
+          "total_tailwind_eps": 0.05,
+          "total_revenue": 8800000000.0,
+          "revenue_growth": -0.3618,
+          "operating_margin": 0.055,
+          "net_margin": 0.041,
+          "margin_rationale": "Negative operating leverage on revenue decline plus tariff absorption and footprint transition costs compress operating margin to 5.5 percent.",
+          "projected_eps": 7.96,
+          "llm_eps": 4.5,
+          "eps_flag": "GAAP EPS suppressed by acquisition amortisation (Python GAAP=3.14, LLM=4.50, forward_eps non-GAAP consensus=15.02). Scaled to non-GAAP using forward_eps x rev_growth (0.64x) x margin ratio (0.83x) = 7.96.",
+          "pe_multiple": 14.0,
+          "pe_multiple_raw_llm": 14.0,
+          "pe_rationale": "On loss of confidence in AI durability, multiple compresses to traditional EMS range (Jabil, Flex trade 12-16x in down cycles); represents 44 percent discount to current forward 25x.",
+          "price_target": 111.48,
+          "implied_return": -0.7031,
+          "breakeven_pe": 47.16,
+          "fcf_yield_at_target": 0.0228,
+          "narrative": "Hyperscaler digestion materializes simultaneously with ODM share loss on GB300/1.6T programs, sending CCS into contraction. Tariff costs and Industrial weakness compound margin pressure, and the multiple collapses as the market reprices Celestica back toward traditional EMS economics."
+        }
+      },
+      "scenario_probabilities": {
+        "bull": 0.395,
+        "base": 0.505,
+        "bear": 0.1,
+        "method": "signal_derived_v2",
+        "bull_score": 95.0,
+        "signal_detail": [
+          {
+            "signal": "EPS revision momentum",
+            "value": 0.818,
+            "delta": 15.0,
+            "note": "fwd=15.02 vs trail=8.26"
+          },
+          {
+            "signal": "Revenue CAGR",
+            "value": 0.196,
+            "delta": 10.0,
+            "note": "19.6%"
+          },
+          {
+            "signal": "EPS / NI CAGR",
+            "value": 0.4,
+            "delta": 12.0,
+            "note": "40.0%"
+          },
+          {
+            "signal": "Operating margin",
+            "value": 0.066,
+            "delta": 0.0,
+            "note": "6.6%"
+          },
+          {
+            "signal": "PEG ratio",
+            "value": null,
+            "delta": 0.0,
+            "note": "PEG not available -- neutral"
+          },
+          {
+            "signal": "Debt/Equity",
+            "value": 0.35,
+            "delta": 2.0,
+            "note": "0.35x"
+          },
+          {
+            "signal": "Price vs 200-day MA",
+            "value": 1.308,
+            "delta": 6.0,
+            "note": "price=375.6 / MA200=287.2"
+          },
+          {
+            "signal": "Beta",
+            "value": 1.48,
+            "delta": 0.0,
+            "note": "beta=1.48"
+          }
+        ],
+        "raw_geometric": {
+          "bull": 0.4275,
+          "bear": 0.025
+        },
+        "correlation_multipliers": {
+          "bull": 1.0,
+          "bear": 1.0
+        },
+        "driver_detail": []
+      },
+      "expected_value": 391.03,
+      "expected_return": 0.0412,
+      "std_dev": 0.2544,
+      "risk_adjusted_score": -0.07,
+      "upside_downside_ratio": 1.59,
+      "prob_positive_return": 0.9,
+      "max_drawdown_prob": 0.1,
+      "max_drawdown_magnitude": -0.7031,
+      "risk_free_rate": 0.06,
+      "anchor_pe": 25.01,
+      "trailing_eps_used": 8.26,
+      "forward_eps_used": 15.02,
+      "fcf_margin_used": 0.0332,
+      "market_expectations": {
+        "implied_growth_rate": 0.3,
+        "basis": "At 25x forward P/E and PEG=1.0 framework, the market is pricing roughly 25-30 percent forward earnings growth; reverse DCF implies 54 percent FCF CAGR, indicating meaningful expectations baked in.",
+        "vs_base_case": "fairly valued",
+        "commentary": "Our base case projects EPS of approximately 7.80 versus consensus forward EPS of 15.02, which suggests consensus is far more bullish than our base. Either consensus is correctly pricing rapid hyperscaler-driven scale that we are under-modeling, or the stock is materially overvalued on more conservative assumptions. The skew is asymmetrically negative at current price."
+      },
+      "sensitivity": {
+        "dominant_driver": "Hyperscaler AI capex trajectory",
+        "current_bull_probability": 0.35,
+        "ev_if_bull_plus_10": 235.0,
+        "ev_if_bull_minus_10": 195.0,
+        "interpretation": "Hyperscaler capex is the dominant variable; a 10-point shift in the bull probability moves expected value by roughly 20 dollars per share, but even the bull-favored case leaves the stock below current price."
+      },
+      "sensitivity_table": {
+        "rows": [
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -8,
+            "adj_eps": 3.73,
+            "adj_pe": 20.0,
+            "price_target": 74.51,
+            "implied_return": -0.8016
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -4,
+            "adj_eps": 3.73,
+            "adj_pe": 24.0,
+            "price_target": 89.41,
+            "implied_return": -0.7619
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": -2,
+            "adj_eps": 3.73,
+            "adj_pe": 26.0,
+            "price_target": 96.86,
+            "implied_return": -0.7421
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 0,
+            "adj_eps": 3.73,
+            "adj_pe": 28.0,
+            "price_target": 104.32,
+            "implied_return": -0.7222
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 2,
+            "adj_eps": 3.73,
+            "adj_pe": 30.0,
+            "price_target": 111.77,
+            "implied_return": -0.7024
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 4,
+            "adj_eps": 3.73,
+            "adj_pe": 32.0,
+            "price_target": 119.22,
+            "implied_return": -0.6825
+          },
+          {
+            "margin_delta": -0.04,
+            "pe_delta": 8,
+            "adj_eps": 3.73,
+            "adj_pe": 36.0,
+            "price_target": 134.12,
+            "implied_return": -0.6429
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -8,
+            "adj_eps": 9.05,
+            "adj_pe": 20.0,
+            "price_target": 180.96,
+            "implied_return": -0.5181
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -4,
+            "adj_eps": 9.05,
+            "adj_pe": 24.0,
+            "price_target": 217.15,
+            "implied_return": -0.4218
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": -2,
+            "adj_eps": 9.05,
+            "adj_pe": 26.0,
+            "price_target": 235.24,
+            "implied_return": -0.3736
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 0,
+            "adj_eps": 9.05,
+            "adj_pe": 28.0,
+            "price_target": 253.34,
+            "implied_return": -0.3254
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 2,
+            "adj_eps": 9.05,
+            "adj_pe": 30.0,
+            "price_target": 271.43,
+            "implied_return": -0.2772
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 4,
+            "adj_eps": 9.05,
+            "adj_pe": 32.0,
+            "price_target": 289.53,
+            "implied_return": -0.2291
+          },
+          {
+            "margin_delta": -0.02,
+            "pe_delta": 8,
+            "adj_eps": 9.05,
+            "adj_pe": 36.0,
+            "price_target": 325.72,
+            "implied_return": -0.1327
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -8,
+            "adj_eps": 11.71,
+            "adj_pe": 20.0,
+            "price_target": 234.18,
+            "implied_return": -0.3764
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -4,
+            "adj_eps": 11.71,
+            "adj_pe": 24.0,
+            "price_target": 281.01,
+            "implied_return": -0.2517
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": -2,
+            "adj_eps": 11.71,
+            "adj_pe": 26.0,
+            "price_target": 304.43,
+            "implied_return": -0.1894
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 0,
+            "adj_eps": 11.71,
+            "adj_pe": 28.0,
+            "price_target": 327.85,
+            "implied_return": -0.127
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 2,
+            "adj_eps": 11.71,
+            "adj_pe": 30.0,
+            "price_target": 351.27,
+            "implied_return": -0.0647
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 4,
+            "adj_eps": 11.71,
+            "adj_pe": 32.0,
+            "price_target": 374.68,
+            "implied_return": -0.0023
+          },
+          {
+            "margin_delta": -0.01,
+            "pe_delta": 8,
+            "adj_eps": 11.71,
+            "adj_pe": 36.0,
+            "price_target": 421.52,
+            "implied_return": 0.1224
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -8,
+            "adj_eps": 14.37,
+            "adj_pe": 20.0,
+            "price_target": 287.4,
+            "implied_return": -0.2347
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -4,
+            "adj_eps": 14.37,
+            "adj_pe": 24.0,
+            "price_target": 344.88,
+            "implied_return": -0.0817
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": -2,
+            "adj_eps": 14.37,
+            "adj_pe": 26.0,
+            "price_target": 373.62,
+            "implied_return": -0.0051
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 0,
+            "adj_eps": 14.37,
+            "adj_pe": 28.0,
+            "price_target": 402.36,
+            "implied_return": 0.0714
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 2,
+            "adj_eps": 14.37,
+            "adj_pe": 30.0,
+            "price_target": 431.1,
+            "implied_return": 0.1479
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 4,
+            "adj_eps": 14.37,
+            "adj_pe": 32.0,
+            "price_target": 459.84,
+            "implied_return": 0.2244
+          },
+          {
+            "margin_delta": 0.0,
+            "pe_delta": 8,
+            "adj_eps": 14.37,
+            "adj_pe": 36.0,
+            "price_target": 517.32,
+            "implied_return": 0.3775
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -8,
+            "adj_eps": 17.03,
+            "adj_pe": 20.0,
+            "price_target": 340.62,
+            "implied_return": -0.093
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -4,
+            "adj_eps": 17.03,
+            "adj_pe": 24.0,
+            "price_target": 408.75,
+            "implied_return": 0.0884
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": -2,
+            "adj_eps": 17.03,
+            "adj_pe": 26.0,
+            "price_target": 442.81,
+            "implied_return": 0.1791
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 0,
+            "adj_eps": 17.03,
+            "adj_pe": 28.0,
+            "price_target": 476.87,
+            "implied_return": 0.2698
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 2,
+            "adj_eps": 17.03,
+            "adj_pe": 30.0,
+            "price_target": 510.93,
+            "implied_return": 0.3605
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 4,
+            "adj_eps": 17.03,
+            "adj_pe": 32.0,
+            "price_target": 545.0,
+            "implied_return": 0.4512
+          },
+          {
+            "margin_delta": 0.01,
+            "pe_delta": 8,
+            "adj_eps": 17.03,
+            "adj_pe": 36.0,
+            "price_target": 613.12,
+            "implied_return": 0.6326
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -8,
+            "adj_eps": 19.69,
+            "adj_pe": 20.0,
+            "price_target": 393.84,
+            "implied_return": 0.0487
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -4,
+            "adj_eps": 19.69,
+            "adj_pe": 24.0,
+            "price_target": 472.61,
+            "implied_return": 0.2584
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": -2,
+            "adj_eps": 19.69,
+            "adj_pe": 26.0,
+            "price_target": 512.0,
+            "implied_return": 0.3633
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 0,
+            "adj_eps": 19.69,
+            "adj_pe": 28.0,
+            "price_target": 551.38,
+            "implied_return": 0.4682
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 2,
+            "adj_eps": 19.69,
+            "adj_pe": 30.0,
+            "price_target": 590.77,
+            "implied_return": 0.5731
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 4,
+            "adj_eps": 19.69,
+            "adj_pe": 32.0,
+            "price_target": 630.15,
+            "implied_return": 0.6779
+          },
+          {
+            "margin_delta": 0.02,
+            "pe_delta": 8,
+            "adj_eps": 19.69,
+            "adj_pe": 36.0,
+            "price_target": 708.92,
+            "implied_return": 0.8877
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -8,
+            "adj_eps": 25.01,
+            "adj_pe": 20.0,
+            "price_target": 500.29,
+            "implied_return": 0.3322
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -4,
+            "adj_eps": 25.01,
+            "adj_pe": 24.0,
+            "price_target": 600.35,
+            "implied_return": 0.5986
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": -2,
+            "adj_eps": 25.01,
+            "adj_pe": 26.0,
+            "price_target": 650.38,
+            "implied_return": 0.7318
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 0,
+            "adj_eps": 25.01,
+            "adj_pe": 28.0,
+            "price_target": 700.4,
+            "implied_return": 0.865
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 2,
+            "adj_eps": 25.01,
+            "adj_pe": 30.0,
+            "price_target": 750.43,
+            "implied_return": 0.9982
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 4,
+            "adj_eps": 25.01,
+            "adj_pe": 32.0,
+            "price_target": 800.46,
+            "implied_return": 1.1314
+          },
+          {
+            "margin_delta": 0.04,
+            "pe_delta": 8,
+            "adj_eps": 25.01,
+            "adj_pe": 36.0,
+            "price_target": 900.52,
+            "implied_return": 1.3979
+          }
+        ],
+        "base_eps": 14.37,
+        "base_pe": 28.0,
+        "base_net_margin": 0.054,
+        "margin_deltas": [
+          -0.04,
+          -0.02,
+          -0.01,
+          0.0,
+          0.01,
+          0.02,
+          0.04
+        ],
+        "pe_deltas": [
+          -8,
+          -4,
+          -2,
+          0,
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+}
