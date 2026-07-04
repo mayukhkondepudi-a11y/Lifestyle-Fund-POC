@@ -648,6 +648,21 @@ def render(ticker, m, a, data):
             with _mc1: st.metric("Bull Op Margin", f"{_bull_om*100:.1f}%" if _bull_om else "—")
             with _mc2: st.metric("Base Op Margin", f"{_base_om*100:.1f}%" if _base_om else "—")
             with _mc3: st.metric("Bear Op Margin", f"{_bear_om*100:.1f}%" if _bear_om else "—")
+        # Surface the effective base operating margin the scenario EPS is actually
+        # built on (event-weighted scenario_margin.base, FY-basis) so the reader can
+        # tell it apart from the TTM figure in Key Metrics. Display-only; pulled from
+        # the computed math, never hardcoded.
+        _eff_margins = sm.get("scenario_margin") if isinstance(sm, dict) else None
+        if isinstance(_eff_margins, dict) and _eff_margins.get("base") is not None:
+            _eff_base = safe_float(_eff_margins.get("base"))
+            st.markdown(
+                f'<div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin:0.4rem 0 0.2rem;">'
+                f'Effective base op margin (scenario model): '
+                f'<span style="font-weight:700;color:rgba(255,255,255,0.85);">{_eff_base*100:.1f}%</span>'
+                f' &nbsp;·&nbsp; FY-basis operating margin the scenario EPS is built on — '
+                f'distinct from the TTM figure shown in Key Metrics.</div>',
+                unsafe_allow_html=True,
+            )
 
     if a.get("financial_health"):
         st.markdown('<div class="sec">Financial Health</div>', unsafe_allow_html=True)
@@ -759,7 +774,7 @@ def render(ticker, m, a, data):
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     with c1: st.metric("Revenue", fmt_c(m.get("total_revenue"), cur))
     with c2: st.metric("Gross Margin", fmt_p(m.get("gross_margin")))
-    with c3: st.metric("Op. Margin", fmt_p(m.get("operating_margin")))
+    with c3: st.metric("Op. Margin (TTM)", fmt_p(m.get("operating_margin")))
     with c4: st.metric("Net Margin", fmt_p(m.get("profit_margin")))
     with c5: st.metric("ROE", fmt_p(m.get("roe")))
     with c6: st.metric("FCF Yield", fmt_p(m.get("fcf_yield")))

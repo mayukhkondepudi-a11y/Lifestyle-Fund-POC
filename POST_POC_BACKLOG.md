@@ -34,3 +34,8 @@ Deferred items from the scenario-core rewrite. Append the moment something is fl
 | # | Item | Type | Notes |
 |---|------|------|-------|
 | 13 | base-case-as-headline gate not built | feature | Needs a real distribution_skew_flag (e.g. bull/base price ratio > 2.5) in the math dict + its own test, then a renderer gate and a section_gating_check assertion. Deliberate math change, not a bug. (Carried from the prior backlog version; not superseded by items 1–12 above.) |
+
+## Architecture / trustworthiness
+| # | Item | Type | Notes |
+|---|------|------|-------|
+| 14 | Operating margin is LLM-assigned, not Python-owned | ARCHITECTURE / trustworthiness | scenario_margin is a revenue-weighted average of per-event op_margin_to_apply values that come from Pass 1 (the LLM). The statement-derived fy_op_margin (8.64%) is only a fallback that never fires when events exist; for CLS the math uses 8.94%, an LLM-driven number. Margin is a direct EPS multiplier — sensitivity is ~−26% base EPS / thesis-flipping (14.36→10.60, +14.6%→−15.4%) if it moved to 6.6%. This violates the "Python owns every number" principle for the single most leveraged input. Fix in a DEDICATED session: drive scenario_margin from a deterministic base±delta rule (like P/E and growth), demote LLM per-event margins to sanity input or remove. Own change, own tests, own live validation. |
