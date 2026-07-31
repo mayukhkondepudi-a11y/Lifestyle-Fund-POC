@@ -139,6 +139,19 @@ def _classify_http_error(exc: urllib.error.HTTPError) -> str:
 
 # ── Read ──────────────────────────────────────────────────────
 
+def _offline():
+    """Return the offline seam module when PICKR_OFFLINE=1, else None.
+
+    Inert in production. Lets the AppTest suite exercise every persistence
+    path — including the expired-token outage — without a network.
+    """
+    try:
+        import offline_mode
+        return offline_mode if offline_mode.enabled() else None
+    except Exception:
+        return None
+
+
 def gh_read(filepath, repo=None, *, data=False, timeout=10) -> GhResult:
     """Fetch a JSON file from a repo. Always returns a GhResult.
 
@@ -146,6 +159,13 @@ def gh_read(filepath, repo=None, *, data=False, timeout=10) -> GhResult:
     and "broken" affects what the user is told.
     """
     import config
+    off = _offline()
+    if off is not None:
+        status, content, sha = off.gh_read(filepath)
+        return GhResult(ok=(status == "ok"), content=content, sha=sha, status=status,
+                        error=None if status in ("ok", "absent") else f"offline: {status}",
+                        repo="offline", path=filepath)
+
     slug = resolve_repo(repo, data=data)
     if not config.GITHUB_TOKEN or not slug:
         return GhResult(ok=False, status="unconfigured", repo=slug, path=filepath,
@@ -190,6 +210,13 @@ def gh_write(filepath, content, sha=None, message=None, repo=None, *,
     silently clobbering a concurrent update — surfaced here as "conflict".
     """
     import config
+    off = _offline()
+    if off is not None:
+        status, sha = off.gh_write(filepath, content)
+        return GhResult(ok=(status == "ok"), content=content, sha=sha, status=status,
+                        error=None if status == "ok" else f"offline: {status}",
+                        repo="offline", path=filepath)
+
     slug = resolve_repo(repo, data=data)
     if not config.GITHUB_TOKEN or not slug:
         return GhResult(ok=False, status="unconfigured", repo=slug, path=filepath,
@@ -234,6 +261,13 @@ def gh_write(filepath, content, sha=None, message=None, repo=None, *,
 def gh_probe(repo=None, *, data=False, timeout=10) -> GhResult:
     """Check that the token can see the repo at all. No file involved."""
     import config
+    off = _offline()
+    if off is not None:
+        status, body = off.gh_probe()
+        return GhResult(ok=(status == "ok"), content=body, status=status,
+                        error=None if status == "ok" else f"offline: {status}",
+                        repo="offline")
+
     slug = resolve_repo(repo, data=data)
     if not config.GITHUB_TOKEN or not slug:
         return GhResult(ok=False, status="unconfigured", repo=slug,
