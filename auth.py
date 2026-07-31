@@ -5,8 +5,9 @@ import bcrypt
 import streamlit as st
 import hashlib
 import os
+import secrets
 
-from gh_api import gh_get_json, gh_put_json
+from gh_api import gh_read, gh_write
 
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 
@@ -31,37 +32,84 @@ def save_users(users, sha=None):
 # ── GitHub helpers ────────────────────────────────────────────
 
 def _get_guest_fingerprint() -> str:
+    """Best-effort per-visitor identifier.
+
+    The IP-header path is unreliable: st.context.headers is only populated in
+    some deployments, and the old private `_get_websocket_headers` import is
+    deprecated. When it fails the fallback used to be the literal "unknown" for
+    everyone, so sha256("unknown")[:16] == "b23a6a8439c0dde5" became a single
+    global counter that every guest on earth shared — one guest anywhere burned
+    the free report for all of them.
+
+    A random per-session id is now generated instead, so a failed lookup
+    isolates guests rather than merging them. The authoritative per-device
+    allowance lives in the signed session cookie (session_cookie.py); this
+    fingerprint is only a secondary, best-effort server-side tally.
+    """
+    ip = ""
     try:
-        from streamlit.web.server.websocket_headers import _get_websocket_headers
-        headers = _get_websocket_headers()
-        ip = headers.get("X-Forwarded-For", headers.get("X-Real-Ip", "unknown"))
+        # Streamlit >= 1.37 public API.
+        headers = st.context.headers or {}
+        ip = headers.get("X-Forwarded-For", "") or headers.get("X-Real-Ip", "") or ""
+        ip = ip.split(",")[0].strip()
     except Exception:
-        ip = "unknown"
+        ip = ""
+
+    if not ip:
+        # No usable header — fall back to a stable-per-session random id rather
+        # than a shared constant. Kept in session_state so it survives reruns.
+        rnd = st.session_state.get("_guest_fp_seed")
+        if not rnd:
+            rnd = secrets.token_hex(16)
+            st.session_state["_guest_fp_seed"] = rnd
+        return hashlib.sha256(rnd.encode()).hexdigest()[:16]
+
     return hashlib.sha256(ip.encode()).hexdigest()[:16]
 
 def load_guest_counts() -> dict:
-    counts, _ = gh_get_json("guest_counts.json")
-    return counts or {}
+    """Server-side guest tally. Secondary check only — the authoritative
+    per-device count lives in the signed session cookie (see session_cookie).
+    A broken store here must not block a legitimate guest, so it degrades
+    to an empty dict on purpose."""
+    res = gh_read("guest_counts.json", data=True)
+    return res.content if res.ok else {}
 
 def increment_guest_count(fingerprint: str) -> int:
-    counts, sha = gh_get_json("guest_counts.json")
-    if counts is None:
+    res = gh_read("guest_counts.json", data=True)
+    if res.broken:
+        # Do not write over a store we could not read — that would clobber
+        # every other guest's tally with a single-key file.
+        print(f"  guest count: skipping write, store unreadable ({res.describe()})")
+        return -1
+    counts = res.content if res.ok else {}
+    if not isinstance(counts, dict):
         counts = {}
     counts[fingerprint] = counts.get(fingerprint, 0) + 1
-    gh_put_json("guest_counts.json", counts, sha, message="guest count update")
+    gh_write("guest_counts.json", counts, res.sha,
+             message="guest count update", data=True)
     return counts[fingerprint]
 
+def load_users_result():
+    """Load users.json from the private data repo. Returns the raw GhResult.
+
+    Callers on the sign-in path MUST branch on ``.broken`` before treating an
+    empty dict as "no such account" — that conflation is what turned an expired
+    token into "Invalid username or password" for every valid user.
+    """
+    return gh_read("users.json", data=True)
+
 def _load_users():
-    """Load users.json from GitHub. Returns (users_dict, sha)."""
-    users, sha = gh_get_json("users.json")
-    return (users or {}), sha
+    """Legacy tuple accessor: (users_dict, sha). Loses the broken/absent
+    distinction, so use load_users_result() on any authentication path."""
+    res = load_users_result()
+    return (res.content if res.ok else {}), res.sha
 
 def _save_users(users, sha=None):
-    """Save users.json to GitHub."""
-    ok, err = gh_put_json("users.json", users, sha, message="auth: update users")
-    if not ok and err:
-        print(f"User save failed: {err}")
-    return ok
+    """Save users.json to the private data repo."""
+    res = gh_write("users.json", users, sha, message="auth: update users", data=True)
+    if not res.ok:
+        print(f"User save failed: {res.describe()}")
+    return res.ok
 
 # ── Public aliases so app.py can import cleanly ──
 load_users_github  = _load_users
@@ -167,8 +215,18 @@ def render_auth_modal():
                 if not login_user or not login_pass:
                     st.error("Please enter both username and password.")
                 else:
-                    # Always use GitHub as source of truth
-                    users, _ = _load_users()
+                    # The private data repo is the source of truth.
+                    _res  = load_users_result()
+                    users = _res.content if _res.ok else {}
+                    # An unreachable store is NOT a wrong password. Saying so
+                    # is what made an expired token look like deleted accounts.
+                    if _res.broken or _res.unconfigured:
+                        print(f"  login blocked: user store unavailable ({_res.describe()})")
+                        st.error(
+                            "Sign-in is temporarily unavailable — we couldn't reach the "
+                            "account store. Your account is fine; please try again shortly."
+                        )
+                        st.stop()
                     user = users.get(login_user.lower().strip())
                     if user and _check_password(login_pass, user["password_hash"]):
                         _uname = login_user.lower().strip()
@@ -214,7 +272,17 @@ def render_auth_modal():
                     st.error("Passwords don't match.")
                 else:
                     username_reg = reg_user.lower().strip()
-                    users, sha   = _load_users()
+                    _res = load_users_result()
+                    # Never write over a store we could not read: doing so would
+                    # replace every existing account with this single new one.
+                    if _res.broken or _res.unconfigured:
+                        print(f"  registration blocked: user store unavailable ({_res.describe()})")
+                        st.error(
+                            "Account creation is temporarily unavailable — we couldn't reach "
+                            "the account store. Please try again shortly."
+                        )
+                        st.stop()
+                    users, sha = (_res.content if _res.ok else {}), _res.sha
                     if username_reg in users:
                         st.error("Username already taken. Try another.")
                     else:
@@ -301,7 +369,21 @@ def render_sidebar(username, name, authenticator_logout=None):
             <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);margin-top:0.1rem;">@{username}</div>
         </div>''', unsafe_allow_html=True)
         if st.button("Sign out", key="logout_btn", use_container_width=True):
-            for key in ["authenticated","username","user_name","user_email","cached_report"]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+            sign_out()
+
+
+def sign_out():
+    """Fully sign the current user out.
+
+    Must clear the persisted cookie FIRST (it needs the cookie manager, which
+    lives in session_state) and must clear `is_guest`. Dropping only a few
+    session keys left the cookie in place, so restore_session_from_cookie()
+    silently logged the user straight back in on the next run.
+    """
+    from session_cookie import clear_session_cookie
+    clear_session_cookie()
+    for key in list(st.session_state.keys()):
+        if key == "_cookie_mgr":
+            continue  # keep the manager alive for this run's cookie delete
+        del st.session_state[key]
+    st.rerun()

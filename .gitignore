@@ -1,9 +1,21 @@
 venv/
-.streamlit/secrets.toml
 __pycache__/
 *.pyc
 run_check.ps1
 .DS_Store
 *.pdf
-venv/
-venv/
+
+# ── Secrets ──
+.streamlit/secrets.toml
+
+# ── User data — MUST NOT live in this (public) repo ──
+# users.json carries real email addresses and bcrypt password hashes; reports/
+# carries users' saved research. Until 2026-07-31 these were tracked here and
+# world-readable. They now live in the private GITHUB_DATA_REPO and are written
+# via the GitHub API at runtime, never committed.
+users.json
+guest_counts.json
+reports/
+
+# ── Local pipeline debug dumps ──
+_live_out_*.json

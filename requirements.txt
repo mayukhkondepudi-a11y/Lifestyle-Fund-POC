@@ -1,8 +1,29 @@
-streamlit
-openai
-anthropic
-yfinance
-pandas
+# Pinned 2026-07-31 to the versions this app is known to work on.
+#
+# These were previously unpinned, so every Streamlit Cloud rebuild silently
+# pulled the latest release of each package. A yfinance or streamlit release
+# could therefore break production with no code change and no way to correlate
+# the breakage with anything in the repo — a strong candidate for the
+# "randomly buggy" behaviour that made the app feel untrustworthy.
+#
+# To upgrade: bump ONE pin, redeploy, run tests_app_flows.py. Never bump several
+# at once — that reintroduces exactly the ambiguity these pins remove.
+
+streamlit==1.50.0
+extra-streamlit-components==0.1.81   # CookieManager; tightly coupled to streamlit internals
+altair==5.5.0                        # imported directly by app.py, not just a streamlit transitive
+
+# Data
+yfinance==1.2.0                      # breaks often on upstream Yahoo changes — keep pinned
+pandas==2.3.3
+
+# LLM providers
+anthropic==0.95.0
+openai==2.30.0
+
+# Auth
+bcrypt==5.0.0
+
+# Email (optional at runtime — imported lazily inside a try in email_service.py,
+# so an install failure here degrades email only, never the app)
 resend
-bcrypt
-extra-streamlit-components
