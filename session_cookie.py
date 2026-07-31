@@ -66,6 +66,30 @@ def get_cookie_mgr():
     return st.session_state.get("_cookie_mgr")
 
 
+def cookies_hydrated() -> bool:
+    """True once the CookieManager component has actually reported back.
+
+    extra_streamlit_components reads document.cookie in a browser round-trip and
+    returns ``{}`` until that completes. The old code could not tell "the
+    component has not answered yet" from "there is no session cookie", so it
+    guessed with a 0.4s timer — and any slower round-trip (routine on Streamlit
+    Cloud) logged the user out. Clicking a ?_qt= ticker chip is a full page
+    reload, which is why picking a stock appeared to sign you out.
+
+    ``mgr.cookies`` is populated only once the component responds, so this is a
+    real signal rather than a timing assumption. A browser session always
+    carries at least Streamlit's own cookies, so a non-empty dict means
+    "answered"; callers still bound their waiting in case it never arrives.
+    """
+    mgr = get_cookie_mgr()
+    if mgr is None:
+        return True  # nothing to wait for
+    try:
+        return bool(getattr(mgr, "cookies", None))
+    except Exception:
+        return True
+
+
 def set_session_cookie(identity: dict) -> None:
     """Write the signed identity token to the browser cookie."""
     mgr = get_cookie_mgr()
@@ -156,8 +180,11 @@ def restore_session_from_cookie() -> bool:
     if not is_guest:
         # users.json is the source of truth — re-load the record.
         try:
-            from auth import load_users_result
-            res = load_users_result()
+            # Cached (30s): this runs on every page reload, and each ?_qt= chip
+            # is a reload. Identity is all we need here; the allowance check at
+            # generation time re-reads uncached.
+            from auth import load_users_result_for_restore
+            res = load_users_result_for_restore()
         except Exception:
             return False
 
