@@ -86,8 +86,14 @@ def _check_github() -> List[Check]:
     out: List[Check] = []
 
     if not config.GITHUB_TOKEN:
-        out.append(Check("GitHub token", FAIL, "GH_PAT / GITHUB_TOKEN not set",
-                         "Set GH_PAT in .streamlit/secrets.toml and Streamlit Cloud secrets."))
+        out.append(Check("GitHub token", FAIL, "not set",
+                         "Set GH_PAT (Streamlit Cloud rejects names starting with GITHUB_) "
+                         "in .streamlit/secrets.toml and Streamlit Cloud secrets."))
+        return out
+
+    if not config.GITHUB_REPO:
+        out.append(Check("Code repo", FAIL, "no repo configured",
+                         "Set PICKR_REPO (Cloud rejects GITHUB_REPO — reserved prefix)."))
         return out
 
     code_repo = resolve_repo(data=False)
@@ -113,9 +119,11 @@ def _check_github() -> List[Check]:
     # Data repo: reachable, and private?
     if not getattr(config, "GITHUB_DATA_REPO", ""):
         out.append(Check("User data repo", FAIL,
-                         f"GITHUB_DATA_REPO unset — user data is falling back to {code_repo}",
-                         "Create a PRIVATE repo and set GITHUB_DATA_REPO. Emails and "
-                         "password hashes must not live in a public repo."))
+                         f"not set — user data is falling back to {code_repo}",
+                         "Set PICKR_DATA_REPO to your private data repo. Streamlit Cloud "
+                         "REJECTS names starting with GITHUB_, so PICKR_DATA_REPO is the "
+                         "only form that works there. Until it is set, sign-in and report "
+                         "saving both fail: users.json no longer exists in the public repo."))
     else:
         dprobe = gh_probe(data=True)
         if not dprobe.ok:

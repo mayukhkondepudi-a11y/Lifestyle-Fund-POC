@@ -83,7 +83,25 @@ def render():
     except Exception:
         secret_is_dev = True
 
+    # Resolved config. Streamlit Cloud rejects secret names starting with
+    # GITHUB_, so these must come from GH_PAT / PICKR_REPO / PICKR_DATA_REPO.
+    # An unset data repo silently breaks sign-in AND report saving.
+    try:
+        import config
+        from gh_api import resolve_repo
+        _tok = bool(config.GITHUB_TOKEN)
+        _code = resolve_repo(data=False) or "(unset)"
+        _data_set = bool(getattr(config, "GITHUB_DATA_REPO", ""))
+        _data = resolve_repo(data=True) or "(unset)"
+    except Exception as exc:
+        _tok, _code, _data, _data_set = False, f"error: {exc}", "?", False
+
     rows = [
+        _row("GitHub token (GH_PAT)", "present" if _tok else "MISSING", _tok),
+        _row("Code repo (PICKR_REPO)", _code, _code != "(unset)"),
+        _row("Data repo (PICKR_DATA_REPO)",
+             _data if _data_set else f"NOT SET — falling back to {_data}",
+             _data_set),
         _row("st.context.cookies keys",
              ", ".join(sorted(ctx_cookies)) or "(none)"),
         _row(f"'{COOKIE_NAME}' in context cookies",

@@ -32,9 +32,23 @@ see a SYSTEM HEALTH banner. `preflight.py` reports `GitHub token: REJECTED`.
 
    | Where | Key | Effect if stale |
    |---|---|---|
-   | `.streamlit/secrets.toml` | `GITHUB_TOKEN` | local dev broken |
-   | Streamlit Cloud → App settings → Secrets | `GITHUB_TOKEN` | **production broken** |
+   | `.streamlit/secrets.toml` | `GH_PAT` | local dev broken |
+   | Streamlit Cloud → App settings → Secrets | `GH_PAT` | **production broken** |
    | GitHub repo → Settings → Secrets → Actions | `GH_PAT` | nightly screener + price alerts silently stop |
+
+   **Streamlit Cloud rejects any secret name starting with `GITHUB_`** (reserved
+   prefix). Use the Cloud-safe aliases everywhere:
+
+   | Cloud-safe name | Legacy name also accepted | What it is |
+   |---|---|---|
+   | `GH_PAT` | `GITHUB_TOKEN` | the PAT |
+   | `PICKR_REPO` | `GITHUB_REPO` | public code repo |
+   | `PICKR_DATA_REPO` | `GITHUB_DATA_REPO` | **private** data repo |
+
+   If `PICKR_DATA_REPO` is unset in production, user data falls back to the
+   public repo — where `users.json` no longer exists — so sign-in fails and
+   generated reports are never saved to history. `preflight.py` FAILs on it and
+   `?_debug=1` shows the resolved values.
 
 5. Verify: `python preflight.py` → all OK.
 

@@ -19,21 +19,35 @@ FMP_API_KEY        = _env("FMP_API_KEY")
 GMAIL_SENDER       = _env("GMAIL_SENDER")
 GMAIL_APP_PASS     = _env("GMAIL_APP_PASS")
 RESEND_API_KEY     = _env("RESEND_API_KEY")
+# ── GitHub configuration ──────────────────────────────────────
+#
+# IMPORTANT: Streamlit Cloud REJECTS secret names beginning with "GITHUB_"
+# (reserved prefix). So every GitHub setting must also be readable under a
+# non-reserved alias, or it simply cannot be configured in production.
+#
+#   Cloud-safe name   ->  also accepted (local / CI)
+#   GH_PAT            ->  GITHUB_TOKEN
+#   PICKR_REPO        ->  GITHUB_REPO
+#   PICKR_DATA_REPO   ->  GITHUB_DATA_REPO
+#
+# Use the Cloud-safe names everywhere; the GITHUB_* forms are kept only so
+# existing local secrets.toml files and the GitHub Actions env keep working.
 GITHUB_TOKEN       = _env("GH_PAT") or _env("GITHUB_TOKEN")
 
 # Two repos, deliberately separated by sensitivity:
-#   GITHUB_REPO      — public. Code and screener_results.json (stock picks are
-#                      not sensitive and the nightly Action pushes them here).
-#   GITHUB_DATA_REPO — PRIVATE. users.json (emails + password hashes),
-#                      guest_counts.json, and reports/<username>/.
+#   PICKR_REPO      — public. Code and screener_results.json (stock picks are
+#                     not sensitive and the nightly Action pushes them here).
+#   PICKR_DATA_REPO — PRIVATE. users.json (emails + password hashes),
+#                     guest_counts.json, reports/, tracked_stocks.json.
 #
 # These lived in one public repo until 2026-07-31, which left real emails and
-# bcrypt hashes world-readable. Keep them apart. When GITHUB_DATA_REPO is unset
-# the code falls back to GITHUB_REPO so single-repo dev setups still run — but
-# preflight.py flags that fallback loudly, because in deployment it means user
-# data is sitting in a public repo again.
-GITHUB_REPO        = _env("GITHUB_REPO")
-GITHUB_DATA_REPO   = _env("GITHUB_DATA_REPO")
+# bcrypt hashes world-readable. Keep them apart. When the data repo is unset the
+# code falls back to the public repo so single-repo dev setups still run — but
+# preflight.py FAILS on that fallback, because in deployment it means user data
+# is back in a public repo (and, since users.json was removed from it, that
+# sign-in and report saving are both silently broken).
+GITHUB_REPO        = _env("PICKR_REPO") or _env("GITHUB_REPO")
+GITHUB_DATA_REPO   = _env("PICKR_DATA_REPO") or _env("GITHUB_DATA_REPO")
 
 # Secret used to HMAC-sign the persisted session cookie (session_cookie.py).
 # Override in deployment via st.secrets / env. The dev fallback only keeps
