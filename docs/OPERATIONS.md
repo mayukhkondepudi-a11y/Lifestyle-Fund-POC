@@ -36,6 +36,13 @@ see a SYSTEM HEALTH banner. `preflight.py` reports `GitHub token: REJECTED`.
    | Streamlit Cloud → App settings → Secrets | `GH_PAT` | **production broken** |
    | GitHub repo → Settings → Secrets → Actions | `GH_PAT` | nightly screener + price alerts silently stop |
 
+   **GitHub Actions reserves the `GITHUB_` prefix for secret names too** — not
+   just Streamlit Cloud. `screener.yml` read `secrets.GITHUB_REPO` for months;
+   that secret could never exist, so it resolved to `""` and
+   `push_screener_results()` always failed silently. Both workflows now use
+   `PICKR_REPO` (from the built-in `github.repository`, no secret needed) and
+   `PICKR_DATA_REPO`.
+
    **Streamlit Cloud rejects any secret name starting with `GITHUB_`** (reserved
    prefix). Use the Cloud-safe aliases everywhere:
 
@@ -59,7 +66,7 @@ see a SYSTEM HEALTH banner. `preflight.py` reports `GitHub token: REJECTED`.
 User data must never sit in the public code repo.
 
 1. Create a **private** repo, e.g. `pickr-data`.
-2. Set `GITHUB_DATA_REPO=<owner>/pickr-data` in all three locations above.
+2. Set `PICKR_DATA_REPO=<owner>/pickr-data` in all three locations above.
 3. Migrate existing accounts:
 
    ```bash
@@ -70,7 +77,9 @@ User data must never sit in the public code repo.
 4. Copy `reports/`, `guest_counts.json` and `tracked_stocks.json` into the
    private repo (push them directly, or let the app recreate them — saved
    history is not recoverable if you skip this).
-5. Add `GITHUB_DATA_REPO` as a **GitHub Actions secret** too. `check_prices.py`
+5. Add `PICKR_DATA_REPO` as a **GitHub Actions secret** too (NOT
+   `GITHUB_DATA_REPO` — reserved prefix, it would silently be empty).
+   `check_prices.py`
    reads the tracker, so without it the nightly alert job finds an empty
    tracker and sends nothing, silently.
 6. Confirm `preflight.py` reports **"reachable and private"** for the data repo.

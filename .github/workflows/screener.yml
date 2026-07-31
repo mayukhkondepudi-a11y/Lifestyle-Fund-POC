@@ -36,7 +36,12 @@ jobs:
       - name: Run screener
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          # Was `secrets.GITHUB_REPO`, which can never exist — GitHub reserves
+          # the GITHUB_ prefix for secret names, so it silently resolved to "".
+          # push_screener_results() therefore always failed and only the git
+          # push step below ever published results. `github.repository` is a
+          # built-in context (owner/repo) and needs no secret at all.
+          PICKR_REPO: ${{ github.repository }}
         run: python screener.py
 
       # 5. DEBUG — verify file exists
