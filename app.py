@@ -146,21 +146,37 @@ if (_restored and st.session_state.get("is_guest")
     except Exception as _e:
         print(f"  guest report restore failed: {type(_e).__name__}: {_e}")
 
-# Cookie-hydration gate: extra_streamlit_components' CookieManager returns {} on
-# the first script run after a full page reload (the browser round-trip that
-# reads document.cookie hasn't finished yet). The stock-selection anchor links
-# (?_qt=...) trigger exactly such a reload, so a signed-in guest transiently
-# looks logged-out and the guest CTA reappears. Give the component (rendered at
-# line ~107) a beat to deliver before rendering any logged-out / guest-CTA UI or
-# acting on _qt. Bounded by a counter so genuinely logged-out users don't hang;
-# session_state is wiped on each reload, so this re-arms once per fresh load.
+# Cookie-hydration gate.
+#
+# extra_streamlit_components' CookieManager reads document.cookie in a browser
+# round-trip and reports {} until that lands. Every ?_qt= ticker chip is an
+# <a href> — a FULL page reload — so session_state is wiped and identity has to
+# come back from the cookie on each stock pick.
+#
+# This used to wait a fixed 0.4s (2 x 0.2s) and then assume "no cookie" — so any
+# slower round-trip, which is routine on Streamlit Cloud, signed the user out
+# just for clicking a stock. That is the same mistake as the rest of this
+# codebase made with GitHub: treating "no answer yet" as "the answer is no".
+#
+# cookies_hydrated() is a real signal (the component has reported or it hasn't),
+# so we now wait on the CONDITION and exit the instant it is met. The counter is
+# only a backstop against a component that never arrives. Net effect: faster in
+# the common case (no fixed sleep once hydrated) and far more tolerant on slow
+# connections. session_state is wiped per reload, so this re-arms each time.
+_COOKIE_MAX_WAITS = 8       # x 0.15s => up to ~1.2s, vs 0.4s before
 if not st.session_state.get("authenticated"):
+    from session_cookie import cookies_hydrated
     _cw = st.session_state.get("_cookie_waits", 0)
-    if _cw < 2:
+    if not cookies_hydrated() and _cw < _COOKIE_MAX_WAITS:
         st.session_state["_cookie_waits"] = _cw + 1
         import time as _t
-        _t.sleep(0.2)  # wall-clock beat for the cookie iframe round-trip
+        _t.sleep(0.15)
         st.rerun()
+    elif _restored is False and _cw > 0 and cookies_hydrated():
+        # Component answered and there was no valid session cookie — genuinely
+        # logged out. Recorded so the reason is visible in logs if a user
+        # reports being signed out unexpectedly.
+        print(f"  cookie gate: hydrated after {_cw} wait(s), no valid session — logged out")
 
 if st.session_state.get("show_auth"):
     render_auth_modal()

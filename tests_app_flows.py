@@ -318,6 +318,71 @@ class TestGuestPersistence:
         assert "unknown" not in str(auth._get_guest_fingerprint.__doc__ or "").split("\n")[0]
 
 
+# ── Cookie hydration (regression for "picking a stock logged me out") ──
+
+class TestCookieHydration:
+    """Every ?_qt= ticker chip is an <a href>, i.e. a full page reload that
+    wipes session_state. Identity must come back from the cookie. The old gate
+    waited a fixed 0.4s and then ASSUMED no cookie, so a slow round-trip signed
+    the user out just for clicking a stock.
+    """
+
+    def test_unreported_component_is_not_treated_as_logged_out(self):
+        """{} from the component means 'no answer yet', not 'no cookie'."""
+        import streamlit as st
+        import session_cookie
+
+        class Unreported:
+            cookies = {}          # component has not responded
+
+        st.session_state["_cookie_mgr"] = Unreported()
+        try:
+            assert session_cookie.cookies_hydrated() is False
+        finally:
+            st.session_state.pop("_cookie_mgr", None)
+
+    def test_reported_component_counts_as_hydrated(self):
+        import streamlit as st
+        import session_cookie
+
+        class Reported:
+            cookies = {"_streamlit_xsrf": "abc"}   # answered; no session cookie
+
+        st.session_state["_cookie_mgr"] = Reported()
+        try:
+            assert session_cookie.cookies_hydrated() is True
+        finally:
+            st.session_state.pop("_cookie_mgr", None)
+
+    def test_missing_manager_does_not_block(self):
+        """No component at all (e.g. under test) must not hang the page."""
+        import streamlit as st
+        import session_cookie
+        st.session_state.pop("_cookie_mgr", None)
+        assert session_cookie.cookies_hydrated() is True
+
+    def test_wait_budget_is_generous_enough_for_cloud_latency(self):
+        """0.4s was too short for a Streamlit Cloud round-trip."""
+        import re
+        src = open("app.py").read()
+        m = re.search(r"_COOKIE_MAX_WAITS\s*=\s*(\d+)", src)
+        assert m, "_COOKIE_MAX_WAITS should be a named constant"
+        waits = int(m.group(1))
+        sleep = float(re.search(r"_t\.sleep\(([\d.]+)\)", src).group(1))
+        assert waits * sleep >= 1.0, (
+            f"cookie wait budget is only {waits * sleep:.2f}s — too tight for Cloud"
+        )
+
+    def test_restore_uses_the_cached_read_not_the_authoritative_one(self):
+        """Restore runs on every reload; it must not add a GitHub round-trip
+        to the path already racing the cookie component."""
+        src = open("session_cookie.py").read()
+        assert "load_users_result_for_restore" in src
+        # ...while sign-in and the allowance check stay uncached.
+        assert "load_users_result()" in open("auth.py").read()
+        assert "load_users_result" in open("app.py").read()
+
+
 # ── Sign-out ──────────────────────────────────────────────────
 
 class TestSignOut:

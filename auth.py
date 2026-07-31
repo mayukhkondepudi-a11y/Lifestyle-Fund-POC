@@ -95,8 +95,33 @@ def load_users_result():
     Callers on the sign-in path MUST branch on ``.broken`` before treating an
     empty dict as "no such account" — that conflation is what turned an expired
     token into "Invalid username or password" for every valid user.
+
+    Uncached on purpose: sign-in and the report-allowance check must both see
+    the authoritative record.
     """
     return gh_read("users.json", data=True)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _load_users_result_cached():
+    return gh_read("users.json", data=True)
+
+
+def load_users_result_for_restore():
+    """Short-TTL cached read, for session restore only.
+
+    Every ?_qt= ticker chip is a full page reload, and each one re-ran this
+    fetch — adding a GitHub round-trip to the very path that was already racing
+    the cookie component. A 30s cache removes that cost from the hot path.
+
+    Safe because restore only needs identity: a `report_count` up to 30s stale
+    is never acted on, since generation re-reads uncached before charging.
+    Never use this for sign-in or the allowance check.
+    """
+    try:
+        return _load_users_result_cached()
+    except Exception:
+        return load_users_result()
 
 def _load_users():
     """Legacy tuple accessor: (users_dict, sha). Loses the broken/absent
