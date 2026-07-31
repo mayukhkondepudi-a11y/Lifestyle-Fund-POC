@@ -1885,24 +1885,63 @@ with left_col:
         with st.spinner(""):
             res = search_ticker(sq)
         if res:
-            # Buttons, not anchors: selecting a search result must not reload
-            # the page and drop the session.
+            # Rebuilt from the original anchor rows: favicon, company name,
+            # ticker badge and exchange, laid out in columns. The clickable
+            # element is a button rather than an <a href>, because an anchor is
+            # a full page reload that wipes session_state (and the report).
             st.markdown("""
 <style>
-.sr-wrap{border:1px solid rgba(255,255,255,0.07);border-radius:10px;
-    overflow:hidden;margin:0.4rem 0;background:#0d0d16;padding:0.15rem 0.2rem;}
-</style>
-<div class="sr-wrap">""", unsafe_allow_html=True)
-            st.markdown('<div class="pickr-srbtn">', unsafe_allow_html=True)
+.sr-hdr{border:1px solid rgba(255,255,255,0.07);border-top-left-radius:10px;
+    border-top-right-radius:10px;border-bottom:none;background:#0d0d16;
+    height:0.35rem;margin:0.4rem 0 0;}
+.sr-ftr{border:1px solid rgba(255,255,255,0.07);border-bottom-left-radius:10px;
+    border-bottom-right-radius:10px;border-top:none;background:#0d0d16;
+    height:0.35rem;margin:0 0 0.4rem;}
+.sr-band{border-left:1px solid rgba(255,255,255,0.07);
+    border-right:1px solid rgba(255,255,255,0.07);background:#0d0d16;
+    padding:0.1rem 0.55rem;}
+.sr-ico{border-radius:4px;flex-shrink:0;display:block;}
+.sr-sym{font-size:0.76rem;font-weight:700;color:rgba(255,255,255,0.5);
+    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+    padding:0.1rem 0.4rem;border-radius:4px;white-space:nowrap;}
+.sr-exch{font-size:0.72rem;color:rgba(255,255,255,0.28);margin-left:0.4rem;}
+/* Borderless row button: reads as a list row, not a control */
+.sr-band .stButton > button{
+    background:transparent !important;border:none !important;
+    color:rgba(255,255,255,0.78) !important;font-size:0.88rem !important;
+    font-weight:500 !important;text-align:left !important;
+    justify-content:flex-start !important;padding:0.3rem 0 !important;
+    min-height:0 !important;box-shadow:none !important;transform:none !important;}
+.sr-band .stButton > button:hover{color:#fff !important;background:transparent !important;}
+</style>""", unsafe_allow_html=True)
+            st.markdown('<div class="sr-hdr"></div>', unsafe_allow_html=True)
             for _i, r in enumerate(res[:6]):
                 name = r.get("name", r["symbol"])
                 sym  = r["symbol"]
                 exch = r.get("exchange", "")
-                _suffix = f"  ·  {exch}" if exch else ""
-                if st.button(f"{name}   —   {sym}{_suffix}",
-                             key=f"sr_{sym}_{_i}", use_container_width=True):
-                    select_ticker(sym)
-            st.markdown('</div></div>', unsafe_allow_html=True)
+                dom  = DOMAIN_MAP.get(clean_ticker(sym), f"{clean_ticker(sym).lower()}.com")
+                st.markdown('<div class="sr-band">', unsafe_allow_html=True)
+                _c_ico, _c_name, _c_meta = st.columns(
+                    [0.6, 6.4, 2.4], gap="small", vertical_alignment="center")
+                with _c_ico:
+                    st.markdown(
+                        f'<img src="https://www.google.com/s2/favicons?domain={dom}&sz=32"'
+                        f' width="20" height="20" class="sr-ico"'
+                        f' onerror="this.style.visibility=\'hidden\'">',
+                        unsafe_allow_html=True)
+                with _c_name:
+                    if st.button(name, key=f"sr_{sym}_{_i}",
+                                 type="tertiary", use_container_width=True):
+                        select_ticker(sym)
+                with _c_meta:
+                    st.markdown(
+                        f'<div style="text-align:right;white-space:nowrap;">'
+                        f'<span class="sr-sym">{sym}</span>'
+                        + (f'<span class="sr-exch">{exch}</span>' if exch else "")
+                        + '</div>',
+                        unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="sr-ftr"></div>', unsafe_allow_html=True)
         else:
             st.markdown(
                 f'<div style="font-size:0.84rem;color:rgba(255,255,255,0.35);'
