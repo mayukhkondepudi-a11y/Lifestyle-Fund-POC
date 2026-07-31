@@ -7,10 +7,13 @@ from gh_api import gh_get_json, gh_put_json
 
 
 # ── Tracker ──────────────────────────────────────────────────
+# tracked_stocks.json carries user_email on every entry, so it is user data and
+# belongs in the PRIVATE data repo alongside users.json — not in the public code
+# repo, where it was readable by anyone until 2026-07-31.
 
 def load_tracker():
-    if config.GITHUB_TOKEN and config.GITHUB_REPO:
-        content, sha = gh_get_json(config.TRACKER_FILE)
+    if config.GITHUB_TOKEN:
+        content, sha = gh_get_json(config.TRACKER_FILE, data=True)
         if content is not None:
             return content, sha
     if os.path.exists(config.TRACKER_FILE):
@@ -24,7 +27,8 @@ def load_tracker():
 
 def save_tracker(content_list, sha):
     ok, err = gh_put_json(config.TRACKER_FILE, content_list, sha,
-                          f"chore: update tracker [{datetime.now().strftime('%Y-%m-%d')}]")
+                          f"chore: update tracker [{datetime.now().strftime('%Y-%m-%d')}]",
+                          data=True)
     if not ok:
         print(f"GitHub save error: {err}")
     return ok
@@ -49,8 +53,8 @@ def add_tracked_stock(ticker, company_name, recommendation, target_price,
         "last_checked":     None,
         "last_price":       float(entry_price) if entry_price else None,
     })
-    if config.GITHUB_TOKEN and config.GITHUB_REPO:
-        ok, err = gh_put_json(config.TRACKER_FILE, tracker, sha)
+    if config.GITHUB_TOKEN:
+        ok, err = gh_put_json(config.TRACKER_FILE, tracker, sha, data=True)
         if not ok:
             with open(config.TRACKER_FILE, "w") as f:
                 json.dump(tracker, f, indent=2, default=str)

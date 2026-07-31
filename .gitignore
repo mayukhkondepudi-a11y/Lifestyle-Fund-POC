@@ -16,6 +16,7 @@ run_check.ps1
 users.json
 guest_counts.json
 reports/
+tracked_stocks.json
 
 # ── Local pipeline debug dumps ──
 _live_out_*.json
