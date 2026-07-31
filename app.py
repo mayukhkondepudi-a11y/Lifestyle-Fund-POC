@@ -49,6 +49,15 @@ from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
 from formatting import (safe_float, get_sym, fmt_p, fmt_r, fmt_c,
                          strip_html, clean_ticker)
 
+# Test seam. None in production; a module only when PICKR_OFFLINE=1, which lets
+# tests_app_flows.py drive the real app without FMP/Anthropic/GitHub.
+try:
+    import offline_mode as _offline_mode
+    if not _offline_mode.enabled():
+        _offline_mode = None
+except Exception:
+    _offline_mode = None
+
 # FIX: fmt_eps_impact now correctly accepts sym as a required parameter
 #      and uses it consistently. The original had it missing from tailwind calls.
 def fmt_eps_impact(val, sym, is_headwind=False):
@@ -2228,48 +2237,65 @@ if should_generate and ticker:
                 "building a scenario model across bull, base, and bear cases."
             )
 
-            st.write("Step 1 of 6 - Fetching financial data...")
-            try:
-                sd = fetch(ticker)
-            except Exception as e:
-                st.error(f"Failed to fetch data: {e}"); st.stop()
-            info = sd.get("info", {})
-            if isinstance(info, dict) and info.get("error"):
-                st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
-            company_name = info.get("shortName", info.get("longName", ticker))
-            data_source  = info.get("_source", "yfinance")
-            st.write(f"Loaded **{company_name}** (via {data_source})")
-
-            status.update(label=f"Analyzing {ticker}... (Step 2 of 6)")
-            st.write("Step 2 of 6 - Computing financial metrics...")
-            m = calc(sd)
-            if "error" in m:
-                st.error(m["error"]); st.stop()
-            st.write("Metrics computed")
-
-            # Build §5.1 baseline (units in billions, §5.1 field names)
-            consensus_pack   = fmp_api.fetch_consensus_pack(ticker)
-            baseline         = calc_baseline(sd, consensus_pack=consensus_pack)
-            if "error" in baseline:
-                st.error(baseline["error"]); st.stop()
-            analysis_input_str = json.dumps(
-                {k: v for k, v in baseline.items() if k not in ["recent_news", "history_3y"]},
-                sort_keys=True, default=str)
-
-            status.update(label=f"Analyzing {ticker}... (Step 3–6 of 6: AI + compute)")
-            st.write("Step 3 of 6 - Running three-pass analysis (drivers → math → narrative → self-check)...")
-            # run_pipeline returns an error dict for the validation paths it
-            # anticipates, but LLMCallCeilingError and anything raised inside
-            # run_methodology_math / run_pass3_audit escape it. Unwrapped, those
-            # surfaced to the user as a raw Streamlit traceback.
             _failure = None
-            try:
-                a = _cached_analysis(ticker, analysis_input_str)
-            except Exception as _exc:
-                import traceback
-                traceback.print_exc()
-                a = None
-                _failure = f"{type(_exc).__name__}: {_exc}"
+            a = None
+
+            # Test seam (inert unless PICKR_OFFLINE=1): substitutes the whole
+            # fetch → calc → run_pipeline chain with a fixture so the app-flow
+            # suite can exercise gating, charging, failure handling and
+            # rendering without a network. The maths is covered separately by
+            # tests_methodology.py.
+            if _offline_mode is not None:
+                st.write("Step 1 of 6 - Fetching financial data (offline fixture)...")
+                try:
+                    m, a, sd = _offline_mode.generate(ticker)
+                    company_name = m.get("company_name", ticker)
+                except Exception as _exc:
+                    import traceback
+                    traceback.print_exc()
+                    _failure = f"{type(_exc).__name__}: {_exc}"
+            else:
+                st.write("Step 1 of 6 - Fetching financial data...")
+                try:
+                    sd = fetch(ticker)
+                except Exception as e:
+                    st.error(f"Failed to fetch data: {e}"); st.stop()
+                info = sd.get("info", {})
+                if isinstance(info, dict) and info.get("error"):
+                    st.error(f"Ticker '{ticker}' not found or unavailable."); st.stop()
+                company_name = info.get("shortName", info.get("longName", ticker))
+                data_source  = info.get("_source", "yfinance")
+                st.write(f"Loaded **{company_name}** (via {data_source})")
+
+                status.update(label=f"Analyzing {ticker}... (Step 2 of 6)")
+                st.write("Step 2 of 6 - Computing financial metrics...")
+                m = calc(sd)
+                if "error" in m:
+                    st.error(m["error"]); st.stop()
+                st.write("Metrics computed")
+
+                # Build §5.1 baseline (units in billions, §5.1 field names)
+                consensus_pack   = fmp_api.fetch_consensus_pack(ticker)
+                baseline         = calc_baseline(sd, consensus_pack=consensus_pack)
+                if "error" in baseline:
+                    st.error(baseline["error"]); st.stop()
+                analysis_input_str = json.dumps(
+                    {k: v for k, v in baseline.items() if k not in ["recent_news", "history_3y"]},
+                    sort_keys=True, default=str)
+
+                status.update(label=f"Analyzing {ticker}... (Step 3–6 of 6: AI + compute)")
+                st.write("Step 3 of 6 - Running three-pass analysis (drivers → math → narrative → self-check)...")
+                # run_pipeline returns an error dict for the validation paths it
+                # anticipates, but LLMCallCeilingError and anything raised inside
+                # run_methodology_math / run_pass3_audit escape it. Unwrapped, those
+                # surfaced to the user as a raw Streamlit traceback.
+                try:
+                    a = _cached_analysis(ticker, analysis_input_str)
+                except Exception as _exc:
+                    import traceback
+                    traceback.print_exc()
+                    a = None
+                    _failure = f"{type(_exc).__name__}: {_exc}"
 
             if _failure is None and isinstance(a, dict) and a.get("error"):
                 _failure = a.get("error")
