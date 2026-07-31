@@ -224,21 +224,27 @@ def select_ticker(ticker):
     st.rerun()
 
 
-def ticker_chip_row(tickers, key_prefix, per_row=6, label_fn=None):
-    """Render tickers as chip buttons laid out in rows (no page reload)."""
+def ticker_chip_row(tickers, key_prefix, label_fn=None):
+    """Render tickers as inline chip buttons that wrap (no page reload).
+
+    Uses a horizontal flex container with content-width buttons, which is what
+    the original inline <a class="nav-chip"> anchors looked like. The first
+    conversion used st.columns(N) with use_container_width=True, so every chip
+    stretched to a fixed column width and a short row left dead columns —
+    slabs in a grid rather than chips in a line.
+
+    Styled via the `st-key-chips_<prefix>` class Streamlit emits for a keyed
+    container (an st.markdown wrapper div does NOT reliably enclose sibling
+    widgets, which is why the earlier .pickr-chip CSS never applied).
+    """
     if not tickers:
         return
     label_fn = label_fn or (lambda t: clean_ticker(t))
-    st.markdown('<div class="pickr-chip">', unsafe_allow_html=True)
-    for start in range(0, len(tickers), per_row):
-        chunk = tickers[start:start + per_row]
-        cols = st.columns(per_row, gap="small")
-        for col, tk in zip(cols, chunk):
-            with col:
-                if st.button(label_fn(tk), key=f"{key_prefix}_{tk}_{start}",
-                             use_container_width=True):
-                    select_ticker(tk)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(horizontal=True, horizontal_alignment="left",
+                      gap="small", key=f"chips_{key_prefix}"):
+        for tk in tickers:
+            if st.button(label_fn(tk), key=f"{key_prefix}_{tk}", width="content"):
+                select_ticker(tk)
 
 
 def _render_generation_failure(ticker, reason, details=None, is_admin=False):
@@ -1796,7 +1802,7 @@ def render_picks_table(picks, market_label, select_key):
     # Chip buttons instead of ?_qt= anchors: no page reload, so session_state
     # (and the signed-in user) survives a stock pick.
     _tks = [p.get("ticker", "") for p in picks if p.get("ticker")]
-    ticker_chip_row(_tks, key_prefix=f"pick_{select_key}", per_row=5,
+    ticker_chip_row(_tks, key_prefix=f"pick_{select_key}",
                     label_fn=lambda t: f"{clean_ticker(t)} →")
 
 # ── Load screener data ──
@@ -1858,8 +1864,7 @@ with left_col:
         'margin-top:0.5rem;">Try:</div>',
         unsafe_allow_html=True
     )
-    ticker_chip_row(["NVDA", "AAPL", "RELIANCE.NS", "AVGO"],
-                    key_prefix="try", per_row=4)
+    ticker_chip_row(["NVDA", "AAPL", "RELIANCE.NS", "AVGO"], key_prefix="try")
 
     _qt = st.query_params.get("_qt", "")
     if _qt:
@@ -1969,7 +1974,7 @@ with left_col:
                         unsafe_allow_html=True)
             _pop = pop_keys[:10]
             _labels = {POPULAR[k]: k.split("(")[0].strip() for k in _pop}
-            ticker_chip_row([POPULAR[k] for k in _pop], key_prefix="pop", per_row=5,
+            ticker_chip_row([POPULAR[k] for k in _pop], key_prefix="pop",
                             label_fn=lambda t: _labels.get(t, clean_ticker(t)))
             _chip_label_css = ""  # inject CSS only once
 
@@ -1979,7 +1984,7 @@ with left_col:
                 f'style="margin-top:0.6rem;">Recent</span>',
                 unsafe_allow_html=True
             )
-            ticker_chip_row(recent_rev, key_prefix="recent", per_row=6)
+            ticker_chip_row(recent_rev, key_prefix="recent")
 
     resolved_now = st.session_state.get("resolved")
     if resolved_now:
