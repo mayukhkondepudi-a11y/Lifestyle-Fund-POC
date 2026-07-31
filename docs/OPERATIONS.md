@@ -34,7 +34,7 @@ see a SYSTEM HEALTH banner. `preflight.py` reports `GitHub token: REJECTED`.
    |---|---|---|
    | `.streamlit/secrets.toml` | `GITHUB_TOKEN` | local dev broken |
    | Streamlit Cloud → App settings → Secrets | `GITHUB_TOKEN` | **production broken** |
-   | GitHub repo → Settings → Secrets → Actions | `GH_PAT` | nightly screener silently stops |
+   | GitHub repo → Settings → Secrets → Actions | `GH_PAT` | nightly screener + price alerts silently stop |
 
 5. Verify: `python preflight.py` → all OK.
 
@@ -53,15 +53,28 @@ User data must never sit in the public code repo.
    python scripts/reset_password.py migrate --from-file users.json
    ```
 
-4. Copy `reports/` and `guest_counts.json` into the private repo (push them
-   directly, or let the app recreate them — history is not recoverable if you
-   skip this).
-5. Confirm `preflight.py` reports **"reachable and private"** for the data repo.
+4. Copy `reports/`, `guest_counts.json` and `tracked_stocks.json` into the
+   private repo (push them directly, or let the app recreate them — saved
+   history is not recoverable if you skip this).
+5. Add `GITHUB_DATA_REPO` as a **GitHub Actions secret** too. `check_prices.py`
+   reads the tracker, so without it the nightly alert job finds an empty
+   tracker and sends nothing, silently.
+6. Confirm `preflight.py` reports **"reachable and private"** for the data repo.
    It fails loudly if the data repo is public or if `GITHUB_DATA_REPO` is unset
    and user data is falling back to the public repo.
 
-`users.json`, `guest_counts.json` and `reports/` are now in `.gitignore` and
-untracked. They are written at runtime through the GitHub API, never committed.
+Four files are user data and are now `.gitignore`d and untracked. They are
+written at runtime through the GitHub API, never committed:
+
+| File | Sensitivity |
+|---|---|
+| `users.json` | emails + bcrypt password hashes |
+| `reports/` | users' saved research |
+| `tracked_stocks.json` | `user_email` on every entry |
+| `guest_counts.json` | hashed fingerprints only, but belongs with the rest |
+
+`screener_results.json` stays in the public repo — stock picks are not sensitive
+and the nightly Action pushes them there.
 
 ---
 
@@ -79,6 +92,10 @@ python scripts/reset_password.py reset <username> --generate
 
 Then tell each user their password was reset and why. Four accounts were
 affected: `mayukhk`, `mayukh151`, `mayukh123`, `mayukh1`.
+
+Two of those (`mayukh151` → `kmayukh@amazon.com`, `mayukh1` → `M@gmail.com`)
+may be your own test accounts. Delete rather than reset any that are — fewer
+live credentials is strictly better.
 
 **Optional:** purging the hashes from git history needs `git filter-repo` and a
 force-push that breaks every existing clone. With four known accounts, resetting
