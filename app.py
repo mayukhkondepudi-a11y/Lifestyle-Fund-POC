@@ -173,7 +173,7 @@ if st.query_params.get("_si") == "1":
     try:
         st.query_params.clear()
     except Exception:
-        pass
+        pass  # URL cosmetics only — deliberately silent (sweep-reviewed)
     st.session_state["show_auth"] = True
     st.rerun()
 
@@ -332,7 +332,7 @@ if authenticated:
                 try:
                     st.query_params.clear()
                 except Exception:
-                    pass
+                    pass  # URL cosmetics only — deliberately silent (sweep-reviewed)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -390,14 +390,18 @@ if authenticated:
                     try:
                         st.query_params["ticker"] = report_data["ticker"]
                     except Exception:
-                        pass
+                        pass  # URL cosmetics only — deliberately silent (sweep-reviewed)
                     st.session_state["history_select"] = _opts[0]
                     st.rerun()
                 else:
                     st.toast("Could not load that report.", icon="⚠️")
                     st.session_state["history_select"] = _opts[0]
-    except Exception:
-        pass
+    except Exception as _e:
+        # Silent-failure sweep: this wraps the whole history dropdown, so a
+        # bug anywhere inside used to make history vanish with no trace. The
+        # dropdown is non-critical (never block the page on it) but the cause
+        # must be recoverable from the logs.
+        print(f"  history dropdown failed: {type(_e).__name__}: {_e}")
 
 # ══════════════════════════════════════════════════════════════
 # CACHED DATA FETCHING
@@ -932,8 +936,10 @@ def render(ticker, m, a, data):
                 <div class="range-bar"><div class="range-bar-fill" style="width:{pct}%"></div>
                     <div class="range-bar-dot" style="left:{pct}%"></div></div></div>''',
                     unsafe_allow_html=True)
-        except Exception:
-            pass
+        except Exception as _e:
+            # Silent-failure sweep: genuinely cosmetic (one decorative bar), so
+            # it stays non-fatal — but log it rather than vanishing silently.
+            print(f"  52-week range bar skipped: {type(_e).__name__}: {_e}")
 
     h = data.get("hist")
     if h is not None and not h.empty:
@@ -2350,7 +2356,7 @@ if should_generate and ticker:
     try:
         st.query_params["ticker"] = ticker
     except Exception:
-        pass
+        pass  # URL cosmetics only — deliberately silent (sweep-reviewed)
 
     _rec_emoji = {"BUY": "✅", "PASS": "🔴", "WATCH": "🟡"}.get(rec.upper(), "📊")
     st.toast(f"{_rec_emoji} {ticker}: {rec} — scroll down to view", icon=None)
@@ -2433,7 +2439,7 @@ if st.session_state.cached_report:
                 try:
                     st.query_params.clear()
                 except Exception:
-                    pass
+                    pass  # URL cosmetics only — deliberately silent (sweep-reviewed)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
