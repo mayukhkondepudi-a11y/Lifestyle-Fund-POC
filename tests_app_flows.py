@@ -318,60 +318,198 @@ class TestGuestPersistence:
         assert "unknown" not in str(auth._get_guest_fingerprint.__doc__ or "").split("\n")[0]
 
 
+# ── Session cookie: the bug that caused "logged out on reload" ──
+
+class _FakeCookieMgr:
+    """Records set/delete calls so we can assert the write actually happened."""
+
+    def __init__(self, cookies=None):
+        self.cookies = dict(cookies or {})
+        self.sets = []
+        self.deletes = []
+
+    def get(self, name):
+        return self.cookies.get(name)
+
+    def set(self, name, val, **kw):
+        self.sets.append((name, val, kw))
+        self.cookies[name] = val
+
+    def delete(self, name, **kw):
+        self.deletes.append(name)
+        self.cookies.pop(name, None)
+
+
+def _patch_context_cookies(monkeypatch, cookies: dict):
+    """st.context.cookies is a property on ContextProxy, so patch the class."""
+    from streamlit.runtime.context import ContextProxy
+    monkeypatch.setattr(ContextProxy, "cookies",
+                        property(lambda self: dict(cookies)), raising=False)
+
+
+class TestSessionCookieWrite:
+    """THE root cause.
+
+    mgr.set() does not write a cookie — it renders a component whose JS writes
+    document.cookie when the browser mounts the iframe. All three auth paths
+    called st.rerun() immediately afterwards, aborting the run before that could
+    happen, so the cookie was NEVER stored. Every reload then logged the user
+    out, which surfaced as "picking a stock logs me out" because the ticker
+    chips were full page reloads.
+    """
+
+    def test_auth_paths_queue_the_cookie_instead_of_writing_then_rerunning(self):
+        src = open("auth.py").read()
+        assert "queue_session_cookie(" in src
+        assert "set_session_cookie({" not in src, (
+            "an auth handler writes the cookie directly; the st.rerun() that "
+            "follows will abort the run before the component can store it"
+        )
+
+    def test_queue_then_drain_actually_writes(self):
+        import streamlit as st
+        import session_cookie as sc
+
+        mgr = _FakeCookieMgr()
+        st.session_state["_cookie_mgr"] = mgr
+        try:
+            sc.queue_session_cookie({"username": "u", "is_guest": False, "name": "U"})
+            assert mgr.sets == [], "must not write before the drain"
+            action = sc.drain_pending_cookie()
+            assert action == "written"
+            assert len(mgr.sets) == 1
+            name, token, _ = mgr.sets[0]
+            assert name == sc.COOKIE_NAME
+            assert sc.verify_token(token)["username"] == "u"
+        finally:
+            st.session_state.clear()
+
+    def test_drain_is_wired_into_app_before_anything_reruns(self):
+        src = open("app.py").read()
+        assert "drain_pending_cookie()" in src
+        assert src.find("_COOKIE_MAX_WAITS") == -1, "the hydration retry gate should be gone"
+        assert "time.sleep" not in src and "_t.sleep" not in src, (
+            "no sleep-and-retry should remain on the boot path"
+        )
+        # Compare CALL sites, not the import line.
+        assert src.index("drain_pending_cookie()") < src.index("restore_session_from_cookie()"), (
+            "the queued write must be applied before identity is restored"
+        )
+
+    def test_sign_out_queues_the_clear_after_wiping_state(self):
+        import streamlit as st
+        import session_cookie as sc
+        st.session_state["authenticated"] = True
+        st.session_state["_cookie_mgr"] = _FakeCookieMgr({sc.COOKIE_NAME: "x"})
+        try:
+            # Mirror sign_out()'s ordering: wipe, THEN queue.
+            for k in [k for k in st.session_state.keys() if k != "_cookie_mgr"]:
+                del st.session_state[k]
+            sc.queue_clear_session_cookie()
+            assert st.session_state.get("_pending_cookie_clear") is True, (
+                "the flag must be set AFTER the wipe or it is wiped too"
+            )
+            assert sc.drain_pending_cookie() == "cleared"
+            assert st.session_state["_cookie_mgr"].deletes == [sc.COOKIE_NAME]
+        finally:
+            st.session_state.clear()
+
+
+class TestSessionCookieRead:
+    """Reads now come from st.context.cookies — server-side, first run, no race.
+
+    This path was previously unreachable in tests (it went through a JS iframe),
+    which is why the bug survived two attempted fixes.
+    """
+
+    def test_valid_cookie_restores_on_the_first_run(self, monkeypatch):
+        import streamlit as st
+        import session_cookie as sc
+
+        token = sc.make_token({"username": "testuser", "is_guest": False,
+                               "name": "Test User", "email": "t@e.com"})
+        _patch_context_cookies(monkeypatch, {sc.COOKIE_NAME: token})
+        st.session_state.clear()
+        try:
+            assert sc.restore_session_from_cookie() is True
+            assert st.session_state["authenticated"] is True
+            assert st.session_state["username"] == "testuser"
+        finally:
+            st.session_state.clear()
+
+    def test_absent_cookie_does_not_restore_and_does_not_raise(self, monkeypatch):
+        import streamlit as st
+        import session_cookie as sc
+        _patch_context_cookies(monkeypatch, {})
+        st.session_state.clear()
+        try:
+            assert sc.restore_session_from_cookie() is False
+        finally:
+            st.session_state.clear()
+
+    def test_expired_token_does_not_restore(self, monkeypatch):
+        import base64, json, hmac, hashlib, time
+        import streamlit as st
+        import session_cookie as sc
+        from config import PICKR_SESSION_SECRET
+
+        payload = {"username": "u", "is_guest": False, "exp": int(time.time()) - 5}
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        b64 = base64.urlsafe_b64encode(raw).decode()
+        sig = hmac.new(PICKR_SESSION_SECRET.encode(), b64.encode(), hashlib.sha256).hexdigest()
+        _patch_context_cookies(monkeypatch, {sc.COOKIE_NAME: f"{b64}.{sig}"})
+        st.session_state.clear()
+        try:
+            assert sc.restore_session_from_cookie() is False
+        finally:
+            st.session_state.clear()
+
+    def test_tampered_token_does_not_restore(self, monkeypatch):
+        import streamlit as st
+        import session_cookie as sc
+        token = sc.make_token({"username": "attacker", "is_guest": False})
+        payload, _, _sig = token.rpartition(".")
+        _patch_context_cookies(monkeypatch, {sc.COOKIE_NAME: f"{payload}.{'0'*64}"})
+        st.session_state.clear()
+        try:
+            assert sc.restore_session_from_cookie() is False
+        finally:
+            st.session_state.clear()
+
+    def test_read_prefers_context_over_the_component(self, monkeypatch):
+        """Component reads lag behind a page load; the request headers do not."""
+        import streamlit as st
+        import session_cookie as sc
+        good = sc.make_token({"username": "from_context", "is_guest": False})
+        _patch_context_cookies(monkeypatch, {sc.COOKIE_NAME: good})
+        st.session_state.clear()
+        st.session_state["_cookie_mgr"] = _FakeCookieMgr({})   # component empty
+        try:
+            assert sc.read_identity().get("username") == "from_context"
+        finally:
+            st.session_state.clear()
+
+
+class TestSessionSecret:
+    def test_preflight_fails_on_the_public_dev_default(self, monkeypatch):
+        import importlib
+        import config, preflight
+        importlib.reload(preflight)
+        monkeypatch.setattr(config, "PICKR_SESSION_SECRET",
+                            "pickr-dev-insecure-session-secret")
+        check = preflight._check_session_secret()
+        assert check.status == "fail"
+        assert check.remedy
+
+
 # ── Cookie hydration (regression for "picking a stock logged me out") ──
 
 class TestCookieHydration:
-    """Every ?_qt= ticker chip is an <a href>, i.e. a full page reload that
-    wipes session_state. Identity must come back from the cookie. The old gate
-    waited a fixed 0.4s and then ASSUMED no cookie, so a slow round-trip signed
-    the user out just for clicking a stock.
+    """The old hydration gate (retry + sleep, waiting on the CookieManager
+    iframe) has been deleted — st.context.cookies resolves server-side on the
+    first run, so there is nothing to wait for. Those tests went with it; what
+    remains is the read-path caching guarantee.
     """
-
-    def test_unreported_component_is_not_treated_as_logged_out(self):
-        """{} from the component means 'no answer yet', not 'no cookie'."""
-        import streamlit as st
-        import session_cookie
-
-        class Unreported:
-            cookies = {}          # component has not responded
-
-        st.session_state["_cookie_mgr"] = Unreported()
-        try:
-            assert session_cookie.cookies_hydrated() is False
-        finally:
-            st.session_state.pop("_cookie_mgr", None)
-
-    def test_reported_component_counts_as_hydrated(self):
-        import streamlit as st
-        import session_cookie
-
-        class Reported:
-            cookies = {"_streamlit_xsrf": "abc"}   # answered; no session cookie
-
-        st.session_state["_cookie_mgr"] = Reported()
-        try:
-            assert session_cookie.cookies_hydrated() is True
-        finally:
-            st.session_state.pop("_cookie_mgr", None)
-
-    def test_missing_manager_does_not_block(self):
-        """No component at all (e.g. under test) must not hang the page."""
-        import streamlit as st
-        import session_cookie
-        st.session_state.pop("_cookie_mgr", None)
-        assert session_cookie.cookies_hydrated() is True
-
-    def test_wait_budget_is_generous_enough_for_cloud_latency(self):
-        """0.4s was too short for a Streamlit Cloud round-trip."""
-        import re
-        src = open("app.py").read()
-        m = re.search(r"_COOKIE_MAX_WAITS\s*=\s*(\d+)", src)
-        assert m, "_COOKIE_MAX_WAITS should be a named constant"
-        waits = int(m.group(1))
-        sleep = float(re.search(r"_t\.sleep\(([\d.]+)\)", src).group(1))
-        assert waits * sleep >= 1.0, (
-            f"cookie wait budget is only {waits * sleep:.2f}s — too tight for Cloud"
-        )
 
     def test_restore_uses_the_cached_read_not_the_authoritative_one(self):
         """Restore runs on every reload; it must not add a GitHub round-trip

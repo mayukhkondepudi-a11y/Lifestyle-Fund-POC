@@ -146,6 +146,28 @@ def _check_users() -> Check:
                  "Sign-in is disabled until this is fixed. See docs/OPERATIONS.md §1.")
 
 
+def _check_session_secret() -> Check:
+    """The session token secret must not be the public dev default.
+
+    config.py ships a fallback literal, and config.py lives in the PUBLIC repo —
+    so leaving the default in place lets anyone forge a signed pickr_session
+    cookie for any user, including admin.
+    """
+    import config
+    dev_default = "pickr-dev-insecure-session-secret"
+    secret = getattr(config, "PICKR_SESSION_SECRET", "")
+    if not secret or secret == dev_default:
+        return Check("Session secret", FAIL,
+                     "using the public dev default — session cookies are forgeable",
+                     "Set PICKR_SESSION_SECRET in .streamlit/secrets.toml AND Streamlit "
+                     "Cloud secrets. Generate with: python -c \"import secrets; "
+                     "print(secrets.token_urlsafe(48))\"")
+    if len(secret) < 32:
+        return Check("Session secret", WARN, f"only {len(secret)} chars",
+                     "Use at least 32 characters of entropy.")
+    return Check("Session secret", OK, "configured")
+
+
 def _check_screener() -> Check:
     """Screener data present, parseable, and actually being refreshed."""
     from github_store import load_screener_results_raw
@@ -184,6 +206,10 @@ def run() -> Health:
     checks.append(_check_api_key(
         "FMP API key", config.FMP_API_KEY,
         "Set FMP_API_KEY — financial data falls back to yfinance without it."))
+    try:
+        checks.append(_check_session_secret())
+    except Exception as exc:
+        checks.append(Check("Session secret", FAIL, f"check raised {type(exc).__name__}: {exc}"))
 
     # Only probe stores when the token itself is usable; otherwise every
     # downstream check just restates the same root cause.

@@ -66,32 +66,64 @@ def get_cookie_mgr():
     return st.session_state.get("_cookie_mgr")
 
 
-def cookies_hydrated() -> bool:
-    """True once the CookieManager component has actually reported back.
+# ── Reading: server-side, from the initial HTTP request ───────
+#
+# st.context.cookies (Streamlit >= 1.37) exposes the cookies the browser sent
+# with the page request. It is resolved SERVER-SIDE and is available on the very
+# first script run — no iframe, no browser round-trip, no race.
+#
+# The old code read through the CookieManager component instead, which returns
+# {} until its iframe mounts and reports back. That is what the retry loop,
+# hydration gate and time.sleep() in app.py existed to paper over, and it is
+# why a reload could look like a sign-out. Reading server-side removes the
+# entire failure mode (and ~1.2s of latency from every page load).
 
-    extra_streamlit_components reads document.cookie in a browser round-trip and
-    returns ``{}`` until that completes. The old code could not tell "the
-    component has not answered yet" from "there is no session cookie", so it
-    guessed with a 0.4s timer — and any slower round-trip (routine on Streamlit
-    Cloud) logged the user out. Clicking a ?_qt= ticker chip is a full page
-    reload, which is why picking a stock appeared to sign you out.
+def read_raw_cookie() -> str:
+    """The raw session token from the request, or "" if absent.
 
-    ``mgr.cookies`` is populated only once the component responds, so this is a
-    real signal rather than a timing assumption. A browser session always
-    carries at least Streamlit's own cookies, so a non-empty dict means
-    "answered"; callers still bound their waiting in case it never arrives.
+    Prefers st.context.cookies; falls back to the component only where the
+    context is unavailable (older Streamlit, or AppTest).
     """
+    try:
+        token = (st.context.cookies or {}).get(COOKIE_NAME)
+        if token:
+            return token
+    except Exception:
+        pass
+
     mgr = get_cookie_mgr()
     if mgr is None:
-        return True  # nothing to wait for
+        return ""
     try:
-        return bool(getattr(mgr, "cookies", None))
+        return mgr.get(COOKIE_NAME) or ""
     except Exception:
-        return True
+        return ""
 
+
+def read_identity() -> dict:
+    """Return the verified identity currently in the cookie, or {}."""
+    token = read_raw_cookie()
+    return (verify_token(token) or {}) if token else {}
+
+
+# ── Writing: must happen on a run that COMPLETES ──────────────
+#
+# mgr.set() does not write a cookie. It renders a component whose JavaScript
+# writes document.cookie once the browser mounts the iframe. Calling st.rerun()
+# straight afterwards aborts the run before that can happen, so the cookie was
+# never stored — the actual cause of "logged out on reload".
+#
+# Callers must therefore NOT rerun immediately after these. app.py drains
+# _pending_cookie / _pending_cookie_clear at the top of a normal run instead;
+# see queue_session_cookie() below.
 
 def set_session_cookie(identity: dict) -> None:
-    """Write the signed identity token to the browser cookie."""
+    """Write the signed identity token to the browser cookie.
+
+    Only safe to call on a run that will finish rendering. To set a cookie from
+    a handler that reruns (login, register, guest entry), use
+    queue_session_cookie() instead.
+    """
     mgr = get_cookie_mgr()
     if mgr is None:
         return
@@ -104,7 +136,7 @@ def set_session_cookie(identity: dict) -> None:
 
 
 def clear_session_cookie() -> None:
-    """Delete the session cookie (called on every sign-out path)."""
+    """Delete the session cookie. Same completing-run requirement as above."""
     mgr = get_cookie_mgr()
     if mgr is None:
         return
@@ -114,33 +146,71 @@ def clear_session_cookie() -> None:
         pass
 
 
-def read_identity() -> dict:
-    """Return the verified identity currently in the cookie, or {}."""
-    mgr = get_cookie_mgr()
-    if mgr is None:
+def queue_session_cookie(identity: dict) -> None:
+    """Ask app.py to write this cookie at the top of the next run.
+
+    Use from any handler that calls st.rerun(), which is all of them.
+    """
+    st.session_state["_pending_cookie"] = dict(identity)
+    st.session_state.pop("_pending_cookie_clear", None)
+
+
+def queue_clear_session_cookie() -> None:
+    """Ask app.py to delete the cookie at the top of the next run.
+
+    Must be set AFTER any session_state wipe, or the flag is wiped with it.
+    """
+    st.session_state["_pending_cookie_clear"] = True
+    st.session_state.pop("_pending_cookie", None)
+
+
+def drain_pending_cookie() -> str:
+    """Apply any queued cookie write/delete. Called once per run by app.py,
+    immediately after the CookieManager is instantiated and never followed by
+    an immediate rerun. Returns what it did, for logging."""
+    if st.session_state.pop("_pending_cookie_clear", False):
+        clear_session_cookie()
+        return "cleared"
+    pending = st.session_state.pop("_pending_cookie", None)
+    if pending:
+        set_session_cookie(pending)
+        return "written"
+    return ""
+
+
+def _guest_identity_from_session() -> dict:
+    """Rebuild the guest identity from session_state.
+
+    Deliberately NOT read from the cookie: st.context.cookies is a snapshot of
+    the initial request, so a cookie written earlier in this same session is not
+    visible yet. session_state is the live truth mid-session.
+    """
+    if not st.session_state.get("is_guest"):
         return {}
-    try:
-        token = mgr.get(COOKIE_NAME)
-    except Exception:
-        return {}
-    return verify_token(token) or {} if token else {}
+    return {
+        "username":          st.session_state.get("username", ""),
+        "is_guest":          True,
+        "name":              st.session_state.get("user_name", ""),
+        "guest_fingerprint": st.session_state.get("guest_fingerprint", "unknown"),
+        "report_count":      int(st.session_state.get("report_count", 0) or 0),
+        "report_ticker":     st.session_state.get("_guest_report_ticker", ""),
+    }
 
 
 def set_guest_report_count(count: int) -> None:
     """Persist a guest's report tally into the signed cookie.
 
     Guests have no server-side account record, so session_state was the only
-    home for their count — and every ``?_qt=`` ticker chip triggers a full page
-    reload that wipes it. The tally rides in the HMAC-signed token instead, so
-    it survives reloads and cannot be edited by hand.
+    home for their count — and a page reload wipes it. The tally rides in the
+    HMAC-signed token instead, so it survives reloads and cannot be hand-edited.
 
     This is the authoritative per-device allowance; guest_counts.json on the
     server is a secondary, best-effort tally (its fingerprint is unreliable).
     """
-    identity = read_identity()
-    if not identity or not identity.get("is_guest"):
+    identity = _guest_identity_from_session()
+    if not identity:
         return
-    identity.pop("exp", None)  # make_token re-stamps expiry
+    st.session_state["report_count"] = int(count)
     identity["report_count"] = int(count)
     set_session_cookie(identity)
 
@@ -148,10 +218,10 @@ def set_guest_report_count(count: int) -> None:
 def set_guest_report_ref(ticker: str) -> None:
     """Record which ticker the guest's persisted report holds, so it can be
     restored after a reload without a server lookup by guesswork."""
-    identity = read_identity()
-    if not identity or not identity.get("is_guest"):
+    identity = _guest_identity_from_session()
+    if not identity:
         return
-    identity.pop("exp", None)
+    st.session_state["_guest_report_ticker"] = ticker
     identity["report_ticker"] = ticker
     set_session_cookie(identity)
 
@@ -166,11 +236,9 @@ def restore_session_from_cookie() -> bool:
     """
     if st.session_state.get("authenticated"):
         return False
-    mgr = get_cookie_mgr()
-    if mgr is None:
-        return False
-    token = mgr.get(COOKIE_NAME)
-    identity = verify_token(token) if token else None
+    # Server-side read from the initial request — succeeds on the FIRST run,
+    # so there is nothing to wait for and no reason to rerun-and-retry.
+    identity = read_identity()
     if not identity:
         return False
 

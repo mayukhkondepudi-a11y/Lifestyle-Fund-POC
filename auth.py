@@ -263,8 +263,8 @@ def render_auth_modal():
                         st.session_state.report_count     = user.get("report_count", 0)
                         st.session_state["show_auth"]     = False
                         st.session_state["_just_authed"]  = True
-                        from session_cookie import set_session_cookie
-                        set_session_cookie({"username": _uname, "is_guest": False,
+                        from session_cookie import queue_session_cookie
+                        queue_session_cookie({"username": _uname, "is_guest": False,
                                             "name": user["name"], "email": user["email"]})
                         st.rerun()
                     else:
@@ -325,8 +325,8 @@ def render_auth_modal():
                             st.session_state.report_count     = 0
                             st.session_state["show_auth"]     = False
                             st.session_state["_just_authed"]  = True
-                            from session_cookie import set_session_cookie
-                            set_session_cookie({"username": username_reg, "is_guest": False,
+                            from session_cookie import queue_session_cookie
+                            queue_session_cookie({"username": username_reg, "is_guest": False,
                                                 "name": reg_name.strip(), "email": reg_email.strip()})
                             st.rerun()
                         else:
@@ -367,8 +367,8 @@ def render_auth_modal():
                     st.session_state["guest_fingerprint"] = fp
                     st.session_state["show_auth"]        = False
                     st.session_state["_just_authed"]     = True
-                    from session_cookie import set_session_cookie
-                    set_session_cookie({"username": _guest_username, "is_guest": True,
+                    from session_cookie import queue_session_cookie
+                    queue_session_cookie({"username": _guest_username, "is_guest": True,
                                         "name": alias, "guest_fingerprint": fp})
                     st.rerun()
     
@@ -400,15 +400,19 @@ def render_sidebar(username, name, authenticator_logout=None):
 def sign_out():
     """Fully sign the current user out.
 
-    Must clear the persisted cookie FIRST (it needs the cookie manager, which
-    lives in session_state) and must clear `is_guest`. Dropping only a few
-    session keys left the cookie in place, so restore_session_from_cookie()
-    silently logged the user straight back in on the next run.
+    The delete is QUEUED rather than issued here: mgr.delete() renders a
+    component whose JavaScript clears document.cookie, and the st.rerun() below
+    would abort the run before that could happen — the same race that stopped
+    the cookie from ever being written. app.py drains the queue at the top of
+    the next run, which completes normally.
+
+    Order matters: the queue flag is set AFTER the session_state wipe, or it
+    would be wiped along with everything else.
     """
-    from session_cookie import clear_session_cookie
-    clear_session_cookie()
+    from session_cookie import queue_clear_session_cookie
     for key in list(st.session_state.keys()):
         if key == "_cookie_mgr":
-            continue  # keep the manager alive for this run's cookie delete
+            continue  # keep the manager alive for the next run's delete
         del st.session_state[key]
+    queue_clear_session_cookie()   # must come after the wipe
     st.rerun()

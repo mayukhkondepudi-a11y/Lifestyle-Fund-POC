@@ -112,8 +112,22 @@ from auth import render_auth_modal
 # (top-level code runs once per rerun) so auth survives the full page reload that
 # stock-selection anchor links trigger. auth.py reuses this same instance.
 import extra_streamlit_components as stx
-from session_cookie import restore_session_from_cookie
+from session_cookie import restore_session_from_cookie, drain_pending_cookie
 st.session_state["_cookie_mgr"] = stx.CookieManager(key="pickr_cookies")
+
+# Apply any cookie write/delete queued by a handler that reran.
+#
+# mgr.set() does not write a cookie — it renders a component whose JavaScript
+# writes document.cookie once the browser mounts the iframe. The auth handlers
+# called st.rerun() immediately afterwards, which aborts the run before that can
+# happen, so the cookie was NEVER stored. That is why every reload (and every
+# ticker chip, which is a reload) signed the user out.
+#
+# Draining here means the write happens on a run that renders normally, so the
+# iframe actually mounts. Nothing below may rerun unconditionally.
+_cookie_action = drain_pending_cookie()
+if _cookie_action:
+    print(f"  cookie: {_cookie_action} on a completing run")
 
 for _k in ["authenticated", "username", "user_name", "user_email", "is_guest", "show_auth"]:
     if _k not in st.session_state:
@@ -146,37 +160,13 @@ if (_restored and st.session_state.get("is_guest")
     except Exception as _e:
         print(f"  guest report restore failed: {type(_e).__name__}: {_e}")
 
-# Cookie-hydration gate.
+# NOTE: the cookie-hydration gate that used to sit here is gone.
 #
-# extra_streamlit_components' CookieManager reads document.cookie in a browser
-# round-trip and reports {} until that lands. Every ?_qt= ticker chip is an
-# <a href> — a FULL page reload — so session_state is wiped and identity has to
-# come back from the cookie on each stock pick.
-#
-# This used to wait a fixed 0.4s (2 x 0.2s) and then assume "no cookie" — so any
-# slower round-trip, which is routine on Streamlit Cloud, signed the user out
-# just for clicking a stock. That is the same mistake as the rest of this
-# codebase made with GitHub: treating "no answer yet" as "the answer is no".
-#
-# cookies_hydrated() is a real signal (the component has reported or it hasn't),
-# so we now wait on the CONDITION and exit the instant it is met. The counter is
-# only a backstop against a component that never arrives. Net effect: faster in
-# the common case (no fixed sleep once hydrated) and far more tolerant on slow
-# connections. session_state is wiped per reload, so this re-arms each time.
-_COOKIE_MAX_WAITS = 8       # x 0.15s => up to ~1.2s, vs 0.4s before
-if not st.session_state.get("authenticated"):
-    from session_cookie import cookies_hydrated
-    _cw = st.session_state.get("_cookie_waits", 0)
-    if not cookies_hydrated() and _cw < _COOKIE_MAX_WAITS:
-        st.session_state["_cookie_waits"] = _cw + 1
-        import time as _t
-        _t.sleep(0.15)
-        st.rerun()
-    elif _restored is False and _cw > 0 and cookies_hydrated():
-        # Component answered and there was no valid session cookie — genuinely
-        # logged out. Recorded so the reason is visible in logs if a user
-        # reports being signed out unexpectedly.
-        print(f"  cookie gate: hydrated after {_cw} wait(s), no valid session — logged out")
+# It retried-and-slept (up to ~1.2s) waiting for the CookieManager iframe to
+# report back, because the read went through that component. restore_session_
+# from_cookie() now reads st.context.cookies — resolved SERVER-SIDE from the
+# initial HTTP request, available on the very first run — so there is nothing
+# to wait for. Deleting the gate also removes that latency from every page load.
 
 if st.session_state.get("show_auth"):
     render_auth_modal()
@@ -184,6 +174,16 @@ if st.session_state.get("show_auth"):
         st.session_state["_generating"] = False  # clear any stuck state from pre-auth button press
         st.rerun()
     st.stop()  # halt the rest of the page so it doesn't paint behind the auth UI
+
+# ?_debug=1 — session/cookie diagnostics. Renders before anything auth-gated so
+# it is reachable whether or not you are signed in. Shows presence and validity
+# only, never a token or secret value.
+if st.query_params.get("_debug") == "1":
+    try:
+        import debug_panel
+        debug_panel.render()
+    except Exception as _e:
+        st.error(f"debug panel failed: {type(_e).__name__}: {_e}")
 
 if st.query_params.get("_si") == "1":
     try:
@@ -2221,10 +2221,15 @@ if should_generate and ticker:
         </div>
         """, unsafe_allow_html=True)
         if st.button("Create a Free Account", type="primary", key="upgrade_cta"):
-            from session_cookie import clear_session_cookie
-            clear_session_cookie()  # drop the guest cookie before wiping state
+            # Queue the delete: issuing it here would be aborted by the rerun
+            # below before the component's JS could clear document.cookie.
+            from session_cookie import queue_clear_session_cookie
             for key in list(st.session_state.keys()):
+                if key == "_cookie_mgr":
+                    continue
                 del st.session_state[key]
+            queue_clear_session_cookie()   # after the wipe, or it is wiped too
+            st.session_state["show_auth"] = True
             st.rerun()
         st.stop()
 
