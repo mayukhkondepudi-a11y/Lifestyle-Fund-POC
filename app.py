@@ -45,7 +45,7 @@ _sc.html("""
 
 
 from config import (POPULAR, SECTOR_PEERS, GMAIL_SENDER, GMAIL_APP_PASS,
-                    DOMAIN_MAP, METHODOLOGY_VERSION)
+                    DOMAIN_MAP, METHODOLOGY_VERSION, ADMIN_USERS)
 from formatting import (safe_float, get_sym, fmt_p, fmt_r, fmt_c,
                          strip_html, clean_ticker)
 
@@ -114,7 +114,28 @@ if "initialized" not in st.session_state:
     st.session_state["initialized"] = True
 
 # Restore identity from the cookie before any auth-gated logic reads it.
-restore_session_from_cookie()
+_restored = restore_session_from_cookie()
+
+# A guest's report lives only in session_state, which a full page reload wipes —
+# and every ?_qt= ticker chip IS a full reload. Without this, a guest could pay
+# (in tokens) for a report and lose it to a single click, with no way to get it
+# back because their one-report allowance was already spent.
+if (_restored and st.session_state.get("is_guest")
+        and not st.session_state.get("cached_report")
+        and st.session_state.get("_guest_report_ticker")):
+    try:
+        from report_store import load_guest_report
+        _gr = load_guest_report(st.session_state.get("guest_fingerprint", ""))
+        if _gr and _gr.get("analysis"):
+            st.session_state["cached_report"] = {
+                "ticker":   _gr["ticker"],
+                "metrics":  _gr.get("metrics", {}),
+                "analysis": _gr["analysis"],
+                "data":     {"hist": None, "info": {}, "inc": None, "qinc": None,
+                             "bs": None, "cf": None, "news": []},
+            }
+    except Exception as _e:
+        print(f"  guest report restore failed: {type(_e).__name__}: {_e}")
 
 # Cookie-hydration gate: extra_streamlit_components' CookieManager returns {} on
 # the first script run after a full page reload (the browser round-trip that
@@ -156,6 +177,92 @@ is_guest = st.session_state.get("is_guest", False)
 if authenticated and not st.session_state.get("_auth_logged"):
     print(f"  auth: user '{username}' authenticated, session active")
     st.session_state["_auth_logged"] = True
+
+
+def _render_generation_failure(ticker, reason, details=None, is_admin=False):
+    """Explain a failed report honestly, and say the allowance was not spent.
+
+    Reaching here means no report was produced. The count is only incremented
+    after cached_report is set, so the user genuinely still has their quota —
+    saying so is what keeps a failure from feeling like theft.
+    """
+    st.markdown(
+        f'<div style="background:rgba(139,26,26,0.12);border:1px solid rgba(224,48,48,0.3);'
+        f'border-radius:10px;padding:1.5rem 1.8rem;margin:1rem 0;">'
+        f'<div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:0.5rem;">'
+        f'Couldn\'t finish the {ticker} report</div>'
+        f'<div style="font-size:0.9rem;color:rgba(255,255,255,0.55);line-height:1.7;">'
+        f'Something failed part-way through the analysis. '
+        f'<strong style="color:#fff;">This did not use up one of your reports</strong> — '
+        f'you can try again right away.</div></div>',
+        unsafe_allow_html=True
+    )
+    if st.button("Try again", type="primary", key=f"retry_{ticker}"):
+        st.session_state["resolved"] = ticker
+        st.session_state["auto_generate"] = True
+        st.rerun()
+    if is_admin:
+        with st.expander("Diagnostics (admin only)"):
+            st.code(str(reason))
+            for d in (details or []):
+                st.code(str(d))
+
+
+def _screener_age_days(last_updated):
+    """Age in days of a 'YYYY-MM-DD HH:MM UTC' stamp, or None if unparseable."""
+    from datetime import timezone
+    try:
+        ts = datetime.strptime(str(last_updated)[:16], "%Y-%m-%d %H:%M").replace(
+            tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ts).days
+    except Exception:
+        return None
+
+
+# ══════════════════════════════════════════════════════════════
+# HEALTH BANNER
+# ══════════════════════════════════════════════════════════════
+# A dependency outage must be visible. Previously an expired GitHub token
+# degraded four features at once with no signal anywhere in the UI, so the
+# app looked randomly broken rather than misconfigured.
+
+_health = None
+try:
+    import preflight
+    _health = preflight.cached()
+except Exception as _e:
+    print(f"  preflight unavailable: {type(_e).__name__}: {_e}")
+
+if _health is not None and _health.degraded:
+    _is_admin_viewer = bool(authenticated and not is_guest
+                            and username.lower() in ADMIN_USERS)
+    _fails = _health.failures
+    if _is_admin_viewer:
+        # Operator view: name the fault and the remedy.
+        _rows = "".join(
+            f'<div style="margin-top:0.35rem;"><strong style="color:#f87171;">{c.name}</strong>'
+            f'<span style="color:rgba(255,255,255,0.55);"> — {c.detail}</span>'
+            + (f'<div style="font-size:0.78rem;color:rgba(255,255,255,0.4);'
+               f'margin-left:0.4rem;">↳ {c.remedy}</div>' if c.remedy else "")
+            + '</div>'
+            for c in (_fails + _health.warnings)
+        )
+        st.markdown(
+            f'<div style="background:rgba(139,26,26,0.14);border:1px solid rgba(224,48,48,0.35);'
+            f'border-radius:8px;padding:0.9rem 1.2rem;margin-bottom:0.8rem;font-size:0.85rem;">'
+            f'<div style="font-weight:800;color:#fff;letter-spacing:0.04em;">SYSTEM HEALTH '
+            f'({len(_fails)} failing)</div>{_rows}</div>',
+            unsafe_allow_html=True
+        )
+    elif _fails:
+        # Everyone else: honest, non-alarming, no internal detail.
+        st.markdown(
+            '<div style="background:rgba(180,140,20,0.10);border:1px solid rgba(220,180,40,0.28);'
+            'border-radius:8px;padding:0.7rem 1rem;margin-bottom:0.8rem;font-size:0.84rem;'
+            'color:rgba(255,255,255,0.65);">Some features are temporarily unavailable while we '
+            'sort out a service issue. Report generation is unaffected.</div>',
+            unsafe_allow_html=True
+        )
 
 # ══════════════════════════════════════════════════════════════
 # TOP BAR
@@ -223,17 +330,21 @@ if authenticated:
     with _signout_col:
         st.markdown('<div class="pickr-signout-col" style="padding-top:0.05rem;">', unsafe_allow_html=True)
         if st.button("Sign out", key="logout_btn", use_container_width=True):
-            from session_cookie import clear_session_cookie
-            clear_session_cookie()  # before wiping state (needs the cookie mgr)
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+            from auth import sign_out
+            sign_out()  # clears the cookie first, then all session state
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Past reports history dropdown ──
     try:
-        from report_store import load_user_index, load_report as load_saved_report
-        past_reports = load_user_index(username)
+        from report_store import load_user_index_result, load_report as load_saved_report
+        _idx_res = load_user_index_result(username)
+        if _idx_res.broken:
+            # "You have no reports" is a lie when the store is simply down.
+            print(f"  history unavailable for {username}: {_idx_res.describe()}")
+            st.caption("History unavailable")
+            past_reports = []
+        else:
+            past_reports = _idx_res.content if isinstance(_idx_res.content, list) else []
         if past_reports and len(past_reports) > 0:
             display_reports = list(reversed(past_reports[-10:]))
 
@@ -285,23 +396,16 @@ if authenticated:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_screener_results():
-    from config import GITHUB_TOKEN, GITHUB_REPO, SCREENER_FILE
-    import urllib.request, json, base64
-    if GITHUB_TOKEN and GITHUB_REPO:
-        try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SCREENER_FILE}"
-            headers = {
-                "Authorization": f"Bearer {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read().decode())
-                return json.loads(base64.b64decode(data["content"]).decode())
-        except Exception:
-            pass
-    return None
+    """Screener picks, via the canonical helper in github_store.
+
+    This used to be a hand-rolled copy of the GitHub fetch that — unlike the
+    original — had NO local-file fallback and swallowed every exception. When
+    the PAT expired it returned None, and the QGLP Top Picks section silently
+    rendered nothing. github_store.load_screener_results_raw() already falls
+    back to the on-disk screener_results.json, so use it.
+    """
+    from github_store import load_screener_results_raw
+    return load_screener_results_raw()
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def search_ticker(query):
@@ -1634,11 +1738,17 @@ def render_picks_table(picks, market_label, select_key):
     st.markdown(f'<div style="margin-top:0.5rem;line-height:2;">{links_html}</div>', unsafe_allow_html=True)
 
 # ── Load screener data ──
-screener_data = None
+# screener_error is carried to the QGLP section below so an unavailable
+# screener renders a visible explanation instead of a silently absent section.
+screener_data  = None
+screener_error = None
 try:
     screener_data = load_screener_results()
-except Exception:
-    pass
+    if not screener_data:
+        screener_error = "unavailable"
+except Exception as _e:
+    print(f"  screener load failed: {type(_e).__name__}: {_e}")
+    screener_error = "unavailable"
 
 render_peg_tape(screener_data)
 
@@ -1952,8 +2062,33 @@ if screener_data and not report_already_run:
         'Click any ticker below to generate a full report instantly.</div>',
         unsafe_allow_html=True
     )
+    _stale_days = _screener_age_days(last_updated)
+    if _stale_days is not None and _stale_days > 3:
+        st.markdown(
+            f'<div style="background:rgba(180,140,20,0.10);border:1px solid rgba(220,180,40,0.28);'
+            f'border-radius:8px;padding:0.7rem 1rem;margin-bottom:1rem;font-size:0.84rem;'
+            f'color:rgba(255,255,255,0.65);">These picks are <strong>{_stale_days} days old</strong> — '
+            f'the nightly screener has not refreshed. Prices and rankings may have moved.</div>',
+            unsafe_allow_html=True
+        )
     render_picks_table(screener_data.get("us_picks", [])[:5], "United States", "us_pick_select")
     render_picks_table(screener_data.get("india_picks", [])[:5], "India", "india_pick_select")
+
+elif screener_error and not report_already_run:
+    # Say so out loud. Rendering nothing here is what made an expired token
+    # look like "the screener feature disappeared".
+    st.markdown(
+        '<div style="padding:2rem 0 0.8rem;">'
+        '<div style="font-size:0.9rem;font-weight:900;text-transform:uppercase;'
+        'letter-spacing:0.16em;color:rgba(255,255,255,0.7);">QGLP Top Picks</div>'
+        '<div style="height:2px;background:linear-gradient(90deg,#8b1a1a,transparent);'
+        'margin-top:0.6rem;border-radius:1px;"></div></div>'
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);'
+        'border-radius:8px;padding:1.2rem 1.4rem;font-size:0.88rem;color:rgba(255,255,255,0.55);'
+        'line-height:1.7;">Top picks are temporarily unavailable — we could not load the screener '
+        'data. Search for any ticker above to generate a report as normal.</div>',
+        unsafe_allow_html=True
+    )
 
 # (auth redirect is now handled inline in the generate button block above)
 
@@ -2022,14 +2157,25 @@ if should_generate and ticker:
     _is_admin   = not is_guest and username.lower() in {"mayukhk"}
 
     if not is_guest:
+        # Re-read the authoritative count before charging anything. If the
+        # store is unreachable we must NOT fall through with a stale or zero
+        # count — that would silently hand out unlimited free reports.
         try:
-            from auth import load_users_github, save_users_github
-            _u, _ = load_users_github()
-            if username in _u:
-                st.session_state.report_count = _u[username].get("report_count", 0)
+            from auth import load_users_result
+            _res = load_users_result()
+            if _res.broken or _res.unconfigured:
+                st.error("We can't verify your report allowance right now. "
+                         "Please try again in a few minutes.")
+                print(f"  generation blocked: user store unavailable ({_res.describe()})")
+                st.stop()
+            if username in (_res.content or {}):
+                st.session_state.report_count = _res.content[username].get("report_count", 0)
                 report_count = st.session_state.report_count
-        except Exception:
-            pass
+        except Exception as _e:
+            print(f"  generation blocked: allowance check raised {type(_e).__name__}: {_e}")
+            st.error("We can't verify your report allowance right now. "
+                     "Please try again in a few minutes.")
+            st.stop()
 
     if is_guest and report_count >= GUEST_LIMIT:
         st.markdown("""
@@ -2056,27 +2202,20 @@ if should_generate and ticker:
         st.stop()
 
     if is_guest:
-        from auth import load_guest_counts, increment_guest_count
+        from auth import load_guest_counts
         fp     = st.session_state.get("guest_fingerprint", "unknown")
         counts = load_guest_counts()
         if counts.get(fp, 0) >= GUEST_LIMIT:
             st.error("This device has already used its free guest report. Please create an account.")
             st.stop()
-        increment_guest_count(fp)
 
     if ticker not in st.session_state.recent:
         st.session_state.recent.append(ticker)
-    st.session_state.report_count += 1
 
-    if not is_guest:
-        try:
-            from auth import load_users_github, save_users_github
-            _u, _sha = load_users_github()
-            if username in _u:
-                _u[username]["report_count"] = st.session_state.report_count
-                save_users_github(_u, _sha)
-        except Exception as e:
-            print(f"Could not persist report count: {e}")
+    # NOTE: the report allowance is deliberately NOT charged here. It used to
+    # be — increment_guest_count() and report_count += 1 both ran before a
+    # single token was spent — so any downstream failure cost the user their
+    # quota AND produced nothing. Both now happen after cached_report is set.
 
     st.session_state.cached_html          = None
     st.session_state.generate_html        = False
@@ -2119,11 +2258,32 @@ if should_generate and ticker:
 
             status.update(label=f"Analyzing {ticker}... (Step 3–6 of 6: AI + compute)")
             st.write("Step 3 of 6 - Running three-pass analysis (drivers → math → narrative → self-check)...")
-            a = _cached_analysis(ticker, analysis_input_str)
-            if isinstance(a, dict) and a.get("error"):
+            # run_pipeline returns an error dict for the validation paths it
+            # anticipates, but LLMCallCeilingError and anything raised inside
+            # run_methodology_math / run_pass3_audit escape it. Unwrapped, those
+            # surfaced to the user as a raw Streamlit traceback.
+            _failure = None
+            try:
+                a = _cached_analysis(ticker, analysis_input_str)
+            except Exception as _exc:
+                import traceback
+                traceback.print_exc()
+                a = None
+                _failure = f"{type(_exc).__name__}: {_exc}"
+
+            if _failure is None and isinstance(a, dict) and a.get("error"):
+                _failure = a.get("error")
+                for d in a.get("details", []):
+                    print(f"  pipeline detail: {d}")
+
+            if _failure is not None:
                 status.update(label="Analysis failed", state="error")
-                for d in a.get("details", []): st.code(d)
+                st.session_state["_generating"] = False
+                _render_generation_failure(ticker, _failure,
+                                           details=(a or {}).get("details", []) if isinstance(a, dict) else [],
+                                           is_admin=_is_admin)
                 st.stop()
+
             st.write("Analysis complete")
             rec = a.get("recommendation", "WATCH")
             status.update(label=f"Analysis complete: {company_name} / {rec}", state="complete")
@@ -2131,6 +2291,36 @@ if should_generate and ticker:
     st.session_state["_generating"] = False
     st.session_state.cached_report = {"ticker": ticker, "metrics": m, "analysis": a, "data": sd}
     st.session_state["_scroll_to_report"] = True
+
+    # ── Charge for the report only now that it demonstrably exists ──
+    st.session_state.report_count = st.session_state.get("report_count", 0) + 1
+
+    if is_guest:
+        try:
+            from auth import increment_guest_count
+            increment_guest_count(st.session_state.get("guest_fingerprint", "unknown"))
+        except Exception as _e:
+            print(f"Could not persist guest count: {_e}")
+        # Guests have no server-side account, so the authoritative allowance
+        # rides in the signed cookie — otherwise a page reload (which every
+        # ?_qt= chip triggers) resets it to zero.
+        try:
+            from session_cookie import set_guest_report_count
+            set_guest_report_count(st.session_state.report_count)
+        except Exception as _e:
+            print(f"Could not update guest cookie count: {_e}")
+    else:
+        try:
+            from auth import load_users_result, save_users_github
+            _res = load_users_result()
+            if _res.ok and username in _res.content:
+                _res.content[username]["report_count"] = st.session_state.report_count
+                save_users_github(_res.content, _res.sha)
+            elif _res.broken:
+                print(f"  report count not persisted: {_res.describe()}")
+        except Exception as e:
+            print(f"Could not persist report count: {e}")
+
     try:
         st.query_params["ticker"] = ticker
     except Exception:
@@ -2151,12 +2341,29 @@ if st.session_state.cached_report:
     c_data   = cached["data"]
 
     save_key = f"saved_{c_ticker}_{c_a.get('recommendation','')}"
-    if save_key not in st.session_state and not is_guest:
+    if save_key not in st.session_state:
         try:
-            from report_store import save_report
-            save_report(username, c_ticker, c_m, c_a)
+            if is_guest:
+                # Guests used to get no persistence at all, so a single page
+                # reload destroyed a report they had already spent tokens on.
+                from report_store import save_guest_report
+                from session_cookie import set_guest_report_ref
+                _, _err = save_guest_report(
+                    st.session_state.get("guest_fingerprint", ""), c_ticker, c_m, c_a)
+                if not _err:
+                    set_guest_report_ref(c_ticker)
+                else:
+                    print(f"Guest report save failed: {_err}")
+            else:
+                from report_store import save_report
+                _, _err = save_report(username, c_ticker, c_m, c_a)
+                if _err:
+                    # Don't claim it was saved when it wasn't.
+                    print(f"Report save failed: {_err}")
+                    st.toast(f"{c_ticker} could not be saved to history.", icon="⚠️")
+                else:
+                    st.toast(f"{c_ticker} saved to history.", icon="💾")
             st.session_state[save_key] = True
-            st.toast(f"{c_ticker} saved to history.", icon="💾")
         except Exception as e:
             print(f"Report save failed: {e}")
 

@@ -20,7 +20,20 @@ GMAIL_SENDER       = _env("GMAIL_SENDER")
 GMAIL_APP_PASS     = _env("GMAIL_APP_PASS")
 RESEND_API_KEY     = _env("RESEND_API_KEY")
 GITHUB_TOKEN       = _env("GH_PAT") or _env("GITHUB_TOKEN")
+
+# Two repos, deliberately separated by sensitivity:
+#   GITHUB_REPO      — public. Code and screener_results.json (stock picks are
+#                      not sensitive and the nightly Action pushes them here).
+#   GITHUB_DATA_REPO — PRIVATE. users.json (emails + password hashes),
+#                      guest_counts.json, and reports/<username>/.
+#
+# These lived in one public repo until 2026-07-31, which left real emails and
+# bcrypt hashes world-readable. Keep them apart. When GITHUB_DATA_REPO is unset
+# the code falls back to GITHUB_REPO so single-repo dev setups still run — but
+# preflight.py flags that fallback loudly, because in deployment it means user
+# data is sitting in a public repo again.
 GITHUB_REPO        = _env("GITHUB_REPO")
+GITHUB_DATA_REPO   = _env("GITHUB_DATA_REPO")
 
 # Secret used to HMAC-sign the persisted session cookie (session_cookie.py).
 # Override in deployment via st.secrets / env. The dev fallback only keeps

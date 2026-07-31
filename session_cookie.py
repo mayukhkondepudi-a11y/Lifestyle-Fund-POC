@@ -90,6 +90,48 @@ def clear_session_cookie() -> None:
         pass
 
 
+def read_identity() -> dict:
+    """Return the verified identity currently in the cookie, or {}."""
+    mgr = get_cookie_mgr()
+    if mgr is None:
+        return {}
+    try:
+        token = mgr.get(COOKIE_NAME)
+    except Exception:
+        return {}
+    return verify_token(token) or {} if token else {}
+
+
+def set_guest_report_count(count: int) -> None:
+    """Persist a guest's report tally into the signed cookie.
+
+    Guests have no server-side account record, so session_state was the only
+    home for their count — and every ``?_qt=`` ticker chip triggers a full page
+    reload that wipes it. The tally rides in the HMAC-signed token instead, so
+    it survives reloads and cannot be edited by hand.
+
+    This is the authoritative per-device allowance; guest_counts.json on the
+    server is a secondary, best-effort tally (its fingerprint is unreliable).
+    """
+    identity = read_identity()
+    if not identity or not identity.get("is_guest"):
+        return
+    identity.pop("exp", None)  # make_token re-stamps expiry
+    identity["report_count"] = int(count)
+    set_session_cookie(identity)
+
+
+def set_guest_report_ref(ticker: str) -> None:
+    """Record which ticker the guest's persisted report holds, so it can be
+    restored after a reload without a server lookup by guesswork."""
+    identity = read_identity()
+    if not identity or not identity.get("is_guest"):
+        return
+    identity.pop("exp", None)
+    identity["report_ticker"] = ticker
+    set_session_cookie(identity)
+
+
 # ── Restore ───────────────────────────────────────────────────
 
 def restore_session_from_cookie() -> bool:
@@ -114,19 +156,39 @@ def restore_session_from_cookie() -> bool:
     if not is_guest:
         # users.json is the source of truth — re-load the record.
         try:
-            from auth import load_users_github
-            users, _ = load_users_github()
+            from auth import load_users_result
+            res = load_users_result()
         except Exception:
             return False
+
+        if res.broken or res.unconfigured:
+            # The store is down, NOT the account missing. Logging the user out
+            # here is how an expired token became "I got signed out at random"
+            # on every reload. The token is HMAC-signed and unexpired, so trust
+            # it for identity and degrade only the server-backed fields.
+            print(f"  session restore: user store unavailable ({res.describe()}) "
+                  f"— trusting signed cookie for '{username}'")
+            st.session_state["authenticated"] = True
+            st.session_state["username"]      = username
+            st.session_state["user_name"]     = identity.get("name", "")
+            st.session_state["user_email"]    = identity.get("email", "")
+            st.session_state["is_guest"]      = False
+            st.session_state["_store_degraded"] = True
+            # Leave report_count alone: an unverified 0 would silently hand the
+            # user a fresh quota. app.py re-reads it before charging anything.
+            return True
+
+        users = res.content if res.ok else {}
         user = users.get(username)
         if not user:
-            return False  # account gone / renamed → treat as logged out
+            return False  # account genuinely gone / renamed → treat as logged out
         st.session_state["authenticated"] = True
         st.session_state["username"]      = username
         st.session_state["user_name"]     = user.get("name", identity.get("name", ""))
         st.session_state["user_email"]    = user.get("email", identity.get("email", ""))
         st.session_state["is_guest"]      = False
         st.session_state["report_count"]  = user.get("report_count", 0)
+        st.session_state["_store_degraded"] = False
         return True
 
     # Guest: identity lives entirely in the token (no server record).
@@ -136,4 +198,8 @@ def restore_session_from_cookie() -> bool:
     st.session_state["user_email"]        = ""
     st.session_state["is_guest"]          = True
     st.session_state["guest_fingerprint"] = identity.get("guest_fingerprint", "unknown")
+    # The allowance must survive the reload too, or a guest gets unlimited
+    # reports simply by clicking a ticker chip (which reloads the page).
+    st.session_state["report_count"]      = int(identity.get("report_count", 0) or 0)
+    st.session_state["_guest_report_ticker"] = identity.get("report_ticker", "")
     return True
