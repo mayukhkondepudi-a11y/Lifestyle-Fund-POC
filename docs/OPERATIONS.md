@@ -217,3 +217,41 @@ that erase the distinction — do not use them for anything a user can see.
 When adding a code path that can fail, ask: *if this dependency is down, what
 does the user see?* If the answer is "the feature just isn't there", it is
 wrong.
+
+---
+
+## 9. The session cookie (read this before touching auth)
+
+Two rules, both learned the hard way — this bug was misdiagnosed twice.
+
+**Reading is server-side.** `st.context.cookies` exposes the cookies sent with
+the page request, resolved on the first script run. Use it. Do NOT read through
+the `CookieManager` component: it returns `{}` until its iframe mounts, which is
+what the old sleep-and-retry hydration gate existed to paper over.
+
+**Writing must happen on a run that COMPLETES.** `mgr.set()` does not write a
+cookie — it renders a component whose JavaScript writes `document.cookie` once
+the browser mounts the iframe. Calling `st.rerun()` straight afterwards aborts
+the run first, so the cookie is never stored. Every auth path did this, so no
+session cookie was EVER written, and every reload logged the user out.
+
+Therefore: from any handler that reruns, call `queue_session_cookie()` /
+`queue_clear_session_cookie()`. `app.py` drains the queue at the top of the next
+run via `drain_pending_cookie()`. On sign-out, set the flag **after** the
+session_state wipe or it is wiped too.
+
+**Diagnosing.** Append `?_debug=1` to the app URL for a panel showing context
+cookies, component cookies, the token verdict and secret status — presence and
+validity only, never values. If the context row says `NO` after signing in and
+reloading, the write did not land.
+
+**Never reintroduce `<a href="?_qt=...">` ticker links.** Anchors are full page
+reloads that destroy `session_state`. Use `select_ticker()` /
+`ticker_chip_row()` in `app.py`. `tests_app_flows.py::TestNoFullPageReloads`
+fails if an anchor comes back.
+
+**`PICKR_SESSION_SECRET` must be set** in both `.streamlit/secrets.toml` and
+Streamlit Cloud. `config.py` has a fallback literal that lives in the public
+repo — leaving it in place lets anyone forge a signed session token for any
+user, including admin. `preflight.py` FAILs on it. Rotating it invalidates all
+existing sessions, which is a sign-out for everyone, not an outage.
