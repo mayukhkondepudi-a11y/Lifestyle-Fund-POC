@@ -204,6 +204,43 @@ if authenticated and not st.session_state.get("_auth_logged"):
     st.session_state["_auth_logged"] = True
 
 
+def select_ticker(ticker):
+    """Select a ticker and start generation, WITHOUT reloading the page.
+
+    Replaces the old `?_qt=<ticker>` anchor links. Those were <a href> elements,
+    so every stock click was a full page reload that destroyed session_state —
+    identity then had to be rebuilt from the cookie on each click, which is how
+    "picking a stock logged me out" happened. An in-session rerun keeps
+    session_state (and the report) intact.
+
+    Mirrors the pattern already used by the search/popular button paths.
+    """
+    st.session_state["resolved"] = ticker.strip().upper()
+    st.session_state["resolved_source"] = "quickticker"
+    if st.session_state.get("authenticated"):
+        st.session_state["auto_generate"] = True
+    else:
+        st.session_state["show_auth"] = True
+    st.rerun()
+
+
+def ticker_chip_row(tickers, key_prefix, per_row=6, label_fn=None):
+    """Render tickers as chip buttons laid out in rows (no page reload)."""
+    if not tickers:
+        return
+    label_fn = label_fn or (lambda t: clean_ticker(t))
+    st.markdown('<div class="pickr-chip">', unsafe_allow_html=True)
+    for start in range(0, len(tickers), per_row):
+        chunk = tickers[start:start + per_row]
+        cols = st.columns(per_row, gap="small")
+        for col, tk in zip(cols, chunk):
+            with col:
+                if st.button(label_fn(tk), key=f"{key_prefix}_{tk}_{start}",
+                             use_container_width=True):
+                    select_ticker(tk)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def _render_generation_failure(ticker, reason, details=None, is_admin=False):
     """Explain a failed report honestly, and say the allowance was not spent.
 
@@ -1756,17 +1793,11 @@ def render_picks_table(picks, market_label, select_key):
         unsafe_allow_html=True
     )
 
-    links_html = "".join(
-        f'<a href="?_qt={pick.get("ticker","")}" target="_self"'
-        f' style="display:inline-block;font-size:0.78rem;font-weight:700;'
-        f'color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);'
-        f'border:1px solid rgba(255,255,255,0.10);border-radius:4px;'
-        f'padding:0.15rem 0.55rem;text-decoration:none;white-space:nowrap;'
-        f'margin:0.15rem 0.2rem 0 0;">'
-        f'{clean_ticker(pick.get("ticker",""))} →</a>'
-        for pick in picks
-    )
-    st.markdown(f'<div style="margin-top:0.5rem;line-height:2;">{links_html}</div>', unsafe_allow_html=True)
+    # Chip buttons instead of ?_qt= anchors: no page reload, so session_state
+    # (and the signed-in user) survives a stock pick.
+    _tks = [p.get("ticker", "") for p in picks if p.get("ticker")]
+    ticker_chip_row(_tks, key_prefix=f"pick_{select_key}", per_row=5,
+                    label_fn=lambda t: f"{clean_ticker(t)} →")
 
 # ── Load screener data ──
 # screener_error is carried to the QGLP section below so an unavailable
@@ -1822,23 +1853,13 @@ with left_col:
         label_visibility="collapsed", key="s1"
     )
 
-    st.markdown("""
-    <div style="font-size:0.85rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-        <span>Try:</span>
-        <a href="?_qt=NVDA" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
-           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">NVDA</a>
-        <a href="?_qt=AAPL" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
-           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">AAPL</a>
-        <a href="?_qt=RELIANCE.NS" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
-           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">RELIANCE.NS</a>
-        <a href="?_qt=AVGO" target="_self" style="color:rgba(255,255,255,0.7);font-weight:700;
-           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-           border-radius:4px;padding:0.1rem 0.5rem;text-decoration:none;font-size:0.82rem;">AVGO</a>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);'
+        'margin-top:0.5rem;">Try:</div>',
+        unsafe_allow_html=True
+    )
+    ticker_chip_row(["NVDA", "AAPL", "RELIANCE.NS", "AVGO"],
+                    key_prefix="try", per_row=4)
 
     _qt = st.query_params.get("_qt", "")
     if _qt:
@@ -1864,41 +1885,24 @@ with left_col:
         with st.spinner(""):
             res = search_ticker(sq)
         if res:
-            cards = ""
-            for r in res[:6]:
+            # Buttons, not anchors: selecting a search result must not reload
+            # the page and drop the session.
+            st.markdown("""
+<style>
+.sr-wrap{border:1px solid rgba(255,255,255,0.07);border-radius:10px;
+    overflow:hidden;margin:0.4rem 0;background:#0d0d16;padding:0.15rem 0.2rem;}
+</style>
+<div class="sr-wrap">""", unsafe_allow_html=True)
+            st.markdown('<div class="pickr-srbtn">', unsafe_allow_html=True)
+            for _i, r in enumerate(res[:6]):
                 name = r.get("name", r["symbol"])
                 sym  = r["symbol"]
                 exch = r.get("exchange", "")
-                tk   = clean_ticker(sym)
-                dom  = DOMAIN_MAP.get(tk, f"{tk.lower()}.com")
-                exch_badge = f'<span class="sr-exch">{exch}</span>' if exch else ""
-                cards += (
-                    f'<a href="?_qt={sym}" target="_self" class="sr-row">'
-                    f'<img src="https://www.google.com/s2/favicons?domain={dom}&sz=32"'
-                    f' width="20" height="20" class="sr-ico"'
-                    f' onerror="this.style.display=\'none\'">'
-                    f'<span class="sr-name">{name}</span>'
-                    f'<span class="sr-sym">{sym}</span>'
-                    f'{exch_badge}</a>'
-                )
-            st.markdown(f"""
-<style>
-.sr-wrap{{border:1px solid rgba(255,255,255,0.07);border-radius:10px;
-    overflow:hidden;margin:0.4rem 0;background:#0d0d16;}}
-.sr-row{{display:flex;align-items:center;gap:0.7rem;
-    padding:0.6rem 0.9rem;text-decoration:none;color:inherit;
-    border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.12s;}}
-.sr-row:last-child{{border-bottom:none;}}
-.sr-row:hover{{background:rgba(255,255,255,0.04);}}
-.sr-ico{{border-radius:4px;flex-shrink:0;}}
-.sr-name{{flex:1;font-size:0.88rem;color:rgba(255,255,255,0.75);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
-.sr-sym{{font-size:0.76rem;font-weight:700;color:rgba(255,255,255,0.5);
-    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
-    padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;}}
-.sr-exch{{font-size:0.72rem;color:rgba(255,255,255,0.2);flex-shrink:0;}}
-</style>
-<div class="sr-wrap">{cards}</div>""", unsafe_allow_html=True)
+                _suffix = f"  ·  {exch}" if exch else ""
+                if st.button(f"{name}   —   {sym}{_suffix}",
+                             key=f"sr_{sym}_{_i}", use_container_width=True):
+                    select_ticker(sym)
+            st.markdown('</div></div>', unsafe_allow_html=True)
         else:
             st.markdown(
                 f'<div style="font-size:0.84rem;color:rgba(255,255,255,0.35);'
@@ -1906,52 +1910,37 @@ with left_col:
                 unsafe_allow_html=True
             )
             if len(sq) <= 8 and sq.replace(".", "").replace("-", "").isalnum():
-                st.markdown(
-                    f'<a href="?_qt={sq.upper()}" target="_self"'
-                    f' style="font-size:0.82rem;color:rgba(255,255,255,0.45);'
-                    f'text-decoration:underline;text-underline-offset:3px;">'
-                    f'Try \'{sq.upper()}\' as a ticker anyway</a>',
-                    unsafe_allow_html=True
-                )
+                st.markdown('<div class="pickr-textlink">', unsafe_allow_html=True)
+                if st.button(f"Try '{sq.upper()}' as a ticker anyway",
+                             key=f"try_raw_{sq.upper()}"):
+                    select_ticker(sq.upper())
+                st.markdown('</div>', unsafe_allow_html=True)
     else:
         pop_keys   = [k for k in POPULAR if k]
         recent_rev = list(reversed(st.session_state.recent[-6:]))
 
-        _chip_css = """
+        _chip_label_css = """
 <style>
 .nav-chip-label{font-size:0.65rem;font-weight:800;text-transform:uppercase;
     letter-spacing:0.14em;color:rgba(255,255,255,0.4);margin:0.8rem 0 0.4rem;display:block;}
-.nav-chip{color:rgba(255,255,255,0.7);font-weight:600;
-    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-    border-radius:4px;padding:0.15rem 0.55rem;text-decoration:none;
-    font-size:0.82rem;white-space:nowrap;}
-.nav-chip:hover{background:rgba(255,255,255,0.1);color:#fff;}
-.nav-chips{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.3rem;}
 </style>"""
 
         if pop_keys:
-            chips_html = "".join(
-                f'<a href="?_qt={POPULAR[k]}" target="_self" class="nav-chip">'
-                f'{k.split("(")[0].strip()}</a>'
-                for k in pop_keys[:10]
-            )
-            st.markdown(
-                f'{_chip_css}<span class="nav-chip-label">Popular</span>'
-                f'<div class="nav-chips">{chips_html}</div>',
-                unsafe_allow_html=True
-            )
-            _chip_css = ""  # inject CSS only once
+            st.markdown(f'{_chip_label_css}<span class="nav-chip-label">Popular</span>',
+                        unsafe_allow_html=True)
+            _pop = pop_keys[:10]
+            _labels = {POPULAR[k]: k.split("(")[0].strip() for k in _pop}
+            ticker_chip_row([POPULAR[k] for k in _pop], key_prefix="pop", per_row=5,
+                            label_fn=lambda t: _labels.get(t, clean_ticker(t)))
+            _chip_label_css = ""  # inject CSS only once
 
         if recent_rev:
-            recent_chips = "".join(
-                f'<a href="?_qt={r}" target="_self" class="nav-chip">{clean_ticker(r)}</a>'
-                for r in recent_rev
-            )
             st.markdown(
-                f'{_chip_css}<span class="nav-chip-label" style="margin-top:0.6rem;">Recent</span>'
-                f'<div class="nav-chips">{recent_chips}</div>',
+                f'{_chip_label_css}<span class="nav-chip-label" '
+                f'style="margin-top:0.6rem;">Recent</span>',
                 unsafe_allow_html=True
             )
+            ticker_chip_row(recent_rev, key_prefix="recent", per_row=6)
 
     resolved_now = st.session_state.get("resolved")
     if resolved_now:

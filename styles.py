@@ -434,6 +434,66 @@ APP_CSS = """
     }
     .pickr-textlink .stButton > button::before { display: none !important; }
 
+    /* Ticker-selection chip buttons.
+       These replace the old <a href="?_qt=..."> anchors. Each anchor was a FULL
+       PAGE RELOAD that destroyed session_state, so identity had to be rebuilt
+       from the cookie on every stock click — the mechanism behind "picking a
+       stock logged me out". Real buttons rerun in-session instead, so nothing
+       is ever lost. Styling mirrors the old .nav-chip / inline-link look. */
+    .pickr-chip .stButton > button {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 4px !important;
+        color: rgba(255,255,255,0.7) !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        padding: 0.18rem 0.6rem !important;
+        min-height: 0 !important;
+        height: auto !important;
+        line-height: 1.4 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        white-space: nowrap !important;
+        width: 100% !important;
+    }
+    .pickr-chip .stButton > button:hover {
+        background: rgba(255,255,255,0.10) !important;
+        color: #fff !important;
+        border-color: rgba(255,255,255,0.20) !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .pickr-chip .stButton > button::before { display: none !important; }
+    /* Tighten the vertical rhythm of chip rows */
+    .pickr-chip [data-testid="stVerticalBlock"] { gap: 0.25rem !important; }
+    .pickr-chip [data-testid="stHorizontalBlock"] { gap: 0.3rem !important; }
+
+    /* Search-result rows: full-width, left-aligned, row-like */
+    .pickr-srbtn .stButton > button {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+        border-radius: 0 !important;
+        color: rgba(255,255,255,0.85) !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        padding: 0.55rem 0.7rem !important;
+        min-height: 0 !important;
+        height: auto !important;
+        box-shadow: none !important;
+        transform: none !important;
+        width: 100% !important;
+    }
+    .pickr-srbtn .stButton > button:hover {
+        background: rgba(255,255,255,0.04) !important;
+        color: #fff !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .pickr-srbtn .stButton > button::before { display: none !important; }
+
     /* Sign-out button */
     .pickr-signout-col .stButton > button {
         background: transparent !important;

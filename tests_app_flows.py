@@ -490,6 +490,56 @@ class TestSessionCookieRead:
             st.session_state.clear()
 
 
+class TestNoFullPageReloads:
+    """Ticker selection must not navigate the browser.
+
+    The chips used to be <a href="?_qt=..."> anchors. Each click was a full page
+    reload that destroyed session_state, so the signed-in user (and any rendered
+    report) had to be rebuilt from the cookie every time. Buttons rerun
+    in-session, so nothing is lost even if the cookie is unavailable.
+    """
+
+    def test_no_qt_anchors_remain(self):
+        src = open("app.py").read()
+        assert 'href="?_qt=' not in src, (
+            "a ?_qt= anchor is back — every click is a full page reload that "
+            "wipes session_state and can log the user out"
+        )
+
+    def test_selection_goes_through_the_in_session_helper(self):
+        src = open("app.py").read()
+        assert "def select_ticker(" in src
+        assert "def ticker_chip_row(" in src
+
+    def test_select_ticker_sets_state_without_navigating(self, monkeypatch):
+        import streamlit as st
+        import app as _app  # already imported by AppTest runs
+
+        calls = {"rerun": 0}
+        monkeypatch.setattr(st, "rerun", lambda *a, **k: calls.__setitem__("rerun", 1))
+        st.session_state.clear()
+        st.session_state["authenticated"] = True
+        try:
+            _app.select_ticker("nvda")
+            assert st.session_state["resolved"] == "NVDA"
+            assert st.session_state["auto_generate"] is True
+            assert calls["rerun"] == 1
+        finally:
+            st.session_state.clear()
+
+    def test_unauthenticated_selection_opens_auth_instead_of_generating(self, monkeypatch):
+        import streamlit as st
+        import app as _app
+        monkeypatch.setattr(st, "rerun", lambda *a, **k: None)
+        st.session_state.clear()
+        try:
+            _app.select_ticker("AAPL")
+            assert st.session_state["show_auth"] is True
+            assert "auto_generate" not in st.session_state
+        finally:
+            st.session_state.clear()
+
+
 class TestSessionSecret:
     def test_preflight_fails_on_the_public_dev_default(self, monkeypatch):
         import importlib
