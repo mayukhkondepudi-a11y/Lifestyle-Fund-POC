@@ -446,11 +446,23 @@ APP_CSS = """
        back to default Streamlit buttons stretched across a column grid. */
     [class*="st-key-chips_"] {
         flex-wrap: wrap !important;
-        gap: 0.35rem !important;
-        row-gap: 0.35rem !important;
-        margin-bottom: 0.4rem !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        row-gap: 0.4rem !important;
+        margin: 0.15rem 0 0.5rem !important;
     }
-    [class*="st-key-chips_"] .stButton > button {
+    /* Kill the wrapper padding/margins Streamlit puts around each button, or
+       the chips sit in tall invisible boxes and the row looks double-spaced. */
+    [class*="st-key-chips_"] .stButton,
+    [class*="st-key-chips_"] [data-testid="stElementContainer"] {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: auto !important;
+        min-height: 0 !important;
+    }
+    /* The button itself. Matches the original <a class="nav-chip"> pill:
+       0.15rem 0.55rem padding, 0.82rem/600, 4px radius. */
+    [class*="st-key-chips_"] button {
         background: rgba(255,255,255,0.06) !important;
         border: 1px solid rgba(255,255,255,0.12) !important;
         border-radius: 4px !important;
@@ -458,21 +470,50 @@ APP_CSS = """
         font-size: 0.82rem !important;
         font-weight: 600 !important;
         padding: 0.15rem 0.55rem !important;
+        margin: 0 !important;
         min-height: 0 !important;
         height: auto !important;
-        line-height: 1.5 !important;
+        line-height: 1.45 !important;
         box-shadow: none !important;
         transform: none !important;
         white-space: nowrap !important;
+        transition: background 0.12s, color 0.12s !important;
     }
-    [class*="st-key-chips_"] .stButton > button:hover {
+    /* Streamlit wraps button text in <p>/<div> with their own margins —
+       the single biggest cause of the chips looking fat. */
+    [class*="st-key-chips_"] button p,
+    [class*="st-key-chips_"] button div,
+    [class*="st-key-chips_"] button span {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.45 !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+        color: inherit !important;
+    }
+    [class*="st-key-chips_"] button:hover {
         background: rgba(255,255,255,0.10) !important;
         color: #fff !important;
         border-color: rgba(255,255,255,0.18) !important;
         transform: none !important;
         box-shadow: none !important;
     }
-    [class*="st-key-chips_"] .stButton > button::before { display: none !important; }
+    [class*="st-key-chips_"] button:focus,
+    [class*="st-key-chips_"] button:active {
+        box-shadow: none !important;
+        transform: none !important;
+        color: #fff !important;
+    }
+    [class*="st-key-chips_"] button::before { display: none !important; }
+    /* Inline caption ("Try:") sharing the chip row */
+    .chip-inline-label {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.35);
+        white-space: nowrap;
+        line-height: 1.45;
+    }
+    [class*="st-key-chips_"] [data-testid="stMarkdown"] { margin: 0 !important; }
+    [class*="st-key-chips_"] [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
 
     /* Sign-out button */
     .pickr-signout-col .stButton > button {

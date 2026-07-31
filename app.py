@@ -224,7 +224,7 @@ def select_ticker(ticker):
     st.rerun()
 
 
-def ticker_chip_row(tickers, key_prefix, label_fn=None):
+def ticker_chip_row(tickers, key_prefix, label_fn=None, inline_label=None):
     """Render tickers as inline chip buttons that wrap (no page reload).
 
     Uses a horizontal flex container with content-width buttons, which is what
@@ -241,7 +241,15 @@ def ticker_chip_row(tickers, key_prefix, label_fn=None):
         return
     label_fn = label_fn or (lambda t: clean_ticker(t))
     with st.container(horizontal=True, horizontal_alignment="left",
-                      gap="small", key=f"chips_{key_prefix}"):
+                      vertical_alignment="center", gap="small",
+                      key=f"chips_{key_prefix}"):
+        # inline_label keeps a caption on the SAME line as the chips, which is
+        # how the original "Try: NVDA AAPL ..." row read. Rendering the label as
+        # a separate st.markdown pushed the chips onto their own line.
+        if inline_label:
+            st.markdown(
+                f'<span class="chip-inline-label">{inline_label}</span>',
+                unsafe_allow_html=True)
         for tk in tickers:
             if st.button(label_fn(tk), key=f"{key_prefix}_{tk}", width="content"):
                 select_ticker(tk)
@@ -1859,12 +1867,11 @@ with left_col:
         label_visibility="collapsed", key="s1"
     )
 
-    st.markdown(
-        '<div style="font-size:0.85rem;color:rgba(255,255,255,0.35);'
-        'margin-top:0.5rem;">Try:</div>',
-        unsafe_allow_html=True
-    )
-    ticker_chip_row(["NVDA", "AAPL", "RELIANCE.NS", "AVGO"], key_prefix="try")
+    # Raw ticker as the label (not clean_ticker) so RELIANCE.NS reads in full,
+    # matching the original chips.
+    ticker_chip_row(["NVDA", "AAPL", "RELIANCE.NS", "AVGO"],
+                    key_prefix="try", inline_label="Try:",
+                    label_fn=lambda t: t)
 
     _qt = st.query_params.get("_qt", "")
     if _qt:
