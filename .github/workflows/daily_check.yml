@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.12'   # keep in step with runtime.txt
 
       - name: Install dependencies
         run: pip install yfinance openai

@@ -133,7 +133,37 @@ Manual pass in a fresh incognito window:
 
 ---
 
-## 5. Upgrading dependencies
+## 5. Python version
+
+`runtime.txt` pins Streamlit Cloud to **3.12**, and both workflows now specify
+the same. Previously production ran whatever default Streamlit Cloud happened to
+pick — the same class of drift as unpinned dependencies, and just as invisible.
+
+Keep these three in step when changing it:
+
+| File | Setting |
+|---|---|
+| `runtime.txt` | `3.12` (Streamlit Cloud) |
+| `.github/workflows/screener.yml` | `python-version: '3.12'` |
+| `.github/workflows/daily_check.yml` | `python-version: '3.12'` |
+
+**Known gap:** the local `venv/` is Python 3.9.6, which reached end-of-life in
+October 2025. Tests therefore pass on a version nothing else runs. The code is
+deliberately version-portable (`typing.Optional`/`List` rather than `X | Y`
+unions, no `match`, no `tomllib`), so this is a latent risk rather than an
+active one — but rebuilding the venv on 3.12 closes it:
+
+```bash
+python3.12 -m venv venv --clear
+./venv/bin/pip install -r requirements.txt
+PICKR_OFFLINE=1 ./venv/bin/python -m pytest tests_app_flows.py -q
+```
+
+The `NotOpenSSLWarning` in local test output comes from macOS system Python
+linking LibreSSL instead of OpenSSL. It is cosmetic, local-only, and disappears
+once the venv is rebuilt on a Homebrew/python.org 3.12.
+
+## 6. Upgrading dependencies
 
 `requirements.txt` is pinned. It previously had no constraints at all, so a
 Streamlit Cloud rebuild could break production with no code change.
@@ -146,19 +176,33 @@ flow (sign in, reload, confirm you are still signed in).
 
 ---
 
-## 6. The nightly screener
+## 7. The nightly screener
 
-`.github/workflows/screener.yml` runs at 10:00 UTC and pushes
-`screener_results.json`. It uses the `GH_PAT` Actions secret — the same token as
-the app, so it dies from the same rotation.
+`.github/workflows/screener.yml` runs at 10:00 UTC and publishes
+`screener_results.json` by **two independent paths**:
 
-If picks are stale, the app shows a staleness warning after 3 days and
-`preflight.py` flags it. Check the Actions tab first; a failed run is almost
-always the token.
+1. `screener.py` calls `push_screener_results()`, which writes via the GitHub
+   API using `GH_PAT`.
+2. The workflow then does `git add / commit / push` using the Actions checkout
+   credentials — which do **not** depend on `GH_PAT`.
+
+That redundancy matters, and it is why the July 2026 outage looked worse than it
+was. When the PAT expired, path 1 failed but path 2 kept publishing, so the data
+in the repo stayed current. The screener *looked* broken in the app purely
+because the app could no longer **read** it — the writer was fine the whole time.
+
+So when picks look stale, check in this order:
+
+1. `python preflight.py` — is this a read problem (token) or a write problem?
+2. The Actions tab — did the run itself fail?
+
+The app shows a staleness warning after 3 days, and `preflight.py` reports the
+age. Do not assume stale picks mean a failed Action; confirm which side is
+broken before rotating anything.
 
 ---
 
-## 7. Design rule for future changes
+## 8. Design rule for future changes
 
 The incident had one cause worth stating plainly:
 
