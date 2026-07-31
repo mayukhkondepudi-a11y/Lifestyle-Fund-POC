@@ -154,7 +154,8 @@ Condensed from v3 Part B. Full reasoning lives there.
 ## 7. Verification you can run anytime (no API credits needed)
 
 These are free and must stay green:
-- `pytest tests_methodology.py` (deterministic math layer — exact assertions).
+- `pytest -m "not live"` runs the whole suite from `tests/` (344 passed, 4 skipped).
+  Individual files: `pytest tests/tests_methodology.py` etc.
 - The grep checklist (v2 §11.6) — zero hits required after the deletion phase.
 - The structural smoke harness: pipeline runs without exception, every required contract key present and typed, `joint_probs` sums to 1.0 (±0.001), word count ≤ 4500, no forbidden tokens, reverse-DCF present and finite.
 

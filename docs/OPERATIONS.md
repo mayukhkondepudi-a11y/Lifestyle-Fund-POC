@@ -70,8 +70,8 @@ User data must never sit in the public code repo.
 3. Migrate existing accounts:
 
    ```bash
-   python scripts/reset_password.py migrate --from-file users.json --dry-run
-   python scripts/reset_password.py migrate --from-file users.json
+   python tools/reset_password.py migrate --from-file users.json --dry-run
+   python tools/reset_password.py migrate --from-file users.json
    ```
 
 4. Copy `reports/`, `guest_counts.json` and `tracked_stocks.json` into the
@@ -109,8 +109,8 @@ Rotating the file does not undo that. Treat every pre-2026-07-31 password as
 compromised.
 
 ```bash
-python scripts/reset_password.py list
-python scripts/reset_password.py reset <username> --generate
+python tools/reset_password.py list
+python tools/reset_password.py reset <username> --generate
 ```
 
 Then tell each user their password was reset and why. Four accounts were
@@ -130,18 +130,15 @@ a concern.
 ## 4. Before every deploy
 
 ```bash
-# Engine (deterministic maths) — expect 306 passed, 4 skipped, 4 deselected
-pytest tests_methodology.py tests_golden_math.py tests_scenario_core.py \
-       tests_audit_checks.py tests_signal_snapshot.py -m "not live"
-
-# App flows (real app, no network) — expect 23 passed
-PICKR_OFFLINE=1 pytest tests_app_flows.py
+# Whole suite in one command — expect 344 passed, 4 skipped, 4 deselected
+PICKR_OFFLINE=1 pytest -m "not live"
 
 # Dependencies
 python preflight.py
 ```
 
-Note: `tests_*.py` are not picked up by bare `pytest` — pass them explicitly.
+Tests live in `tests/`; `pytest.ini` sets `testpaths`/`python_files`, so a bare
+`pytest` collects everything. (It used to collect *nothing* silently.)
 
 Manual pass in a fresh incognito window:
 
@@ -186,7 +183,7 @@ something current:
 ```bash
 python3.12 -m venv venv --clear      # or 3.14 to match production exactly
 ./venv/bin/pip install -r requirements.txt
-PICKR_OFFLINE=1 ./venv/bin/python -m pytest tests_app_flows.py -q
+PICKR_OFFLINE=1 ./venv/bin/python -m pytest -q
 ```
 
 The `NotOpenSSLWarning` in local test output comes from macOS system Python
@@ -215,7 +212,7 @@ Reboot app.** A reboot re-imports everything; an incremental pull may not.
 `requirements.txt` is pinned. It previously had no constraints at all, so a
 Streamlit Cloud rebuild could break production with no code change.
 
-Bump **one** pin at a time, redeploy, run `tests_app_flows.py`. Bumping several
+Bump **one** pin at a time, redeploy, run `pytest -m "not live"`. Bumping several
 at once reintroduces exactly the ambiguity the pins remove. `yfinance` and
 `extra-streamlit-components` are the usual culprits — the latter is coupled to
 Streamlit internals, so bump it together with `streamlit` and test the cookie
@@ -294,7 +291,7 @@ reloading, the write did not land.
 
 **Never reintroduce `<a href="?_qt=...">` ticker links.** Anchors are full page
 reloads that destroy `session_state`. Use `select_ticker()` /
-`ticker_chip_row()` in `app.py`. `tests_app_flows.py::TestNoFullPageReloads`
+`ticker_chip_row()` in `app.py`. `tests/tests_app_flows.py::TestNoFullPageReloads`
 fails if an anchor comes back.
 
 **`PICKR_SESSION_SECRET` must be set** in both `.streamlit/secrets.toml` and

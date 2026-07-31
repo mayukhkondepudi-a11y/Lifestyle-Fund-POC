@@ -18,5 +18,12 @@ guest_counts.json
 reports/
 tracked_stocks.json
 
-# ── Local pipeline debug dumps ──
+# ── Local scratch: pipeline debug dumps, PDFs, anything not part of the app ──
+# Everything here stays on disk but never reaches the repo.
+local/
 _live_out_*.json
+Context/
+context/
+
+# Claude Code local config / scratch
+.claude/

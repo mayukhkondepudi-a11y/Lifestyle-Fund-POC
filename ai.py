@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import time
 from datetime import datetime
 from openai import OpenAI
@@ -27,12 +28,25 @@ _an_client = (anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ── Prompts ──────────────────────────────────────────────────
 
-def _load_prompt(filepath):
+_PROMPT_DIR = pathlib.Path(__file__).resolve().parent
+
+
+def _load_prompt(filename):
+    """Read a prompt file that sits next to this module.
+
+    Resolved relative to __file__, NOT the working directory. The previous
+    CWD-relative open() meant that running the app from any other directory
+    made every prompt an empty string — and because FileNotFoundError was
+    swallowed, the pipeline then ran with no instructions and produced garbage
+    with no error anywhere. Missing prompts now fail loudly at import.
+    """
+    path = _PROMPT_DIR / filename
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return ""
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Prompt file missing: {path}. Prompts must sit alongside ai.py."
+        ) from exc
 
 SYSTEM_PROMPT = _load_prompt("prompt_system.txt")
 PASS1_PROMPT  = _load_prompt("prompt_pass1.txt")

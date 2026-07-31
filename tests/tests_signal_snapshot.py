@@ -215,7 +215,7 @@ class TestSaveAndCompare:
 # ════════════════════════════════════════════════════════════════════════════
 
 _SIGNAL_GOLDEN_DIR = (
-    pathlib.Path(__file__).parent / "tests" / "fixtures" / "signal_goldens"
+    pathlib.Path(__file__).resolve().parent / "fixtures" / "signal_goldens"
 )
 
 _LIVE_SENTINELS = ["AVGO", "NVDA", "KO", "ARLO"]

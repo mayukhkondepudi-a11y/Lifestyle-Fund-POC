@@ -31,8 +31,8 @@ from run_methodology_math import run_methodology_math
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
-_REPO = pathlib.Path(__file__).parent
-_ARCHIVE = _REPO / "tests_archive"
+_REPO = pathlib.Path(__file__).resolve().parent.parent   # repo root (tests/ -> root)
+_ARCHIVE = pathlib.Path(__file__).resolve().parent / "archive"
 _GOLDENS = _REPO / "tests" / "fixtures" / "math_goldens"
 
 # Archive directory per ticker (content-signature confirmed in generate step).

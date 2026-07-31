@@ -25,7 +25,7 @@ from compute_methodology_v2 import (
     scenario_growth, scenario_margin, pe_bands, joint_probabilities,
 )
 
-_ARCHIVE = pathlib.Path(__file__).parent / "tests_archive"
+_ARCHIVE = pathlib.Path(__file__).resolve().parent / "archive"
 _DIRS = {
     "CLS":  _ARCHIVE / "stage4_state_cls",
     "AVGO": _ARCHIVE / "stage4_state",
