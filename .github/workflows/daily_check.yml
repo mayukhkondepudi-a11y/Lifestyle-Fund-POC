@@ -40,4 +40,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GH_PAT:             ${{ secrets.GH_PAT }}
           GITHUB_REPO:        ${{ github.repository }}
+          # check_prices.py reads tracked_stocks.json, which carries user_email
+          # and now lives in the private data repo.
+          GITHUB_DATA_REPO:   ${{ secrets.GITHUB_DATA_REPO }}
         run: python check_prices.py
