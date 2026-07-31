@@ -135,33 +135,57 @@ Manual pass in a fresh incognito window:
 
 ## 5. Python version
 
-`runtime.txt` pins Streamlit Cloud to **3.12**, and both workflows now specify
-the same. Previously production ran whatever default Streamlit Cloud happened to
-pick — the same class of drift as unpinned dependencies, and just as invisible.
+**Streamlit Cloud runs Python 3.14.6.** Confirmed from a build log:
+`Using Python 3.14.6 environment at /home/adminuser/venv`.
 
-Keep these three in step when changing it:
+`runtime.txt` does **not** work here — a `runtime.txt` pinning 3.12 was added
+and the very next build still used 3.14.6, so the file was deleted rather than
+left as a false guarantee. Streamlit Community Cloud takes its interpreter from
+the app's **Advanced settings** (set at creation; changing it on an existing app
+means recreating it), not from a file in the repo.
 
-| File | Setting |
-|---|---|
-| `runtime.txt` | `3.12` (Streamlit Cloud) |
-| `.github/workflows/screener.yml` | `python-version: '3.12'` |
-| `.github/workflows/daily_check.yml` | `python-version: '3.12'` |
+Actual versions in play:
 
-**Known gap:** the local `venv/` is Python 3.9.6, which reached end-of-life in
-October 2025. Tests therefore pass on a version nothing else runs. The code is
-deliberately version-portable (`typing.Optional`/`List` rather than `X | Y`
-unions, no `match`, no `tomllib`), so this is a latent risk rather than an
-active one — but rebuilding the venv on 3.12 closes it:
+| Where | Version | Pinned by |
+|---|---|---|
+| Streamlit Cloud (production) | **3.14.6** | app Advanced settings — not the repo |
+| `.github/workflows/screener.yml` | 3.12 | `python-version:` |
+| `.github/workflows/daily_check.yml` | 3.12 | `python-version:` |
+| local `venv/` | **3.9.6** (EOL Oct 2025) | how the venv was created |
+
+**Known gap:** three different interpreters, and tests run on the oldest. The
+pinned `requirements.txt` does install cleanly on 3.14 (verified in the build
+log — 66 packages, no errors), and the code is deliberately version-portable
+(`typing.Optional`/`List` rather than `X | Y` unions, no `match`, no `tomllib`),
+so this is latent rather than active. Closing it means rebuilding the venv on
+something current:
 
 ```bash
-python3.12 -m venv venv --clear
+python3.12 -m venv venv --clear      # or 3.14 to match production exactly
 ./venv/bin/pip install -r requirements.txt
 PICKR_OFFLINE=1 ./venv/bin/python -m pytest tests_app_flows.py -q
 ```
 
 The `NotOpenSSLWarning` in local test output comes from macOS system Python
-linking LibreSSL instead of OpenSSL. It is cosmetic, local-only, and disappears
-once the venv is rebuilt on a Homebrew/python.org 3.12.
+linking LibreSSL instead of OpenSSL. Cosmetic, local-only, and it disappears
+once the venv is rebuilt on a Homebrew/python.org interpreter.
+
+### Cloud caches imported modules — reboot after adding a new one
+
+Streamlit Cloud deploys by `git pull` into a **running** process. It re-executes
+`app.py`, but modules already in `sys.modules` are not necessarily re-imported.
+Adding a new function to `session_cookie.py` and importing it from `app.py` in
+the same push produced:
+
+```
+ImportError: cannot import name 'drain_pending_cookie' from 'session_cookie'
+```
+
+— new `app.py` against a stale `session_cookie` module. The file on disk was
+correct the whole time.
+
+**After any push that adds a name to a non-main module, use Manage app → ⋮ →
+Reboot app.** A reboot re-imports everything; an incremental pull may not.
 
 ## 6. Upgrading dependencies
 
