@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-01 11:22 UTC",
+  "last_updated": "2026-08-02 11:21 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -208,22 +208,6 @@
       "fcf_yield": 0.0354,
       "debt_equity": 1.309,
       "qglp_score": 67.9
-    },
-    {
-      "ticker": "BAJAJHLDNG.NS",
-      "name": "BAJAJ HOLDINGS & INVS LTD",
-      "sector": "Financial Services",
-      "price": 11343.0,
-      "market_cap": 1262402273280,
-      "trailing_pe": 13.1,
-      "peg_ratio": 0.865,
-      "peg_source": "stmt_eps_cagr_2yr",
-      "roe": 0.1262,
-      "earnings_cagr": 0.1515,
-      "earnings_cagr_years": 2,
-      "fcf_yield": 0.0128,
-      "debt_equity": 0.012,
-      "qglp_score": 60.8
     }
   ]
 }
