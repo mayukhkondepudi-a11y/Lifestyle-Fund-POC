@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-22 10:29 UTC",
+  "last_updated": "2026-08-23 10:30 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -148,16 +148,16 @@
       "name": "GE HealthCare Technologies Inc.",
       "sector": "Healthcare",
       "price": 74.82,
-      "market_cap": 34035003392,
+      "market_cap": 33795164160,
       "trailing_pe": 16.44,
       "peg_ratio": 0.822,
       "peg_source": "stmt_eps_cagr_2yr_capped",
       "roe": 0.1938,
       "earnings_cagr": 0.2254,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0462,
+      "fcf_yield": 0.0465,
       "debt_equity": 0.9396,
-      "qglp_score": 72.1
+      "qglp_score": 72.2
     },
     {
       "ticker": "MSFT",
