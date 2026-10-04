@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-03 14:38 UTC",
+  "last_updated": "2026-10-04 15:15 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -32,22 +32,6 @@
       "qglp_score": 96.6
     },
     {
-      "ticker": "TRV",
-      "name": "The Travelers Companies, Inc.",
-      "sector": "Financial Services",
-      "price": 360.38,
-      "market_cap": 75166269440,
-      "trailing_pe": 13.14,
-      "peg_ratio": 0.657,
-      "peg_source": "stmt_eps_cagr_2yr_capped",
-      "roe": 0.2651,
-      "earnings_cagr": 0.4,
-      "earnings_cagr_years": 2,
-      "fcf_yield": 0.1966,
-      "debt_equity": 0.2738,
-      "qglp_score": 91.2
-    },
-    {
       "ticker": "HIG",
       "name": "The Hartford Insurance Group, I",
       "sector": "Financial Services",
@@ -61,6 +45,22 @@
       "earnings_cagr_years": 2,
       "fcf_yield": 0.1613,
       "debt_equity": 0.2233,
+      "qglp_score": 91.2
+    },
+    {
+      "ticker": "TRV",
+      "name": "The Travelers Companies, Inc.",
+      "sector": "Financial Services",
+      "price": 360.38,
+      "market_cap": 75166269440,
+      "trailing_pe": 13.14,
+      "peg_ratio": 0.657,
+      "peg_source": "stmt_eps_cagr_2yr_capped",
+      "roe": 0.2651,
+      "earnings_cagr": 0.4,
+      "earnings_cagr_years": 2,
+      "fcf_yield": 0.1966,
+      "debt_equity": 0.2738,
       "qglp_score": 91.2
     },
     {
