@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-24 13:55 UTC",
+  "last_updated": "2026-10-25 14:13 UTC",
   "filters_us": {
     "min_roe": 0.15,
     "max_debt_equity": 1.0,
@@ -189,9 +189,25 @@
       "roe": 0.3193,
       "earnings_cagr": 0.4,
       "earnings_cagr_years": 2,
-      "fcf_yield": 0.0286,
+      "fcf_yield": 0.0336,
       "debt_equity": 0.6153,
-      "qglp_score": 86.6
+      "qglp_score": 87.6
+    },
+    {
+      "ticker": "MASTEK.NS",
+      "name": "MASTEK LTD",
+      "sector": "Technology",
+      "price": 1761.6,
+      "market_cap": 54628675584,
+      "trailing_pe": 13.6,
+      "peg_ratio": 0.883,
+      "peg_source": "stmt_eps_cagr_2yr",
+      "roe": 0.1453,
+      "earnings_cagr": 0.154,
+      "earnings_cagr_years": 2,
+      "fcf_yield": 0.0683,
+      "debt_equity": 0.1188,
+      "qglp_score": 68.7
     }
   ]
 }
